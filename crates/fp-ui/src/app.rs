@@ -22272,6 +22272,73 @@ mod tests {
     }
 
     #[test]
+    fn dragging_a_divider_widens_and_keeps_the_column() {
+        use egui_kittest::Harness;
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+        let before = harness
+            .state()
+            .column_widths
+            .first()
+            .copied()
+            .unwrap_or(72.0);
+        // The divider between the row header and C1 sits at x = 127.
+        harness.hover_at(egui::pos2(127.0, 140.0));
+        harness.run();
+        harness.drag_at(egui::pos2(127.0, 140.0));
+        harness.event(egui::Event::PointerMoved(egui::pos2(165.0, 140.0)));
+        harness.drop_at(egui::pos2(165.0, 140.0));
+        harness.run();
+        let after = harness
+            .state()
+            .column_widths
+            .first()
+            .copied()
+            .unwrap_or(0.0);
+        assert!(after > before, "before {before}, after {after}");
+    }
+
+    #[test]
+    fn adding_and_deleting_columns_is_undoable() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        app.add_column();
+        assert_eq!(app.data().expect("frame").n_columns(), 3);
+        app.undo();
+        assert_eq!(app.data().expect("frame").n_columns(), 2);
+
+        app.add_text_column();
+        assert_eq!(app.data().expect("frame").n_columns(), 3);
+        app.undo();
+        assert_eq!(app.data().expect("frame").n_columns(), 2);
+
+        app.select_cell(1, 0);
+        app.delete_column();
+        assert_eq!(app.data().expect("frame").n_columns(), 1);
+        app.undo();
+        let data = app.data().expect("frame");
+        assert_eq!(data.n_columns(), 2);
+        assert_eq!(data.columns()[1].name(), "batch");
+    }
+
+    #[test]
+    fn sorting_reorders_the_worksheet() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        app.open_sort_dialog();
+        app.sort_keys = "weight:desc".to_owned();
+        app.run_sort_dialog();
+        let data = app.data().expect("frame");
+        assert_eq!(data.cell_text(0, 0).as_deref(), Some("13.1"));
+        assert_eq!(data.cell_text(0, 1).as_deref(), Some("12.8"));
+    }
+
+    #[test]
     fn a_big_paste_is_one_undo_group() {
         let mut app = FreePlotsApp::new();
         app.set_data(frame(), "weights.csv".to_owned());

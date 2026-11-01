@@ -410,6 +410,32 @@ mod tests {
     }
 
     #[test]
+    fn bom_and_latin1_text_are_decoded() {
+        let (text, encoding) = decode_bytes(b"\xEF\xBB\xBFa;b\n1;2\n");
+        assert_eq!(encoding, "UTF-8");
+        assert!(text.starts_with("a;b"));
+        let (text, encoding) = decode_bytes(b"cidade\nS\xE3o Paulo\nA\xE7ores\n");
+        assert_eq!(encoding, "CP1252");
+        assert!(text.contains("São Paulo"));
+        assert!(text.contains("Açores"));
+    }
+
+    #[test]
+    fn a_ragged_csv_is_rejected_with_the_line() {
+        let path = std::env::temp_dir().join(format!(
+            "fp-ragged-{}-{}.csv",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.subsec_nanos())
+        ));
+        std::fs::write(&path, "a,b\n1,2\n3\n").expect("write");
+        let error = read_csv_file(&path).expect_err("ragged").to_string();
+        assert!(error.contains("line 3"), "{error}");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
     fn non_finite_literals_stay_numeric() {
         let text = "x\n1\nnan\n3\ninf\n-Infinity\n";
         let df = read_csv_str(text, detect_options(text)).expect("frame");
