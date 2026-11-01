@@ -202,6 +202,7 @@ struct SheetState {
     undo: Vec<EditGroup>,
     redo: Vec<EditGroup>,
     selected_cell: Option<(usize, usize)>,
+    column_widths: Vec<f32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -796,6 +797,7 @@ impl FreePlotsApp {
                 undo: Vec::new(),
                 redo: Vec::new(),
                 selected_cell: Some((0, 0)),
+                column_widths: Vec::new(),
             }],
             active_sheet: 0,
             tab_first: 0,
@@ -1290,6 +1292,7 @@ impl FreePlotsApp {
             undo: Vec::new(),
             redo: Vec::new(),
             selected_cell: Some((0, 0)),
+            column_widths: Vec::new(),
         }
     }
 
@@ -1301,6 +1304,7 @@ impl FreePlotsApp {
             sheet.undo = std::mem::take(&mut self.undo_stack);
             sheet.redo = std::mem::take(&mut self.redo_stack);
             sheet.selected_cell = self.selected_cell;
+            sheet.column_widths = self.column_widths.clone();
         }
     }
 
@@ -1310,7 +1314,7 @@ impl FreePlotsApp {
             return;
         }
         self.active_sheet = index;
-        let (data, source, undo, redo, cell) = {
+        let (data, source, undo, redo, cell, widths) = {
             let sheet = &mut self.sheets[index];
             (
                 sheet.data.take(),
@@ -1318,12 +1322,14 @@ impl FreePlotsApp {
                 std::mem::take(&mut sheet.undo),
                 std::mem::take(&mut sheet.redo),
                 sheet.selected_cell,
+                sheet.column_widths.clone(),
             )
         };
         self.data = data;
         self.source = source;
         self.undo_stack = undo;
         self.redo_stack = redo;
+        self.column_widths = widths;
         self.inline_edit = None;
         self.inline_request_focus = false;
         self.edit_dirty = false;
@@ -22315,8 +22321,15 @@ mod tests {
             .build_ui_state(|ui, app| app.show(ui), app);
         harness.run();
         assert_eq!(harness.state().data().expect("frame").n_rows(), 200_000);
-        // The grid paints 26 columns even though the data has one.
-        harness.get_by_label("C26");
+        // The grid paints 26 columns even though the data has one, and the
+        // last one sits beyond the 1400 pt viewport, so the grid scrolls
+        // horizontally.
+        assert_eq!(harness.get_all_by_label("C26").count(), 1);
+        let last = harness.get_by_label("C26").rect();
+        assert!(
+            last.left() > 1400.0,
+            "column 26 should overflow the viewport: {last:?}"
+        );
         harness.hover_at(egui::pos2(600.0, 300.0));
         harness.run();
         assert_eq!(harness.state().data().expect("frame").n_rows(), 200_000);
@@ -22464,8 +22477,22 @@ mod tests {
             harness.run();
         }
         harness.get_by_label("Copy").click();
-        harness.run();
+        harness.step();
         assert_eq!(harness.state().clipboard, "A\nA");
+        // The same text goes to the system clipboard.
+        let copied = harness
+            .output()
+            .platform_output
+            .commands
+            .iter()
+            .any(|command| {
+                matches!(
+                    command,
+                    egui::OutputCommand::CopyText(text) if text == "A\nA"
+                )
+            });
+        assert!(copied, "no CopyText command reached the platform");
+        harness.run();
 
         harness.state_mut().select_cell(1, 0);
         harness.state_mut().extend_selection(1, 1);
@@ -22553,6 +22580,53 @@ mod tests {
                 .contains("already running")
         );
         drop(sender);
+    }
+
+    #[test]
+    fn the_column_widths_belong_to_each_worksheet() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        app.column_widths = vec![100.0; 26];
+        app.add_sheet();
+        assert!(
+            app.column_widths.is_empty(),
+            "new sheet starts with defaults"
+        );
+        app.column_widths = vec![140.0; 26];
+        app.switch_sheet(0);
+        assert_eq!(app.column_widths[0], 100.0, "first sheet keeps its widths");
+        app.switch_sheet(1);
+        assert_eq!(app.column_widths[0], 140.0, "second sheet keeps its widths");
+    }
+
+    #[test]
+    fn a_hundred_edits_undo_and_redo_in_order() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let rows = app.data().expect("frame").n_rows();
+        for step in 0..100 {
+            app.select_cell(0, step);
+            app.set_edit_buffer(format!("{}", 500 + step));
+            assert!(app.commit_cell(), "edit {step} was refused");
+        }
+        let last = app
+            .data()
+            .expect("frame")
+            .cell_text(0, 99)
+            .unwrap_or_default();
+        assert_eq!(last, "599");
+        assert_eq!(app.data().map(DataFrame::n_rows), Some(100));
+        for _ in 0..100 {
+            app.undo();
+        }
+        assert!(!app.can_undo());
+        assert_eq!(app.data().map(DataFrame::n_rows), Some(rows));
+        assert_eq!(app.data().unwrap().cell_text(0, 0).as_deref(), Some("12.5"));
+        for _ in 0..100 {
+            app.redo();
+        }
+        assert!(!app.can_redo());
+        assert_eq!(app.data().unwrap().cell_text(0, 99).as_deref(), Some("599"));
     }
 
     #[test]
