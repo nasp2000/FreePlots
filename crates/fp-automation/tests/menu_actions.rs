@@ -599,10 +599,10 @@ fn every_menu_and_submenu_has_items() {
             .unwrap_or_else(|error| panic!("open {path:?}: {error}"));
         assert!(
             ui.widgets().iter().any(|widget| {
-                widget
-                    .label
-                    .as_deref()
-                    .is_some_and(|label| label == *item || label.trim_end_matches(" ⏵") == *item)
+                widget.label.as_deref().is_some_and(|label| {
+                    let trimmed = label.trim_end_matches(" ▶").trim_end_matches(" ⏵");
+                    label == *item || trimmed == *item
+                })
             }),
             "{path:?} has no {item:?}"
         );

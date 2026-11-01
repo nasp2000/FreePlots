@@ -1,6 +1,6 @@
 {
   "source": "Computed with numpy/scipy; see generated_with.",
-  "generated_with": "numpy 2.5.4; scipy 1.18.1",
+  "generated_with": "numpy 2.5.4; scipy 1.18.1; boxplot quantiles at h = (n + 1)p",
   "tolerance": 1e-09,
   "boxplot": {
     "groups": {
@@ -29,9 +29,9 @@
       "A": {
         "n": 11,
         "min": 1.0,
-        "q1": 3.5,
+        "q1": 3.0,
         "median": 6.0,
-        "q3": 8.5,
+        "q3": 9.0,
         "max": 40.0,
         "lower_whisker": 1.0,
         "upper_whisker": 10.0,
@@ -42,9 +42,9 @@
       "B": {
         "n": 5,
         "min": 2.0,
-        "q1": 4.0,
+        "q1": 3.0,
         "median": 6.0,
-        "q3": 8.0,
+        "q3": 9.0,
         "max": 10.0,
         "lower_whisker": 2.0,
         "upper_whisker": 10.0,

@@ -113,8 +113,17 @@ impl eframe::App for Desktop {
                     .map(|(df, encoding)| {
                         Some((df, format!("{} [{encoding}]", request.path), Vec::new()))
                     }),
-                    FileKind::Project => crate::platform::load_project(path)
-                        .map(|df| Some((df, request.path.clone(), Vec::new()))),
+                    FileKind::Project => crate::platform::load_project_sheets(path).map(|sheets| {
+                        if sheets.len() > 1 {
+                            self.app.load_project_sheets(sheets, request.path.clone());
+                            None
+                        } else {
+                            sheets
+                                .into_iter()
+                                .next()
+                                .map(|(_, df)| (df, request.path.clone(), Vec::new()))
+                        }
+                    }),
                     FileKind::Html | FileKind::Pdf => {
                         Err("HTML and PDF are export-only formats".to_owned())
                     }
@@ -172,7 +181,11 @@ impl eframe::App for Desktop {
                         FileKind::Csv => {
                             crate::platform::write_csv(path, df, request.decimal_comma)
                         }
-                        FileKind::Project => crate::platform::save_project(path, df, &request.path),
+                        FileKind::Project => crate::platform::save_project_sheets(
+                            path,
+                            &self.app.project_sheets(),
+                            &request.path,
+                        ),
                         FileKind::Xlsx => {
                             crate::platform::write_bytes(path, &fp_core::xlsx::workbook(df))
                         }

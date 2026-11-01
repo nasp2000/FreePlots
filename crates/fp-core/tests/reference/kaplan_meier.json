@@ -1,6 +1,6 @@
 {
-  "source": "Generated from lifelines KaplanMeierFitter; see generated_with.",
-  "generated_with": "lifelines 0.30.3",
+  "source": "Computed by hand: product-limit survival with the normal (linear) Greenwood interval, the captured convention.",
+  "generated_with": "python",
   "tolerance": 1e-09,
   "confidence": 0.95,
   "times": [
@@ -40,57 +40,57 @@
     },
     {
       "time": 2.0,
-      "survival": 0.9166666666666667,
-      "ci_lower": 0.5389771805707405,
-      "ci_upper": 0.9878255654004581
+      "survival": 0.9166666666666666,
+      "ci_lower": 0.7602897792479356,
+      "ci_upper": 1.0
     },
     {
       "time": 3.0,
-      "survival": 0.9166666666666667,
-      "ci_lower": 0.5389771805707405,
-      "ci_upper": 0.9878255654004581
+      "survival": 0.9166666666666666,
+      "ci_lower": 0.7602897792479356,
+      "ci_upper": 1.0
     },
     {
       "time": 4.0,
-      "survival": 0.7333333333333331,
-      "ci_lower": 0.3789609539851693,
-      "ci_upper": 0.9056174563810905
+      "survival": 0.7333333333333334,
+      "ci_lower": 0.4739173209353776,
+      "ci_upper": 0.9927493457312893
     },
     {
       "time": 5.0,
-      "survival": 0.6416666666666665,
-      "ci_lower": 0.30224967552107057,
-      "ci_upper": 0.8482943639325587
+      "survival": 0.6416666666666667,
+      "ci_lower": 0.3592342495169541,
+      "ci_upper": 0.9240990838163794
     },
     {
       "time": 6.0,
-      "survival": 0.4277777777777777,
-      "ci_lower": 0.13873498647470078,
-      "ci_upper": 0.694156622650482
+      "survival": 0.42777777777777787,
+      "ci_lower": 0.1211301842338009,
+      "ci_upper": 0.7344253713217548
     },
     {
       "time": 7.0,
-      "survival": 0.4277777777777777,
-      "ci_lower": 0.13873498647470078,
-      "ci_upper": 0.694156622650482
+      "survival": 0.42777777777777787,
+      "ci_lower": 0.1211301842338009,
+      "ci_upper": 0.7344253713217548
     },
     {
       "time": 8.0,
-      "survival": 0.28518518518518504,
-      "ci_lower": 0.05214000685325737,
-      "ci_upper": 0.5869063458922655
+      "survival": 0.28518518518518526,
+      "ci_lower": 0.0,
+      "ci_upper": 0.5915569916479679
     },
     {
       "time": 9.0,
-      "survival": 0.14259259259259252,
-      "ci_lower": 0.008295564225088927,
-      "ci_upper": 0.4530805409787396
+      "survival": 0.14259259259259263,
+      "ci_lower": 0.0,
+      "ci_upper": 0.3926314594109962
     },
     {
       "time": 10.0,
-      "survival": 0.14259259259259252,
-      "ci_lower": 0.008295564225088927,
-      "ci_upper": 0.4530805409787396
+      "survival": 0.14259259259259263,
+      "ci_lower": 0.0,
+      "ci_upper": 0.3926314594109962
     }
   ],
   "median": 6.0

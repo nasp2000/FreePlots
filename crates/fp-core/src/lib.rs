@@ -92,4 +92,4 @@ pub use error::{Error, Result};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Schema version of the `.fpp` project file.
-pub const PROJECT_SCHEMA_VERSION: u32 = 1;
+pub const PROJECT_SCHEMA_VERSION: u32 = 2;

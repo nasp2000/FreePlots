@@ -338,26 +338,52 @@ pub fn write_csv_string(df: &DataFrame, decimal_comma: bool) -> Result<String> {
     String::from_utf8(bytes).map_err(|e| Error::Csv(e.to_string()))
 }
 
-/// Content of the `.fpp` project file.
+/// One worksheet inside a `.fpp` project.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ProjectFile {
-    schema_version: u32,
+struct ProjectSheet {
     name: String,
     data: DataFrame,
 }
 
-/// Serializes the table into a `.fpp` project (readable, diffable JSON).
-pub fn to_project_json(df: &DataFrame, name: &str) -> Result<String> {
+/// Content of the `.fpp` project file.
+///
+/// Schema 1 held a single `data` frame; schema 2 holds `sheets`. Files written
+/// by either version are read: a schema-1 file becomes a one-sheet project.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ProjectFile {
+    schema_version: u32,
+    name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    data: Option<DataFrame>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sheets: Option<Vec<ProjectSheet>>,
+}
+
+/// Serializes the tables into a `.fpp` project (readable, diffable JSON).
+///
+/// # Errors
+///
+/// As [`to_project_json`].
+pub fn to_project_json_sheets(sheets: &[(String, DataFrame)], name: &str) -> Result<String> {
+    let sheet = |(sheet_name, data): &(String, DataFrame)| ProjectSheet {
+        name: sheet_name.clone(),
+        data: data.clone(),
+    };
     let project = ProjectFile {
         schema_version: PROJECT_SCHEMA_VERSION,
         name: name.to_owned(),
-        data: df.clone(),
+        data: None,
+        sheets: Some(sheets.iter().map(sheet).collect()),
     };
     serde_json::to_string_pretty(&project).map_err(|e| Error::Project(e.to_string()))
 }
 
 /// Reads an `.fpp` project, refusing future schema versions.
-pub fn from_project_json(text: &str) -> Result<DataFrame> {
+///
+/// # Errors
+///
+/// A newer `schema_version`, malformed JSON, or a file with no sheet.
+pub fn from_project_json_sheets(text: &str) -> Result<Vec<(String, DataFrame)>> {
     let project: ProjectFile =
         serde_json::from_str(text).map_err(|e| Error::Project(e.to_string()))?;
     if project.schema_version > PROJECT_SCHEMA_VERSION {
@@ -367,22 +393,71 @@ pub fn from_project_json(text: &str) -> Result<DataFrame> {
             project.schema_version, PROJECT_SCHEMA_VERSION
         )));
     }
-    Ok(project.data)
+    if let Some(sheets) = project.sheets.filter(|sheets| !sheets.is_empty()) {
+        return Ok(sheets
+            .into_iter()
+            .map(|sheet| (sheet.name, sheet.data))
+            .collect());
+    }
+    match project.data {
+        Some(data) => Ok(vec![(project.name, data)]),
+        None => Err(Error::Project(
+            "the project contains no worksheet".to_owned(),
+        )),
+    }
+}
+
+/// Serializes one table into a `.fpp` project (readable, diffable JSON).
+pub fn to_project_json(df: &DataFrame, name: &str) -> Result<String> {
+    to_project_json_sheets(&[(name.to_owned(), df.clone())], name)
+}
+
+/// Reads the first worksheet of an `.fpp` project.
+pub fn from_project_json(text: &str) -> Result<DataFrame> {
+    from_project_json_sheets(text).map(|mut sheets| {
+        let (_, data) = sheets.remove(0);
+        data
+    })
 }
 
 /// Saves an `.fpp` project.
 pub fn save_project(df: &DataFrame, path: impl AsRef<Path>, name: &str) -> Result<()> {
+    save_project_sheets(&[(name.to_owned(), df.clone())], path, name)
+}
+
+/// Saves every worksheet of an `.fpp` project.
+///
+/// # Errors
+///
+/// As [`save_project`].
+pub fn save_project_sheets(
+    sheets: &[(String, DataFrame)],
+    path: impl AsRef<Path>,
+    name: &str,
+) -> Result<()> {
     let path = path.as_ref();
-    let json = to_project_json(df, name)?;
+    let json = to_project_json_sheets(sheets, name)?;
     std::fs::write(path, json).map_err(|e| Error::Project(format!("{}: {e}", path.display())))
 }
 
 /// Loads an `.fpp` project.
 pub fn load_project(path: impl AsRef<Path>) -> Result<DataFrame> {
+    load_project_sheets(path).map(|mut sheets| {
+        let (_, data) = sheets.remove(0);
+        data
+    })
+}
+
+/// Loads every worksheet of an `.fpp` project, in file order.
+///
+/// # Errors
+///
+/// As [`load_project`].
+pub fn load_project_sheets(path: impl AsRef<Path>) -> Result<Vec<(String, DataFrame)>> {
     let path = path.as_ref();
     let text = std::fs::read_to_string(path)
         .map_err(|e| Error::Project(format!("{}: {e}", path.display())))?;
-    from_project_json(&text)
+    from_project_json_sheets(&text)
 }
 
 /// Detected type for a column, useful for the import preview.
@@ -449,6 +524,54 @@ mod tests {
             .expect("sample");
         assert_eq!(sample.n(), 2);
         assert_eq!(sample.excluded(), 3);
+    }
+
+    #[test]
+    fn a_project_keeps_every_worksheet_in_order() {
+        let first = DataFrame::new(vec![Column::new_f64("x", vec![1.0, 2.0])]).expect("a");
+        let second = DataFrame::new(vec![Column::new_text(
+            "g",
+            vec!["Açores".to_owned(), String::new()],
+        )])
+        .expect("b");
+        let sheets = vec![
+            ("diameter".to_owned(), first.clone()),
+            ("defects".to_owned(), second.clone()),
+        ];
+        let json = to_project_json_sheets(&sheets, "part.fpp").expect("write");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("json");
+        assert!(parsed.get("data").is_none(), "schema 2 writes only sheets");
+        assert_eq!(parsed["schema_version"], 2);
+        let back = from_project_json_sheets(&json).expect("read");
+        assert_eq!(back.len(), 2);
+        assert_eq!(back[0].0, "diameter");
+        assert_eq!(back[0].1, first);
+        assert_eq!(back[1].0, "defects");
+        assert_eq!(back[1].1, second);
+        // The single-sheet readers still see the first worksheet.
+        assert_eq!(from_project_json(&json).expect("single"), first);
+    }
+
+    #[test]
+    fn a_schema_one_project_is_read_as_one_worksheet() {
+        // Write a schema-2 file, then fold it back into the schema-1 shape.
+        let frame = DataFrame::new(vec![Column::new_f64("x", vec![1.5, 2.5])]).expect("frame");
+        let mut legacy: serde_json::Value =
+            serde_json::from_str(&to_project_json(&frame, "old.csv").expect("write"))
+                .expect("json");
+        let first = legacy["sheets"][0].clone();
+        legacy["data"] = first["data"].clone();
+        legacy["schema_version"] = serde_json::json!(1);
+        legacy.as_object_mut().expect("object").remove("sheets");
+        let legacy = serde_json::to_string(&legacy).expect("serialize");
+        let sheets = from_project_json_sheets(&legacy).expect("legacy read");
+        assert_eq!(sheets.len(), 1);
+        assert_eq!(sheets[0].0, "old.csv");
+        assert_eq!(sheets[0].1.n_rows(), 2);
+
+        let future = r#"{"schema_version": 99, "name": "x", "sheets": []}"#;
+        let error = from_project_json_sheets(future).expect_err("future");
+        assert!(error.to_string().contains("update the program"), "{error}");
     }
 
     #[test]

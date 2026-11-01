@@ -208,6 +208,165 @@ mod tests {
         assert!(constant_time_eq("", ""));
     }
 
+    fn connect(bridge: &Arc<Bridge>, port: u16) -> std::net::TcpStream {
+        // The listener thread starts asynchronously; retry briefly.
+        for _ in 0..50 {
+            if let Ok(stream) = std::net::TcpStream::connect(("127.0.0.1", port)) {
+                return stream;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let _ = bridge;
+        panic!("bridge did not accept a connection on port {port}");
+    }
+
+    fn read_line(reader: &mut BufReader<std::net::TcpStream>) -> Value {
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("read");
+        serde_json::from_str(line.trim()).expect("valid JSON reply")
+    }
+
+    fn free_port() -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("probe");
+        listener.local_addr().expect("addr").port()
+    }
+
+    #[test]
+    fn a_public_address_without_a_token_is_refused() {
+        let error = Bridge::start("0.0.0.0:0", None).expect_err("refused");
+        assert!(error.contains("without --token"), "{error}");
+        let error = Bridge::start("100.64.0.1:0", Some(String::new())).expect_err("refused");
+        assert!(error.contains("without --token"), "{error}");
+    }
+
+    #[test]
+    fn malformed_json_answers_an_error_and_keeps_the_connection() {
+        let port = free_port();
+        let bridge = Bridge::start(&format!("127.0.0.1:{port}"), None).expect("bridge");
+        let stream = connect(&bridge, port);
+        let mut writer = stream.try_clone().expect("clone");
+        let mut reader = BufReader::new(stream);
+
+        writeln!(writer, "{{not json").expect("write");
+        let reply = read_line(&mut reader);
+        assert_eq!(reply["ok"], json!(false));
+        assert!(reply["error"].as_str().is_some_and(|e| !e.is_empty()));
+
+        // A blank line is ignored and the connection still works.
+        writeln!(writer).expect("write");
+        writeln!(writer, "{{}}").expect("write");
+        let mut command = None;
+        for _ in 0..50 {
+            let mut queued = bridge.drain();
+            if !queued.is_empty() {
+                command = Some(queued.remove(0));
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let command = command.expect("the empty object is queued");
+        assert_eq!(command.request, json!({}));
+        command
+            .reply
+            .send(json!({"ok": true, "echo": true}))
+            .expect("answer");
+        let answer = read_line(&mut reader);
+        assert_eq!(answer["ok"], json!(true));
+    }
+
+    #[test]
+    fn an_unknown_command_reaches_the_application_with_its_name() {
+        let port = free_port();
+        let bridge = Bridge::start(&format!("127.0.0.1:{port}"), None).expect("bridge");
+        let stream = connect(&bridge, port);
+        let mut writer = stream.try_clone().expect("clone");
+        let mut reader = BufReader::new(stream);
+        writeln!(writer, r#"{{"cmd":"definitely-not-a-command"}}"#).expect("write");
+
+        let mut command = None;
+        for _ in 0..50 {
+            let mut queued = bridge.drain();
+            if !queued.is_empty() {
+                command = Some(queued.remove(0));
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let command = command.expect("queued");
+        assert_eq!(command.request["cmd"], json!("definitely-not-a-command"));
+        command
+            .reply
+            .send(json!({"ok": false, "error": "unknown command"}))
+            .expect("answer");
+        let reply = read_line(&mut reader);
+        assert_eq!(reply["error"], json!("unknown command"));
+    }
+
+    #[test]
+    fn a_token_is_required_when_one_is_configured() {
+        let port = free_port();
+        let bridge =
+            Bridge::start(&format!("127.0.0.1:{port}"), Some("s3cret".to_owned())).expect("bridge");
+        let stream = connect(&bridge, port);
+        let mut writer = stream.try_clone().expect("clone");
+        let mut reader = BufReader::new(stream);
+
+        writeln!(writer, r#"{{"cmd":"status"}}"#).expect("write");
+        assert_eq!(read_line(&mut reader)["error"], json!("unauthorized"));
+
+        writeln!(writer, r#"{{"cmd":"status","token":"s3creT"}}"#).expect("write");
+        assert_eq!(read_line(&mut reader)["error"], json!("unauthorized"));
+
+        writeln!(writer, r#"{{"cmd":"status","token":"s3cret"}}"#).expect("write");
+        let mut command = None;
+        for _ in 0..50 {
+            let mut queued = bridge.drain();
+            if !queued.is_empty() {
+                command = Some(queued.remove(0));
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let command = command.expect("authorised command queued");
+        command.reply.send(json!({"ok": true})).expect("answer");
+        assert_eq!(read_line(&mut reader)["ok"], json!(true));
+    }
+
+    #[test]
+    fn a_truncated_frame_ends_the_connection_without_a_panic() {
+        let port = free_port();
+        let bridge = Bridge::start(&format!("127.0.0.1:{port}"), None).expect("bridge");
+        let stream = connect(&bridge, port);
+        {
+            let mut writer = stream.try_clone().expect("clone");
+            // No trailing newline: the reader sees EOF mid-frame.
+            write!(writer, r#"{{"cmd":"scr"#).expect("write");
+        }
+        drop(stream);
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        assert!(
+            bridge.drain().is_empty(),
+            "a partial frame is not a command"
+        );
+        // The listener is still alive for the next client.
+        let stream = connect(&bridge, port);
+        let mut writer = stream.try_clone().expect("clone");
+        let mut reader = BufReader::new(stream);
+        writeln!(writer, r#"{{"cmd":"status"}}"#).expect("write");
+        let mut command = None;
+        for _ in 0..50 {
+            let mut queued = bridge.drain();
+            if !queued.is_empty() {
+                command = Some(queued.remove(0));
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let command = command.expect("second client queued");
+        command.reply.send(json!({"ok": true})).expect("answer");
+        assert_eq!(read_line(&mut reader)["ok"], json!(true));
+    }
+
     #[test]
     fn the_png_starts_with_the_signature_and_ends_with_iend() {
         let png = encode_png(2, 2, &[255; 16]);

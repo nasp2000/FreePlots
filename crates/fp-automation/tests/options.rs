@@ -2402,7 +2402,8 @@ fn the_box_behnken_dialog_needs_three_factor_names() {
     ui.set_text("Factors:", "").expect("factors");
     ui.click("Generate").expect("generate");
     assert!(
-        ui.status().contains("Enter at least three factor names"),
+        ui.status()
+            .contains("A Box-Behnken design needs at least three factors"),
         "{}",
         ui.status()
     );

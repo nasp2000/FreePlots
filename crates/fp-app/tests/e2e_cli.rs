@@ -83,7 +83,9 @@ fn analyze_exports_session_svg_and_project() {
     assert!(svg_text.contains(">Percent<"), "missing probability axis");
 
     let project = fs::read_to_string(&fpp).expect("read project");
-    assert!(project.contains("\"schema_version\": 1"));
+    // Schema 2 stores every worksheet; a single-sheet CLI export has one.
+    assert!(project.contains("\"schema_version\": 2"), "{project}");
+    assert!(project.contains("\"sheets\""), "{project}");
 
     fs::remove_dir_all(&dir).ok();
 }

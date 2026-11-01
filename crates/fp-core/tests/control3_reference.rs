@@ -117,13 +117,19 @@ fn the_u_chart_matches_the_poisson_limits() {
 }
 
 #[test]
-fn the_g_chart_matches_the_poisson_limits() {
+fn the_g_chart_matches_the_geometric_limits() {
     let r = reference();
     let case = &r["g"];
     let tolerance = r["tolerance"].as_f64().expect("tolerance");
     let df =
         DataFrame::new(vec![Column::new_f64("counts", numbers(&case["counts"]))]).expect("frame");
     let chart = rare::build(&df, "counts", None).expect("g chart");
+    close(
+        chart.probability,
+        case["probability"].as_f64().expect("probability"),
+        tolerance,
+        "event probability",
+    );
     close(
         chart.limits.center,
         case["center"].as_f64().expect("center"),

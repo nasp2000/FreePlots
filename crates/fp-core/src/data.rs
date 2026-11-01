@@ -997,12 +997,30 @@ impl Sample {
         self.values.iter().sum()
     }
 
+    /// Largest magnitude in the sample, used to rescale before summing.
+    fn scale(&self) -> f64 {
+        self.values
+            .iter()
+            .fold(0.0_f64, |largest, value| largest.max(value.abs()))
+    }
+
     /// Arithmetic mean.
     pub fn mean(&self) -> Result<f64> {
         if self.values.is_empty() {
             return Err(Error::EmptySample);
         }
-        Ok(self.sum() / self.n() as f64)
+        let mean = self.sum() / self.n() as f64;
+        if mean.is_finite() {
+            return Ok(mean);
+        }
+        // The plain sum overflowed: divide by the largest magnitude first and
+        // multiply the average back.
+        let scale = self.scale();
+        if scale == 0.0 {
+            return Ok(0.0);
+        }
+        let scaled = self.values.iter().map(|value| value / scale).sum::<f64>();
+        Ok(scale * scaled / self.n() as f64)
     }
 
     /// Sample variance (divisor `n − 1`).
@@ -1019,8 +1037,26 @@ impl Sample {
     }
 
     /// Sample standard deviation (divisor `n − 1`).
+    ///
+    /// Values around 1e300 overflow the sum of squares even though their
+    /// standard deviation is representable, so a non-finite variance is
+    /// recomputed from values divided by the largest magnitude.
     pub fn sd(&self) -> Result<f64> {
-        Ok(self.variance()?.sqrt())
+        let variance = self.variance()?;
+        if variance.is_finite() {
+            return Ok(variance.sqrt());
+        }
+        let scale = self.scale();
+        if scale == 0.0 {
+            return Ok(0.0);
+        }
+        let scaled: Vec<f64> = self.values.iter().map(|value| value / scale).collect();
+        let mean = scaled.iter().sum::<f64>() / self.n() as f64;
+        let ss: f64 = scaled
+            .iter()
+            .map(|value| (value - mean) * (value - mean))
+            .sum();
+        Ok(scale * (ss / (self.n() - 1) as f64).sqrt())
     }
 
     /// Population variance (divisor `n`), used by the Normal MLE estimator.
@@ -1030,7 +1066,21 @@ impl Sample {
         }
         let mean = self.mean()?;
         let ss: f64 = self.values.iter().map(|v| (v - mean) * (v - mean)).sum();
-        Ok(ss / self.n() as f64)
+        let variance = ss / self.n() as f64;
+        if variance.is_finite() {
+            return Ok(variance);
+        }
+        let scale = self.scale();
+        if scale == 0.0 {
+            return Ok(0.0);
+        }
+        let scaled: Vec<f64> = self.values.iter().map(|v| v / scale).collect();
+        let scaled_mean = scaled.iter().sum::<f64>() / self.n() as f64;
+        let ss: f64 = scaled
+            .iter()
+            .map(|v| (v - scaled_mean) * (v - scaled_mean))
+            .sum();
+        Ok(scale * scale * ss / self.n() as f64)
     }
 
     /// Minimum.
@@ -1223,16 +1273,18 @@ impl ColumnSummary {
         let median = quantile_sorted(&sorted, 0.5)?;
         let q3 = quantile_sorted(&sorted, 0.75)?;
         let ci_median = median_confidence_interval(&sorted, confidence);
+        // Written as `sd · √(df/χ²)` so a very large sd does not overflow
+        // when squared.
         let ci_sd = sd.map(|sd| {
             let df = (n - 1) as f64;
             let alpha = 1.0 - confidence;
-            let lower = (df * sd * sd / chi_square_quantile(1.0 - alpha / 2.0, df)).sqrt();
-            let upper = (df * sd * sd / chi_square_quantile(alpha / 2.0, df)).sqrt();
+            let lower = sd * (df / chi_square_quantile(1.0 - alpha / 2.0, df)).sqrt();
+            let upper = sd * (df / chi_square_quantile(alpha / 2.0, df)).sqrt();
             (lower, upper)
         });
         let (skewness, skewness_standard_error) = if n >= 3 {
             let (m2, m3, _) = central_moments(&sorted, n);
-            let skewness = if m2 > 0.0 {
+            let skewness = if m2 > 0.0 && m2.is_finite() && m3.is_finite() {
                 m3 / m2.powf(1.5)
             } else {
                 f64::NAN
@@ -1246,7 +1298,7 @@ impl ColumnSummary {
         };
         let (excess_kurtosis, kurtosis_standard_error) = if n >= 4 {
             let (m2, _, m4) = central_moments(&sorted, n);
-            let kurtosis = if m2 > 0.0 {
+            let kurtosis = if m2 > 0.0 && m2.is_finite() && m4.is_finite() {
                 m4 / (m2 * m2) - 3.0
             } else {
                 f64::NAN

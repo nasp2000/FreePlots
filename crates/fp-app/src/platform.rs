@@ -133,16 +133,21 @@ pub fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
     fs::write(path, bytes).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// Loads a `.fpp` project through the engine.
+/// Loads every worksheet of a `.fpp` project.
 #[cfg(feature = "desktop")]
-pub fn load_project(path: &Path) -> Result<fp_core::data::DataFrame, String> {
-    fp_core::io::load_project(path).map_err(|e| format!("{}: {e}", path.display()))
+pub fn load_project_sheets(path: &Path) -> Result<Vec<(String, fp_core::data::DataFrame)>, String> {
+    fp_core::io::load_project_sheets(path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// Saves a `.fpp` project through the engine.
+/// Saves every worksheet of a `.fpp` project.
 #[cfg(feature = "desktop")]
-pub fn save_project(path: &Path, df: &fp_core::data::DataFrame, name: &str) -> Result<(), String> {
-    fp_core::io::save_project(df, path, name).map_err(|e| format!("{}: {e}", path.display()))
+pub fn save_project_sheets(
+    path: &Path,
+    sheets: &[(String, fp_core::data::DataFrame)],
+    name: &str,
+) -> Result<(), String> {
+    fp_core::io::save_project_sheets(sheets, path, name)
+        .map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// Resolved data directory.
@@ -364,9 +369,37 @@ mod tests {
             vec![1.5, 2.5],
         )])
         .expect("frame");
-        save_project(&path, &df, "test").expect("save");
-        let back = load_project(&path).expect("load");
-        assert_eq!(back, df);
+        save_project_sheets(&path, &[("Sheet 1".to_owned(), df.clone())], "test").expect("save");
+        let back = load_project_sheets(&path).expect("load");
+        assert_eq!(back.len(), 1);
+        assert_eq!(back[0].1, df);
+        fs::remove_dir_all(&base).ok();
+    }
+
+    #[cfg(feature = "desktop")]
+    #[test]
+    fn a_project_file_keeps_both_worksheets() {
+        let base = temp_dir("project2");
+        let path = base.join("two.fpp");
+        let first = fp_core::data::DataFrame::new(vec![fp_core::data::Column::new_f64(
+            "C1",
+            vec![1.5, 2.5],
+        )])
+        .expect("first");
+        let second = fp_core::data::DataFrame::new(vec![fp_core::data::Column::new_text(
+            "g",
+            vec!["Açores".to_owned(), "北京".to_owned()],
+        )])
+        .expect("second");
+        let sheets = vec![
+            ("diameter".to_owned(), first.clone()),
+            ("defects".to_owned(), second.clone()),
+        ];
+        save_project_sheets(&path, &sheets, "two.fpp").expect("save");
+        let back = load_project_sheets(&path).expect("load");
+        assert_eq!(back.len(), 2);
+        assert_eq!(back[0], ("diameter".to_owned(), first));
+        assert_eq!(back[1], ("defects".to_owned(), second));
         fs::remove_dir_all(&base).ok();
     }
 

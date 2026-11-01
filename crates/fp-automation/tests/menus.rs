@@ -71,6 +71,8 @@ fn the_widget_tree_exposes_the_menu_and_toolbar() {
     );
 }
 
+/// The shipped build has no GPU/PNG stack: the live bridge takes screenshots.
+#[cfg(feature = "wgpu-render")]
 #[test]
 fn the_current_frame_can_be_rendered_to_png() {
     let mut ui = Automation::new();

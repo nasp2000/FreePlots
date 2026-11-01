@@ -1446,6 +1446,66 @@ impl FreePlotsApp {
     ///
     /// A non-empty worksheet is kept and a new tab receives the frame, so
     /// opening a file never discards typed data.
+    /// Every worksheet, in tab order, for the `.fpp` writer.
+    ///
+    /// The active sheet is still in the live fields, so it is filled from
+    /// there while the others are cloned from their stored state.
+    #[must_use]
+    pub fn project_sheets(&self) -> Vec<(String, DataFrame)> {
+        let mut sheets: Vec<(String, DataFrame)> = self
+            .sheets
+            .iter()
+            .enumerate()
+            .map(|(index, sheet)| {
+                let data = if index == self.active_sheet {
+                    self.data.clone()
+                } else {
+                    sheet.data.clone()
+                };
+                (
+                    sheet.name.clone(),
+                    data.unwrap_or_else(|| DataFrame::blank(8, 0).expect("blank sheet")),
+                )
+            })
+            .collect();
+        if sheets.is_empty()
+            && let Some(data) = self.data.clone()
+        {
+            sheets.push(("Worksheet 1".to_owned(), data));
+        }
+        sheets
+    }
+
+    /// Replaces every worksheet with the sheets of a `.fpp` project.
+    pub fn load_project_sheets(&mut self, sheets: Vec<(String, DataFrame)>, source: String) {
+        if sheets.is_empty() {
+            self.set_error("The project contains no worksheet");
+            return;
+        }
+        let count = sheets.len();
+        let (active_name, active_data) = (sheets[0].0.clone(), sheets[0].1.clone());
+        self.sheets = sheets
+            .into_iter()
+            .map(|(name, data)| {
+                let mut sheet = Self::blank_sheet(name);
+                sheet.data = Some(data);
+                sheet
+            })
+            .collect();
+        self.active_sheet = 0;
+        self.tab_first = 0;
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+        self.column_widths.clear();
+        self.data = None;
+        self.set_data(active_data, source);
+        // `set_data` names the tab from the source; keep the stored name.
+        if let Some(sheet) = self.sheets.get_mut(0) {
+            sheet.name = active_name;
+        }
+        self.status = format!("Loaded {count} worksheet(s)");
+    }
+
     pub fn set_data(&mut self, df: DataFrame, source: String) {
         let empty_active = self.data.as_ref().is_none_or(|frame| frame.n_rows() == 0);
         if !empty_active {
@@ -12591,18 +12651,41 @@ impl FreePlotsApp {
         egui::ScrollArea::horizontal()
             .id_salt("fp_grid_h")
             .auto_shrink([false, true])
-            .show(ui, |ui| {
+            .show_viewport(ui, |ui, viewport| {
                 let widths: Vec<f32> = (0..display_cols)
                     .map(|index| self.column_widths.get(index).copied().unwrap_or(72.0))
                     .collect();
-                ui.set_min_width(44.0 + widths.iter().sum::<f32>());
+                let total: f32 = widths.iter().sum();
+                ui.set_min_width(44.0 + total);
+                // Only the columns inside the viewport (plus a margin) are laid
+                // out, so a thousand-column sheet costs what a screenful
+                // costs. The columns left of the viewport become one spacer
+                // column, which keeps the scroll width and the alignment.
+                let mut first = 0usize;
+                let mut prefix = 0.0;
+                while first + 1 < display_cols && prefix + widths[first] < viewport.min.x - 144.0 {
+                    prefix += widths[first];
+                    first += 1;
+                }
+                let mut last = first;
+                let mut visible_width = 0.0;
+                while last < display_cols
+                    && (last == first || visible_width < viewport.width() + 288.0)
+                {
+                    visible_width += widths[last];
+                    last += 1;
+                }
+                let visible = first..last;
                 let mut measured = widths.clone();
                 let mut table = TableBuilder::new(ui)
                     .striped(true)
                     .resizable(true)
                     .cell_layout(egui::Layout::left_to_right(Align::Center))
                     .column(TableColumn::exact(44.0));
-                for width in &widths {
+                if first > 0 {
+                    table = table.column(TableColumn::exact(prefix).resizable(false));
+                }
+                for width in &widths[visible.clone()] {
                     table =
                         table.column(TableColumn::initial(*width).at_least(48.0).resizable(true));
                 }
@@ -12623,9 +12706,14 @@ impl FreePlotsApp {
                                 Self::grid_cell(ui, header_line);
                             }
                         });
-                        for (index, slot) in measured.iter_mut().enumerate() {
+                        if first > 0 {
                             header.col(|ui| {
-                                *slot = ui.max_rect().width();
+                                ui.painter().rect_filled(ui.max_rect(), 0.0, header_bg);
+                            });
+                        }
+                        for index in visible.clone() {
+                            header.col(|ui| {
+                                measured[index] = ui.max_rect().width();
                                 ui.painter().rect_filled(ui.max_rect(), 0.0, header_bg);
                                 if let Some(name) = names.get(index) {
                                     ui.vertical(|ui| {
@@ -12770,7 +12858,15 @@ impl FreePlotsApp {
                                     Self::grid_cell(ui, line);
                                 }
                             });
-                            for index in 0..display_cols {
+                            if first > 0 {
+                                row.col(|ui| {
+                                    let rect = ui.max_rect();
+                                    ui.painter()
+                                        .with_clip_rect(rect)
+                                        .rect_filled(rect, 0.0, cell_bg);
+                                });
+                            }
+                            for index in visible.clone() {
                                 row.col(|ui| {
                                     // Paint and hit-test the whole cell, so a
                                     // click anywhere selects it (an empty cell
@@ -22321,15 +22417,20 @@ mod tests {
             .build_ui_state(|ui, app| app.show(ui), app);
         harness.run();
         assert_eq!(harness.state().data().expect("frame").n_rows(), 200_000);
-        // The grid paints 26 columns even though the data has one, and the
-        // last one sits beyond the 1400 pt viewport, so the grid scrolls
-        // horizontally.
-        assert_eq!(harness.get_all_by_label("C26").count(), 1);
-        let last = harness.get_by_label("C26").rect();
+        // The sheet offers 26 columns even though the data has one. Only the
+        // columns inside the viewport are laid out: the twentieth is on
+        // screen, the twenty-sixth is beyond it and waits for a scroll, which
+        // is what lets the grid keep a thousand columns cheap.
+        assert_eq!(harness.get_all_by_label("C1").count(), 1);
+        assert_eq!(harness.get_all_by_label("C15").count(), 1);
+        let laid_out = (1..=26)
+            .filter(|index| harness.query_all_by_label(&format!("C{index}")).count() > 0)
+            .count();
         assert!(
-            last.left() > 1400.0,
-            "column 26 should overflow the viewport: {last:?}"
+            (10..26).contains(&laid_out),
+            "{laid_out} headers laid out of 26"
         );
+        assert_eq!(harness.query_all_by_label("C26").count(), 0);
         harness.hover_at(egui::pos2(600.0, 300.0));
         harness.run();
         assert_eq!(harness.state().data().expect("frame").n_rows(), 200_000);
@@ -22580,6 +22681,194 @@ mod tests {
                 .contains("already running")
         );
         drop(sender);
+    }
+
+    #[test]
+    fn a_project_carries_every_worksheet() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        app.add_sheet();
+        app.set_data(frame(), "batch.csv".to_owned());
+        let sheets = app.project_sheets();
+        assert_eq!(sheets.len(), 2, "{sheets:?}");
+        assert_eq!(sheets[0].0, "Worksheet 1");
+        assert_eq!(sheets[1].0, "Worksheet 2");
+
+        let json = fp_core::io::to_project_json_sheets(&sheets, "job.fpp").expect("write");
+        let back = fp_core::io::from_project_json_sheets(&json).expect("read");
+        let mut restored = FreePlotsApp::new();
+        restored.load_project_sheets(back, "job.fpp".to_owned());
+        assert_eq!(restored.sheets.len(), 2);
+        assert_eq!(restored.sheets[0].name, "Worksheet 1");
+        assert_eq!(restored.sheets[1].name, "Worksheet 2");
+        assert_eq!(
+            restored.sheets[1].data.as_ref().map(DataFrame::n_rows),
+            Some(5)
+        );
+        assert_eq!(restored.active_sheet, 0);
+        // The second tab is reachable and keeps its data.
+        restored.switch_sheet(1);
+        assert_eq!(restored.data().map(DataFrame::n_rows), Some(5));
+        assert_eq!(restored.sheets[1].name, "Worksheet 2");
+    }
+
+    #[test]
+    fn a_paste_of_ten_thousand_cells_takes_under_two_seconds() {
+        use std::time::Instant;
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut block = String::new();
+        for row in 0..1_000 {
+            for column in 0..10 {
+                if column > 0 {
+                    block.push('\t');
+                }
+                block.push_str(&(row * 10 + column).to_string());
+            }
+            block.push('\n');
+        }
+        let started = Instant::now();
+        app.paste_tsv(&block);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < std::time::Duration::from_secs(2),
+            "10 000 cells took {elapsed:?}"
+        );
+        let data = app.data().expect("frame");
+        assert_eq!(data.n_rows(), 1_000);
+        assert_eq!(data.n_columns(), 10);
+        assert_eq!(data.cell_text(9, 999).as_deref(), Some("9999"));
+        // One undo returns the whole block to the frame that was there.
+        app.undo();
+        let data = app.data().expect("frame");
+        assert_eq!(data.n_rows(), 5);
+        assert_eq!(data.n_columns(), 2);
+    }
+
+    #[test]
+    fn the_session_trims_itself_at_the_memory_limit() {
+        let mut app = FreePlotsApp::new();
+        // Each "report" is about a mebibyte; twenty of them exceed the cap.
+        let block = "x".repeat(1 << 20);
+        for index in 0..20 {
+            app.append_session(&format!("REPORT {index}\n{block}"));
+        }
+        assert!(
+            app.session.len() <= 16 << 20,
+            "session grew to {} bytes",
+            app.session.len()
+        );
+        assert!(
+            app.session.contains("REPORT 19"),
+            "the newest report was trimmed away"
+        );
+        assert!(
+            !app.session.contains("REPORT 0"),
+            "the oldest report should be gone"
+        );
+    }
+
+    #[test]
+    fn a_thousand_columns_render_without_stalling() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let rows = 100;
+        let columns = 1_000;
+        let data: Vec<Column> = (0..columns)
+            .map(|column| {
+                Column::new_f64(
+                    format!("C{}", column + 1),
+                    (0..rows)
+                        .map(|row| (row * columns + column) as f64)
+                        .collect(),
+                )
+            })
+            .collect();
+        let df = DataFrame::new(data).expect("frame");
+        let mut app = FreePlotsApp::new();
+        app.set_data(df, "wide.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        let started = std::time::Instant::now();
+        harness.run();
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "the first frame took {elapsed:?}"
+        );
+        assert_eq!(
+            harness.state().data().map(DataFrame::n_columns),
+            Some(1_000)
+        );
+        // Only a screenful of headers is laid out: the far columns are built
+        // when the grid scrolls to them, which is what keeps the frame cheap.
+        let laid_out = (1..=columns)
+            .filter(|index| harness.query_all_by_label(&format!("C{index}")).count() > 0)
+            .count();
+        assert!(
+            laid_out < 40,
+            "{laid_out} of {columns} column headers were laid out"
+        );
+        assert_eq!(harness.query_all_by_label("C1").count(), 1);
+        assert_eq!(harness.query_all_by_label("C1000").count(), 0);
+    }
+
+    #[test]
+    fn replace_all_through_the_dialog_and_undo() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+        harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::F);
+        harness.run();
+        harness
+            .get_by_role_and_label(accesskit::Role::TextInput, "Find what:")
+            .click();
+        harness.run();
+        harness
+            .get_by_role_and_label(accesskit::Role::TextInput, "Find what:")
+            .type_text("A");
+        harness.run();
+        harness
+            .get_by_role_and_label(accesskit::Role::TextInput, "Replace with:")
+            .click();
+        harness.run();
+        harness
+            .get_by_role_and_label(accesskit::Role::TextInput, "Replace with:")
+            .type_text("B");
+        harness.run();
+        harness.get_by_label("Replace All").click();
+        harness.run();
+        assert_eq!(harness.state().find_message, "5 replaced");
+        for row in 0..5 {
+            assert_eq!(
+                harness
+                    .state()
+                    .data()
+                    .expect("frame")
+                    .cell_text(1, row)
+                    .as_deref(),
+                Some("B")
+            );
+        }
+        harness.state_mut().undo();
+        for row in 0..5 {
+            assert_eq!(
+                harness
+                    .state()
+                    .data()
+                    .expect("frame")
+                    .cell_text(1, row)
+                    .as_deref(),
+                Some("A")
+            );
+        }
     }
 
     #[test]
