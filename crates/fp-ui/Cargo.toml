@@ -8,6 +8,7 @@ license.workspace = true
 authors.workspace = true
 
 [dev-dependencies]
+accesskit = "=0.24.1"
 egui_kittest.workspace = true
 
 [dependencies]

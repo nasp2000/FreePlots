@@ -22277,6 +22277,52 @@ mod tests {
     }
 
     #[test]
+    fn find_through_the_dialog_selects_the_cell() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+        harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::F);
+        harness.run();
+        harness
+            .get_by_role_and_label(accesskit::Role::TextInput, "Find what:")
+            .click();
+        harness.run();
+        harness
+            .get_by_role_and_label(accesskit::Role::TextInput, "Find what:")
+            .type_text("13.1");
+        harness.run();
+        assert_eq!(harness.state().find_text, "13.1");
+        harness.get_by_label("Find Next").click();
+        harness.run();
+        assert_eq!(harness.state().selected_cell(), Some((0, 1)));
+    }
+
+    #[test]
+    fn the_grid_renders_a_large_frame_with_twenty_six_columns() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let values: Vec<f64> = (0..200_000).map(|index| index as f64 * 0.001).collect();
+        let df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
+        let mut app = FreePlotsApp::new();
+        app.set_data(df, "big.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+        assert_eq!(harness.state().data().expect("frame").n_rows(), 200_000);
+        // The grid paints 26 columns even though the data has one.
+        harness.get_by_label("C26");
+        harness.hover_at(egui::pos2(600.0, 300.0));
+        harness.run();
+        assert_eq!(harness.state().data().expect("frame").n_rows(), 200_000);
+    }
+
+    #[test]
     fn dragging_a_divider_widens_and_keeps_the_column() {
         use egui_kittest::Harness;
 

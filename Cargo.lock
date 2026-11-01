@@ -879,6 +879,7 @@ dependencies = [
 name = "fp-ui"
 version = "0.1.0"
 dependencies = [
+ "accesskit",
  "egui",
  "egui_extras",
  "egui_kittest",

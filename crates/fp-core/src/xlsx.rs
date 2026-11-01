@@ -109,6 +109,14 @@ pub fn workbook(df: &DataFrame) -> Vec<u8> {
         let mut cells = String::new();
         for (column_index, column) in df.columns().iter().enumerate() {
             let reference = format!("{}{}", column_name(column_index), row_index + 2);
+            // Missing cells are written empty; `cell_text` shows them as `*`,
+            // which must never reach the file.
+            if df.cell_is_missing(column_index, row) {
+                cells.push_str(&format!(
+                    "<c r=\"{reference}\" t=\"inlineStr\"><is><t></t></is></c>"
+                ));
+                continue;
+            }
             let text = df.cell_text(column_index, row).unwrap_or_default();
             match column.dtype() {
                 DType::Float | DType::Integer => {
@@ -285,5 +293,30 @@ mod tests {
         assert!(text.contains("xl/worksheets/sheet1.xml"));
         assert!(text.contains("<v>1.5</v>"));
         assert!(text.contains("inlineStr"));
+    }
+
+    #[test]
+    fn unicode_and_missing_text_survive_the_workbook() {
+        let df = DataFrame::new(vec![Column::new_text(
+            "g",
+            vec![
+                "Açores".to_owned(),
+                "São Paulo".to_owned(),
+                String::new(),
+                "北京".to_owned(),
+            ],
+        )])
+        .unwrap();
+        let bytes = workbook(&df);
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("Açores"), "accented text missing");
+        assert!(text.contains("北京"), "CJK text missing");
+        // The reader must return the same rows (the empty string stays a cell).
+        let back = crate::xlsx_read::read_workbook_sheet(&bytes, None).expect("read");
+        assert_eq!(back.n_rows(), 4);
+        assert_eq!(back.cell_text(0, 0).as_deref(), Some("Açores"));
+        // An empty cell comes back as missing, not as the text "*".
+        assert!(back.cell_is_missing(0, 2));
+        assert_eq!(back.cell_text(0, 3).as_deref(), Some("北京"));
     }
 }
