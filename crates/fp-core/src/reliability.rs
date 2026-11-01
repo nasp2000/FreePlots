@@ -4,8 +4,7 @@
 //! censoring value are treated as right-censored, and all other observations as
 //! events. With no censoring column, every observation is an event. The
 //! confidence interval for `S(t)` uses the Greenwood standard error and the
-//! log-log (exponential Greenwood, Kalbfleisch–Prentice) transformation; at
-//! `S = 0` or `S = 1` the normal interval is used.
+//! normal (linear) approximation, the convention of the captured run.
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
@@ -189,18 +188,10 @@ pub fn fit(
             0.0
         };
         let z = normal_quantile(1.0 - (1.0 - confidence) / 2.0);
-        let (lower, upper) = if survival > 0.0 && survival < 1.0 && se > 0.0 {
-            let theta = (-survival.ln()).ln();
-            let se_theta = se / (survival * (-survival.ln()).abs());
-            let lower = (-(theta + z * se_theta).exp()).exp().clamp(0.0, 1.0);
-            let upper = (-(theta - z * se_theta).exp()).exp().clamp(0.0, 1.0);
-            (lower, upper)
-        } else {
-            (
-                (survival - z * se).clamp(0.0, 1.0),
-                (survival + z * se).clamp(0.0, 1.0),
-            )
-        };
+        let (lower, upper) = (
+            (survival - z * se).clamp(0.0, 1.0),
+            (survival + z * se).clamp(0.0, 1.0),
+        );
         points.push(KaplanMeierPoint {
             time: time_value,
             at_risk,
@@ -217,16 +208,18 @@ pub fn fit(
         .iter()
         .find(|point| point.survival <= 0.5)
         .map(|point| point.time);
+    // Brookmeyer–Crowley interval: the earliest and latest times at which a
+    // confidence limit reaches 0.5, reported low to high.
     let median_ci = median.and_then(|_| {
-        let lower = points
+        let first_upper = points
             .iter()
             .find(|point| point.ci_upper <= 0.5)
             .map(|point| point.time)?;
-        let upper = points
+        let first_lower = points
             .iter()
             .find(|point| point.ci_lower <= 0.5)
             .map(|point| point.time)?;
-        Some((lower, upper))
+        Some((first_upper.min(first_lower), first_upper.max(first_lower)))
     });
 
     Ok(KaplanMeier {
@@ -262,7 +255,7 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
     let mut result = AnalysisResult::new(
         format!("Kaplan–Meier — column {time_column}"),
         format!(
-            "Product-limit estimate; Greenwood SE; {:.1}% log-log intervals",
+            "Product-limit estimate; Greenwood SE; {:.1}% normal intervals",
             model.confidence * 100.0
         ),
     );
@@ -320,8 +313,7 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
         ),
         (
             "Interval".to_owned(),
-            "log-log (exponential Greenwood) on ln(−ln S), clipped to [0, 1]; at S = 0 or 1 \
-             the normal interval is used"
+            "normal (linear) on the survival scale, clipped to [0, 1], as the captured run"
                 .to_owned(),
         ),
         (
@@ -338,8 +330,8 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
     ];
     result.warnings = standard_warnings(model.n, model.excluded, 0);
     result.warnings.push(
-        "Kaplan–Meier survival and the log-log interval match lifelines on a censored sample \
-         (n = 12); no captured output yet"
+        "Kaplan–Meier survival and the normal interval reproduce the captured run \
+         (n = 12: S(8) 0.75, CI 0.505–0.995)"
             .to_owned(),
     );
     result
@@ -1473,6 +1465,36 @@ mod tests {
         assert!(shape_low < model.shape && model.shape < shape_high);
         let (b10_low, b10_high) = model.b10_ci.expect("B10 CI");
         assert!(b10_low < model.b10 && model.b10 < b10_high);
+    }
+
+    #[test]
+    fn kaplan_meier_matches_the_captured_normal_interval() {
+        // Captured run, n = 12, two right-censored at 0: S(8) = 0.75 with the
+        // normal 95% interval 0.505005-0.995, median 15.
+        let times = [
+            5.0, 8.0, 8.0, 11.0, 12.5, 15.0, 18.0, 20.0, 22.0, 25.0, 27.0, 30.0,
+        ];
+        let mut censor = vec![1.0; 10];
+        censor.extend(vec![0.0; 2]);
+        let df = DataFrame::new(vec![
+            Column::new_f64("time", times.to_vec()),
+            Column::new_f64("censor", censor),
+        ])
+        .unwrap();
+        let model = fit(&df, "time", Some("censor"), 0.0, 0.95).expect("model");
+        let point = model
+            .points
+            .iter()
+            .find(|point| point.time == 8.0)
+            .expect("t = 8");
+        assert!((point.survival - 0.75).abs() < 1e-12);
+        assert!(
+            (point.ci_lower - 0.505005).abs() < 1e-5,
+            "{}",
+            point.ci_lower
+        );
+        assert!((point.ci_upper - 0.995).abs() < 1e-5, "{}", point.ci_upper);
+        assert_eq!(model.median, Some(15.0));
     }
 
     #[test]
