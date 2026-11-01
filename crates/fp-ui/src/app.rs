@@ -12858,7 +12858,11 @@ impl FreePlotsApp {
                                         if response.double_clicked() && index < names.len() {
                                             inline_start = Some((index, r));
                                         }
-                                        if response.secondary_clicked() && index < names.len() {
+                                        if response.secondary_clicked()
+                                            && index < names.len()
+                                            && !in_selection
+                                        {
+                                            // Right-clicking inside the selection keeps it.
                                             clicked = Some((index, r, false));
                                         }
                                         response.context_menu(|ui| {
@@ -22177,6 +22181,183 @@ mod tests {
                 "dialog {name} produced too much session text"
             );
         }
+    }
+
+    #[test]
+    fn arrows_tab_and_enter_move_the_selection() {
+        use egui_kittest::Harness;
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+        harness.key_press(egui::Key::ArrowDown);
+        harness.run();
+        assert_eq!(harness.state().selected_cell(), Some((0, 1)));
+        harness.key_press(egui::Key::ArrowDown);
+        harness.run();
+        assert_eq!(harness.state().selected_cell(), Some((0, 2)));
+        harness.key_press_modifiers(egui::Modifiers::SHIFT, egui::Key::ArrowDown);
+        harness.run();
+        assert_eq!(harness.state().selection_size(), (1, 2));
+        harness.key_press(egui::Key::ArrowRight);
+        harness.run();
+        assert_eq!(
+            harness.state().selected_cell().map(|(column, _)| column),
+            Some(1)
+        );
+        harness.key_press(egui::Key::Enter);
+        harness.run();
+        assert_eq!(harness.state().selected_cell(), Some((1, 4)));
+    }
+
+    #[test]
+    fn the_headers_select_the_column_the_row_and_the_sheet() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+
+        harness.get_by_label("C2").click();
+        harness.run();
+        assert_eq!(harness.state().selected_column(), Some("batch"));
+
+        harness.hover_at(egui::pos2(20.0, 210.0));
+        harness.run();
+        for pressed in [true, false] {
+            harness.event(egui::Event::PointerButton {
+                pos: egui::pos2(20.0, 210.0),
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
+            harness.run();
+        }
+        assert_eq!(harness.state().selection_size().1, 1);
+        assert_eq!(harness.state().selected_cell().map(|(_, row)| row), Some(2));
+    }
+
+    #[test]
+    fn the_cell_context_menu_inserts_a_row_and_undo_removes_it() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+        harness.hover_at(egui::pos2(90.0, 170.0));
+        harness.run();
+        for pressed in [true, false] {
+            harness.event(egui::Event::PointerButton {
+                pos: egui::pos2(90.0, 170.0),
+                button: egui::PointerButton::Secondary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
+            harness.run();
+        }
+        harness.get_by_label("Insert row below").click();
+        harness.run();
+        assert_eq!(harness.state().data().expect("frame").n_rows(), 6);
+        harness.state_mut().undo();
+        assert_eq!(harness.state().data().expect("frame").n_rows(), 5);
+    }
+
+    #[test]
+    fn a_big_paste_is_one_undo_group() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut block = String::new();
+        for row in 0..200 {
+            for column in 0..10 {
+                if column > 0 {
+                    block.push('\t');
+                }
+                block.push_str(&format!("{}", row * 10 + column));
+            }
+            block.push('\n');
+        }
+        app.paste_tsv(&block);
+        let data = app.data().expect("frame");
+        assert_eq!(data.n_rows(), 200);
+        assert_eq!(data.n_columns(), 10);
+        assert_eq!(data.cell_text(9, 199).as_deref(), Some("1999"));
+        app.undo();
+        let data = app.data().expect("frame");
+        assert_eq!(data.n_rows(), 5);
+        assert_eq!(data.n_columns(), 2);
+    }
+
+    #[test]
+    fn the_sheets_keep_their_own_data_and_undo() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        app.set_edit_buffer("99");
+        assert!(app.commit_cell());
+        let first = app.data().expect("frame").cell_text(0, 0);
+        assert_eq!(first.as_deref(), Some("99"));
+
+        app.add_sheet();
+        assert_eq!(app.sheet_names().len(), 2);
+        assert_eq!(app.data().expect("new sheet").n_rows(), 0);
+
+        app.switch_sheet(0);
+        assert_eq!(app.data().expect("first").cell_text(0, 0), first);
+        app.undo();
+        assert_eq!(
+            app.data().expect("first").cell_text(0, 0).as_deref(),
+            Some("12.5")
+        );
+        app.switch_sheet(1);
+        assert!(app.data().expect("second").n_rows() == 0);
+        assert!(app.close_sheet(1));
+        assert_eq!(app.sheet_names().len(), 1);
+    }
+
+    #[test]
+    fn the_context_menu_copies_and_cuts() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+        harness.state_mut().select_cell(1, 0);
+        harness.state_mut().extend_selection(1, 1);
+        harness.hover_at(egui::pos2(150.0, 170.0));
+        harness.run();
+        for pressed in [true, false] {
+            harness.event(egui::Event::PointerButton {
+                pos: egui::pos2(150.0, 170.0),
+                button: egui::PointerButton::Secondary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
+            harness.run();
+        }
+        harness.get_by_label("Copy").click();
+        harness.run();
+        assert_eq!(harness.state().clipboard, "A\nA");
+
+        harness.state_mut().select_cell(1, 0);
+        harness.state_mut().extend_selection(1, 1);
+        harness.get_by_label("Edit").click();
+        harness.run();
+        harness.get_by_label("Cut").click();
+        harness.run();
+        let data = harness.state().data().expect("frame");
+        assert!(data.cell_is_missing(1, 0));
+        assert!(data.cell_is_missing(1, 1));
     }
 
     #[test]
