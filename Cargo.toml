@@ -1,0 +1,40 @@
+[workspace]
+resolver = "3"
+members = ["crates/fp-core", "crates/fp-app", "crates/fp-ui", "crates/fp-automation", "crates/fp-mcp"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+authors = ["FreePlots contributors"]
+
+[workspace.dependencies]
+fp-core = { path = "crates/fp-core" }
+fp-ui = { path = "crates/fp-ui" }
+
+# Núcleo: dependências mínimas, todas permissivas.
+libm = "=0.2.15"
+thiserror = "=2.0.21"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.145"
+base64 = "=0.22.1"
+csv = "=1.4.0"
+
+# UI: version pinned by D17 (egui/eframe =0.36.2). `fp-ui` uses only the pure
+# egui/egui_extras crates; the native window is an opt-in feature of fp-app.
+egui = "=0.36.2"
+egui_extras = "=0.36.2"
+egui_kittest = "=0.36.2"
+# No bundled default fonts (the UI ships DejaVu Sans), no wgpu: the glow
+# (OpenGL) backend runs on decade-old integrated GPUs.
+eframe = { version = "=0.36.2", default-features = false, features = ["glow", "x11"] }
+
+# Apenas testes.
+proptest = "=1.9.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

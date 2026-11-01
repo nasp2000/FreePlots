@@ -1,0 +1,316 @@
+{
+  "source": "Computed by hand from the attribute-agreement definitions.",
+  "tolerance": 1e-12,
+  "rows": [
+    {
+      "part": "P1",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P1",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P1",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P2",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P2",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P2",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P3",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P3",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P3",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P4",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P4",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P4",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P5",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P5",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P5",
+      "appraiser": "A",
+      "rating": "G"
+    },
+    {
+      "part": "P6",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P6",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P6",
+      "appraiser": "A",
+      "rating": "N"
+    },
+    {
+      "part": "P1",
+      "appraiser": "B",
+      "rating": "G"
+    },
+    {
+      "part": "P1",
+      "appraiser": "B",
+      "rating": "G"
+    },
+    {
+      "part": "P1",
+      "appraiser": "B",
+      "rating": "G"
+    },
+    {
+      "part": "P2",
+      "appraiser": "B",
+      "rating": "G"
+    },
+    {
+      "part": "P2",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P2",
+      "appraiser": "B",
+      "rating": "G"
+    },
+    {
+      "part": "P3",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P3",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P3",
+      "appraiser": "B",
+      "rating": "G"
+    },
+    {
+      "part": "P4",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P4",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P4",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P5",
+      "appraiser": "B",
+      "rating": "G"
+    },
+    {
+      "part": "P5",
+      "appraiser": "B",
+      "rating": "G"
+    },
+    {
+      "part": "P5",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P6",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P6",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P6",
+      "appraiser": "B",
+      "rating": "N"
+    },
+    {
+      "part": "P1",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P1",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P1",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P2",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P2",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P2",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P3",
+      "appraiser": "C",
+      "rating": "N"
+    },
+    {
+      "part": "P3",
+      "appraiser": "C",
+      "rating": "N"
+    },
+    {
+      "part": "P3",
+      "appraiser": "C",
+      "rating": "N"
+    },
+    {
+      "part": "P4",
+      "appraiser": "C",
+      "rating": "N"
+    },
+    {
+      "part": "P4",
+      "appraiser": "C",
+      "rating": "N"
+    },
+    {
+      "part": "P4",
+      "appraiser": "C",
+      "rating": "N"
+    },
+    {
+      "part": "P5",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P5",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P5",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P6",
+      "appraiser": "C",
+      "rating": "G"
+    },
+    {
+      "part": "P6",
+      "appraiser": "C",
+      "rating": "N"
+    },
+    {
+      "part": "P6",
+      "appraiser": "C",
+      "rating": "N"
+    }
+  ],
+  "within": {
+    "A": {
+      "n": 6,
+      "observed": 0.6666666666666666,
+      "expected": 0.5,
+      "kappa": 0.33333333333333326
+    },
+    "B": {
+      "n": 6,
+      "observed": 0.8333333333333334,
+      "expected": 0.5,
+      "kappa": 0.6666666666666667
+    },
+    "C": {
+      "n": 6,
+      "observed": 0.8333333333333334,
+      "expected": 0.5,
+      "kappa": 0.6666666666666667
+    }
+  },
+  "between": {
+    "A-B": {
+      "n": 6,
+      "observed": 0.8333333333333334,
+      "expected": 0.5,
+      "kappa": 0.6666666666666667
+    },
+    "A-C": {
+      "n": 6,
+      "observed": 0.8333333333333334,
+      "expected": 0.5,
+      "kappa": 0.6666666666666667
+    },
+    "B-C": {
+      "n": 6,
+      "observed": 1.0,
+      "expected": 0.5,
+      "kappa": 1.0
+    }
+  }
+}

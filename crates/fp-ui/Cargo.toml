@@ -1,0 +1,16 @@
+[package]
+name = "fp-ui"
+description = "FreePlots: classic statistical-desktop worksheet, Session and plot widgets (no OS access)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dev-dependencies]
+egui_kittest.workspace = true
+
+[dependencies]
+fp-core.workspace = true
+egui.workspace = true
+egui_extras.workspace = true

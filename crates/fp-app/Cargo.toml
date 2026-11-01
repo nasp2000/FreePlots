@@ -1,0 +1,33 @@
+[package]
+name = "fp-app"
+description = "FreePlots: CLI and optional classic statistical-desktop application"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "FreePlots"
+path = "src/main.rs"
+
+[features]
+default = []
+# Native window. Kept opt-in so the CLI and the pure UI tests build on machines
+# without X11/Wayland development packages (D17/ADR-002).
+desktop = ["dep:eframe", "dep:fp-ui", "dep:fp-mcp", "dep:serde_json", "dep:base64", "dep:arboard"]
+
+[dependencies]
+fp-core.workspace = true
+fp-ui = { path = "../fp-ui", optional = true }
+fp-mcp = { path = "../fp-mcp", optional = true }
+eframe = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
+arboard = { version = "=3.7.0", default-features = false, optional = true }
+
+# Build-time only: embeds the icon and the version resource in the Windows
+# executable (build.rs). Cargo compiles build-dependencies for the host, so
+# this cannot be gated on the target cfg.
+[build-dependencies]
+winresource = "=0.1.34"

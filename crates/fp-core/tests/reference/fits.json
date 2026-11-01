@@ -1,0 +1,27 @@
+{
+  "source": "Generated from scipy.stats fits; see generated_with.",
+  "generated_with": "scipy 1.18.1",
+  "tolerance": 1e-6,
+  "datasets": {
+    "typical": [3.2, 4.1, 2.7, 5.6, 4.8, 3.9, 6.1, 4.4, 3.5, 5.2, 4.9, 3.8, 5.9, 4.2, 3.1, 6.4, 4.6, 3.7, 5.4, 4.0],
+    "small": [2.4, 3.8, 5.1, 4.2, 3.3, 6.0]
+  },
+  "fits": [
+    { "family": "Normal", "dataset": "typical", "parameters": { "mu": 4.475000000389958, "sigma": 1.0192521770627243 }, "log_likelihood": -28.76015463300398 },
+    { "family": "Normal", "dataset": "small", "parameters": { "mu": 4.133333331272277, "sigma": 1.1714188888798294 }, "log_likelihood": -9.462925656441335 },
+    { "family": "Lognormal", "dataset": "typical", "parameters": { "mu": 1.4720059614149212, "sigma": 0.23212922043457432 }, "log_likelihood": -28.60966814185143 },
+    { "family": "Lognormal", "dataset": "small", "parameters": { "mu": 1.3767461377625736, "sigma": 0.29604026459007854 }, "log_likelihood": -9.470549196074103 },
+    { "family": "Weibull", "dataset": "typical", "parameters": { "shape": 4.832262137873057, "scale": 4.884144456960566 }, "log_likelihood": -28.95023976365752 },
+    { "family": "Weibull", "dataset": "small", "parameters": { "shape": 3.9314121198154774, "scale": 4.572880114687084 }, "log_likelihood": -9.429003210282332 },
+    { "family": "Exponential", "dataset": "typical", "parameters": { "theta": 4.475000079939556 }, "log_likelihood": -49.97012703453637 },
+    { "family": "Exponential", "dataset": "small", "parameters": { "theta": 4.133333407626289 }, "log_likelihood": -14.514505103657287 },
+    { "family": "Logistic", "dataset": "typical", "parameters": { "mu": 4.436748625669342, "sigma": 0.6061764874270953 }, "log_likelihood": -29.433675046841785 },
+    { "family": "Logistic", "dataset": "small", "parameters": { "mu": 4.098030761795039, "sigma": 0.6983295168814192 }, "log_likelihood": -9.678008669017316 },
+    { "family": "Loglogistic", "dataset": "typical", "parameters": { "scale": 4.371889795627498, "shape": 7.2786268796540305 }, "log_likelihood": -29.218425634701916 },
+    { "family": "Loglogistic", "dataset": "small", "parameters": { "scale": 4.005991938236004, "shape": 5.723945875913532 }, "log_likelihood": -9.653141905501137 },
+    { "family": "Gamma", "dataset": "typical", "parameters": { "shape": 19.032822378755256, "scale": 0.23512014925457334 }, "log_likelihood": -28.53234464084595 },
+    { "family": "Gamma", "dataset": "small", "parameters": { "shape": 11.973973432126849, "scale": 0.345193128941099 }, "log_likelihood": -9.409377386700136 },
+    { "family": "ExtremeValue", "dataset": "typical", "parameters": { "location": 3.978502766382878, "scale": 0.8972403728614053 }, "log_likelihood": -28.898577085917196 },
+    { "family": "ExtremeValue", "dataset": "small", "parameters": { "location": 3.5593720540825178, "scale": 1.035589706466559 }, "log_likelihood": -9.535243236632768 }
+  ]
+}
