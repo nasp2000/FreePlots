@@ -124,13 +124,13 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec) {
                 tick,
             );
         }
-        painter.text(
-            pos2(plot.right() + 56.0, plot.center().y),
-            Align2::CENTER_CENTER,
-            &axis.label,
-            font.clone(),
-            tick,
-        );
+        // The right-hand title is rotated, like the Y title: horizontal text
+        // here ran past the window edge on narrow charts.
+        let galley = painter.layout_no_wrap(axis.label.clone(), font.clone(), tick);
+        let anchor = pos2(plot.right() + 68.0, plot.center().y + galley.size().x / 2.0);
+        painter.add(Shape::Text(
+            TextShape::new(anchor, galley, tick).with_angle(-std::f32::consts::FRAC_PI_2),
+        ));
     }
 
     painter.rect_stroke(

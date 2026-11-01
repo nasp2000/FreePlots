@@ -15119,6 +15119,10 @@ impl FreePlotsApp {
                     .with_title(title)
                     .with_inner_size(default_size),
                 move |ui, _class| {
+                    // The viewport is cleared to black; paint the theme surface
+                    // first so no black band shows under a short plot.
+                    let background = ui.visuals().window_fill;
+                    ui.painter().rect_filled(ui.max_rect(), 0.0, background);
                     // Tall multi-panel plots can be larger than the window on a
                     // small screen; scrolling keeps every panel reachable.
                     egui::ScrollArea::both()
