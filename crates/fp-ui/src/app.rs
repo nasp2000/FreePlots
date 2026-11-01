@@ -4606,6 +4606,7 @@ impl FreePlotsApp {
                 (self.sampling_ltpd / 100.0).clamp(0.0002, 0.999),
                 (self.sampling_alpha / 100.0).clamp(0.001, 0.5),
                 (self.sampling_beta / 100.0).clamp(0.001, 0.5),
+                (self.sampling_lot > 0).then_some(self.sampling_lot),
             )
         } else {
             fp_core::sampling::analyze(

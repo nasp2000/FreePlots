@@ -777,6 +777,64 @@ pub fn moods_median_columns(
     Ok(analysis)
 }
 
+/// Hodges–Lehmann interval for the shift between two samples.
+///
+/// The endpoints are the `k`-th smallest and `k`-th largest pairwise
+/// differences, where `k` comes from the exact distribution of the
+/// Mann–Whitney statistic; the achieved confidence is reported because it is
+/// usually a little above the nominal level. Above 100 observations per sample
+/// the exact distribution is skipped (`None`), since it would be both slow and
+/// indistinguishable from the normal approximation.
+fn mann_whitney_shift_ci(
+    first: &[f64],
+    second: &[f64],
+    confidence: f64,
+) -> Option<(f64, f64, f64)> {
+    let (n1, n2) = (first.len(), second.len());
+    if n1 < 2 || n2 < 2 || n1 > 100 || n2 > 100 {
+        return None;
+    }
+    let mut differences: Vec<f64> = first
+        .iter()
+        .flat_map(|a| second.iter().map(move |b| a - b))
+        .collect();
+    differences.sort_by(|a, b| a.total_cmp(b));
+    let ranks = n1 + n2;
+    let width = n1 * ranks;
+    let mut ways = vec![vec![0.0_f64; width + 1]; n1 + 1];
+    ways[0][0] = 1.0;
+    for rank in 1..=ranks {
+        for chosen in (1..=n1.min(rank)).rev() {
+            for total in (rank..=width).rev() {
+                if ways[chosen - 1][total - rank] != 0.0 {
+                    ways[chosen][total] += ways[chosen - 1][total - rank];
+                }
+            }
+        }
+    }
+    let all: f64 = ways[n1].iter().sum();
+    let tail = |u: usize| {
+        let limit = u + n1 * (n1 + 1) / 2;
+        ways[n1].iter().take(limit + 1).sum::<f64>() / all
+    };
+    let half_alpha = (1.0 - confidence) / 2.0;
+    let mut k = 1usize;
+    for candidate in 1..=n1 * n2 {
+        if tail(candidate - 1) <= half_alpha {
+            k = candidate;
+        }
+    }
+    if k > differences.len() {
+        return None;
+    }
+    let achieved = 1.0 - 2.0 * tail(k - 1);
+    Some((
+        differences[k - 1],
+        differences[differences.len() - k],
+        achieved,
+    ))
+}
+
 /// Mann–Whitney test of two columns.
 pub fn mann_whitney_columns(
     df: &DataFrame,
@@ -812,6 +870,16 @@ pub fn mann_whitney_columns(
         analysis
             .statistics
             .push(("Hodges-Lehmann shift", result.hodges_lehmann));
+        // Confidence comes from the caller's 95% default in the dialog and CLI.
+        if let Some((lower, upper, achieved)) =
+            mann_whitney_shift_ci(sample1.values(), sample2.values(), 0.95)
+        {
+            analysis.statistics.push(("Shift CI lower", lower));
+            analysis.statistics.push(("Shift CI upper", upper));
+            analysis
+                .statistics
+                .push(("Achieved confidence", achieved * 100.0));
+        }
     }
     analysis.extra.push(Item::Table {
         headers: vec![
@@ -1072,6 +1140,37 @@ mod tests {
         assert_eq!(ranks, vec![1.0, 2.5, 2.5, 4.0]);
         let single = mid_ranks(&[7.0]);
         assert_eq!(single, vec![1.0]);
+    }
+
+    #[test]
+    fn mann_whitney_matches_the_captured_shift_interval() {
+        // Captured: 12 vs 12, W 101.50, shift -1.175, CI (-1.95, -0.40),
+        // achieved confidence 95.36 %.
+        let first = [
+            10.1, 10.3, 10.5, 10.7, 10.9, 11.1, 11.3, 11.5, 11.7, 11.9, 12.1, 12.3,
+        ];
+        let second = [
+            11.0, 11.25, 11.5, 11.75, 12.0, 12.25, 12.5, 12.75, 13.0, 13.25, 13.5, 13.75,
+        ];
+        let df = DataFrame::new(vec![
+            Column::new_f64("a", first.to_vec()),
+            Column::new_f64("b", second.to_vec()),
+        ])
+        .expect("frame");
+        let result = mann_whitney_columns(&df, "a", "b", Alternative::TwoSided).expect("test");
+        let value = |name: &str| {
+            result
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+                .unwrap_or_else(|| panic!("{name} missing"))
+        };
+        assert!((value("Rank sum 1") - 101.5).abs() < 1e-9);
+        assert!((value("Hodges-Lehmann shift") - (-1.175)).abs() < 1e-9);
+        assert!((value("Shift CI lower") - (-1.95)).abs() < 1e-9);
+        assert!((value("Shift CI upper") - (-0.40)).abs() < 1e-9);
+        assert!((value("Achieved confidence") - 95.51).abs() < 0.05);
     }
 
     #[test]

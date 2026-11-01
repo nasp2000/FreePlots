@@ -5493,8 +5493,15 @@ fn sampling_plan(args: &[String]) -> Result<(), String> {
     let ltpd = number_option(args, "--ltpd", 5.0)? / 100.0;
     let alpha = number_option(args, "--alpha", 5.0)? / 100.0;
     let beta = number_option(args, "--beta", 10.0)? / 100.0;
+    let lot = match option_string(args, "--lot") {
+        Some(raw) => Some(
+            raw.parse::<usize>()
+                .map_err(|_| format!("invalid --lot: {raw}"))?,
+        ),
+        None => None,
+    };
     let mut out =
-        fp_core::sampling::analyze_plan(aql, ltpd, alpha, beta).map_err(|e| e.to_string())?;
+        fp_core::sampling::analyze_plan(aql, ltpd, alpha, beta, lot).map_err(|e| e.to_string())?;
     let lang = language();
     for result in &mut out.results {
         result.set_lang(lang);

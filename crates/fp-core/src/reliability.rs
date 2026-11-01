@@ -265,8 +265,31 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
         ("Events", model.events as f64),
         ("Censored", model.censored as f64),
     ];
+    // Restricted mean survival: the step integral of S(t) up to the largest
+    // observed time, the captured run's Mean (MTTF).
+    let mut mean = 0.0;
+    let mut previous_time = 0.0;
+    let mut previous_survival = 1.0;
+    for point in &model.points {
+        mean += previous_survival * (point.time - previous_time);
+        previous_time = point.time;
+        previous_survival = point.survival;
+    }
+    result.statistics.push(("Mean (MTTF)", mean));
     if let Some(median) = model.median {
         result.statistics.push(("Median survival", median));
+        let quartile = |level: f64| {
+            model
+                .points
+                .iter()
+                .find(|point| point.survival <= level)
+                .map(|point| point.time)
+        };
+        if let (Some(q1), Some(q3)) = (quartile(0.75), quartile(0.25)) {
+            result.statistics.push(("First quartile (Q1)", q1));
+            result.statistics.push(("Third quartile (Q3)", q3));
+            result.statistics.push(("Interquartile range", q3 - q1));
+        }
     }
     if let Some((lower, upper)) = model.median_ci {
         result.statistics.push(("Median CI lower", lower));
@@ -1495,6 +1518,12 @@ mod tests {
         );
         assert!((point.ci_upper - 0.995).abs() < 1e-5, "{}", point.ci_upper);
         assert_eq!(model.median, Some(15.0));
+
+        let text = report("time", &model).to_session_text();
+        assert!(text.contains("Mean (MTTF)"), "{text}");
+        assert!(text.contains("17.041"), "{text}");
+        assert!(text.contains("First quartile (Q1)"), "{text}");
+        assert!(text.contains("22.000000"), "{text}");
     }
 
     #[test]

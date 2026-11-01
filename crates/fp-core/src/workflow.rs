@@ -1407,6 +1407,15 @@ impl AnalysisSpec {
         }
     }
 
+    /// Sets the lot size used by the AOQ and ATI figures of a sampling plan.
+    #[must_use]
+    pub fn with_sampling_lot(mut self, lot_size: usize) -> Self {
+        if let Self::AcceptanceSampling { lot_size: lot, .. } = &mut self {
+            *lot = Some(lot_size);
+        }
+        self
+    }
+
     /// Hotelling T² control chart.
     #[must_use]
     pub fn hotelling_t2(columns: Vec<String>, subgroup: usize) -> Self {
@@ -7472,7 +7481,7 @@ pub fn run_analysis(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutpu
         } => match (plan, targets) {
             (Some(plan), _) => crate::sampling::analyze(*lot_size, plan.sample, plan.acceptance),
             (_, Some((aql, ltpd, alpha, beta))) => {
-                crate::sampling::analyze_plan(*aql, *ltpd, *alpha, *beta)
+                crate::sampling::analyze_plan(*aql, *ltpd, *alpha, *beta, *lot_size)
             }
             _ => Err(Error::Unsupported(
                 "the acceptance-sampling spec needs a plan or a set of targets".to_owned(),

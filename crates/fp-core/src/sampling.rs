@@ -357,7 +357,13 @@ pub fn analyze(
 }
 
 /// Plans a scheme and builds the report with its OC curve.
-pub fn analyze_plan(aql: f64, ltpd: f64, alpha: f64, beta: f64) -> Result<AnalysisOutput> {
+pub fn analyze_plan(
+    aql: f64,
+    ltpd: f64,
+    alpha: f64,
+    beta: f64,
+    lot: Option<usize>,
+) -> Result<AnalysisOutput> {
     let plan = plan(aql, ltpd, alpha, beta)?;
     let model = oc_curve(None, plan.sample, plan.acceptance, 100)?;
     let mut result = AnalysisResult::new(
@@ -393,12 +399,54 @@ pub fn analyze_plan(aql: f64, ltpd: f64, alpha: f64, beta: f64) -> Result<Analys
                 .to_owned(),
         ),
     ];
+    // Average outgoing quality and average total inspection need the lot size;
+    // the captured run used 1000 and prints both at the AQL and the LTPD.
+    if let Some(lot) = lot.filter(|lot| *lot > plan.sample) {
+        let n = plan.sample as f64;
+        let big_n = lot as f64;
+        let aoq = |p: f64, pa: f64| 100.0 * p * pa * (big_n - n) / big_n;
+        let ati = |pa: f64| n + (1.0 - pa) * (big_n - n);
+        result
+            .statistics
+            .push(("AOQ at AQL (%)", aoq(aql, plan.pa_aql)));
+        result
+            .statistics
+            .push(("AOQ at LTPD (%)", aoq(ltpd, plan.pa_ltpd)));
+        result.statistics.push(("ATI at AQL", ati(plan.pa_aql)));
+        result.statistics.push(("ATI at LTPD", ati(plan.pa_ltpd)));
+        let mut best = (0.0_f64, 0.0_f64);
+        for step in 1..=4000 {
+            let p = 0.0005 * f64::from(step);
+            let pa = binomial_pa(plan.sample, plan.acceptance, p);
+            let value = aoq(p, pa);
+            if value > best.0 {
+                best = (value, p);
+            }
+        }
+        // Refine the coarse grid by golden-section search around it.
+        let evaluate = |p: f64| aoq(p, binomial_pa(plan.sample, plan.acceptance, p));
+        let mut low = (best.1 - 0.0005).max(0.0);
+        let mut high = best.1 + 0.0005;
+        let ratio = 0.618_033_988_749_894_9;
+        for _ in 0..60 {
+            let a = high - ratio * (high - low);
+            let b = low + ratio * (high - low);
+            if evaluate(a) > evaluate(b) {
+                high = b;
+            } else {
+                low = a;
+            }
+        }
+        let rate = 0.5 * (low + high);
+        best = (evaluate(rate), rate);
+        result.statistics.push(("AOQL (%)", best.0));
+        result.statistics.push(("AOQL rate (%)", best.1 * 100.0));
+        result.notes.push((
+            "Lot size".to_owned(),
+            format!("{lot}: AOQ and ATI use (N − n)/N for the rectifying inspection"),
+        ));
+    }
     result.warnings = standard_warnings(result.n, 0, 0);
-    result.warnings.push(
-        "the plan is exact for the binomial model of large lots and has not been verified \
-         against captured output"
-            .to_owned(),
-    );
     Ok(AnalysisOutput {
         results: vec![result],
         plot: Some(plot(&model)),
@@ -466,6 +514,30 @@ mod tests {
     }
 
     #[test]
+    fn the_plan_matches_the_captured_aoq_and_ati() {
+        // Captured: AQL 1%, LTPD 5%, risks 5%/10%, lot 1000 -> n = 132, c = 3,
+        // AOQ 0.830% / 0.431%, ATI 170.4 / 913.9, AOQL 1.278% at 2.220%.
+        let output = analyze_plan(0.01, 0.05, 0.05, 0.10, Some(1000)).expect("plan");
+        let text = output.results[0].to_session_text();
+        let value = |name: &str| {
+            output.results[0]
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+                .unwrap_or_else(|| panic!("{name} missing in {text}"))
+        };
+        assert_eq!(value("Sample size"), 132.0);
+        assert_eq!(value("Acceptance number"), 3.0);
+        assert!((value("AOQ at AQL (%)") - 0.830).abs() < 0.01);
+        assert!((value("AOQ at LTPD (%)") - 0.431).abs() < 0.01);
+        assert!((value("ATI at AQL") - 170.4).abs() < 0.2);
+        assert!((value("ATI at LTPD") - 913.9).abs() < 0.2);
+        assert!((value("AOQL (%)") - 1.278).abs() < 0.01);
+        assert!((value("AOQL rate (%)") - 2.220).abs() < 0.02);
+    }
+
+    #[test]
     fn the_reports_and_the_plots_are_built() {
         let out = analyze(Some(500), 20, 1).expect("analysis");
         let text = out.results[0].to_session_text();
@@ -474,7 +546,7 @@ mod tests {
         assert!(text.contains("AOQL"), "{text}");
         assert!(out.plot.is_some());
 
-        let out = analyze_plan(0.01, 0.05, 0.05, 0.10).expect("plan report");
+        let out = analyze_plan(0.01, 0.05, 0.05, 0.10, None).expect("plan report");
         let text = out.results[0].to_session_text();
         assert!(text.contains("Plan"), "{text}");
         assert!(text.contains("Producer risk"), "{text}");
