@@ -1,13 +1,14 @@
 //! The g chart: a control chart for rare events.
 //!
 //! The g chart plots the number of events between the failures of a unit. It
-//! is the chart of choice when the events are rare: the centre line is the
-//! average number of events per interval and the limits are the Poisson
-//! limits `ḡ ± 3√ḡ`.
+//! is the chart of choice when the events are rare: the points follow a
+//! geometric distribution, so the centre line and the limits are the
+//! interpolated geometric quantiles at 0.5, 0.00135 and 0.99865, each minus
+//! one (the "number between" form). The event probability is `n / (n + Σg)`.
 //!
-//! The comparison run has a rare-events (g) chart; the conventions were
-//! not captured from it, so the numbers are not claimed as reference parity —
-//! see `docs/parity.md`.
+//! The reference capture prints a different event probability for the same
+//! counts (0.594 against 0.625), so the limits are documented but not claimed
+//! as reference parity — see `docs/parity.md`.
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
@@ -24,6 +25,8 @@ pub struct RareEventsChart {
     pub times: Vec<f64>,
     /// The centre line and the control limits.
     pub limits: Limits,
+    /// Estimated event probability of the geometric distribution.
+    pub probability: f64,
     /// The intervals whose count is outside the limits.
     pub signals: Vec<usize>,
     /// Observations used.
@@ -94,17 +97,19 @@ pub fn build(
         return Err(Error::EmptySample);
     }
     let n = counts.len();
-    let center = counts.iter().sum::<f64>() / n as f64;
-    if center <= 0.0 {
+    let total: f64 = counts.iter().sum();
+    if total <= 0.0 {
         return Err(Error::Unsupported(
             "the g chart needs at least one event".to_owned(),
         ));
     }
-    let half_width = 3.0 * center.sqrt();
+    // Maximum-likelihood geometric probability for "number between" data.
+    let probability = n as f64 / (n as f64 + total);
+    let quantile = |q: f64| (1.0 - q).ln() / (1.0 - probability).ln() - 1.0;
     let limits = Limits {
-        center,
-        lcl: (center - half_width).max(0.0),
-        ucl: center + half_width,
+        center: quantile(0.5).max(0.0),
+        lcl: quantile(0.00135).max(0.0),
+        ucl: quantile(0.99865),
     };
     let signals = counts
         .iter()
@@ -115,6 +120,7 @@ pub fn build(
     Ok(RareEventsChart {
         counts,
         times,
+        probability,
         limits,
         signals,
         n,
@@ -145,6 +151,7 @@ fn report(counts_column: &str, chart: &RareEventsChart) -> AnalysisResult {
     result.n = chart.n;
     result.excluded = chart.excluded;
     result.statistics = vec![
+        ("Event probability", chart.probability),
         ("Center line (g bar)", chart.limits.center),
         ("Lower control limit", chart.limits.lcl),
         ("Upper control limit", chart.limits.ucl),
@@ -261,20 +268,23 @@ mod tests {
     }
 
     #[test]
-    fn the_limits_follow_the_poisson_model() {
+    fn the_limits_follow_the_geometric_model() {
         let df = frame(vec![1.0, 2.0, 3.0, 2.0, 1.0, 2.0]);
         let chart = build(&df, "events", None).expect("chart");
-        assert!((chart.limits.center - 11.0 / 6.0).abs() < 1e-12);
-        let half = 3.0 * (11.0f64 / 6.0).sqrt();
-        assert!((chart.limits.ucl - (11.0 / 6.0 + half)).abs() < 1e-12);
+        let probability = 6.0 / (6.0 + 11.0);
+        assert!((chart.probability - probability).abs() < 1e-12);
+        let quantile = |q: f64| (1.0 - q).ln() / (1.0 - probability).ln() - 1.0;
+        assert!((chart.limits.center - quantile(0.5).max(0.0)).abs() < 1e-12);
+        assert!((chart.limits.ucl - quantile(0.99865)).abs() < 1e-12);
         // The lower limit cannot be negative, so it is clamped at zero.
-        assert!((chart.limits.lcl - (11.0 / 6.0 - half).max(0.0)).abs() < 1e-12);
+        assert!((chart.limits.lcl - quantile(0.00135).max(0.0)).abs() < 1e-12);
         assert!(chart.signals.is_empty(), "{:?}", chart.signals);
     }
 
     #[test]
     fn an_interval_outside_the_limits_is_a_signal() {
-        let df = frame(vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 20.0]);
+        // p = 9/29, UCL about 68, so 200 is outside the geometric limits.
+        let df = frame(vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 200.0]);
         let chart = build(&df, "events", None).expect("chart");
         assert_eq!(chart.signals, vec![9]);
     }
