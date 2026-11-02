@@ -31,17 +31,9 @@ jobs:
           path: target/release/FreePlots.exe
           if-no-files-found: error
 
-  linux:
-    name: Linux ${{ matrix.arch }} portable
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            runner: ubuntu-latest
-          - arch: aarch64
-            runner: ubuntu-24.04-arm
+  linux-arm:
+    name: Linux aarch64 portable
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -62,6 +54,6 @@ jobs:
           ./target/release/FreePlots --version
       - uses: actions/upload-artifact@v4
         with:
-          name: FreePlots-linux-${{ matrix.arch }}
+          name: FreePlots-linux-aarch64
           path: target/release/FreePlots
           if-no-files-found: error
