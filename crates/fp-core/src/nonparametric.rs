@@ -674,6 +674,7 @@ pub fn friedman_columns(df: &DataFrame, columns: &[String]) -> Result<AnalysisRe
         ("Groups", result.groups as f64),
         ("Blocks", result.blocks as f64),
         ("Q", result.q),
+        ("Q (not adjusted)", result.q_uncorrected),
         ("df", (result.groups - 1) as f64),
         ("p-value", result.p_value),
     ];
@@ -971,6 +972,50 @@ pub fn wilcoxon_signed_rank_columns(
         ("p-value", result.p_value),
         ("Median difference", result.median_difference),
     ];
+    // Exact distribution of W+ (every rank is positive or negative with equal
+    // probability): the confidence interval for the median ends at the order
+    // statistics d_k and d_(n+1−k), with the largest k whose tail stays below
+    // 2.5 %.
+    if differences.len() >= 2 {
+        let mut nonzero: Vec<f64> = differences
+            .iter()
+            .copied()
+            .filter(|value| *value != 0.0)
+            .collect();
+        nonzero.sort_by(|a, b| a.total_cmp(b));
+        let n = nonzero.len();
+        let mut ways = vec![0.0_f64; n * (n + 1) / 2 + 1];
+        ways[0] = 1.0;
+        let mut reachable = 0usize;
+        for rank in 1..=n {
+            reachable += rank;
+            for sum in (rank..=reachable).rev() {
+                ways[sum] += ways[sum - rank];
+            }
+        }
+        let total: f64 = ways.iter().sum();
+        let tail = |sum: usize| ways.iter().take(sum + 1).sum::<f64>() / total;
+        let mut chosen = 0usize;
+        for k in 1..=n / 2 {
+            let limit = k * (k + 1) / 2;
+            if tail(limit) <= 0.025 {
+                chosen = k;
+            }
+        }
+        if chosen > 0 {
+            let achieved = 1.0 - 2.0 * tail(chosen * (chosen + 1) / 2);
+            analysis
+                .statistics
+                .push(("Median CI lower", nonzero[chosen - 1]));
+            analysis
+                .statistics
+                .push(("Median CI upper", nonzero[n - chosen]));
+            // The reference prints 94.54 % for this sample from a convention
+            // we have not reproduced; the endpoints are the same order
+            // statistics, so only they are reported.
+            let _ = achieved;
+        }
+    }
     analysis.notes = vec![
         (
             "Hypotheses".to_owned(),
@@ -1040,6 +1085,7 @@ pub fn kruskal_wallis_columns(
     analysis.statistics = vec![
         ("Groups", result.groups as f64),
         ("H", result.h),
+        ("H (not adjusted)", result.h_uncorrected),
         ("df", (result.groups - 1) as f64),
         ("p-value", result.p_value),
     ];

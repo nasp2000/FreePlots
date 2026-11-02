@@ -4,7 +4,9 @@
 //! is the chart of choice when the events are rare: the points follow a
 //! geometric distribution, so the centre line and the limits are the
 //! interpolated geometric quantiles at 0.5, 0.00135 and 0.99865, each minus
-//! one (the "number between" form). The event probability is `n / (n + Σg)`.
+//! one (the "number between" form). The event probability is
+//! `(n − 1) / (n + Σg)`, and the quantile is interpolated between the two
+//! surrounding integers of the inverse CDF, the captured convention.
 //!
 //! The reference capture prints a different event probability for the same
 //! counts (0.594 against 0.625), so the limits are documented but not claimed
@@ -103,9 +105,32 @@ pub fn build(
             "the g chart needs at least one event".to_owned(),
         ));
     }
-    // Maximum-likelihood geometric probability for "number between" data.
-    let probability = n as f64 / (n as f64 + total);
-    let quantile = |q: f64| (1.0 - q).ln() / (1.0 - probability).ln() - 1.0;
+    if n < 2 {
+        return Err(Error::SampleTooSmall { n, min: 2 });
+    }
+    // The captured run estimates p as (n − 1)/(n + Σg) and then interpolates
+    // the inverse geometric CDF between integers, subtracting one (the
+    // "number between" form). The plain quantile formula misses the captured
+    // limits in the second decimal.
+    let probability = (n as f64 - 1.0) / (n as f64 + total);
+    let cdf = |k: f64| 1.0 - (1.0 - probability).powf(k);
+    let quantile = |q: f64| {
+        let mut k = 1usize;
+        while cdf(k as f64) < q {
+            k += 1;
+            if k > 1_000_000 {
+                break;
+            }
+        }
+        let lower = cdf((k - 1) as f64);
+        let upper = cdf(k as f64);
+        let fraction = if upper > lower {
+            ((q - lower) / (upper - lower)).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        (k as f64 - 1.0) + fraction - 1.0
+    };
     let limits = Limits {
         center: quantile(0.5).max(0.0),
         lcl: quantile(0.00135).max(0.0),
@@ -271,12 +296,21 @@ mod tests {
     fn the_limits_follow_the_geometric_model() {
         let df = frame(vec![1.0, 2.0, 3.0, 2.0, 1.0, 2.0]);
         let chart = build(&df, "events", None).expect("chart");
-        let probability = 6.0 / (6.0 + 11.0);
+        let probability = 5.0 / (6.0 + 11.0);
         assert!((chart.probability - probability).abs() < 1e-12);
-        let quantile = |q: f64| (1.0 - q).ln() / (1.0 - probability).ln() - 1.0;
+        // Limits are the interpolated inverse geometric CDF minus one.
+        let cdf = |k: f64| 1.0 - (1.0 - probability).powf(k);
+        let quantile = |q: f64| {
+            let mut k = 1usize;
+            while cdf(k as f64) < q {
+                k += 1;
+            }
+            let lower = cdf((k - 1) as f64);
+            let upper = cdf(k as f64);
+            (k as f64 - 1.0) + (q - lower) / (upper - lower) - 1.0
+        };
         assert!((chart.limits.center - quantile(0.5).max(0.0)).abs() < 1e-12);
         assert!((chart.limits.ucl - quantile(0.99865)).abs() < 1e-12);
-        // The lower limit cannot be negative, so it is clamped at zero.
         assert!((chart.limits.lcl - quantile(0.00135).max(0.0)).abs() < 1e-12);
         assert!(chart.signals.is_empty(), "{:?}", chart.signals);
     }
