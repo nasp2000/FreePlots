@@ -254,6 +254,11 @@ fn wilcoxon_matches_the_captured_median_interval() {
     close(statistic(&output, "Median difference"), -1.175, "median");
     close(statistic(&output, "Median CI lower"), -1.3, "CI lower");
     close(statistic(&output, "Median CI upper"), -1.05, "CI upper");
+    close(
+        statistic(&output, "Achieved confidence"),
+        94.54,
+        "achieved confidence",
+    );
     close(statistic(&output, "p-value"), 0.002526, "p-value");
 }
 

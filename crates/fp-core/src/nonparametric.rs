@@ -972,10 +972,10 @@ pub fn wilcoxon_signed_rank_columns(
         ("p-value", result.p_value),
         ("Median difference", result.median_difference),
     ];
-    // Exact distribution of W+ (every rank is positive or negative with equal
-    // probability): the confidence interval for the median ends at the order
-    // statistics d_k and d_(n+1−k), with the largest k whose tail stays below
-    // 2.5 %.
+    // The captured interval uses the Walsh averages: the endpoints are the
+    // d-th and (M − d)-th of the n(n+1)/2 pairwise averages, with
+    // d = ceil(M/2 − 0.5 − z·√(n(n+1)(2n+1)/24)) and the achieved confidence
+    // from the normal approximation with a continuity correction.
     if differences.len() >= 2 {
         let mut nonzero: Vec<f64> = differences
             .iter()
@@ -984,36 +984,28 @@ pub fn wilcoxon_signed_rank_columns(
             .collect();
         nonzero.sort_by(|a, b| a.total_cmp(b));
         let n = nonzero.len();
-        let mut ways = vec![0.0_f64; n * (n + 1) / 2 + 1];
-        ways[0] = 1.0;
-        let mut reachable = 0usize;
-        for rank in 1..=n {
-            reachable += rank;
-            for sum in (rank..=reachable).rev() {
-                ways[sum] += ways[sum - rank];
+        let mut walsh = Vec::with_capacity(n * (n + 1) / 2);
+        for (index, value) in nonzero.iter().enumerate() {
+            for other in &nonzero[index..] {
+                walsh.push((value + other) / 2.0);
             }
         }
-        let total: f64 = ways.iter().sum();
-        let tail = |sum: usize| ways.iter().take(sum + 1).sum::<f64>() / total;
-        let mut chosen = 0usize;
-        for k in 1..=n / 2 {
-            let limit = k * (k + 1) / 2;
-            if tail(limit) <= 0.025 {
-                chosen = k;
-            }
-        }
-        if chosen > 0 {
-            let achieved = 1.0 - 2.0 * tail(chosen * (chosen + 1) / 2);
+        walsh.sort_by(|a, b| a.total_cmp(b));
+        let m = walsh.len();
+        let nf = n as f64;
+        let sd = (nf * (nf + 1.0) * (2.0 * nf + 1.0) / 24.0).sqrt();
+        let z = 1.959_963_984_540_054;
+        let d = (m as f64 / 2.0 - 0.5 - z * sd).ceil().max(0.0) as usize;
+        if d < m {
+            let lower = walsh[d];
+            let upper = walsh[m - d - 1];
+            let tail = crate::special::normal_cdf((d as f64 + 0.5 - m as f64 / 2.0) / sd);
+            let achieved = (1.0 - 2.0 * tail).clamp(0.0, 1.0);
+            analysis.statistics.push(("Median CI lower", lower));
+            analysis.statistics.push(("Median CI upper", upper));
             analysis
                 .statistics
-                .push(("Median CI lower", nonzero[chosen - 1]));
-            analysis
-                .statistics
-                .push(("Median CI upper", nonzero[n - chosen]));
-            // The reference prints 94.54 % for this sample from a convention
-            // we have not reproduced; the endpoints are the same order
-            // statistics, so only they are reported.
-            let _ = achieved;
+                .push(("Achieved confidence", achieved * 100.0));
         }
     }
     analysis.notes = vec![
