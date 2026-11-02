@@ -13933,7 +13933,6 @@ impl FreePlotsApp {
                 {
                     self.show_grid_lines = !self.show_grid_lines;
                 }
-                let _ = view_icon_button(ui, ViewIcon::Worksheet, true, "Worksheet view");
                 if let Some(df) = &self.data {
                     ui.help_label(format!(
                         "{} × {} columns",
@@ -17174,7 +17173,6 @@ fn apply_icon_button(ui: &mut egui::Ui) -> egui::Response {
 /// Kind of view toggle in the status bar.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ViewIcon {
-    Worksheet,
     Grid,
     Panel,
 }
@@ -17204,16 +17202,6 @@ fn view_icon_button(
     ui.painter()
         .rect_stroke(frame, 1.0, stroke, egui::StrokeKind::Inside);
     match icon {
-        ViewIcon::Worksheet => {
-            let y = frame.top() + frame.height() * 0.3;
-            ui.painter().line_segment(
-                [egui::pos2(frame.left(), y), egui::pos2(frame.right(), y)],
-                stroke,
-            );
-            let x = frame.left() + frame.width() * 0.35;
-            ui.painter()
-                .line_segment([egui::pos2(x, y), egui::pos2(x, frame.bottom())], stroke);
-        }
         ViewIcon::Grid => {
             let center = frame.center();
             ui.painter().line_segment(
