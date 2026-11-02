@@ -403,6 +403,71 @@ mod tests {
         fs::remove_dir_all(&base).ok();
     }
 
+    #[cfg(feature = "desktop")]
+    #[test]
+    fn a_missing_csv_is_reported_with_its_path() {
+        let dir = temp_dir("missing");
+        let path = dir.join("gone.csv");
+        let error = read_csv(&path).expect_err("missing file");
+        assert!(error.contains("gone.csv"), "{error}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(all(feature = "desktop", unix))]
+    #[test]
+    fn a_read_only_directory_refuses_the_write() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = temp_dir("readonly");
+        let path = dir.join("out.csv");
+        let df =
+            fp_core::data::DataFrame::new(vec![fp_core::data::Column::new_f64("C1", vec![1.5])])
+                .expect("frame");
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o555)).expect("chmod");
+        let result = write_csv(&path, &df, false);
+        // Running as root ignores the permission bits, so only the failure
+        // path is asserted when the write is actually refused.
+        if let Err(error) = result {
+            assert!(error.contains("out.csv"), "{error}");
+            assert!(!path.exists());
+        }
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).ok();
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(feature = "desktop")]
+    #[test]
+    fn a_path_with_spaces_and_unicode_round_trips() {
+        let dir = temp_dir("unicode path");
+        let folder = dir.join("peças de teste 2026");
+        fs::create_dir_all(&folder).expect("folder");
+        let csv = folder.join("medidas da máquina.csv");
+        let df = fp_core::data::DataFrame::new(vec![
+            fp_core::data::Column::new_f64("diâmetro", vec![12.5, 13.1]),
+            fp_core::data::Column::new_text(
+                "unidade",
+                vec!["São Paulo".to_owned(), "Açores".to_owned()],
+            ),
+        ])
+        .expect("frame");
+        write_csv(&csv, &df, false).expect("write csv");
+        let (back, _) = read_csv(&csv).expect("read csv");
+        assert_eq!(back.n_rows(), 2);
+        assert_eq!(back.cell_text(1, 0).as_deref(), Some("São Paulo"));
+
+        let project = folder.join("trabalho do mês.fpp");
+        save_project_sheets(
+            &project,
+            &[("diâmetro".to_owned(), df.clone())],
+            "trabalho do mês.fpp",
+        )
+        .expect("save project");
+        let sheets = load_project_sheets(&project).expect("load project");
+        assert_eq!(sheets[0].0, "diâmetro");
+        assert_eq!(sheets[0].1.n_rows(), 2);
+        fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn write_probe_leaves_no_litter() {
         let base = temp_dir("probe");

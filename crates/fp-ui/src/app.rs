@@ -22378,6 +22378,220 @@ mod tests {
         assert_eq!(harness.state().data().expect("frame").n_rows(), 5);
     }
 
+    fn open_cell_menu(harness: &mut egui_kittest::Harness<'_, FreePlotsApp>, pos: egui::Pos2) {
+        harness.hover_at(pos);
+        harness.run();
+        for pressed in [true, false] {
+            harness.event(egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Secondary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
+            harness.run();
+        }
+    }
+
+    #[test]
+    fn every_cell_context_menu_action_works_and_undoes() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+
+        // Insert a row above the second row.
+        harness.state_mut().select_cell(0, 1);
+        open_cell_menu(&mut harness, egui::pos2(90.0, 190.0));
+        harness.get_by_label("Insert row above").click();
+        harness.run();
+        assert_eq!(harness.state().data().expect("frame").n_rows(), 6);
+        harness.state_mut().undo();
+        assert_eq!(harness.state().data().expect("frame").n_rows(), 5);
+
+        // Delete the selected row.
+        harness.state_mut().select_cell(0, 1);
+        open_cell_menu(&mut harness, egui::pos2(90.0, 190.0));
+        harness.get_by_label("Delete row").click();
+        harness.run();
+        assert_eq!(harness.state().data().expect("frame").n_rows(), 4);
+        harness.state_mut().undo();
+        assert_eq!(harness.state().data().expect("frame").n_rows(), 5);
+
+        // Add a numeric column, then a text column, both empty.
+        harness.state_mut().select_cell(0, 0);
+        open_cell_menu(&mut harness, egui::pos2(90.0, 170.0));
+        harness.get_by_label("Add numeric column").click();
+        harness.run();
+        let columns = harness.state().data().expect("frame").n_columns();
+        assert_eq!(columns, 3);
+        harness.state_mut().undo();
+
+        // Delete a column.
+        harness.state_mut().select_cell(1, 0);
+        open_cell_menu(&mut harness, egui::pos2(150.0, 170.0));
+        harness.get_by_label("Delete column").click();
+        harness.run();
+        assert_eq!(harness.state().data().expect("frame").n_columns(), 1);
+        harness.state_mut().undo();
+        assert_eq!(harness.state().data().expect("frame").n_columns(), 2);
+
+        // Rename through the dialog the menu opens.
+        harness.state_mut().select_cell(1, 0);
+        open_cell_menu(&mut harness, egui::pos2(150.0, 170.0));
+        harness.get_by_label("Rename column…").click();
+        harness.run();
+        harness
+            .get_by_role_and_label(accesskit::Role::TextInput, "New name:")
+            .click();
+        harness.run();
+        harness
+            .get_by_role_and_label(accesskit::Role::TextInput, "New name:")
+            .type_text("weight");
+        harness.run();
+        harness.get_by_label("Rename").click();
+        harness.run();
+        assert!(
+            harness
+                .state()
+                .data()
+                .expect("frame")
+                .column("weight")
+                .is_ok(),
+            "the column was not renamed"
+        );
+        harness.state_mut().undo();
+        assert!(
+            harness
+                .state()
+                .data()
+                .expect("frame")
+                .column("batch")
+                .is_ok(),
+            "undo restores the old name"
+        );
+    }
+
+    #[test]
+    fn a_ten_thousand_character_cell_survives_the_round_trip() {
+        let long = "A".repeat(10_000);
+        let values = vec![long.clone(), "short".to_owned()];
+        let df = DataFrame::new(vec![Column::new_text("text", values)]).expect("frame");
+        let app_json = fp_core::io::to_project_json(&df, "long.fpp").expect("project json");
+        let back = fp_core::io::from_project_json(&app_json).expect("project read");
+        assert_eq!(back.n_rows(), 2);
+        assert_eq!(back.cell_text(0, 0).as_deref().map(str::len), Some(10_000));
+
+        let bytes = fp_core::xlsx::workbook(&df);
+        let back = fp_core::xlsx_read::read_workbook_sheet(&bytes, None).expect("xlsx read");
+        assert_eq!(back.cell_text(0, 0).as_deref().map(str::len), Some(10_000));
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(df, "long.csv".to_owned());
+        // The editor keeps the whole value, never a truncated copy.
+        app.select_cell(0, 0);
+        let shown = app
+            .data()
+            .and_then(|frame| frame.cell_text(0, 0))
+            .unwrap_or_default();
+        assert_eq!(shown.len(), 10_000);
+    }
+
+    #[test]
+    fn the_undo_stack_stays_bounded_under_large_edits() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let big = "x".repeat(200_000);
+        for step in 0..120 {
+            app.select_cell(1, 0);
+            app.set_edit_buffer(format!("{big}{step}"));
+            assert!(app.commit_cell(), "edit {step} refused: {:?}", app.error);
+        }
+        assert!(
+            app.undo_stack.len() <= 100,
+            "undo stack kept {} groups",
+            app.undo_stack.len()
+        );
+        // The newest edit is undoable and the text is restored to a previous
+        // large value rather than to the original cell.
+        app.undo();
+        let text = app
+            .data()
+            .expect("frame")
+            .cell_text(1, 0)
+            .unwrap_or_default();
+        assert!(text.len() > 100_000, "undo left {} characters", text.len());
+    }
+
+    #[test]
+    fn the_assistant_opens_the_right_dialog_for_each_goal() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        // Two numeric columns: the DOE and the two-group paths need them.
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", vec![12.5, 13.1, 11.9, 12.8, 12.2]),
+            Column::new_f64("length", vec![20.1, 20.4, 19.8, 20.2, 20.0]),
+            Column::new_text("batch", vec!["A".to_string(); 5]),
+        ])
+        .expect("frame");
+        let mut app = FreePlotsApp::new();
+        app.set_data(df, "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+
+        let goals = [
+            ("Describe my data", "session"),
+            ("Compare two groups", "t"),
+            ("Compare three or more groups", "anova"),
+            ("Test a proportion", "test2"),
+            ("Check a process (control chart)", "chart"),
+            ("Measure process capability", "cap"),
+            ("Fit a regression", "reg"),
+            ("Design an experiment", "doe"),
+            ("Test normality", "probability"),
+        ];
+        for (goal, expected) in goals {
+            harness.state_mut().show_assistant_dialog = true;
+            harness.run();
+            harness.get_by_label(goal).click();
+            harness.run();
+            let state = harness.state();
+            assert!(
+                !state.show_assistant_dialog,
+                "{goal} kept the assistant open"
+            );
+            let opened = match expected {
+                "session" => !state.session.is_empty(),
+                "t" => state.show_t_dialog,
+                "anova" => state.show_anova_dialog,
+                "test2" => state.show_test2_dialog,
+                "chart" => state.show_chart_dialog,
+                "cap" => state.show_cap_dialog,
+                "reg" => state.show_reg_dialog,
+                "doe" => state.show_doe_dialog,
+                "probability" => state.show_probability_plot_dialog,
+                other => panic!("unknown expectation {other}"),
+            };
+            assert!(opened, "{goal} did not open the {expected} path");
+            // Close whatever opened so the next goal starts clean.
+            let state = harness.state_mut();
+            state.show_t_dialog = false;
+            state.show_anova_dialog = false;
+            state.show_test2_dialog = false;
+            state.show_chart_dialog = false;
+            state.show_cap_dialog = false;
+            state.show_reg_dialog = false;
+            state.show_doe_dialog = false;
+            state.show_probability_plot_dialog = false;
+            harness.run();
+        }
+    }
+
     #[test]
     fn find_through_the_dialog_selects_the_cell() {
         use egui_kittest::{Harness, kittest::Queryable};
