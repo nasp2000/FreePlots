@@ -364,3 +364,18 @@ fn the_goodness_of_fit_matches_the_capture() {
     close(statistic(&output, "df"), 4.0, "degrees of freedom");
     close(statistic(&output, "p-value"), 0.575, "p-value");
 }
+
+#[test]
+fn partial_correlation_matches_the_captured_matrix() {
+    // The reference reaches it through MANOVA x y = z; COVARIATES z; PARTIAL,
+    // which prints 0.01099 for the x,y cell conditioned on z.
+    let df = dataset("partial.csv");
+    let output = run_analysis(&df, &AnalysisSpec::partial_correlation("x", "y", "z"))
+        .expect("partial correlation");
+    close(
+        statistic(&output, "Partial correlation"),
+        0.01099,
+        "partial r",
+    );
+    close(statistic(&output, "df"), 17.0, "degrees of freedom");
+}
