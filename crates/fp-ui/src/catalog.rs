@@ -153,6 +153,62 @@ impl UiCatalog {
             "English" => "Inglês",
             "Português" => "Português",
             "About FreePlots" => "Sobre o FreePlots",
+            "Where the settings are stored…" => "Onde estão guardadas as definições…",
+            "Where the settings are stored" => "Onde estão guardadas as definições",
+            "Assistant for agents…" => "Assistente para agentes…",
+            "Assistant for agents" => "Assistente para agentes",
+            "FreePlots keeps these options in a small JSON file: language, theme, zoom, the Session panel, the grid lines and the native plot windows. The file is written as soon as one of them changes." => {
+                "O FreePlots guarda estas opções num pequeno ficheiro JSON: idioma, tema, zoom, painel da sessão, linhas da grelha e janelas nativas dos gráficos. O ficheiro é escrito assim que uma delas muda."
+            }
+            "The program uses FreePlots-data next to the executable when it can write there, so a USB stick keeps its own settings; otherwise the user data directory is used." => {
+                "O programa usa a pasta FreePlots-data ao lado do executável quando pode escrever lá, para uma pen USB manter as suas próprias definições; caso contrário usa a pasta de dados do utilizador."
+            }
+            "This build has no settings file (the command line does not keep preferences)." => {
+                "Esta versão não tem ficheiro de definições (a linha de comandos não guarda preferências)."
+            }
+            "Copy path" => "Copiar caminho",
+            "Theme" => "Tema",
+            "Dark" => "Escuro",
+            "Light" => "Claro",
+            "Zoom" => "Zoom",
+            "Session panel" => "Painel da sessão",
+            "Grid lines" => "Linhas da grelha",
+            "Native plot windows" => "Janelas nativas dos gráficos",
+            "Shown" => "Visível",
+            "Hidden" => "Oculto",
+            "On" => "Ligado",
+            "Off" => "Desligado",
+            "The file could not be written:" => "Não foi possível escrever o ficheiro:",
+            "Removing the file restores the defaults; it is plain JSON and can be edited by hand." => {
+                "Apagar o ficheiro repõe os valores por omissão; é JSON simples e pode ser editado à mão."
+            }
+            "FreePlots embeds no model: you choose the MCP client (the AI assistant you already use). The client opens files, runs analyses and reads the Session through the tools below." => {
+                "O FreePlots não inclui modelo: escolhes o cliente MCP (o assistente de IA que já usas). O cliente abre ficheiros, corre análises e lê a sessão através das ferramentas abaixo."
+            }
+            "Launch lines" => "Linhas de arranque",
+            "Client configuration" => "Configuração do cliente",
+            "Copy configuration" => "Copiar configuração",
+            "An stdio entry for a client that starts FreePlots itself." => {
+                "Uma entrada stdio para um cliente que arranca o FreePlots."
+            }
+            "Tools: open a CSV, describe, capability, control chart, regression, ANOVA, normality, probability plot, Session, status and screenshot. The live window also accepts menu paths, clicks, text and scripts." => {
+                "Ferramentas: abrir CSV, descritivas, capacidade, carta de controlo, regressão, ANOVA, normalidade, gráfico de probabilidade, sessão, estado e screenshot. A janela ao vivo aceita também caminhos de menu, cliques, texto e scripts."
+            }
+            "The bridge is for a trusted network: it can change the open worksheet. Keep --token private when the address is not loopback." => {
+                "O bridge é para uma rede de confiança: pode alterar a folha aberta. Mantém o --token privado quando o endereço não é loopback."
+            }
+            "Desktop tools over stdio (headless worksheet)" => {
+                "Ferramentas de desktop por stdio (folha sem janela)"
+            }
+            "Same tools over HTTP on this machine" => {
+                "As mesmas ferramentas por HTTP nesta máquina"
+            }
+            "Live window: start the bridge, then the proxy" => {
+                "Janela ao vivo: arrancar o bridge e depois o proxy"
+            }
+            "Token for a bridge reachable from the network" => {
+                "Token para um bridge acessível pela rede"
+            }
             "Statistics and analysis software written in Rust by AI, accessible to everyone." => {
                 "Software de análise e estatística escrito em Rust por IA, acessível a todos."
             }

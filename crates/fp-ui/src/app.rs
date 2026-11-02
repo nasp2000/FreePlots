@@ -205,6 +205,37 @@ struct SheetState {
     column_widths: Vec<f32>,
 }
 
+/// User options kept between runs, stored as JSON in the data directory.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct Preferences {
+    /// Interface language code (`en` or `pt`).
+    pub language: String,
+    /// Dark theme.
+    pub dark_mode: bool,
+    /// Interface zoom (1.0 = 100 %).
+    pub zoom: f32,
+    /// Show the Session panel.
+    pub show_session: bool,
+    /// Draw the grid lines.
+    pub show_grid_lines: bool,
+    /// Open plots in their own native window.
+    pub native_plot_windows: bool,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self {
+            language: "en".to_owned(),
+            dark_mode: false,
+            zoom: 1.0,
+            show_session: true,
+            show_grid_lines: true,
+            native_plot_windows: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TTestKind {
     OneSample,
@@ -758,6 +789,16 @@ pub struct FreePlotsApp {
     csv_header: bool,
     show_save: bool,
     show_overwrite: bool,
+    /// Where the preferences are written, when the desktop resolved one.
+    preferences_path: Option<PathBuf>,
+    /// Last preferences known to be on disk, to avoid rewriting every frame.
+    saved_preferences: Option<Preferences>,
+    /// Last failure writing the preferences, shown in the Help dialog.
+    preferences_error: Option<String>,
+    /// Help → Assistant for agents (MCP).
+    show_agents_dialog: bool,
+    /// Help → Where the settings are stored.
+    show_settings_info: bool,
     /// Path and format waiting for the overwrite confirmation.
     overwrite_pending: Option<(String, FileKind, bool)>,
     save_path: String,
@@ -1161,6 +1202,11 @@ impl FreePlotsApp {
             csv_header: true,
             show_save: false,
             show_overwrite: false,
+            preferences_path: None,
+            saved_preferences: None,
+            preferences_error: None,
+            show_agents_dialog: false,
+            show_settings_info: false,
             overwrite_pending: None,
             save_path: String::new(),
             save_kind: FileKind::Csv,
@@ -10595,6 +10641,89 @@ impl FreePlotsApp {
         self.language
     }
 
+    /// Current user options, in the form written to disk.
+    #[must_use]
+    pub fn preferences(&self) -> Preferences {
+        Preferences {
+            language: self.language.code().to_owned(),
+            dark_mode: self.dark_mode,
+            zoom: self.zoom,
+            show_session: self.show_session,
+            show_grid_lines: self.show_grid_lines,
+            native_plot_windows: self.native_plot_windows,
+        }
+    }
+
+    /// Applies options read from disk, ignoring values out of range.
+    pub fn apply_preferences(&mut self, preferences: &Preferences) {
+        if let Some(language) = fp_core::i18n::Lang::parse(&preferences.language) {
+            self.language = language;
+        }
+        self.dark_mode = preferences.dark_mode;
+        if preferences.zoom.is_finite() {
+            self.zoom = preferences.zoom.clamp(0.5, 2.5);
+        }
+        self.show_session = preferences.show_session;
+        self.show_grid_lines = preferences.show_grid_lines;
+        self.native_plot_windows = preferences.native_plot_windows;
+    }
+
+    /// Sets the file that keeps the preferences and loads it if it exists.
+    ///
+    /// A missing or malformed file is not an error: the defaults stay and the
+    /// next save replaces it.
+    pub fn set_preferences_path(&mut self, path: PathBuf) {
+        let loaded = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str::<Preferences>(&text).ok());
+        if let Some(preferences) = &loaded {
+            self.apply_preferences(preferences);
+        }
+        self.saved_preferences = Some(self.preferences());
+        self.preferences_path = Some(path);
+    }
+
+    /// File that keeps the preferences, when the desktop resolved one.
+    #[must_use]
+    pub fn preferences_path(&self) -> Option<&std::path::Path> {
+        self.preferences_path.as_deref()
+    }
+
+    /// Last failure writing the preferences, if any.
+    #[must_use]
+    pub fn preferences_error(&self) -> Option<&str> {
+        self.preferences_error.as_deref()
+    }
+
+    /// Writes the preferences when they changed since the last save.
+    fn persist_preferences(&mut self) {
+        let Some(path) = self.preferences_path.clone() else {
+            return;
+        };
+        let current = self.preferences();
+        if self.saved_preferences.as_ref() == Some(&current) {
+            return;
+        }
+        if let Some(parent) = path.parent()
+            && let Err(error) = std::fs::create_dir_all(parent)
+        {
+            self.preferences_error = Some(format!("{}: {error}", parent.display()));
+            return;
+        }
+        match serde_json::to_string_pretty(&current)
+            .map_err(|error| error.to_string())
+            .and_then(|text| std::fs::write(&path, text).map_err(|error| error.to_string()))
+        {
+            Ok(()) => {
+                self.saved_preferences = Some(current);
+                self.preferences_error = None;
+            }
+            Err(error) => {
+                self.preferences_error = Some(format!("{}: {error}", path.display()));
+            }
+        }
+    }
+
     /// Appends a result to the Session, in the language of the interface.
     fn append_result(&mut self, result: &fp_core::report::AnalysisResult) {
         let text = result.to_session_text_lang(fp_core::i18n::Catalog::new(self.language));
@@ -10871,7 +11000,10 @@ impl FreePlotsApp {
         self.find_dialog(&ctx);
         self.format_dialog(&ctx);
         self.about_window(&ctx);
+        self.settings_info_window(&ctx);
+        self.agents_window(&ctx);
         self.graph_window(&ctx);
+        self.persist_preferences();
     }
 
     fn sheet_tabs(&mut self, ui: &mut egui::Ui) {
@@ -12368,6 +12500,32 @@ impl FreePlotsApp {
                 .clicked()
                 {
                     self.show_shortcuts = true;
+                    ui.close();
+                }
+                if menu_icon_item(
+                    ui,
+                    ToolIcon::Info,
+                    self.catalog().label("Where the settings are stored…"),
+                    None,
+                    true,
+                )
+                .on_hover_text("The file that keeps the options between runs")
+                .clicked()
+                {
+                    self.show_settings_info = true;
+                    ui.close();
+                }
+                if menu_icon_item(
+                    ui,
+                    ToolIcon::Info,
+                    self.catalog().label("Assistant for agents…"),
+                    None,
+                    true,
+                )
+                .on_hover_text("How to connect an AI client through MCP")
+                .clicked()
+                {
+                    self.show_agents_dialog = true;
                     ui.close();
                 }
                 ui.separator();
@@ -15262,6 +15420,185 @@ impl FreePlotsApp {
                 });
             });
         self.show_about = open;
+    }
+
+    fn settings_info_window(&mut self, ctx: &egui::Context) {
+        if !self.show_settings_info {
+            return;
+        }
+        let mut open = self.show_settings_info;
+        let path = self
+            .preferences_path()
+            .map(|path| path.display().to_string());
+        let preferences = self.preferences();
+        let error = self.preferences_error().map(str::to_owned);
+        let mut copy: Option<String> = None;
+        dialog_window(self.catalog().label("Where the settings are stored"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(520.0)
+            .show(ctx, |ui| {
+                ui.label(self.catalog().label(
+                    "FreePlots keeps these options in a small JSON file: language, theme, zoom, the Session panel, the grid lines and the native plot windows. The file is written as soon as one of them changes.",
+                ));
+                ui.add_space(6.0);
+                match &path {
+                    Some(path) => {
+                        ui.horizontal(|ui| {
+                            ui.monospace(path);
+                            if ui.help_button(self.catalog().label("Copy path")).clicked() {
+                                copy = Some(path.clone());
+                            }
+                        });
+                        ui.weak(self.catalog().label(
+                            "The program uses FreePlots-data next to the executable when it can write there, so a USB stick keeps its own settings; otherwise the user data directory is used.",
+                        ));
+                    }
+                    None => {
+                        ui.weak(self.catalog().label(
+                            "This build has no settings file (the command line does not keep preferences).",
+                        ));
+                    }
+                }
+                ui.separator();
+                egui::Grid::new("settings_values")
+                    .num_columns(2)
+                    .spacing([16.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label(self.catalog().label("Language"));
+                        ui.label(match preferences.language.as_str() {
+                            "pt" => "Português",
+                            _ => "English",
+                        });
+                        ui.end_row();
+                        ui.label(self.catalog().label("Theme"));
+                        ui.label(if preferences.dark_mode {
+                            self.catalog().label("Dark")
+                        } else {
+                            self.catalog().label("Light")
+                        });
+                        ui.end_row();
+                        ui.label(self.catalog().label("Zoom"));
+                        ui.label(format!("{:.0} %", preferences.zoom * 100.0));
+                        ui.end_row();
+                        ui.label(self.catalog().label("Session panel"));
+                        ui.label(if preferences.show_session {
+                            self.catalog().label("Shown")
+                        } else {
+                            self.catalog().label("Hidden")
+                        });
+                        ui.end_row();
+                        ui.label(self.catalog().label("Grid lines"));
+                        ui.label(if preferences.show_grid_lines {
+                            self.catalog().label("Shown")
+                        } else {
+                            self.catalog().label("Hidden")
+                        });
+                        ui.end_row();
+                        ui.label(self.catalog().label("Native plot windows"));
+                        ui.label(if preferences.native_plot_windows {
+                            self.catalog().label("On")
+                        } else {
+                            self.catalog().label("Off")
+                        });
+                        ui.end_row();
+                    });
+                if let Some(error) = &error {
+                    ui.separator();
+                    ui.colored_label(
+                        egui::Color32::from_rgb(190, 70, 60),
+                        format!("{} {error}", self.catalog().label("The file could not be written:")),
+                    );
+                }
+                ui.separator();
+                ui.weak(self.catalog().label(
+                    "Removing the file restores the defaults; it is plain JSON and can be edited by hand.",
+                ));
+            });
+        if let Some(text) = copy {
+            ctx.copy_text(text);
+        }
+        self.show_settings_info = open;
+    }
+
+    fn agents_window(&mut self, ctx: &egui::Context) {
+        if !self.show_agents_dialog {
+            return;
+        }
+        let mut open = self.show_agents_dialog;
+        let mut copy: Option<String> = None;
+        let launch: [(&str, &str); 4] = [
+            (
+                "Desktop tools over stdio (headless worksheet)",
+                "FreePlots --mcp",
+            ),
+            (
+                "Same tools over HTTP on this machine",
+                "FreePlots --mcp-http 127.0.0.1:8767",
+            ),
+            (
+                "Live window: start the bridge, then the proxy",
+                "FreePlots --bridge 127.0.0.1:8767  then  FreePlots --mcp-live 127.0.0.1:8767",
+            ),
+            (
+                "Token for a bridge reachable from the network",
+                "--token <secret>",
+            ),
+        ];
+        let client = "{\n  \"mcpServers\": {\n    \"freeplots\": {\n      \"command\": \"FreePlots\",\n      \"args\": [\"--mcp\"]\n    }\n  }\n}";
+        dialog_window(self.catalog().label("Assistant for agents"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(true)
+            .default_width(620.0)
+            .show(ctx, |ui| {
+                ui.label(self.catalog().label(
+                    "FreePlots embeds no model: you choose the MCP client (the AI assistant you already use). The client opens files, runs analyses and reads the Session through the tools below.",
+                ));
+                ui.separator();
+                ui.strong(self.catalog().label("Launch lines"));
+                egui::Grid::new("agents_launch")
+                    .num_columns(3)
+                    .spacing([10.0, 4.0])
+                    .show(ui, |ui| {
+                        for (description, line) in launch {
+                            ui.label(self.catalog().label(description));
+                            ui.monospace(line);
+                            if ui.small_button(self.catalog().label("Copy")).clicked() {
+                                copy = Some(line.to_owned());
+                            }
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Client configuration"));
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("Copy configuration"))
+                        .clicked()
+                    {
+                        copy = Some(client.to_owned());
+                    }
+                    ui.weak(self.catalog().label(
+                        "An stdio entry for a client that starts FreePlots itself.",
+                    ));
+                });
+                ui.monospace(client);
+                ui.separator();
+                ui.label(self.catalog().label(
+                    "Tools: open a CSV, describe, capability, control chart, regression, ANOVA, normality, probability plot, Session, status and screenshot. The live window also accepts menu paths, clicks, text and scripts.",
+                ));
+                ui.weak(self.catalog().label(
+                    "The bridge is for a trusted network: it can change the open worksheet. Keep --token private when the address is not loopback.",
+                ));
+            });
+        if let Some(text) = copy {
+            ctx.copy_text(text);
+        }
+        self.show_agents_dialog = open;
     }
 
     fn graph_window(&mut self, ctx: &egui::Context) {
@@ -22613,6 +22950,97 @@ mod tests {
             .cell_text(1, 0)
             .unwrap_or_default();
         assert!(text.len() > 100_000, "undo left {} characters", text.len());
+    }
+
+    #[test]
+    fn the_preferences_round_trip_through_the_settings_file() {
+        let dir = std::env::temp_dir().join(format!("fp-prefs-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        let path = dir.join("settings.json");
+
+        let mut app = FreePlotsApp::new();
+        app.set_preferences_path(path.clone());
+        assert!(!path.exists(), "nothing is written until an option changes");
+        app.set_language(fp_core::i18n::Lang::Portuguese);
+        app.set_dark_mode(true);
+        app.zoom = 1.25;
+        app.show_session = false;
+        app.show_grid_lines = false;
+        app.native_plot_windows = false;
+        app.persist_preferences();
+        assert!(path.exists(), "the change was not written");
+        assert_eq!(app.preferences_error(), None);
+
+        let mut restored = FreePlotsApp::new();
+        restored.set_preferences_path(path.clone());
+        assert_eq!(restored.language(), fp_core::i18n::Lang::Portuguese);
+        assert!(restored.dark_mode);
+        assert!((restored.zoom - 1.25).abs() < 1e-9);
+        assert!(!restored.show_session);
+        assert!(!restored.show_grid_lines);
+        assert!(!restored.native_plot_windows);
+
+        // A malformed file keeps the defaults and is replaced on the next save.
+        std::fs::write(&path, "{not json").expect("write");
+        let mut recovered = FreePlotsApp::new();
+        recovered.set_preferences_path(path.clone());
+        assert_eq!(recovered.language(), fp_core::i18n::Lang::English);
+        assert!(recovered.show_grid_lines);
+        recovered.set_dark_mode(true);
+        recovered.persist_preferences();
+        let text = std::fs::read_to_string(&path).expect("read");
+        assert!(text.contains("\"dark_mode\": true"), "{text}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_help_menu_opens_the_settings_and_agents_dialogs() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let dir = std::env::temp_dir().join(format!("fp-help-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        let mut app = FreePlotsApp::new();
+        app.set_preferences_path(dir.join("settings.json"));
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+
+        harness.get_by_label("Help").click();
+        harness.run();
+        harness
+            .get_by_label("Where the settings are stored…")
+            .click();
+        harness.run();
+        harness.get_by_label("Where the settings are stored");
+        harness.get_by_label_contains("settings.json");
+        harness.get_by_label("Copy path").click();
+        harness.step();
+        let copied = harness.output().platform_output.commands.iter().any(|command| {
+            matches!(command, egui::OutputCommand::CopyText(text) if text.ends_with("settings.json"))
+        });
+        assert!(copied, "the path did not reach the clipboard");
+        harness.state_mut().show_settings_info = false;
+        harness.run();
+
+        harness.get_by_label("Help").click();
+        harness.run();
+        harness.get_by_label("Assistant for agents…").click();
+        harness.run();
+        harness.get_by_label("Assistant for agents");
+        harness.get_by_label("FreePlots --mcp");
+        harness.get_by_label("FreePlots --mcp-http 127.0.0.1:8767");
+        harness.get_by_label("Copy configuration").click();
+        harness.step();
+        let config = harness.output().platform_output.commands.iter().any(|command| {
+            matches!(command, egui::OutputCommand::CopyText(text) if text.contains("mcpServers"))
+        });
+        assert!(
+            config,
+            "the client configuration did not reach the clipboard"
+        );
+        harness.state_mut().show_agents_dialog = false;
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

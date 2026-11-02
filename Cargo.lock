@@ -1220,6 +1220,8 @@ dependencies = [
  "egui_extras",
  "egui_kittest",
  "fp-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

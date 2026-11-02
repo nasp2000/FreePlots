@@ -570,6 +570,16 @@ pub fn run(args: &[String]) -> Result<(), String> {
     }
 
     let mut app = FreePlotsApp::new();
+    // Preferences live in the data directory (next to the executable when it
+    // is writable, otherwise the user data directory).
+    let preferences = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
+        .and_then(|dir| crate::platform::resolve_data_dir(&dir).ok())
+        .map(|data| data.path.join("settings.json"));
+    if let Some(path) = preferences {
+        app.set_preferences_path(path);
+    }
     app.set_background_analyses(true);
     app.set_distribution(distribution.unwrap_or(DistributionKind::Normal));
     if let Some(path) = path {
