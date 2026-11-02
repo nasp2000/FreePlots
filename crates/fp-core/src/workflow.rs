@@ -629,6 +629,8 @@ pub enum AnalysisSpec {
         first: String,
         /// Second factor column.
         second: String,
+        /// Fit the interaction term (the captured command fits main effects).
+        interaction: bool,
     },
     /// Curve fit of a response to a predictor.
     CurveFit {
@@ -1726,7 +1728,20 @@ impl AnalysisSpec {
             response: response.into(),
             first: first.into(),
             second: second.into(),
+            interaction: false,
         }
+    }
+
+    /// Adds the interaction term to a two-way ANOVA.
+    #[must_use]
+    pub fn with_interaction(mut self, interaction: bool) -> Self {
+        if let Self::TwoWayAnova {
+            interaction: fit, ..
+        } = &mut self
+        {
+            *fit = interaction;
+        }
+        self
     }
 
     /// Curve fit of a response to a predictor.
@@ -3499,6 +3514,7 @@ impl AnalysisSpec {
                 response,
                 first,
                 second,
+                ..
             } => format!("Two-way ANOVA — {response} by {first} and {second}"),
             Self::ChiSquareIndependence { row, column } => {
                 format!("Chi-square test for independence — {row} × {column}")
@@ -7070,8 +7086,9 @@ pub fn run_analysis(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutpu
             response,
             first,
             second,
+            interaction,
         } => {
-            let model = crate::twoway::fit(df, response, first, second)?;
+            let model = crate::twoway::fit_with(df, response, first, second, *interaction)?;
             let mut result = crate::twoway::report(response, first, second, &model);
             result
                 .notes
@@ -8130,12 +8147,17 @@ mod tests {
             Column::new_text("b", rows.iter().map(|(_, _, b)| b.clone()).collect()),
         ])
         .expect("frame");
+        // The default is main effects (the captured convention); the
+        // interaction is requested explicitly.
         let spec = AnalysisSpec::two_way_anova("y", "a", "b");
         let out = run_analysis(&df, &spec).expect("two-way anova");
         let text = out.results[0].to_session_text();
         assert!(text.contains("Two-Way ANOVA"), "{text}");
-        assert!(text.contains("Interaction"), "{text}");
+        assert!(!text.contains("Interaction"), "{text}");
         assert!(out.plot.is_some());
+        let spec = spec.with_interaction(true);
+        let out = run_analysis(&df, &spec).expect("two-way anova with interaction");
+        assert!(out.results[0].to_session_text().contains("Interaction"));
     }
 
     #[test]

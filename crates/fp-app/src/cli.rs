@@ -1698,9 +1698,11 @@ fn anova_two(args: &[String]) -> Result<(), String> {
     let mut response: Option<String> = None;
     let mut first: Option<String> = None;
     let mut second: Option<String> = None;
+    let mut interaction = false;
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
+            "--interaction" => interaction = true,
             "--response" => {
                 response = Some(
                     it.next()
@@ -1738,7 +1740,7 @@ fn anova_two(args: &[String]) -> Result<(), String> {
     let first = first.ok_or_else(|| "--factor-a is required".to_owned())?;
     let second = second.ok_or_else(|| "--factor-b is required".to_owned())?;
     let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
-    let spec = AnalysisSpec::two_way_anova(response, first, second);
+    let spec = AnalysisSpec::two_way_anova(response, first, second).with_interaction(interaction);
     let out = run_local(&df, &spec).map_err(|e| e.to_string())?;
     print_analysis(&out);
     Ok(())

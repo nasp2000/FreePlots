@@ -643,6 +643,7 @@ pub struct FreePlotsApp {
     two_way_response: String,
     two_way_first: String,
     two_way_second: String,
+    two_way_interaction: bool,
     curve_x: String,
     curve_y: String,
     curve_model: CurveModel,
@@ -1056,6 +1057,7 @@ impl FreePlotsApp {
             two_way_response: String::new(),
             two_way_first: String::new(),
             two_way_second: String::new(),
+            two_way_interaction: false,
             curve_x: String::new(),
             curve_y: String::new(),
             curve_model: CurveModel::Polynomial(2),
@@ -3946,6 +3948,7 @@ impl FreePlotsApp {
         self.two_way_response = self.selected.clone().unwrap_or_default();
         self.two_way_first = String::new();
         self.two_way_second = String::new();
+        self.two_way_interaction = false;
         self.show_two_way_dialog = true;
     }
 
@@ -3967,7 +3970,8 @@ impl FreePlotsApp {
             self.two_way_response.clone(),
             self.two_way_first.clone(),
             self.two_way_second.clone(),
-        );
+        )
+        .with_interaction(self.two_way_interaction);
         let label = format!(
             "Two-Way ANOVA: {} by {} and {}",
             self.two_way_response, self.two_way_first, self.two_way_second
@@ -4071,6 +4075,13 @@ impl FreePlotsApp {
                         .labelled_by(label.id)
                         .hover_from(&label);
                 });
+                ui.help_checkbox(
+                    &mut self.two_way_interaction,
+                    "Fit the interaction (A×B)",
+                )
+                .on_hover_text(
+                    "The captured command fits main effects only; the interaction adds its own term and error degrees of freedom.",
+                );
                 ui.small("The design must be complete and balanced.");
                 ui.separator();
                 if ui.help_button(self.catalog().label("Run")).clicked() {

@@ -10,7 +10,7 @@ use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
 use crate::plot::{PlotSpec, Point, Segment, linear_axis};
 use crate::report::{AnalysisResult, Item, standard_warnings};
-use crate::special::{chi_square_quantile, ln_gamma, normal_quantile, normal_sf};
+use crate::special::{ln_gamma, normal_quantile, normal_sf};
 use crate::workflow::AnalysisOutput;
 
 /// One row of the product-limit table.
@@ -1287,8 +1287,12 @@ pub fn fit_exponential(
     let theta = total_time / events as f64;
     let log_likelihood = -(events as f64) * theta.ln() - total_time / theta;
     let alpha = 0.05;
-    let lower = 2.0 * total_time / chi_square_quantile(1.0 - alpha / 2.0, 2.0 * events as f64);
-    let upper = 2.0 * total_time / chi_square_quantile(alpha / 2.0, 2.0 * events as f64);
+    // The captured run uses the normal approximation on the log scale:
+    // θ·exp(±z/√events), which is asymmetric on the time axis.
+    let _ = alpha;
+    let half = 1.959_963_984_540_054 / (events as f64).sqrt();
+    let lower = theta * (-half).exp();
+    let upper = theta * half.exp();
     Ok(CensoredExponential {
         theta,
         theta_ci: Some((lower, upper)),
@@ -1339,8 +1343,12 @@ pub fn analyze_exponential(
     );
     result.n = model.n;
     result.excluded = model.excluded;
+    let se = model.theta / (model.events as f64).sqrt();
+    let factor = (1.959_963_984_540_054 / (model.events as f64).sqrt()).exp();
+    let interval = |estimate: f64| (estimate / factor, estimate * factor);
     result.statistics = vec![
         ("Mean/scale (θ)", model.theta),
+        ("Standard error", se),
         ("Log-likelihood", model.log_likelihood),
         ("AIC", model.aic),
         ("B10 life", model.b10),
@@ -1351,24 +1359,75 @@ pub fn analyze_exponential(
         result.statistics.push(("θ CI lower", lower));
         result.statistics.push(("θ CI upper", upper));
     }
+    // Characteristics of the fitted distribution, with the same normal
+    // approximation on the log scale that the captured run prints.
+    let median = model.theta * std::f64::consts::LN_2;
+    let q1 = model.theta * (4.0f64 / 3.0).ln();
+    let q3 = model.theta * 4.0f64.ln();
+    let characteristics: [(&str, f64); 5] = [
+        ("Mean(MTTF)", model.theta),
+        ("Standard deviation", model.theta),
+        ("Median", median),
+        ("First quartile (Q1)", q1),
+        ("Third quartile (Q3)", q3),
+    ];
+    let mut characteristic_rows = Vec::with_capacity(6);
+    for (name, estimate) in characteristics {
+        let (lower, upper) = interval(estimate);
+        characteristic_rows.push(vec![
+            name.to_owned(),
+            format!("{estimate:.6}"),
+            format!("{:.6}", estimate / (model.events as f64).sqrt()),
+            format!("{lower:.6}"),
+            format!("{upper:.6}"),
+        ]);
+    }
+    let iqr = q3 - q1;
+    let (iqr_lower, iqr_upper) = interval(iqr);
+    characteristic_rows.push(vec![
+        "Interquartile range (IQR)".to_owned(),
+        format!("{iqr:.6}"),
+        format!("{:.6}", iqr / (model.events as f64).sqrt()),
+        format!("{iqr_lower:.6}"),
+        format!("{iqr_upper:.6}"),
+    ]);
     result.extra.push(Item::Table {
-        headers: vec!["Quantity".to_owned(), "Value".to_owned()],
-        rows: vec![
-            vec!["Mean/scale (θ)".to_owned(), format!("{:.6}", model.theta)],
-            vec![
-                "θ 95% CI".to_owned(),
-                model.theta_ci.map_or_else(
-                    || "—".to_owned(),
-                    |(lower, upper)| format!("({lower:.6}, {upper:.6})"),
-                ),
-            ],
-            vec![
-                "Log-likelihood".to_owned(),
-                format!("{:.6}", model.log_likelihood),
-            ],
-            vec!["AIC".to_owned(), format!("{:.6}", model.aic)],
-            vec!["B10 life".to_owned(), format!("{:.6}", model.b10)],
+        headers: vec![
+            "Characteristic".to_owned(),
+            "Estimate".to_owned(),
+            "Standard error".to_owned(),
+            "CI lower".to_owned(),
+            "CI upper".to_owned(),
         ],
+        rows: characteristic_rows,
+    });
+    // Percentiles: the captured table lists 1–10, the deciles and 91–99.
+    let percentages: Vec<u32> = (1..=10)
+        .chain((20..=90).step_by(10))
+        .chain(91..=99)
+        .collect();
+    let mut percentile_rows = Vec::with_capacity(percentages.len());
+    for percent in percentages {
+        let p = f64::from(percent) / 100.0;
+        let estimate = -model.theta * (1.0 - p).ln();
+        let (lower, upper) = interval(estimate);
+        percentile_rows.push(vec![
+            percent.to_string(),
+            format!("{estimate:.6}"),
+            format!("{:.6}", estimate / (model.events as f64).sqrt()),
+            format!("{lower:.6}"),
+            format!("{upper:.6}"),
+        ]);
+    }
+    result.extra.push(Item::Table {
+        headers: vec![
+            "Percent".to_owned(),
+            "Percentile".to_owned(),
+            "Standard error".to_owned(),
+            "CI lower".to_owned(),
+            "CI upper".to_owned(),
+        ],
+        rows: percentile_rows,
     });
     result.notes = vec![
         (
@@ -1378,7 +1437,7 @@ pub fn analyze_exponential(
         ),
         (
             "Interval".to_owned(),
-            "95% chi-square interval for θ with 2·events df".to_owned(),
+            "95% normal interval on the log scale: θ·exp(±z/√events), the captured convention".to_owned(),
         ),
         (
             "Assumption".to_owned(),
@@ -1386,10 +1445,7 @@ pub fn analyze_exponential(
         ),
     ];
     result.warnings = standard_warnings(model.n, model.excluded, 0);
-    result.warnings.push(
-        "exponential reliability conventions and interval method have not been verified against captured output"
-            .to_owned(),
-    );
+
     Ok(AnalysisOutput {
         results: vec![result],
         plot: Some(PlotSpec {

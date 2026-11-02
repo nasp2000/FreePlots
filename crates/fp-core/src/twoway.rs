@@ -58,6 +58,10 @@ pub struct TwoWayFit {
     pub ss_first: f64,
     /// Sum of squares of the second factor.
     pub ss_second: f64,
+    /// `true` when the interaction term was fitted.
+    pub interaction: bool,
+    /// Degrees of freedom of the error.
+    pub df_error: f64,
     /// Sum of squares of the interaction.
     pub ss_interaction: f64,
     /// Sum of squares of the error.
@@ -114,6 +118,21 @@ fn label(column: &Column, row: usize) -> Option<String> {
 
 /// Fits the two-way ANOVA.
 pub fn fit(df: &DataFrame, response: &str, first: &str, second: &str) -> Result<TwoWayFit> {
+    fit_with(df, response, first, second, true)
+}
+
+/// Fits the two-way model, optionally without the interaction.
+///
+/// # Errors
+///
+/// As [`fit`].
+pub fn fit_with(
+    df: &DataFrame,
+    response: &str,
+    first: &str,
+    second: &str,
+    interaction: bool,
+) -> Result<TwoWayFit> {
     if response == first || response == second || first == second {
         return Err(Error::Unsupported(
             "the response and the two factors must be different columns".to_owned(),
@@ -252,14 +271,31 @@ pub fn fit(df: &DataFrame, response: &str, first: &str, second: &str) -> Result<
     let df_first = (a - 1) as f64;
     let df_second = (b - 1) as f64;
     let df_interaction = df_first * df_second;
-    let df_error = (a * b * (n - 1)) as f64;
+    // The captured command fits main effects only: the interaction's degrees
+    // of freedom go to the error and SS_error = SS_total - SS_A - SS_B.
+    let (df_error, ss_error) = if interaction {
+        ((a * b * (n - 1)) as f64, ss_error)
+    } else {
+        (
+            total_n as f64 - a as f64 - b as f64 + 1.0,
+            ss_total - ss_first - ss_second,
+        )
+    };
     let ms_error = ss_error / df_error;
     let f_first = (ss_first / df_first) / ms_error;
     let f_second = (ss_second / df_second) / ms_error;
-    let f_interaction = (ss_interaction / df_interaction) / ms_error;
+    let f_interaction = if interaction {
+        (ss_interaction / df_interaction) / ms_error
+    } else {
+        f64::NAN
+    };
     let p_first = (1.0 - f_cdf(f_first, df_first, df_error)).clamp(0.0, 1.0);
     let p_second = (1.0 - f_cdf(f_second, df_second, df_error)).clamp(0.0, 1.0);
-    let p_interaction = (1.0 - f_cdf(f_interaction, df_interaction, df_error)).clamp(0.0, 1.0);
+    let p_interaction = if interaction {
+        (1.0 - f_cdf(f_interaction, df_interaction, df_error)).clamp(0.0, 1.0)
+    } else {
+        f64::NAN
+    };
     let pooled_sd = ms_error.max(0.0).sqrt();
     let r_squared = if ss_total > 0.0 {
         (1.0 - ss_error / ss_total).clamp(0.0, 1.0)
@@ -271,6 +307,8 @@ pub fn fit(df: &DataFrame, response: &str, first: &str, second: &str) -> Result<
         cells,
         levels_first,
         levels_second,
+        interaction,
+        df_error,
         grand_mean,
         ss_first,
         ss_second,
@@ -294,7 +332,11 @@ pub fn fit(df: &DataFrame, response: &str, first: &str, second: &str) -> Result<
 pub fn report(response: &str, first: &str, second: &str, model: &TwoWayFit) -> AnalysisResult {
     let mut result = AnalysisResult::new(
         format!("Two-Way ANOVA — {response} by {first} and {second}"),
-        "Balanced two-way ANOVA with the interaction".to_owned(),
+        if model.interaction {
+            "Balanced two-way ANOVA with the interaction".to_owned()
+        } else {
+            "Balanced two-way ANOVA, main effects only (the captured convention)".to_owned()
+        },
     );
     result.n = model.n;
     result.excluded = model.excluded;
@@ -306,9 +348,15 @@ pub fn report(response: &str, first: &str, second: &str, model: &TwoWayFit) -> A
         ("p-value (factor 1)", model.p_first),
         ("F (factor 2)", model.f_second),
         ("p-value (factor 2)", model.p_second),
-        ("F (interaction)", model.f_interaction),
-        ("p-value (interaction)", model.p_interaction),
     ];
+    if model.interaction {
+        result
+            .statistics
+            .push(("F (interaction)", model.f_interaction));
+        result
+            .statistics
+            .push(("p-value (interaction)", model.p_interaction));
+    }
     result.extra.push(Item::Table {
         headers: vec![
             "Source".to_owned(),
@@ -318,43 +366,48 @@ pub fn report(response: &str, first: &str, second: &str, model: &TwoWayFit) -> A
             "F".to_owned(),
             "P".to_owned(),
         ],
-        rows: vec![
-            source_row(
-                first,
-                model.ss_first,
-                (model.levels_first.len() - 1) as f64,
-                model.f_first,
-                model.p_first,
-            ),
-            source_row(
-                second,
-                model.ss_second,
-                (model.levels_second.len() - 1) as f64,
-                model.f_second,
-                model.p_second,
-            ),
-            source_row(
-                "Interaction",
-                model.ss_interaction,
-                ((model.levels_first.len() - 1) * (model.levels_second.len() - 1)) as f64,
-                model.f_interaction,
-                model.p_interaction,
-            ),
-            source_row(
+        rows: {
+            let mut rows = vec![
+                source_row(
+                    first,
+                    model.ss_first,
+                    (model.levels_first.len() - 1) as f64,
+                    model.f_first,
+                    model.p_first,
+                ),
+                source_row(
+                    second,
+                    model.ss_second,
+                    (model.levels_second.len() - 1) as f64,
+                    model.f_second,
+                    model.p_second,
+                ),
+            ];
+            if model.interaction {
+                rows.push(source_row(
+                    "Interaction",
+                    model.ss_interaction,
+                    ((model.levels_first.len() - 1) * (model.levels_second.len() - 1)) as f64,
+                    model.f_interaction,
+                    model.p_interaction,
+                ));
+            }
+            rows.push(source_row(
                 "Error",
                 model.ss_error,
-                model.n as f64 - model.cells.len() as f64,
+                model.df_error,
                 f64::NAN,
                 f64::NAN,
-            ),
-            source_row(
+            ));
+            rows.push(source_row(
                 "Total",
                 model.ss_total,
                 model.n as f64 - 1.0,
                 f64::NAN,
                 f64::NAN,
-            ),
-        ],
+            ));
+            rows
+        },
     });
     result.extra.push(Item::Table {
         headers: vec![
