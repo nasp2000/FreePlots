@@ -757,6 +757,9 @@ pub struct FreePlotsApp {
     csv_decimal_comma: bool,
     csv_header: bool,
     show_save: bool,
+    show_overwrite: bool,
+    /// Path and format waiting for the overwrite confirmation.
+    overwrite_pending: Option<(String, FileKind, bool)>,
     save_path: String,
     save_kind: FileKind,
     save_decimal_comma: bool,
@@ -1157,6 +1160,8 @@ impl FreePlotsApp {
             csv_decimal_comma: false,
             csv_header: true,
             show_save: false,
+            show_overwrite: false,
+            overwrite_pending: None,
             save_path: String::new(),
             save_kind: FileKind::Csv,
             save_decimal_comma: true,
@@ -1970,11 +1975,6 @@ impl FreePlotsApp {
     #[must_use]
     pub fn can_redo(&self) -> bool {
         !self.redo_stack.is_empty()
-    }
-
-    fn clear_history(&mut self) {
-        self.undo_stack.clear();
-        self.redo_stack.clear();
     }
 
     /// Empties the selected cell or rectangle.
@@ -10799,6 +10799,7 @@ impl FreePlotsApp {
         self.open_window(&ctx);
         self.csv_options_dialog(&ctx);
         self.save_window(&ctx);
+        self.overwrite_window(&ctx);
         self.rename_window(&ctx);
         self.sheet_rename_window(&ctx);
         self.probability_plot_dialog(&ctx);
@@ -12955,6 +12956,20 @@ impl FreePlotsApp {
                                                 cell_fg,
                                             );
                                         }
+                                        // Screen readers get the cell address and the
+                                        // text as painted (formatting included).
+                                        let cell_label = if text.is_empty() {
+                                            format!("C{} R{}", index + 1, r + 1)
+                                        } else {
+                                            format!("C{} R{}: {text}", index + 1, r + 1)
+                                        };
+                                        response.widget_info(|| {
+                                            egui::WidgetInfo::labeled(
+                                                egui::WidgetType::Label,
+                                                true,
+                                                &cell_label,
+                                            )
+                                        });
                                         if response.clicked() && index < names.len() {
                                             clicked = Some((index, r, shift));
                                         }
@@ -13302,6 +13317,12 @@ impl FreePlotsApp {
         let Some(df) = self.data.as_mut() else {
             return;
         };
+        let before_rows = df.n_rows();
+        // Grow the rows first: if that fails nothing has changed yet.
+        if let Err(e) = df.ensure_rows(row + lines.len()) {
+            self.set_error(e.to_string());
+            return;
+        }
         let first_new_column = df.n_columns();
         while df.n_columns() < column + width {
             df.add_column(fp_core::data::DType::Float);
@@ -13309,11 +13330,6 @@ impl FreePlotsApp {
         let mut actions: Vec<EditAction> = (first_new_column..df.n_columns())
             .map(|index| add_column_action(df, index))
             .collect();
-        let before_rows = df.n_rows();
-        if let Err(e) = df.ensure_rows(row + lines.len()) {
-            self.set_error(e.to_string());
-            return;
-        }
         let mut edits = Vec::new();
         for (r, line) in lines.iter().enumerate() {
             for (c, value) in line.split('\t').enumerate() {
@@ -13321,8 +13337,14 @@ impl FreePlotsApp {
                 let target_row = row + r;
                 let before = cell_state(df, target_column, target_row);
                 if let Err(e) = df.set_cell(target_column, target_row, value) {
+                    // A refused cell makes the whole paste void: restore the
+                    // cells already written, drop the rows and columns, and
+                    // keep the older history intact.
+                    rollback_cells(df, &edits, before_rows);
+                    for action in actions.iter().rev() {
+                        let _ = undo_action(df, action);
+                    }
                     self.set_error(e.to_string());
-                    self.clear_history();
                     return;
                 }
                 let after = cell_state(df, target_column, target_row);
@@ -13363,8 +13385,9 @@ impl FreePlotsApp {
         for (column, row, text) in cells {
             let before = cell_state(df, *column, *row);
             if let Err(e) = df.set_cell(*column, *row, text) {
+                // The block is atomic: nothing of it survives the refusal.
+                rollback_cells(df, &edits, before_rows);
                 self.set_error(e.to_string());
-                self.clear_history();
                 return false;
             }
             let after = cell_state(df, *column, *row);
@@ -14750,6 +14773,67 @@ impl FreePlotsApp {
         self.show_open = open && self.show_open;
     }
 
+    /// Writes `path`, asking first when it already exists.
+    pub fn request_write(&mut self, path: String, kind: FileKind, decimal_comma: bool) {
+        if std::path::Path::new(&path).exists() {
+            self.overwrite_pending = Some((path, kind, decimal_comma));
+            self.show_overwrite = true;
+            return;
+        }
+        self.save_request = Some(SaveRequest {
+            path,
+            kind,
+            decimal_comma,
+        });
+    }
+
+    /// Emits the save request held by the overwrite dialog.
+    pub fn confirm_overwrite(&mut self) {
+        if let Some((path, kind, decimal_comma)) = self.overwrite_pending.take() {
+            self.save_request = Some(SaveRequest {
+                path,
+                kind,
+                decimal_comma,
+            });
+        }
+        self.show_overwrite = false;
+    }
+
+    fn overwrite_window(&mut self, ctx: &egui::Context) {
+        if !self.show_overwrite {
+            return;
+        }
+        let mut open = self.show_overwrite;
+        let path = self
+            .overwrite_pending
+            .as_ref()
+            .map(|(path, _, _)| path.clone())
+            .unwrap_or_default();
+        dialog_window("Replace existing file?")
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.label(format!("{path} already exists. Replace it?"));
+                ui.horizontal(|ui| {
+                    if ui.help_button("Replace").clicked() {
+                        self.confirm_overwrite();
+                    }
+                    if ui.help_button("Cancel").clicked() {
+                        self.overwrite_pending = None;
+                        self.show_overwrite = false;
+                    }
+                });
+            });
+        if !open && self.show_overwrite {
+            // The window was closed with its X: keep the file untouched.
+            self.overwrite_pending = None;
+            self.show_overwrite = false;
+        }
+    }
+
     fn save_window(&mut self, ctx: &egui::Context) {
         if !self.show_save {
             return;
@@ -14793,13 +14877,9 @@ impl FreePlotsApp {
                         );
                     }
                     if ui.help_button(self.catalog().label("Save")).clicked() || submitted {
-                        let path = self.save_path.trim();
+                        let path = self.save_path.trim().to_owned();
                         if !path.is_empty() {
-                            self.save_request = Some(SaveRequest {
-                                path: path.to_owned(),
-                                kind,
-                                decimal_comma: self.save_decimal_comma,
-                            });
+                            self.request_write(path, kind, self.save_decimal_comma);
                         }
                         self.show_save = false;
                     }
@@ -15066,17 +15146,17 @@ impl FreePlotsApp {
                             .show(ui, |ui| {
                                 for (keys, action) in shortcuts {
                                     ui.label(RichText::new(*keys).monospace().size(12.5));
-                                    ui.label(*action);
+                                    ui.label(self.catalog().label(action));
                                     ui.end_row();
                                 }
                             });
                     });
                 ui.separator();
                 ui.label(
-                    RichText::new(
+                    RichText::new(self.catalog().label(
                         "Ctrl and Shift combinations use the keyboard layout in use; the grid \
                          never captures keys while a text field has focus.",
-                    )
+                    ))
                     .small()
                     .color(ui.visuals().text_color()),
                 );
@@ -15111,7 +15191,10 @@ impl FreePlotsApp {
                 ui.help_label("What do you want to do?");
                 for (index, goal) in goals.iter().enumerate() {
                     if ui
-                        .add_sized([ui.available_width(), 24.0], egui::Button::new(*goal))
+                        .add_sized(
+                            [ui.available_width(), 24.0],
+                            egui::Button::new(self.catalog().label(goal)),
+                        )
                         .clicked()
                     {
                         choice = Some(index as u8);
@@ -15164,16 +15247,15 @@ impl FreePlotsApp {
                 ui.add_space(16.0);
                 ui.label(RichText::new(format!("FreePlots Engine {}", fp_core::VERSION)).strong());
                 ui.label(
-                    RichText::new(
-                        "Software de análise e estatística desenvolvido por AI em Rust, \
-                         acessível para todos.",
-                    )
+                    RichText::new(self.catalog().label(
+                        "Statistics and analysis software written in Rust by AI, accessible to everyone.",
+                    ))
                     .size(13.0),
                 );
                 ui.add_space(12.0);
                 ui.vertical_centered(|ui| {
                     ui.label(
-                        RichText::new("MIT license")
+                        RichText::new(self.catalog().label("MIT license"))
                             .size(12.0)
                             .color(ui.visuals().text_color()),
                     );
@@ -15287,6 +15369,13 @@ fn add_column_action(df: &DataFrame, index: usize) -> EditAction {
         name: column.name().to_owned(),
         dtype: column.dtype(),
     }
+}
+
+/// Restores the cells written so far and drops the rows a block added.
+fn rollback_cells(df: &mut DataFrame, edits: &[CellEdit], before_rows: usize) {
+    let group = EditAction::Cells(edits.to_vec());
+    let _ = undo_action(df, &group);
+    df.truncate_rows(before_rows);
 }
 
 fn undo_action(df: &mut DataFrame, action: &EditAction) -> Result<(), String> {
@@ -22527,6 +22616,176 @@ mod tests {
     }
 
     #[test]
+    fn the_about_and_help_follow_the_language() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let app = FreePlotsApp::new();
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+
+        // English by default, including the description and the licence.
+        harness.state_mut().show_about = true;
+        harness.run();
+        harness.get_by_label(
+            "Statistics and analysis software written in Rust by AI, accessible to everyone.",
+        );
+        harness.get_by_label("MIT license");
+        assert_eq!(
+            harness
+                .query_all_by_label(
+                    "Software de análise e estatística escrito em Rust por IA, acessível a todos."
+                )
+                .count(),
+            0
+        );
+
+        // The same dialog in Portuguese, with no English left in it.
+        harness
+            .state_mut()
+            .set_language(fp_core::i18n::Lang::Portuguese);
+        harness.run();
+        harness.get_by_label(
+            "Software de análise e estatística escrito em Rust por IA, acessível a todos.",
+        );
+        harness.get_by_label("Licença MIT");
+        assert_eq!(harness.query_all_by_label("MIT license").count(), 0);
+        assert_eq!(
+            harness
+                .query_all_by_label(
+                    "Statistics and analysis software written in Rust by AI, accessible to everyone."
+                )
+                .count(),
+            0
+        );
+
+        // The help window follows the same catalogue.
+        harness.state_mut().show_about = false;
+        harness.state_mut().show_shortcuts = true;
+        harness.run();
+        harness.get_by_label("Anular e repetir");
+        harness
+            .state_mut()
+            .set_language(fp_core::i18n::Lang::English);
+        harness.run();
+        harness.get_by_label("Undo and redo");
+        assert_eq!(harness.query_all_by_label("Anular e repetir").count(), 0);
+        harness.get_by_label(
+            "Ctrl and Shift combinations use the keyboard layout in use; the grid never captures keys while a text field has focus.",
+        );
+        harness
+            .state_mut()
+            .set_language(fp_core::i18n::Lang::Portuguese);
+        harness.run();
+        harness.get_by_label(
+            "As combinações com Ctrl e Shift seguem o layout do teclado em uso; a grelha nunca capta teclas enquanto um campo de texto tem o foco.",
+        );
+
+        // The assistant goals are translated too, while the action is still
+        // chosen by index.
+        harness.state_mut().show_shortcuts = false;
+        harness.state_mut().show_assistant_dialog = true;
+        harness.run();
+        harness.get_by_label("Comparar dois grupos");
+        harness.get_by_label("Planear uma experiência");
+    }
+
+    #[test]
+    fn the_cells_expose_their_painted_text_to_accessibility() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let df =
+            DataFrame::new(vec![Column::new_f64("weight", vec![1234.5678, 2.0])]).expect("frame");
+        let mut app = FreePlotsApp::new();
+        app.set_data(df, "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+
+        // Unformatted: the address and the value as the grid paints it.
+        harness.get_by_label("C1 R1: 1234.5678");
+        harness.get_by_label("C1 R2: 2");
+        // Empty cells still have an address, so a screen reader can navigate.
+        harness.get_by_label("C2 R1");
+
+        // The accessibility label follows the column format, exactly like the
+        // painted text: this is the live check the plan asked for.
+        harness.state_mut().formats.insert(
+            "weight".to_owned(),
+            ColumnFormat {
+                decimals: 1,
+                thousands: true,
+                bold: false,
+                align: CellAlign::Right,
+            },
+        );
+        harness.run();
+        harness.get_by_label("C1 R1: 1 234.6");
+        assert_eq!(harness.query_all_by_label("C1 R1: 1234.5678").count(), 0);
+    }
+
+    #[test]
+    fn saving_over_an_existing_file_asks_first() {
+        use egui_kittest::{Harness, kittest::Queryable};
+
+        let dir = std::env::temp_dir().join(format!("fp-overwrite-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        let existing = dir.join("report.csv");
+        std::fs::write(&existing, "old").expect("fixture");
+        let fresh = dir.join("fresh.csv");
+
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1400.0, 900.0))
+            .build_ui_state(|ui, app| app.show(ui), app);
+        harness.run();
+
+        // A new path goes straight through.
+        harness.state_mut().begin_save(FileKind::Csv);
+        harness.state_mut().save_path = fresh.display().to_string();
+        harness.run();
+        harness.get_by_label("Save").click();
+        harness.run();
+        assert_eq!(
+            harness
+                .state_mut()
+                .take_save_request()
+                .map(|request| request.path),
+            Some(fresh.display().to_string())
+        );
+
+        // An existing path waits for confirmation; Cancel writes nothing.
+        harness.state_mut().begin_save(FileKind::Csv);
+        harness.state_mut().save_path = existing.display().to_string();
+        harness.run();
+        harness.get_by_label("Save").click();
+        harness.run();
+        assert!(harness.state().show_overwrite);
+        assert!(harness.state().save_request.is_none());
+        harness.get_by_label("Cancel").click();
+        harness.run();
+        assert!(!harness.state().show_overwrite);
+        assert!(harness.state().save_request.is_none());
+
+        // Replace emits the request; the window is gone.
+        harness.state_mut().begin_save(FileKind::Csv);
+        harness.state_mut().save_path = existing.display().to_string();
+        harness.run();
+        harness.get_by_label("Save").click();
+        harness.run();
+        harness.get_by_label("Replace").click();
+        harness.run();
+        assert!(!harness.state().show_overwrite);
+        let request = harness.state_mut().take_save_request().expect("request");
+        assert_eq!(request.path, existing.display().to_string());
+        assert_eq!(request.kind, FileKind::Csv);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn the_assistant_opens_the_right_dialog_for_each_goal() {
         use egui_kittest::{Harness, kittest::Queryable};
 
@@ -22924,6 +23183,50 @@ mod tests {
         restored.switch_sheet(1);
         assert_eq!(restored.data().map(DataFrame::n_rows), Some(5));
         assert_eq!(restored.sheets[1].name, "Worksheet 2");
+    }
+
+    #[test]
+    fn a_refused_paste_changes_nothing() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        app.select_cell(0, 0);
+        app.paste_tsv("abc");
+        assert!(app.error.as_deref().is_some_and(|error| !error.is_empty()));
+        let data = app.data().expect("frame");
+        assert_eq!(data.n_rows(), 5);
+        assert_eq!(data.n_columns(), 2);
+        assert_eq!(data.cell_text(0, 0).as_deref(), Some("12.5"));
+        assert!(!app.can_undo(), "a refused paste must not leave history");
+
+        // A block that fails on its second row is rolled back as a whole.
+        app.select_cell(0, 0);
+        app.paste_tsv("1\t2\nabc\t4");
+        assert!(app.error.is_some());
+        let data = app.data().expect("frame");
+        assert_eq!(data.n_rows(), 5);
+        assert_eq!(data.cell_text(0, 0).as_deref(), Some("12.5"));
+        assert_eq!(data.cell_text(1, 0).as_deref(), Some("A"));
+        assert!(!app.can_undo());
+
+        // Columns added for the paste are dropped again when it fails.
+        app.select_cell(1, 0);
+        app.paste_tsv("a\tb\tc\t\td\te\tabc");
+        assert!(app.error.is_some());
+        assert_eq!(app.data().expect("frame").n_columns(), 2);
+    }
+
+    #[test]
+    fn a_windows_clipboard_block_pastes_without_carriage_returns() {
+        let mut app = FreePlotsApp::new();
+        app.set_data(frame(), "weights.csv".to_owned());
+        app.select_cell(0, 0);
+        app.paste_tsv("1\t2\r\n3\t4\r\n");
+        let data = app.data().expect("frame");
+        assert_eq!(data.n_rows(), 5);
+        assert_eq!(data.cell_text(0, 0).as_deref(), Some("1"));
+        assert_eq!(data.cell_text(1, 0).as_deref(), Some("2"));
+        assert_eq!(data.cell_text(0, 1).as_deref(), Some("3"));
+        assert_eq!(data.cell_text(1, 1).as_deref(), Some("4"));
     }
 
     #[test]

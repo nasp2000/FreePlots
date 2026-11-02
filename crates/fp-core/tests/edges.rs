@@ -6,6 +6,7 @@
 
 use fp_core::data::{Column, DType, DataFrame};
 use fp_core::io::{CsvOptions, decode_bytes, read_csv_str};
+use fp_core::spc::ControlChartKind;
 use fp_core::workflow::{AnalysisSpec, run_analysis};
 
 fn frame(columns: Vec<Column>) -> DataFrame {
@@ -107,6 +108,115 @@ fn non_finite_values_are_excluded_and_counted() {
     let empty = numbers(vec![f64::NAN, f64::INFINITY]);
     let message = text_error(&empty, &AnalysisSpec::descriptive_statistics("x"));
     assert!(message.to_lowercase().contains("empty"), "{message:?}");
+}
+
+#[test]
+fn malformed_files_are_refused_with_a_reason() {
+    let empty = read_csv_str("", CsvOptions::default()).expect_err("empty file");
+    assert!(empty.to_string().contains("no columns"), "{empty}");
+
+    let header_only = read_csv_str("x\n", CsvOptions::default()).expect("header");
+    assert_eq!(header_only.n_rows(), 0);
+    let message = text_error(&header_only, &AnalysisSpec::descriptive_statistics("x"));
+    assert!(message.contains("empty sample"), "{message}");
+
+    // 1e400 is infinite: dropped and counted, never stored as a number.
+    let huge = read_csv_str("x\n1e400\n-1e400\n2\n", CsvOptions::default()).expect("read");
+    let output = run_analysis(&huge, &AnalysisSpec::descriptive_statistics("x")).expect("describe");
+    assert_eq!(output.results[0].n, 1);
+    assert_eq!(output.results[0].excluded, 2);
+
+    // A NUL byte turns the column into text instead of corrupting the frame.
+    let control = read_csv_str("x\n1\u{0}2\n2\n", CsvOptions::default()).expect("read");
+    assert_eq!(control.column("x").expect("x").dtype(), DType::Text);
+}
+
+#[test]
+fn a_constant_column_never_produces_nan() {
+    use fp_core::attribute::AttributeChartKind;
+
+    let df = frame(vec![
+        Column::new_f64("x", vec![5.0; 8]),
+        Column::new_f64("y", vec![2.0; 8]),
+        Column::new_text("g", vec!["a".to_string(); 8]),
+    ]);
+    let specs = vec![
+        AnalysisSpec::descriptive_statistics("x"),
+        AnalysisSpec::histogram("x"),
+        AnalysisSpec::boxplot("x"),
+        AnalysisSpec::capability("x", Some(4.0), Some(6.0)),
+        AnalysisSpec::one_sample_t("x", 5.0),
+        AnalysisSpec::two_sample_t("x", "y"),
+        AnalysisSpec::anova("x", "g"),
+        AnalysisSpec::regression("x", vec!["y".to_owned()]),
+        AnalysisSpec::correlation(vec!["x".to_owned(), "y".to_owned()]),
+        AnalysisSpec::control_chart("x", ControlChartKind::IndividualsMovingRange, 1),
+        AnalysisSpec::attribute_chart(AttributeChartKind::C, "x"),
+        AnalysisSpec::gage_rr("x", "y", "g"),
+        AnalysisSpec::kaplan_meier("x"),
+        AnalysisSpec::normality_test("x"),
+        AnalysisSpec::pareto("g"),
+        AnalysisSpec::chi_square_independence("g", "g"),
+        AnalysisSpec::factorial("x", vec!["y".to_owned()]),
+    ];
+    for spec in specs {
+        match run_analysis(&df, &spec) {
+            Ok(output) => {
+                for result in &output.results {
+                    for (name, value) in &result.statistics {
+                        assert!(
+                            !value.is_nan(),
+                            "{spec:?} left {name} as NaN in {}",
+                            result.title
+                        );
+                    }
+                }
+            }
+            Err(error) => {
+                // A refusal is fine as long as it explains itself.
+                assert!(
+                    !error.to_string().trim().is_empty(),
+                    "{spec:?} failed without a message"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn tiny_samples_are_either_refused_or_finite() {
+    let df = frame(vec![
+        Column::new_f64("x", vec![5.0]),
+        Column::new_f64("y", vec![6.0]),
+        Column::new_text("g", vec!["a".to_string()]),
+    ]);
+    let specs = vec![
+        AnalysisSpec::descriptive_statistics("x"),
+        AnalysisSpec::capability("x", Some(4.0), Some(6.0)),
+        AnalysisSpec::one_sample_t("x", 5.0),
+        AnalysisSpec::two_sample_t("x", "y"),
+        AnalysisSpec::anova("x", "g"),
+        AnalysisSpec::regression("x", vec!["y".to_owned()]),
+        AnalysisSpec::control_chart("x", ControlChartKind::IndividualsMovingRange, 1),
+        AnalysisSpec::gage_rr("x", "y", "g"),
+        AnalysisSpec::kaplan_meier("x"),
+        AnalysisSpec::normality_test("x"),
+    ];
+    for spec in specs {
+        match run_analysis(&df, &spec) {
+            Ok(output) => {
+                for result in &output.results {
+                    for (name, value) in &result.statistics {
+                        assert!(
+                            value.is_finite(),
+                            "{spec:?} printed {name} = {value} with one row"
+                        );
+                    }
+                }
+            }
+            Err(error) => assert!(!error.to_string().trim().is_empty()),
+        }
+    }
 }
 
 #[test]

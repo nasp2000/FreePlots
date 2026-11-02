@@ -333,6 +333,49 @@ mod tests {
     }
 
     #[test]
+    fn two_clients_at_once_are_both_answered() {
+        let port = free_port();
+        let bridge = Bridge::start(&format!("127.0.0.1:{port}"), None).expect("bridge");
+        let first = connect(&bridge, port);
+        let second = connect(&bridge, port);
+        let mut first_writer = first.try_clone().expect("clone");
+        let mut second_writer = second.try_clone().expect("clone");
+        let mut first_reader = BufReader::new(first);
+        let mut second_reader = BufReader::new(second);
+
+        writeln!(first_writer, r#"{{"cmd":"one"}}"#).expect("write");
+        writeln!(second_writer, r#"{{"cmd":"two"}}"#).expect("write");
+
+        // Both commands reach the queue; answer each on its own channel.
+        let mut answered = Vec::new();
+        for _ in 0..100 {
+            for command in bridge.drain() {
+                let name = command.request["cmd"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_owned();
+                command
+                    .reply
+                    .send(json!({"ok": true, "cmd": name}))
+                    .expect("answer");
+                answered.push(name);
+            }
+            if answered.len() == 2 {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        answered.sort();
+        assert_eq!(answered, vec!["one".to_owned(), "two".to_owned()]);
+
+        let first_reply = read_line(&mut first_reader);
+        let second_reply = read_line(&mut second_reader);
+        assert!(matches!(first_reply["cmd"].as_str(), Some("one" | "two")));
+        assert!(matches!(second_reply["cmd"].as_str(), Some("one" | "two")));
+        assert_ne!(first_reply["cmd"], second_reply["cmd"]);
+    }
+
+    #[test]
     fn a_truncated_frame_ends_the_connection_without_a_panic() {
         let port = free_port();
         let bridge = Bridge::start(&format!("127.0.0.1:{port}"), None).expect("bridge");

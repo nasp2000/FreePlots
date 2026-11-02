@@ -69,6 +69,13 @@ impl UiCatalog {
             "Dark mode" => "Modo escuro",
             "Choose an analysis…" => "Escolher uma análise…",
             "Describe my data" => "Descrever os meus dados",
+            "Compare two groups" => "Comparar dois grupos",
+            "Compare three or more groups" => "Comparar três ou mais grupos",
+            "Test a proportion" => "Testar uma proporção",
+            "Check a process (control chart)" => "Verificar um processo (carta de controlo)",
+            "Measure process capability" => "Medir a capacidade do processo",
+            "Fit a regression" => "Ajustar uma regressão",
+            "Design an experiment" => "Planear uma experiência",
             "Test normality" => "Testar a normalidade",
             "Control chart" => "Gráfico de controlo",
             "Process capability" => "Capacidade do processo",
@@ -146,6 +153,33 @@ impl UiCatalog {
             "English" => "Inglês",
             "Português" => "Português",
             "About FreePlots" => "Sobre o FreePlots",
+            "Statistics and analysis software written in Rust by AI, accessible to everyone." => {
+                "Software de análise e estatística escrito em Rust por IA, acessível a todos."
+            }
+            "MIT license" => "Licença MIT",
+            // Help.
+            "New worksheet, open and save as" => "Nova folha, abrir e guardar como",
+            "Print the Session report" => "Imprimir o relatório da sessão",
+            "Undo and redo" => "Anular e repetir",
+            "Copy, cut and paste" => "Copiar, cortar e colar",
+            "Find and replace" => "Localizar e substituir",
+            "Fill the selection down and right" => {
+                "Preencher a seleção para baixo e para a direita"
+            }
+            "Select the whole worksheet" => "Selecionar toda a folha",
+            "Clear the selected cells" => "Limpar as células selecionadas",
+            "Move or extend the selection" => "Mover ou estender a seleção",
+            "Next column" => "Coluna seguinte",
+            "Commit the edit and move down" => "Confirmar a edição e descer",
+            "Cancel the edit or close the dialog" => "Cancelar a edição ou fechar a caixa",
+            "Zoom in, out and reset" => "Aumentar, reduzir e repor o zoom",
+            "Edit a cell" => "Editar uma célula",
+            "Context menu of the cell, header or tab" => {
+                "Menu da célula, do cabeçalho ou do separador"
+            }
+            "Ctrl and Shift combinations use the keyboard layout in use; the grid never captures keys while a text field has focus." => {
+                "As combinações com Ctrl e Shift seguem o layout do teclado em uso; a grelha nunca capta teclas enquanto um campo de texto tem o foco."
+            }
             // Window.
             "Show Session" => "Mostrar sessão",
             "Hide Session" => "Esconder sessão",

@@ -28,7 +28,7 @@ egui_extras = "=0.36.2"
 egui_kittest = "=0.36.2"
 # No bundled default fonts (the UI ships DejaVu Sans), no wgpu: the glow
 # (OpenGL) backend runs on decade-old integrated GPUs.
-eframe = { version = "=0.36.2", default-features = false, features = ["glow", "x11"] }
+eframe = { version = "=0.36.2", default-features = false, features = ["glow", "x11", "accesskit"] }
 
 # Apenas testes.
 proptest = "=1.9.0"
