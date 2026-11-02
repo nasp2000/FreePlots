@@ -774,9 +774,23 @@ fn the_two_way_anova_dialog_fits_both_factors() {
 fn the_two_way_anova_dialog_reports_the_interaction() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");
+
+    // The default is the captured main-effects model.
     open(&mut ui, &["Stat", "Basic Statistics", "Two-Way ANOVA…"]);
     ui.select("Factor A:", "line").expect("A");
     ui.select("Factor B:", "part").expect("B");
+    ui.click("Run").expect("run");
+    assert!(
+        !ui.session().contains("Interaction"),
+        "the default must not fit the interaction: {}",
+        ui.session()
+    );
+
+    // Ticking the box adds the interaction term.
+    open(&mut ui, &["Stat", "Basic Statistics", "Two-Way ANOVA…"]);
+    ui.select("Factor A:", "line").expect("A");
+    ui.select("Factor B:", "part").expect("B");
+    ui.click("Fit the interaction (A×B)").expect("toggle");
     ui.click("Run").expect("run");
     assert!(ui.session().contains("Interaction"), "{}", ui.session());
 }

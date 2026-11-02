@@ -63,6 +63,17 @@ pub fn session_pdf(title: &str, session: &str, plot: Option<&PlotSpec>) -> Vec<u
         }
     }
     pages.push(content);
+    // Every page carries a footer with the program and the page number, so a
+    // printed report can be reassembled in order.
+    let total = pages.len();
+    for (index, page) in pages.iter_mut().enumerate() {
+        let footer = format!("FreePlots — page {} of {}", index + 1, total);
+        page.push_str(&format!(
+            "BT /F1 {BODY_SIZE} Tf {MARGIN} {} Td ({}) Tj ET\n",
+            MARGIN / 2.0,
+            escape(&transliterate(&footer))
+        ));
+    }
     build_pdf(pages)
 }
 
@@ -543,5 +554,19 @@ mod tests {
         };
         assert!((frame.x(5.0) - 60.0).abs() < 1e-9);
         assert!((frame.y(1.0) - 45.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn every_page_carries_its_number_and_an_a4_box() {
+        let session = "row\n".repeat(100);
+        let bytes = session_pdf("FreePlots Session", &session, None);
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("/MediaBox [0 0 595 842]"), "not A4");
+        assert!(text.contains("FreePlots - page 1 of 2"), "{text:.0}");
+        assert!(text.contains("FreePlots - page 2 of 2"), "{text:.0}");
+        assert!(
+            !text.contains("page 1 of 1"),
+            "the count must match the pages"
+        );
     }
 }
