@@ -136,9 +136,9 @@ fn the_http_mode_serves_health_and_rejects_a_wrong_token() {
     use std::time::Duration;
 
     // Pick a free port, then let the server bind it. Another process can win
-    // the race, so the whole start is retried a few times.
+    // the race, so the whole start is retried with a full health check.
     let mut started = None;
-    for _ in 0..5 {
+    for _ in 0..12 {
         let port = {
             let probe = TcpListener::bind("127.0.0.1:0").expect("probe");
             probe.local_addr().expect("addr").port()
@@ -161,8 +161,25 @@ fn the_http_mode_serves_health_and_rejects_a_wrong_token() {
                 break;
             }
             if TcpStream::connect(("127.0.0.1", port)).is_ok() {
-                ready = true;
-                break;
+                // The port may have belonged to another process; only accept
+                // it when the health answer names this server.
+                if let Ok(mut stream) = TcpStream::connect(("127.0.0.1", port)) {
+                    let request = "GET /mcp HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer s3cret\r\nConnection: close\r\n\r\n";
+                    if stream.write_all(request.as_bytes()).is_ok() && stream.flush().is_ok() {
+                        let mut body = String::new();
+                        let mut reader = BufReader::new(stream);
+                        if reader.read_to_string(&mut body).is_ok()
+                            && body.contains("\"server\":\"freeplots\"")
+                        {
+                            ready = true;
+                        }
+                    }
+                }
+                if ready {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(30));
+                continue;
             }
             std::thread::sleep(Duration::from_millis(30));
         }
