@@ -2076,7 +2076,48 @@ pub fn series_color(index: usize) -> &'static str {
 
 /// Renders the specification to SVG (deterministic, no dependencies).
 #[must_use]
+/// Presentation edits applied on top of a plot: a subtitle, a footer and
+/// reference lines. Kept separate from [`PlotSpec`] so an analysis stays
+/// reproducible and the edits can be reset.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct GraphOverlay {
+    /// Second title line, centred under the title.
+    pub subtitle: Option<String>,
+    /// Footer line, centred at the bottom.
+    pub footer: Option<String>,
+    /// Reference lines drawn over the plot, behind the data.
+    pub reference_lines: Vec<ReferenceLine>,
+}
+
+/// Direction of a reference line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceAxis {
+    /// Vertical line at `x = value`.
+    Vertical,
+    /// Horizontal line at `y = value`.
+    Horizontal,
+}
+
+/// One dashed reference line with an optional label.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReferenceLine {
+    /// Direction of the line.
+    pub axis: ReferenceAxis,
+    /// Coordinate on that axis.
+    pub value: f64,
+    /// Text drawn at the end of the line.
+    pub label: Option<String>,
+}
+
+/// Renders the plot without presentation edits.
+#[must_use]
 pub fn render_svg(spec: &PlotSpec) -> String {
+    render_svg_with(spec, &GraphOverlay::default())
+}
+
+/// Renders the plot with the subtitle, footer and reference lines.
+#[must_use]
+pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     if !spec.panels.is_empty() {
         return render_panels_svg(spec);
     }
@@ -2120,10 +2161,18 @@ pub fn render_svg(spec: &PlotSpec) -> String {
         "<rect x=\"0\" y=\"0\" width=\"{w:.0}\" height=\"{h:.0}\" fill=\"#ffffff\"/>\n"
     ));
     s.push_str(&format!(
-        "<text x=\"{:.1}\" y=\"28\" font-family=\"sans-serif\" font-size=\"16\" fill=\"#000000\">{}</text>\n",
+        "<text x=\"{:.1}\" y=\"{}22\" font-family=\"sans-serif\" font-size=\"16\" fill=\"#000000\">{}</text>\n",
         w / 2.0,
+        if overlay.subtitle.is_some() { "" } else { "6" },
         escape_xml(&spec.title)
     ));
+    if let Some(subtitle) = &overlay.subtitle {
+        s.push_str(&format!(
+            "<text x=\"{:.1}\" y=\"40\" font-family=\"sans-serif\" font-size=\"11\" fill=\"#444444\" text-anchor=\"middle\">{}</text>\n",
+            w / 2.0,
+            escape_xml(subtitle)
+        ));
+    }
     s.push_str(&format!(
         "<rect x=\"{ML:.1}\" y=\"{MT:.1}\" width=\"{pw:.1}\" height=\"{ph:.1}\" fill=\"none\" stroke=\"#000000\" stroke-width=\"1\"/>\n"
     ));
@@ -2194,6 +2243,39 @@ pub fn render_svg(spec: &PlotSpec) -> String {
     }
 
     s.push_str("<g clip-path=\"url(#fp-plot)\">\n");
+    for line in &overlay.reference_lines {
+        match line.axis {
+            ReferenceAxis::Vertical => {
+                let px = sx(line.value);
+                s.push_str(&format!(
+                    "<line x1=\"{px:.1}\" y1=\"{MT:.1}\" x2=\"{px:.1}\" y2=\"{:.1}\" stroke=\"#c0392b\" stroke-width=\"1.2\" stroke-dasharray=\"4 3\"/>\n",
+                    MT + ph
+                ));
+                if let Some(label) = &line.label {
+                    s.push_str(&format!(
+                        "<text x=\"{px:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"11\" fill=\"#c0392b\" text-anchor=\"middle\">{}</text>\n",
+                        MT - 6.0,
+                        escape_xml(label)
+                    ));
+                }
+            }
+            ReferenceAxis::Horizontal => {
+                let py = sy(line.value);
+                s.push_str(&format!(
+                    "<line x1=\"{ML:.1}\" y1=\"{py:.1}\" x2=\"{:.1}\" y2=\"{py:.1}\" stroke=\"#c0392b\" stroke-width=\"1.2\" stroke-dasharray=\"4 3\"/>\n",
+                    ML + pw
+                ));
+                if let Some(label) = &line.label {
+                    s.push_str(&format!(
+                        "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"11\" fill=\"#c0392b\" text-anchor=\"start\">{}</text>\n",
+                        ML + pw + 6.0,
+                        py + 4.0,
+                        escape_xml(label)
+                    ));
+                }
+            }
+        }
+    }
     for band in &spec.bands {
         if band.lower.len() < 2 || band.lower.len() != band.upper.len() {
             continue;
@@ -2316,6 +2398,14 @@ pub fn render_svg(spec: &PlotSpec) -> String {
         MT + ph / 2.0,
         escape_xml(&spec.y_axis.label)
     ));
+    if let Some(footer) = &overlay.footer {
+        s.push_str(&format!(
+            "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"9\" fill=\"#555555\" text-anchor=\"middle\">{}</text>\n",
+            w / 2.0,
+            h - 8.0,
+            escape_xml(footer)
+        ));
+    }
     s.push_str("</svg>\n");
 
     s
@@ -2900,6 +2990,40 @@ mod tests {
         assert!(svg.contains(">A<"), "legend A missing");
         assert!(svg.contains(">B<"), "legend B missing");
         assert!(svg.contains("#c00000"), "second series colour missing");
+    }
+
+    #[test]
+    fn the_overlay_draws_the_subtitle_footer_and_reference_lines() {
+        let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
+        let fit = Normal::fit_moments(&sample).unwrap();
+        let probability = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
+        let spec = PlotSpec::normal_probability(&probability, &fit, "Normal");
+        let overlay = GraphOverlay {
+            subtitle: Some("Normal - 95% CI".to_owned()),
+            footer: Some("Design = Tissue 50um".to_owned()),
+            reference_lines: vec![
+                ReferenceLine {
+                    axis: ReferenceAxis::Vertical,
+                    value: 2.0,
+                    label: Some("-20".to_owned()),
+                },
+                ReferenceLine {
+                    axis: ReferenceAxis::Horizontal,
+                    value: 1.0,
+                    label: None,
+                },
+            ],
+        };
+        let svg = render_svg_with(&spec, &overlay);
+        assert!(svg.contains("Normal - 95% CI"));
+        assert!(svg.contains("Design = Tissue 50um"));
+        assert!(svg.contains(">-20<"));
+        assert!(svg.contains("stroke-dasharray=\"4 3\""));
+        assert_eq!(svg.matches("stroke-dasharray").count(), 2);
+        // Without the overlay nothing of it appears.
+        let plain = render_svg(&spec);
+        assert!(!plain.contains("Normal - 95% CI"));
+        assert!(!plain.contains("stroke-dasharray"));
     }
 
     #[test]

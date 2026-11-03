@@ -39,11 +39,13 @@ mod dialogs_reliability;
 mod dialogs_stat;
 mod dialogs_tests;
 mod editing;
+mod graph_edit;
 mod grid;
 mod licences;
 mod menu_bar;
 mod session;
 mod state;
+mod tour;
 
 /// File format of a worksheet request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,6 +239,8 @@ pub struct Preferences {
     pub show_grid_lines: bool,
     /// Open plots in their own native window.
     pub native_plot_windows: bool,
+    /// `true` once the first-run tour has been shown.
+    pub tour_seen: bool,
 }
 
 impl Default for Preferences {
@@ -248,6 +252,7 @@ impl Default for Preferences {
             show_session: true,
             show_grid_lines: true,
             native_plot_windows: true,
+            tour_seen: false,
         }
     }
 }
@@ -818,6 +823,26 @@ pub struct FreePlotsApp {
     show_settings_info: bool,
     /// Help → Third-party licences.
     show_licences: bool,
+    /// Help → Show the tour.
+    show_tour: bool,
+    /// Current tour step.
+    tour_step: usize,
+    /// `true` once the first-run tour has been shown.
+    pub(super) tour_seen: bool,
+    /// Presentation edits of the current graph.
+    pub(super) graph_overlay: fp_core::plot::GraphOverlay,
+    /// Labels before the first edit, for "Reset graph edits".
+    pub(super) graph_auto: Option<(String, String, String)>,
+    pub(super) show_graph_labels: bool,
+    pub(super) graph_label_title: String,
+    pub(super) graph_label_subtitle: String,
+    pub(super) graph_label_footer: String,
+    pub(super) graph_label_x: String,
+    pub(super) graph_label_y: String,
+    pub(super) show_reference_line: bool,
+    pub(super) reference_axis: fp_core::plot::ReferenceAxis,
+    pub(super) reference_value: String,
+    pub(super) reference_label: String,
     /// Path and format waiting for the overwrite confirmation.
     overwrite_pending: Option<(String, FileKind, bool)>,
     save_path: String,
@@ -2228,6 +2253,7 @@ impl FreePlotsApp {
             show_session: self.show_session,
             show_grid_lines: self.show_grid_lines,
             native_plot_windows: self.native_plot_windows,
+            tour_seen: self.tour_seen,
         }
     }
 
@@ -2243,6 +2269,7 @@ impl FreePlotsApp {
         self.show_session = preferences.show_session;
         self.show_grid_lines = preferences.show_grid_lines;
         self.native_plot_windows = preferences.native_plot_windows;
+        self.tour_seen = preferences.tour_seen;
     }
 
     /// Sets the file that keeps the preferences and loads it if it exists.

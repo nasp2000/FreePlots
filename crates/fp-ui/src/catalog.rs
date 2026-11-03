@@ -155,6 +155,56 @@ impl UiCatalog {
             "About FreePlots" => "Sobre o FreePlots",
             "Where the settings are stored…" => "Onde estão guardadas as definições…",
             "Third-party licences…" => "Licenças de terceiros…",
+            "Show the tour" => "Ver o tour",
+            "Edit graph labels…" => "Editar rótulos do gráfico…",
+            "Add reference line…" => "Adicionar linha de referência…",
+            "Copy graph as SVG" => "Copiar gráfico como SVG",
+            "Reset graph edits" => "Repor edições do gráfico",
+            "Graph labels" => "Rótulos do gráfico",
+            "Title" => "Título",
+            "Subtitle" => "Subtítulo",
+            "X axis" => "Eixo X",
+            "Y axis" => "Eixo Y",
+            "Footer" => "Rodapé",
+            "Empty hides the line" => "Vazio esconde a linha",
+            "Apply" => "Aplicar",
+            "Reference line" => "Linha de referência",
+            "Vertical (x = value)" => "Vertical (x = valor)",
+            "Horizontal (y = value)" => "Horizontal (y = valor)",
+            "Value" => "Valor",
+            "Label" => "Rótulo",
+            "Add" => "Adicionar",
+            "Tour" => "Tour",
+            "Sample projects" => "Projectos de exemplo",
+            "Filling line capability" => "Capacidade da linha de enchimento",
+            "Gage R&R (3 operators)" => "Gage R&R (3 operadores)",
+            "Screening experiment (2^2)" => "Experiência de triagem (2^2)",
+            "Back" => "Anterior",
+            "Next" => "Seguinte",
+            "Finish" => "Terminar",
+            "The worksheet" => "A folha de cálculo",
+            "The toolbar" => "A barra de ferramentas",
+            "The menus" => "Os menus",
+            "The Session" => "A sessão",
+            "The plots" => "Os gráficos",
+            "Click any cell and type; Enter commits the value or a formula such as =SUM(C1R1:C1R10). Drag the column dividers to widen a column, and use the arrows at the bottom to switch between worksheets." => {
+                "Clique numa célula e escreva; Enter confirma o valor ou uma fórmula como =SUM(C1R1:C1R10). Arraste os separadores para alargar a coluna e use as setas no fundo para mudar de folha."
+            }
+            "Open a CSV or Excel file, save the worksheet or the project, compute a column, undo and redo. The formula bar above the grid edits the selected cell." => {
+                "Abra um CSV ou Excel, guarde a folha ou o projecto, calcule uma coluna, anule e repita. A barra de fórmulas acima da grelha edita a célula selecionada."
+            }
+            "Stat holds every analysis, Graph the plots and Assistant suggests one from a plain question. Hover over any menu item to read what it does." => {
+                "O menu Estatística tem as análises, o Gráfico os gráficos e o Assistente sugere um a partir de uma pergunta simples. Passe o rato sobre qualquer item para ler o que faz."
+            }
+            "Every report appears here, in the same order as the analyses. Clear Session empties it; the logs travel with the exported PDF or HTML." => {
+                "Todos os relatórios aparecem aqui, pela ordem das análises. Limpar sessão esvazia-a; os relatórios seguem no PDF ou HTML exportado."
+            }
+            "Plots open in their own window: right-click for the labels, reference lines and saving, and close it to keep working." => {
+                "Os gráficos abrem numa janela própria: clique com o botão direito para os rótulos, linhas de referência e gravação; feche-a para continuar a trabalhar."
+            }
+            "This tour lives under Help, together with the keyboard shortcuts, the settings path, the MCP guide and the third-party notices." => {
+                "Este tour vive na Ajuda, com os atalhos de teclado, o caminho das definições, o guia MCP e os avisos de terceiros."
+            }
             "Third-party licences" => "Licenças de terceiros",
             "The notices that must accompany every copy" => {
                 "Os avisos que acompanham todas as cópias"

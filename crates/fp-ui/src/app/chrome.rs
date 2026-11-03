@@ -180,6 +180,9 @@ impl FreePlotsApp {
         self.settings_info_window(&ctx);
         self.agents_window(&ctx);
         self.licences_window(&ctx);
+        self.tour_window(&ctx);
+        self.graph_labels_window(&ctx);
+        self.reference_line_window(&ctx);
         self.graph_window(&ctx);
         self.persist_preferences();
     }

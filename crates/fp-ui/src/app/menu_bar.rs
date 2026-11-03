@@ -41,6 +41,18 @@ impl FreePlotsApp {
                     self.begin_open(FileKind::Project);
                     ui.close();
                 }
+                help_menu_button(ui, self.catalog().label("Sample projects"), |ui| {
+                    for label in [
+                        "Filling line capability",
+                        "Gage R&R (3 operators)",
+                        "Screening experiment (2^2)",
+                    ] {
+                        if menu_text_item(ui, self.catalog().label(label), None, true).clicked() {
+                            self.load_sample(label);
+                            ui.close();
+                        }
+                    }
+                });
                 if menu_icon_item(
                     ui,
                     ToolIcon::Open,
@@ -1234,6 +1246,56 @@ impl FreePlotsApp {
                     self.open_scatter_dialog();
                     ui.close();
                 }
+                ui.separator();
+                let has_plot = self.plot.is_some();
+                if menu_text_item(
+                    ui,
+                    self.catalog().label("Edit graph labels…"),
+                    None,
+                    has_plot,
+                )
+                .clicked()
+                {
+                    self.open_graph_labels();
+                    ui.close();
+                }
+                if menu_text_item(
+                    ui,
+                    self.catalog().label("Add reference line…"),
+                    None,
+                    has_plot,
+                )
+                .clicked()
+                {
+                    self.open_reference_line();
+                    ui.close();
+                }
+                if menu_text_item(
+                    ui,
+                    self.catalog().label("Copy graph as SVG"),
+                    None,
+                    has_plot,
+                )
+                .clicked()
+                {
+                    if let Some(plot) = &self.plot {
+                        let svg = fp_core::plot::render_svg_with(plot, &self.graph_overlay);
+                        ui.ctx().copy_text(svg);
+                        self.status = "Graph copied as SVG".to_owned();
+                    }
+                    ui.close();
+                }
+                if menu_text_item(
+                    ui,
+                    self.catalog().label("Reset graph edits"),
+                    None,
+                    has_plot,
+                )
+                .clicked()
+                {
+                    self.reset_graph_edits();
+                    ui.close();
+                }
             });
 
             help_menu_button(ui, self.catalog().label("Assistant"), |ui| {
@@ -1367,6 +1429,20 @@ impl FreePlotsApp {
             });
 
             help_menu_button(ui, self.catalog().label("Help"), |ui| {
+                if menu_icon_item(
+                    ui,
+                    ToolIcon::Info,
+                    self.catalog().label("Show the tour"),
+                    None,
+                    true,
+                )
+                .on_hover_text("A short guided tour of the window")
+                .clicked()
+                {
+                    self.begin_tour();
+                    ui.close();
+                }
+                ui.separator();
                 if menu_icon_item(
                     ui,
                     ToolIcon::Info,

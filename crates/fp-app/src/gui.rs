@@ -580,6 +580,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
     if let Some(path) = preferences {
         app.set_preferences_path(path);
     }
+    app.maybe_show_tour();
     app.set_background_analyses(true);
     app.set_distribution(distribution.unwrap_or(DistributionKind::Normal));
     if let Some(path) = path {

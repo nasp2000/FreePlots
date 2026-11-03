@@ -732,6 +732,7 @@ impl FreePlotsApp {
             } else {
                 plot.title.clone()
             };
+            let overlay = self.graph_overlay.clone();
             let flag = self
                 .plot_viewport
                 .get_or_insert_with(|| Arc::new(AtomicBool::new(true)))
@@ -756,7 +757,7 @@ impl FreePlotsApp {
                     egui::ScrollArea::both()
                         .auto_shrink([false, false])
                         .show(ui, |ui| {
-                            crate::plot_view::show(ui, &plot);
+                            crate::plot_view::show_with(ui, &plot, &overlay);
                         });
                     if ui.ctx().input(|input| input.viewport().close_requested()) {
                         flag.store(false, Ordering::Relaxed);
@@ -795,7 +796,7 @@ impl FreePlotsApp {
                     egui::ScrollArea::both()
                         .auto_shrink([false, false])
                         .show(ui, |ui| {
-                            crate::plot_view::show(ui, spec);
+                            crate::plot_view::show_with(ui, spec, &self.graph_overlay);
                         });
                 } else {
                     ui.help_label("No graph yet.");

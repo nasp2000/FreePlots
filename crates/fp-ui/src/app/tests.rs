@@ -5697,6 +5697,139 @@ fn the_help_menu_opens_the_settings_and_agents_dialogs() {
 }
 
 #[test]
+fn the_tour_walks_through_the_window_and_closes() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let app = FreePlotsApp::new();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label("Show the tour").click();
+    harness.run();
+    assert!(harness.state().show_tour);
+    assert_eq!(harness.state().tour_step, 0);
+    harness.get_by_label("The worksheet");
+    harness.get_by_label("Next").click();
+    harness.run();
+    assert_eq!(harness.state().tour_step, 1);
+    harness.get_by_label("The toolbar");
+    harness.get_by_label("Back").click();
+    harness.run();
+    assert_eq!(harness.state().tour_step, 0);
+    // Walk to the end and finish.
+    for _ in 0..5 {
+        harness.get_by_label("Next").click();
+        harness.run();
+    }
+    harness.get_by_label("Finish").click();
+    harness.run();
+    assert!(!harness.state().show_tour);
+}
+
+#[test]
+fn the_graph_labels_and_reference_lines_reach_the_renderer() {
+    let mut app = FreePlotsApp::new();
+    app.load_sample("Filling line capability");
+    let plot = app.plot.clone().expect("capability plot");
+
+    app.open_graph_labels();
+    assert_eq!(app.graph_label_title, plot.title);
+    app.graph_label_title = "My capability".to_owned();
+    app.graph_label_subtitle = "Line 3 - night shift".to_owned();
+    app.graph_label_footer = "Operator: A. Silva".to_owned();
+    app.graph_label_x = "Diameter (mm)".to_owned();
+    app.graph_label_y = "Frequency".to_owned();
+    app.apply_graph_labels();
+    let edited = app.plot.clone().expect("plot");
+    assert_eq!(edited.title, "My capability");
+    assert_eq!(edited.x_axis.label, "Diameter (mm)");
+    assert_eq!(edited.y_axis.label, "Frequency");
+    assert_eq!(
+        app.graph_overlay.subtitle.as_deref(),
+        Some("Line 3 - night shift")
+    );
+    assert_eq!(
+        app.graph_overlay.footer.as_deref(),
+        Some("Operator: A. Silva")
+    );
+
+    app.open_reference_line();
+    app.reference_value = "25.0".to_owned();
+    app.reference_label = "target".to_owned();
+    app.add_reference_line();
+    assert_eq!(app.graph_overlay.reference_lines.len(), 1);
+    let svg = fp_core::plot::render_svg_with(&edited, &app.graph_overlay);
+    assert!(svg.contains("My capability"));
+    assert!(svg.contains("Line 3 - night shift"));
+    assert!(svg.contains("Operator: A. Silva"));
+    assert!(svg.contains(">target<"));
+    assert!(svg.contains("stroke-dasharray"));
+
+    // Reset restores the automatic labels and clears the edits.
+    app.reset_graph_edits();
+    let back = app.plot.clone().expect("plot");
+    assert_eq!(back.title, plot.title);
+    assert_eq!(back.x_axis.label, plot.x_axis.label);
+    assert!(app.graph_overlay.reference_lines.is_empty());
+    assert_eq!(app.graph_overlay.subtitle, None);
+    assert_eq!(app.graph_overlay.footer, None);
+}
+
+#[test]
+fn the_tour_runs_once_and_the_flag_persists() {
+    let dir = std::env::temp_dir().join(format!("fp-tour-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.maybe_show_tour();
+    assert!(app.show_tour, "the first run opens the tour");
+    assert!(app.tour_seen);
+    // Closing it keeps the flag, and the next start stays quiet.
+    app.show_tour = false;
+    app.persist_preferences();
+    let mut next = FreePlotsApp::new();
+    next.set_preferences_path(path.clone());
+    next.maybe_show_tour();
+    assert!(!next.show_tour, "the tour must not open on later runs");
+    assert!(next.tour_seen);
+
+    // Help can still open it explicitly.
+    next.begin_tour();
+    assert!(next.show_tour);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn the_sample_projects_load_and_run_an_analysis() {
+    let mut app = FreePlotsApp::new();
+    app.load_sample("Filling line capability");
+    assert_eq!(app.data().map(DataFrame::n_rows), Some(120));
+    assert!(
+        app.session_text().contains("Capability"),
+        "{}",
+        app.session_text()
+    );
+    assert!(app.data().unwrap().column("diameter").is_ok());
+
+    app.load_sample("Gage R&R (3 operators)");
+    assert_eq!(app.data().map(DataFrame::n_rows), Some(90));
+    assert!(
+        app.session_text().contains("Gage R&R"),
+        "{}",
+        app.session_text()
+    );
+
+    app.load_sample("Screening experiment (2^2)");
+    assert_eq!(app.data().map(DataFrame::n_rows), Some(12));
+    assert!(app.session_text().contains("A*B"), "{}", app.session_text());
+}
+
+#[test]
 fn the_third_party_notices_are_in_the_binary_and_in_help() {
     use egui_kittest::{Harness, kittest::Queryable};
 

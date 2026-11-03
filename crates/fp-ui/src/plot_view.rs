@@ -7,7 +7,7 @@ use egui::{
     Align2, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, epaint::TextShape, pos2,
     vec2,
 };
-use fp_core::plot::PlotSpec;
+use fp_core::plot::{GraphOverlay, PlotSpec, ReferenceAxis};
 
 const LEFT: f32 = 62.0;
 const RIGHT: f32 = 18.0;
@@ -16,6 +16,11 @@ const BOTTOM: f32 = 44.0;
 
 /// Draws a plot in the available space and returns the response.
 pub fn show(ui: &mut egui::Ui, spec: &PlotSpec) -> egui::Response {
+    show_with(ui, spec, &GraphOverlay::default())
+}
+
+/// Draws a plot with the presentation edits (subtitle, footer, reference lines).
+pub fn show_with(ui: &mut egui::Ui, spec: &PlotSpec, overlay: &GraphOverlay) -> egui::Response {
     let width = ui.available_width().max(560.0);
     let height = if spec.panels.is_empty() {
         560.0
@@ -31,11 +36,11 @@ pub fn show(ui: &mut egui::Ui, spec: &PlotSpec) -> egui::Response {
         22.0 + rows * cell_w * ratio + 16.0
     };
     let (response, painter) = ui.allocate_painter(vec2(width, height), Sense::hover());
-    paint(&painter, response.rect, spec);
+    paint(&painter, response.rect, spec, Some(overlay));
     response
 }
 
-fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec) {
+fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&GraphOverlay>) {
     if !spec.panels.is_empty() {
         paint_panels(painter, rect, spec);
         return;
@@ -53,6 +58,63 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec) {
         pos2(rect.left() + LEFT, rect.top() + TOP),
         pos2(rect.right() - right, rect.bottom() - BOTTOM),
     );
+
+    if let Some(overlay) = overlay {
+        let xspan = if (spec.x_axis.max - spec.x_axis.min).abs() > 0.0 {
+            spec.x_axis.max - spec.x_axis.min
+        } else {
+            1.0
+        };
+        let yspan = if (spec.y_axis.max - spec.y_axis.min).abs() > 0.0 {
+            spec.y_axis.max - spec.y_axis.min
+        } else {
+            1.0
+        };
+        for line in &overlay.reference_lines {
+            let color = Color32::from_rgb(192, 57, 43);
+            let stroke = Stroke::new(1.2, color);
+            match line.axis {
+                ReferenceAxis::Vertical => {
+                    let x = plot.left()
+                        + ((line.value - spec.x_axis.min) / xspan) as f32 * plot.width();
+                    painter.add(Shape::dashed_line(
+                        &[pos2(x, plot.top()), pos2(x, plot.bottom())],
+                        stroke,
+                        4.0,
+                        3.0,
+                    ));
+                    if let Some(label) = &line.label {
+                        painter.text(
+                            pos2(x, plot.top() - 2.0),
+                            Align2::CENTER_BOTTOM,
+                            label,
+                            FontId::proportional(11.0),
+                            color,
+                        );
+                    }
+                }
+                ReferenceAxis::Horizontal => {
+                    let y = plot.bottom()
+                        - ((line.value - spec.y_axis.min) / yspan) as f32 * plot.height();
+                    painter.add(Shape::dashed_line(
+                        &[pos2(plot.left(), y), pos2(plot.right(), y)],
+                        stroke,
+                        4.0,
+                        3.0,
+                    ));
+                    if let Some(label) = &line.label {
+                        painter.text(
+                            pos2(plot.right() + 4.0, y),
+                            Align2::LEFT_CENTER,
+                            label,
+                            FontId::proportional(11.0),
+                            color,
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     let (x0, x1) = (spec.x_axis.min, spec.x_axis.max);
     let (y0, y1) = (spec.y_axis.min, spec.y_axis.max);
@@ -267,14 +329,34 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec) {
     }
 
     painter.text(
-        pos2(rect.center().x, rect.top() + 8.0),
+        pos2(rect.center().x, rect.top() + 4.0),
         Align2::CENTER_TOP,
         &spec.title,
         FontId::proportional(16.0),
         Color32::BLACK,
     );
+    if let Some(overlay) = overlay {
+        if let Some(subtitle) = &overlay.subtitle {
+            painter.text(
+                pos2(rect.center().x, rect.top() + 24.0),
+                Align2::CENTER_TOP,
+                subtitle,
+                FontId::proportional(11.0),
+                Color32::from_gray(70),
+            );
+        }
+        if let Some(footer) = &overlay.footer {
+            painter.text(
+                pos2(rect.center().x, rect.bottom() - 2.0),
+                Align2::CENTER_BOTTOM,
+                footer,
+                FontId::proportional(9.0),
+                Color32::from_gray(85),
+            );
+        }
+    }
     painter.text(
-        pos2(plot.center().x, rect.bottom() - 6.0),
+        pos2(plot.center().x, rect.bottom() - 18.0),
         Align2::CENTER_BOTTOM,
         &spec.x_axis.label,
         FontId::proportional(13.5),
@@ -317,7 +399,7 @@ fn paint_panels(painter: &egui::Painter, rect: Rect, spec: &PlotSpec) {
             ),
             vec2(cell_w, cell_h),
         );
-        paint(painter, child, panel);
+        paint(painter, child, panel, None);
     }
 }
 
