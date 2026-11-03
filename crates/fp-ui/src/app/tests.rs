@@ -5697,6 +5697,32 @@ fn the_help_menu_opens_the_settings_and_agents_dialogs() {
 }
 
 #[test]
+fn the_third_party_notices_are_in_the_binary_and_in_help() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    // The embedded text is what ships with every copy.
+    assert!(super::licences::THIRD_PARTY_NOTICES.contains("MIT License"));
+    assert!(super::licences::THIRD_PARTY_NOTICES.contains("Bitstream Vera"));
+    assert!(
+        super::licences::THIRD_PARTY_NOTICES
+            .contains("endorsed by any commercial statistical software vendor")
+    );
+
+    let app = FreePlotsApp::new();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label("Third-party licences…").click();
+    harness.run();
+    assert!(harness.state().show_licences);
+    // The dialog renders the notice text; the first line is its heading.
+    harness.get_by_label_contains("FreePlots - third-party notices");
+}
+
+#[test]
 fn the_about_and_help_follow_the_language() {
     use egui_kittest::{Harness, kittest::Queryable};
 

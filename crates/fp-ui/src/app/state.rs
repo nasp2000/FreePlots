@@ -389,6 +389,7 @@ impl FreePlotsApp {
             preferences_error: None,
             show_agents_dialog: false,
             show_settings_info: false,
+            show_licences: false,
             overwrite_pending: None,
             save_path: String::new(),
             save_kind: FileKind::Csv,

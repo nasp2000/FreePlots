@@ -154,6 +154,17 @@ impl UiCatalog {
             "Português" => "Português",
             "About FreePlots" => "Sobre o FreePlots",
             "Where the settings are stored…" => "Onde estão guardadas as definições…",
+            "Third-party licences…" => "Licenças de terceiros…",
+            "Third-party licences" => "Licenças de terceiros",
+            "The notices that must accompany every copy" => {
+                "Os avisos que acompanham todas as cópias"
+            }
+            "Independent project, not affiliated with or endorsed by any commercial statistical software vendor." => {
+                "Projecto independente, sem afiliação nem aprovação de qualquer fornecedor de software estatístico comercial."
+            }
+            "These notices must accompany every copy of the program; they also ship as LICENSES.txt next to the executable." => {
+                "Estes avisos acompanham todas as cópias do programa; seguem também como LICENSES.txt junto do executável."
+            }
             "Where the settings are stored" => "Onde estão guardadas as definições",
             "Assistant for agents…" => "Assistente para agentes…",
             "Assistant for agents" => "Assistente para agentes",

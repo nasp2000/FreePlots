@@ -40,6 +40,7 @@ mod dialogs_stat;
 mod dialogs_tests;
 mod editing;
 mod grid;
+mod licences;
 mod menu_bar;
 mod session;
 mod state;
@@ -815,6 +816,8 @@ pub struct FreePlotsApp {
     show_agents_dialog: bool,
     /// Help → Where the settings are stored.
     show_settings_info: bool,
+    /// Help → Third-party licences.
+    show_licences: bool,
     /// Path and format waiting for the overwrite confirmation.
     overwrite_pending: Option<(String, FileKind, bool)>,
     save_path: String,

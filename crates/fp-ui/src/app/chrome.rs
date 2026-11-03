@@ -179,6 +179,7 @@ impl FreePlotsApp {
         self.about_window(&ctx);
         self.settings_info_window(&ctx);
         self.agents_window(&ctx);
+        self.licences_window(&ctx);
         self.graph_window(&ctx);
         self.persist_preferences();
     }

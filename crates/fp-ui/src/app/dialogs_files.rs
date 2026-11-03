@@ -512,6 +512,13 @@ impl FreePlotsApp {
                     ))
                     .size(13.0),
                 );
+                ui.add_space(6.0);
+                ui.label(
+                    RichText::new(self.catalog().label(
+                        "Independent project, not affiliated with or endorsed by any commercial statistical software vendor.",
+                    ))
+                    .size(12.0),
+                );
                 ui.add_space(12.0);
                 ui.vertical_centered(|ui| {
                     ui.label(

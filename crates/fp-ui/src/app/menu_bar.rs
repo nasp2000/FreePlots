@@ -1406,6 +1406,19 @@ impl FreePlotsApp {
                     self.show_agents_dialog = true;
                     ui.close();
                 }
+                if menu_icon_item(
+                    ui,
+                    ToolIcon::Info,
+                    self.catalog().label("Third-party licences…"),
+                    None,
+                    true,
+                )
+                .on_hover_text("The notices that must accompany every copy")
+                .clicked()
+                {
+                    self.show_licences = true;
+                    ui.close();
+                }
                 ui.separator();
                 if menu_icon_item(
                     ui,
