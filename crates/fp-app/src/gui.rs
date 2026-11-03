@@ -202,12 +202,11 @@ impl eframe::App for Desktop {
                 },
             };
             match result {
-                Ok(())
-                    if request.kind == FileKind::Html
-                        || request.kind == FileKind::Pdf
-                        || request.kind == FileKind::Svg =>
-                {
+                Ok(()) if request.kind == FileKind::Html || request.kind == FileKind::Pdf => {
                     self.app.mark_session_exported(&request.path);
+                }
+                Ok(()) if request.kind == FileKind::Svg => {
+                    self.app.mark_graph_saved(&request.path);
                 }
                 Ok(()) => self.app.mark_saved(&request.path),
                 Err(e) => self.app.set_error(e),

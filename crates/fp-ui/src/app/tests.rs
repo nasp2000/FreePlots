@@ -5767,6 +5767,13 @@ fn saving_the_graph_asks_for_an_svg_file() {
     assert!(app.show_save);
     assert_eq!(app.save_kind, FileKind::Svg);
     assert_eq!(app.save_path, "graph.svg");
+
+    // The confirmation names the graph, not the session, and leaves the
+    // worksheet source alone.
+    let source = app.source().to_owned();
+    app.mark_graph_saved("graph.svg");
+    assert_eq!(app.status(), "Graph saved to graph.svg");
+    assert_eq!(app.source(), source);
 }
 
 #[test]

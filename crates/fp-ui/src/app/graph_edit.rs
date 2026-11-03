@@ -56,6 +56,13 @@ impl FreePlotsApp {
         &self.graph_overlay
     }
 
+    /// Records that the graph was written to `path` (the worksheet is
+    /// untouched, so the source label stays as it was).
+    pub fn mark_graph_saved(&mut self, path: &str) {
+        self.status = format!("Graph saved to {path}");
+        self.error = None;
+    }
+
     /// Opens the save dialog for the current graph as SVG.
     pub fn begin_plot_save(&mut self) {
         if self.plot.is_none() {
