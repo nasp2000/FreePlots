@@ -1,6 +1,7 @@
 //! File and help windows: open, save, overwrite, rename, find/format,
 //! shortcuts, assistant, About, settings and the agents window.
 
+use super::graph_edit::GraphAction;
 use super::*;
 
 impl FreePlotsApp {
@@ -16,6 +17,7 @@ impl FreePlotsApp {
             FileKind::Html => "Open HTML",
             FileKind::Pdf => "Open PDF",
             FileKind::Xlsx => "Open Excel",
+            FileKind::Svg => "Open SVG",
         };
         dialog_window(title)
             .without_clear()
@@ -30,6 +32,7 @@ impl FreePlotsApp {
                     FileKind::Html => "Path to an HTML file:",
                     FileKind::Pdf => "Path to a PDF file:",
                     FileKind::Xlsx => "Path to an Excel workbook:",
+                    FileKind::Svg => "Path to an SVG file:",
                 });
                 ui.horizontal(|ui| {
                     let response = ui
@@ -112,6 +115,7 @@ impl FreePlotsApp {
             FileKind::Project => "Save Project As",
             FileKind::Html => "Export Session HTML",
             FileKind::Pdf => "Export Session PDF",
+            FileKind::Svg => "Save Graph As",
             FileKind::Xlsx => "Save Excel Workbook",
         };
         dialog_window(title)
@@ -126,6 +130,7 @@ impl FreePlotsApp {
                     FileKind::Project => "Destination .fpp project:",
                     FileKind::Html => "Destination HTML file:",
                     FileKind::Pdf => "Destination PDF file:",
+                    FileKind::Svg => "Destination SVG file:",
                     FileKind::Xlsx => "Destination Excel workbook:",
                 });
                 ui.horizontal(|ui| {
@@ -717,6 +722,9 @@ impl FreePlotsApp {
             }
             return;
         }
+        while let Ok(action) = self.plot_action_rx.try_recv() {
+            self.apply_graph_action(ctx, action);
+        }
         if self.native_plot_windows {
             let Some(plot) = self.plot.clone() else {
                 self.show_plot = false;
@@ -733,6 +741,8 @@ impl FreePlotsApp {
                 plot.title.clone()
             };
             let overlay = self.graph_overlay.clone();
+            let catalog = self.catalog();
+            let action_tx = self.plot_action_tx.clone();
             let flag = self
                 .plot_viewport
                 .get_or_insert_with(|| Arc::new(AtomicBool::new(true)))
@@ -754,11 +764,28 @@ impl FreePlotsApp {
                     ui.painter().rect_filled(ui.max_rect(), 0.0, background);
                     // Tall multi-panel plots can be larger than the window on a
                     // small screen; scrolling keeps every panel reachable.
-                    egui::ScrollArea::both()
+                    let response = egui::ScrollArea::both()
                         .auto_shrink([false, false])
-                        .show(ui, |ui| {
-                            crate::plot_view::show_with(ui, &plot, &overlay);
-                        });
+                        .show(ui, |ui| crate::plot_view::show_with(ui, &plot, &overlay))
+                        .inner;
+                    response.context_menu(|ui| {
+                        for (label, action) in [
+                            ("Edit graph labels…", GraphAction::Labels),
+                            ("Add reference line…", GraphAction::Reference),
+                            ("Save graph…", GraphAction::Save),
+                            ("Copy graph as SVG", GraphAction::Copy),
+                        ] {
+                            if ui.button(catalog.label(label)).clicked() {
+                                action_tx.send(action).ok();
+                                ui.close();
+                            }
+                        }
+                        ui.separator();
+                        if ui.button(catalog.label("Reset graph edits")).clicked() {
+                            action_tx.send(GraphAction::Reset).ok();
+                            ui.close();
+                        }
+                    });
                     if ui.ctx().input(|input| input.viewport().close_requested()) {
                         flag.store(false, Ordering::Relaxed);
                     }
@@ -784,6 +811,7 @@ impl FreePlotsApp {
             .map(|plot| plot.title.clone())
             .filter(|title| !title.is_empty())
             .unwrap_or_else(|| self.catalog().label("Graph").to_owned());
+        let mut graph_action = None;
         dialog_window(title)
             .without_clear()
             .id(egui::Id::new("graph_window"))
@@ -793,16 +821,43 @@ impl FreePlotsApp {
             .resizable(true)
             .show(ctx, |ui| {
                 if let Some(spec) = &self.plot {
-                    egui::ScrollArea::both()
+                    let overlay = self.graph_overlay.clone();
+                    let response = egui::ScrollArea::both()
                         .auto_shrink([false, false])
-                        .show(ui, |ui| {
-                            crate::plot_view::show_with(ui, spec, &self.graph_overlay);
-                        });
+                        .show(ui, |ui| crate::plot_view::show_with(ui, spec, &overlay))
+                        .inner;
+                    response.context_menu(|ui| {
+                        let catalog = self.catalog();
+                        if ui.button(catalog.label("Edit graph labels…")).clicked() {
+                            graph_action = Some(GraphAction::Labels);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Add reference line…")).clicked() {
+                            graph_action = Some(GraphAction::Reference);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Save graph…")).clicked() {
+                            graph_action = Some(GraphAction::Save);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Copy graph as SVG")).clicked() {
+                            graph_action = Some(GraphAction::Copy);
+                            ui.close();
+                        }
+                        ui.separator();
+                        if ui.button(catalog.label("Reset graph edits")).clicked() {
+                            graph_action = Some(GraphAction::Reset);
+                            ui.close();
+                        }
+                    });
                 } else {
                     ui.help_label("No graph yet.");
                 }
             });
         self.show_plot = open;
+        if let Some(action) = graph_action {
+            self.apply_graph_action(ctx, action);
+        }
     }
     pub(super) fn csv_options_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_csv_options {

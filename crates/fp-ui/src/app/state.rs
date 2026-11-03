@@ -12,6 +12,7 @@ impl FreePlotsApp {
     /// Empty workspace.
     #[must_use]
     pub fn new() -> Self {
+        let (action_tx, action_rx) = std::sync::mpsc::channel();
         Self {
             data: Some(DataFrame::blank(8, 0).expect("blank worksheet")),
             source: "Untitled".to_owned(),
@@ -405,6 +406,8 @@ impl FreePlotsApp {
             reference_axis: fp_core::plot::ReferenceAxis::Vertical,
             reference_value: String::new(),
             reference_label: String::new(),
+            plot_action_tx: action_tx,
+            plot_action_rx: action_rx,
             overwrite_pending: None,
             save_path: String::new(),
             save_kind: FileKind::Csv,

@@ -60,6 +60,8 @@ pub enum FileKind {
     Pdf,
     /// Excel workbook (`.xlsx`) to import.
     Xlsx,
+    /// SVG export of the current graph.
+    Svg,
 }
 
 /// A request to read a worksheet.
@@ -843,6 +845,9 @@ pub struct FreePlotsApp {
     pub(super) reference_axis: fp_core::plot::ReferenceAxis,
     pub(super) reference_value: String,
     pub(super) reference_label: String,
+    /// Actions chosen in the graph's native window, picked up on the next frame.
+    pub(super) plot_action_tx: std::sync::mpsc::Sender<graph_edit::GraphAction>,
+    pub(super) plot_action_rx: std::sync::mpsc::Receiver<graph_edit::GraphAction>,
     /// Path and format waiting for the overwrite confirmation.
     overwrite_pending: Option<(String, FileKind, bool)>,
     save_path: String,
@@ -1106,6 +1111,7 @@ impl FreePlotsApp {
             FileKind::Html => "session.html".to_owned(),
             FileKind::Pdf => "session.pdf".to_owned(),
             FileKind::Xlsx => "worksheet.xlsx".to_owned(),
+            FileKind::Svg => "graph.svg".to_owned(),
         };
         self.session.clear();
         self.plot = None;
@@ -1547,6 +1553,7 @@ impl FreePlotsApp {
             FileKind::Html => ".html",
             FileKind::Pdf => ".pdf",
             FileKind::Xlsx => ".xlsx",
+            FileKind::Svg => ".svg",
         };
         if !self.save_path.to_ascii_lowercase().ends_with(expected) {
             self.save_path = format!("{stem}{expected}");
@@ -2869,6 +2876,20 @@ fn browse_request(kind: FileKind, save: bool) -> BrowseRequest {
             "Export Session PDF",
             vec![
                 "PDF files (*.pdf)|*.pdf".to_owned(),
+                "All files (*.*)|*.*".to_owned(),
+            ],
+        ),
+        (FileKind::Svg, true) => (
+            "Save Graph",
+            vec![
+                "SVG files (*.svg)|*.svg".to_owned(),
+                "All files (*.*)|*.*".to_owned(),
+            ],
+        ),
+        (FileKind::Svg, false) => (
+            "Open SVG",
+            vec![
+                "SVG files (*.svg)|*.svg".to_owned(),
                 "All files (*.*)|*.*".to_owned(),
             ],
         ),

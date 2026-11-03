@@ -12,8 +12,32 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  test:
+    name: Native tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxkbcommon-dev \
+            libgl1-mesa-dev libegl1-mesa-dev
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Tests
+        run: cargo test --workspace --features desktop --locked
+
   windows:
     name: Windows x86_64 portable
+    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +57,7 @@ jobs:
 
   linux-arm:
     name: Linux aarch64 portable
+    needs: test
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4

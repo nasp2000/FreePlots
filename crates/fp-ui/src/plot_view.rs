@@ -35,7 +35,9 @@ pub fn show_with(ui: &mut egui::Ui, spec: &PlotSpec, overlay: &GraphOverlay) -> 
         let cell_w = (width - 16.0) / columns;
         22.0 + rows * cell_w * ratio + 16.0
     };
-    let (response, painter) = ui.allocate_painter(vec2(width, height), Sense::hover());
+    // Clickable, not only hovered: the graph window opens its context menu on
+    // this response (right-click anywhere over the plot).
+    let (response, painter) = ui.allocate_painter(vec2(width, height), Sense::click());
     paint(&painter, response.rect, spec, Some(overlay));
     response
 }

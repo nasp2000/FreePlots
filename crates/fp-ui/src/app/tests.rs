@@ -5730,6 +5730,46 @@ fn the_tour_walks_through_the_window_and_closes() {
 }
 
 #[test]
+fn the_graph_actions_work_from_the_window_menu() {
+    use graph_edit::GraphAction;
+
+    let mut app = FreePlotsApp::new();
+    app.load_sample("Filling line capability");
+    let ctx = egui::Context::default();
+
+    app.apply_graph_action(&ctx, GraphAction::Labels);
+    assert!(app.show_graph_labels);
+    app.show_graph_labels = false;
+
+    app.apply_graph_action(&ctx, GraphAction::Reference);
+    assert!(app.show_reference_line);
+    app.show_reference_line = false;
+
+    app.reference_value = "25.1".to_owned();
+    app.add_reference_line();
+    assert_eq!(app.graph_overlay().reference_lines.len(), 1);
+
+    app.apply_graph_action(&ctx, GraphAction::Copy);
+    assert_eq!(app.status, "Graph copied as SVG");
+
+    app.apply_graph_action(&ctx, GraphAction::Save);
+    assert_eq!(app.save_kind, FileKind::Svg);
+
+    app.apply_graph_action(&ctx, GraphAction::Reset);
+    assert!(app.graph_overlay().reference_lines.is_empty());
+}
+
+#[test]
+fn saving_the_graph_asks_for_an_svg_file() {
+    let mut app = FreePlotsApp::new();
+    app.load_sample("Filling line capability");
+    app.begin_plot_save();
+    assert!(app.show_save);
+    assert_eq!(app.save_kind, FileKind::Svg);
+    assert_eq!(app.save_path, "graph.svg");
+}
+
+#[test]
 fn the_graph_labels_and_reference_lines_reach_the_renderer() {
     let mut app = FreePlotsApp::new();
     app.load_sample("Filling line capability");

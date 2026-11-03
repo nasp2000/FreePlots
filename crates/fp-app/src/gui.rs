@@ -124,8 +124,8 @@ impl eframe::App for Desktop {
                                 .map(|(_, df)| (df, request.path.clone(), Vec::new()))
                         }
                     }),
-                    FileKind::Html | FileKind::Pdf => {
-                        Err("HTML and PDF are export-only formats".to_owned())
+                    FileKind::Html | FileKind::Pdf | FileKind::Svg => {
+                        Err("HTML, PDF and SVG are export-only formats".to_owned())
                     }
                     FileKind::Xlsx => match &request.sheet {
                         Some(sheet) => {
@@ -176,6 +176,13 @@ impl eframe::App for Desktop {
                     );
                     crate::platform::write_bytes(path, &bytes)
                 }
+                FileKind::Svg => match self.app.plot() {
+                    Some(plot) => crate::platform::write_text(
+                        path,
+                        &fp_core::plot::render_svg_with(plot, self.app.graph_overlay()),
+                    ),
+                    None => Err("No graph to save".to_owned()),
+                },
                 FileKind::Csv | FileKind::Project | FileKind::Xlsx => match self.app.data() {
                     Some(df) => match request.kind {
                         FileKind::Csv => {
@@ -189,13 +196,17 @@ impl eframe::App for Desktop {
                         FileKind::Xlsx => {
                             crate::platform::write_bytes(path, &fp_core::xlsx::workbook(df))
                         }
-                        FileKind::Html | FileKind::Pdf => unreachable!(),
+                        FileKind::Html | FileKind::Pdf | FileKind::Svg => unreachable!(),
                     },
                     None => Err("No worksheet to save".to_owned()),
                 },
             };
             match result {
-                Ok(()) if request.kind == FileKind::Html || request.kind == FileKind::Pdf => {
+                Ok(())
+                    if request.kind == FileKind::Html
+                        || request.kind == FileKind::Pdf
+                        || request.kind == FileKind::Svg =>
+                {
                     self.app.mark_session_exported(&request.path);
                 }
                 Ok(()) => self.app.mark_saved(&request.path),

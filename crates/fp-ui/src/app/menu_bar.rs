@@ -1272,6 +1272,17 @@ impl FreePlotsApp {
                 }
                 if menu_text_item(
                     ui,
+                    self.catalog().label("Save graph…"),
+                    None,
+                    has_plot,
+                )
+                .clicked()
+                {
+                    self.begin_plot_save();
+                    ui.close();
+                }
+                if menu_text_item(
+                    ui,
                     self.catalog().label("Copy graph as SVG"),
                     None,
                     has_plot,

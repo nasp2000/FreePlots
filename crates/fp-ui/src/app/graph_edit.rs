@@ -3,6 +3,16 @@
 use super::*;
 use fp_core::plot::{GraphOverlay, ReferenceAxis, ReferenceLine};
 
+/// Action chosen from the graph context menu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GraphAction {
+    Labels,
+    Reference,
+    Save,
+    Copy,
+    Reset,
+}
+
 impl FreePlotsApp {
     /// Opens the label editor with the current texts.
     pub fn open_graph_labels(&mut self) {
@@ -38,6 +48,23 @@ impl FreePlotsApp {
         self.graph_overlay.footer = (!footer.is_empty()).then(|| footer.to_owned());
         self.show_graph_labels = false;
         self.status = "Graph labels updated".to_owned();
+    }
+
+    /// Presentation edits of the current graph (subtitle, footer, lines).
+    #[must_use]
+    pub fn graph_overlay(&self) -> &GraphOverlay {
+        &self.graph_overlay
+    }
+
+    /// Opens the save dialog for the current graph as SVG.
+    pub fn begin_plot_save(&mut self) {
+        if self.plot.is_none() {
+            self.set_error("No graph to save");
+            return;
+        }
+        self.save_kind = FileKind::Svg;
+        self.save_path = "graph.svg".to_owned();
+        self.show_save = true;
     }
 
     /// Opens the reference-line dialog.
@@ -83,6 +110,23 @@ impl FreePlotsApp {
             plot.y_axis.label = y;
         }
         self.status = "Graph edits reset".to_owned();
+    }
+
+    /// Runs an action chosen from the graph menu or its context menu.
+    pub(super) fn apply_graph_action(&mut self, ctx: &egui::Context, action: GraphAction) {
+        match action {
+            GraphAction::Labels => self.open_graph_labels(),
+            GraphAction::Reference => self.open_reference_line(),
+            GraphAction::Save => self.begin_plot_save(),
+            GraphAction::Copy => {
+                if let Some(plot) = &self.plot {
+                    let svg = fp_core::plot::render_svg_with(plot, &self.graph_overlay);
+                    ctx.copy_text(svg);
+                    self.status = "Graph copied as SVG".to_owned();
+                }
+            }
+            GraphAction::Reset => self.reset_graph_edits(),
+        }
     }
 
     pub(super) fn graph_labels_window(&mut self, ctx: &egui::Context) {

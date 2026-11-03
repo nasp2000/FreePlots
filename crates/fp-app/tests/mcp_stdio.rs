@@ -193,7 +193,7 @@ fn the_http_mode_serves_health_and_rejects_a_wrong_token() {
     let (mut child, port) = started.expect("the server did not listen on any port");
 
     // The server answers one request per connection and closes it.
-    let mut exchange = |request: &str| -> String {
+    let exchange = |request: &str| -> String {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect");
         stream.write_all(request.as_bytes()).expect("write request");
         stream.flush().expect("flush");
@@ -284,10 +284,10 @@ fn the_semantic_tools_match_the_cli_for_the_same_dataset() {
     fn mean(text: &str) -> f64 {
         for line in text.lines() {
             let trimmed = line.trim_start();
-            if let Some(rest) = trimmed.strip_prefix("Mean") {
-                if let Ok(value) = rest.trim().parse::<f64>() {
-                    return value;
-                }
+            if let Some(rest) = trimmed.strip_prefix("Mean")
+                && let Ok(value) = rest.trim().parse::<f64>()
+            {
+                return value;
             }
         }
         panic!("Mean not found in:\n{text}");

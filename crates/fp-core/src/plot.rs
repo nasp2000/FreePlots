@@ -2160,10 +2160,12 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     s.push_str(&format!(
         "<rect x=\"0\" y=\"0\" width=\"{w:.0}\" height=\"{h:.0}\" fill=\"#ffffff\"/>\n"
     ));
+    // With a subtitle the title moves up to leave room for it; on its own it
+    // keeps the frozen position the golden SVGs compare against.
+    let title_y = if overlay.subtitle.is_some() { 22 } else { 28 };
     s.push_str(&format!(
-        "<text x=\"{:.1}\" y=\"{}22\" font-family=\"sans-serif\" font-size=\"16\" fill=\"#000000\">{}</text>\n",
+        "<text x=\"{:.1}\" y=\"{title_y}\" font-family=\"sans-serif\" font-size=\"16\" fill=\"#000000\">{}</text>\n",
         w / 2.0,
-        if overlay.subtitle.is_some() { "" } else { "6" },
         escape_xml(&spec.title)
     ));
     if let Some(subtitle) = &overlay.subtitle {

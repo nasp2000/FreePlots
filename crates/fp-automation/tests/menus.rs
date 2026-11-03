@@ -51,6 +51,51 @@ fn an_invalid_option_is_reported_in_the_status_bar() {
 }
 
 #[test]
+fn the_graph_menu_edits_and_saves_the_plot() {
+    let mut ui = Automation::new();
+    ui.load_csv(fixture()).expect("load csv");
+    ui.open_menu(&["Stat", "Control Charts", "P/NP/C/U Chart…"])
+        .expect("open the attribute dialog");
+    ui.select("Chart:", "P").expect("select the P chart");
+    ui.select("Defects column:", "defects")
+        .expect("select the column");
+    ui.set_text("Constant size:", "50").expect("set the size");
+    ui.click("Run").expect("run the chart");
+    assert!(ui.plot().is_some(), "the chart produced no plot");
+
+    // The Graph menu edits the plot through the same dialog the window uses.
+    ui.open_menu(&["Graph", "Edit graph labels…"])
+        .expect("open the label editor");
+    ui.set_text("Subtitle", "Night shift")
+        .expect("set the subtitle");
+    ui.click("Apply").expect("apply the labels");
+    assert!(
+        ui.status().contains("Graph labels updated"),
+        "{}",
+        ui.status()
+    );
+
+    // Saving the graph asks for an SVG destination.
+    ui.open_menu(&["Graph", "Save graph…"])
+        .expect("open the save dialog");
+    assert!(
+        ui.window_titles()
+            .iter()
+            .any(|title| title == "Save Graph As"),
+        "the SVG save dialog did not open: {:?}",
+        ui.window_titles()
+    );
+    ui.click("Cancel").expect("cancel the save");
+    assert!(
+        !ui.window_titles()
+            .iter()
+            .any(|title| title == "Save Graph As"),
+        "the dialog stayed open: {:?}",
+        ui.window_titles()
+    );
+}
+
+#[test]
 fn the_widget_tree_exposes_the_menu_and_toolbar() {
     let mut ui = Automation::new();
     ui.load_csv(fixture()).expect("load csv");
