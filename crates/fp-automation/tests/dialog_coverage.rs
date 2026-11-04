@@ -6,6 +6,7 @@ use fp_core::data::{Column, DataFrame};
 /// Menu paths whose last item opens a dialog window.
 const DIALOG_MENUS: &[&[&str]] = &[
     &["Calc", "Calculator…"],
+    &["Edit", "Conditional formatting…"],
     &["Assistant", "Choose an analysis…"],
     &["Help", "Keyboard shortcuts"],
     &["Graph", "Dotplot…"],

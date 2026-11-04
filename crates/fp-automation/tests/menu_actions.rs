@@ -82,6 +82,7 @@ const MENU_PATHS: &[&[&str]] = &[
     &["Edit", "Redo"],
     &["Edit", "Clear Cells"],
     &["Edit", "Rename Column…"],
+    &["Edit", "Conditional formatting…"],
     &["Data", "Add Row"],
     &["Data", "Insert Row Above"],
     &["Data", "Delete Row"],

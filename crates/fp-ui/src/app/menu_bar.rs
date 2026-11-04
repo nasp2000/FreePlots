@@ -249,6 +249,18 @@ impl FreePlotsApp {
                     self.open_format_dialog();
                     ui.close();
                 }
+                if menu_icon_item(
+                    ui,
+                    ToolIcon::Grid,
+                    self.catalog().label("Conditional formatting…"),
+                    None,
+                    has_data,
+                )
+                .clicked()
+                {
+                    self.open_conditional_dialog();
+                    ui.close();
+                }
                 ui.separator();
                 if menu_icon_item(
                     ui,

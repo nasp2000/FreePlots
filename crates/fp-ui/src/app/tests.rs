@@ -5750,6 +5750,112 @@ fn the_preferences_round_trip_through_the_settings_file() {
 }
 
 #[test]
+fn conditional_rules_match_values_and_text() {
+    use crate::app::{ConditionalRule, ConditionalStyle, ConditionalTest};
+
+    let rule = |test| ConditionalRule {
+        column: "weight".to_owned(),
+        test,
+        style: ConditionalStyle::RedFill,
+    };
+    assert!(rule(ConditionalTest::Greater(13.0)).matches(Some(13.1), "13.1"));
+    assert!(!rule(ConditionalTest::Greater(13.0)).matches(Some(13.0), "13.0"));
+    assert!(!rule(ConditionalTest::Greater(13.0)).matches(None, "*"));
+    assert!(rule(ConditionalTest::Less(12.0)).matches(Some(-5.0), "-5"));
+    assert!(rule(ConditionalTest::Between(11.0, 13.0)).matches(Some(13.0), "13"));
+    assert!(!rule(ConditionalTest::Between(11.0, 13.0)).matches(Some(13.1), "13.1"));
+    // Equal to compares numbers when both sides parse, text otherwise.
+    assert!(rule(ConditionalTest::EqualTo("13.10".to_owned())).matches(Some(13.1), "13.1"));
+    assert!(rule(ConditionalTest::EqualTo("abc".to_owned())).matches(None, "ABC"));
+    assert!(rule(ConditionalTest::Contains("crack".to_owned())).matches(None, "hairline crack"));
+    assert!(!rule(ConditionalTest::Contains("crack".to_owned())).matches(None, "dent"));
+}
+
+#[test]
+fn conditional_rules_apply_to_the_worksheet_and_persist() {
+    use crate::app::{ConditionalStyle, ConditionalTest};
+
+    let dir = std::env::temp_dir().join(format!("fp-conditional-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.select_cell(0, 0);
+
+    app.open_conditional_dialog();
+    app.conditional_column = "weight".to_owned();
+    app.conditional_kind = ConditionalKind::Greater;
+    app.conditional_value = "13".to_owned();
+    app.conditional_style = ConditionalStyle::RedFill;
+    app.add_conditional_rule();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    assert_eq!(app.conditional_rules.len(), 1);
+    let df = app.data().expect("data");
+    assert_eq!(
+        app.conditional_style(df, 0, 0),
+        None,
+        "12.5 is not above 13"
+    );
+    assert_eq!(
+        app.conditional_style(df, 0, 1),
+        Some(ConditionalStyle::RedFill),
+        "13.1 is above 13"
+    );
+
+    // An invalid interval is refused and leaves the rules untouched.
+    app.conditional_kind = ConditionalKind::Between;
+    app.conditional_value = "10".to_owned();
+    app.conditional_value2 = "5".to_owned();
+    app.add_conditional_rule();
+    assert!(app.error.is_some());
+    assert_eq!(app.conditional_rules.len(), 1);
+
+    // Text rules work on the label column.
+    app.conditional_column = "batch".to_owned();
+    app.conditional_kind = ConditionalKind::EqualTo;
+    app.conditional_value = "A".to_owned();
+    app.conditional_style = ConditionalStyle::Bold;
+    app.add_conditional_rule();
+    let df = app.data().expect("data");
+    assert_eq!(
+        app.conditional_style(df, 1, 0),
+        Some(ConditionalStyle::Bold)
+    );
+
+    // The first matching rule wins.
+    app.conditional_column = "weight".to_owned();
+    app.conditional_kind = ConditionalKind::Greater;
+    app.conditional_value = "11".to_owned();
+    app.conditional_style = ConditionalStyle::YellowFill;
+    app.add_conditional_rule();
+    let df = app.data().expect("data");
+    assert_eq!(
+        app.conditional_style(df, 0, 1),
+        Some(ConditionalStyle::RedFill),
+        "the earlier rule must win"
+    );
+
+    // Rules are saved with the preferences and survive a restart.
+    app.persist_preferences();
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.conditional_rules.len(), 3);
+    let df = frame();
+    assert_eq!(
+        restored.conditional_style(&df, 0, 1),
+        Some(ConditionalStyle::RedFill)
+    );
+
+    restored.remove_conditional_rule(0);
+    assert_eq!(restored.conditional_rules.len(), 2);
+    restored.clear_conditional_rules();
+    assert!(restored.conditional_rules.is_empty());
+    let _ = ConditionalTest::Greater(1.0);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn the_graph_text_choices_apply_and_persist() {
     let dir = std::env::temp_dir().join(format!("fp-graph-text-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("dir");

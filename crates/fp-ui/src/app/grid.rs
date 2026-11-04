@@ -397,6 +397,17 @@ impl FreePlotsApp {
                                     let in_selection = selection.is_some_and(|(c0, r0, c1, r1)| {
                                         index >= c0 && index <= c1 && r >= r0 && r <= r1
                                     });
+                                    // Conditional formatting sits under the
+                                    // selection so the selected cell stays
+                                    // visible, and follows the column name.
+                                    let rule = (index < names.len())
+                                        .then(|| self.conditional_style(df, index, r))
+                                        .flatten();
+                                    if let Some(style) = rule
+                                        && let Some(color) = conditional_fill(style, dark)
+                                    {
+                                        painter.rect_filled(rect, 0.0, color);
+                                    }
                                     if in_selection {
                                         painter.rect_filled(rect, 0.0, selection_bg);
                                     }
@@ -490,8 +501,19 @@ impl FreePlotsApp {
                                             ),
                                         };
                                         let font = egui::FontId::monospace(12.0);
-                                        painter.text(anchor, align, &text, font.clone(), cell_fg);
-                                        if format.is_some_and(|format| format.bold) {
+                                        let text_color = rule
+                                            .and_then(|style| conditional_text(style, dark))
+                                            .unwrap_or(cell_fg);
+                                        painter.text(
+                                            anchor,
+                                            align,
+                                            &text,
+                                            font.clone(),
+                                            text_color,
+                                        );
+                                        if format.is_some_and(|format| format.bold)
+                                            || rule == Some(ConditionalStyle::Bold)
+                                        {
                                             // egui has a single weight per family; drawing the
                                             // text twice fakes a bold face.
                                             painter.text(
@@ -853,5 +875,39 @@ impl FreePlotsApp {
                 self.select_cell(next.0, next.1);
             }
         }
+    }
+}
+
+/// Background of a conditional style (light and dark theme variants).
+fn conditional_fill(style: ConditionalStyle, dark: bool) -> Option<Color32> {
+    match style {
+        ConditionalStyle::RedFill => Some(if dark {
+            Color32::from_rgb(92, 40, 46)
+        } else {
+            Color32::from_rgb(248, 215, 218)
+        }),
+        ConditionalStyle::YellowFill => Some(if dark {
+            Color32::from_rgb(88, 75, 30)
+        } else {
+            Color32::from_rgb(255, 243, 205)
+        }),
+        ConditionalStyle::GreenFill => Some(if dark {
+            Color32::from_rgb(38, 74, 45)
+        } else {
+            Color32::from_rgb(212, 237, 218)
+        }),
+        ConditionalStyle::RedText | ConditionalStyle::Bold => None,
+    }
+}
+
+/// Text colour of a conditional style, when it changes it.
+fn conditional_text(style: ConditionalStyle, dark: bool) -> Option<Color32> {
+    match style {
+        ConditionalStyle::RedText => Some(if dark {
+            Color32::from_rgb(255, 150, 150)
+        } else {
+            Color32::from_rgb(176, 42, 55)
+        }),
+        _ => None,
     }
 }

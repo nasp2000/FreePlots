@@ -195,6 +195,86 @@ impl Default for ColumnFormat {
     }
 }
 
+/// Condition of a conditional-formatting rule.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ConditionalTest {
+    /// Numeric value strictly above the limit.
+    Greater(f64),
+    /// Numeric value strictly below the limit.
+    Less(f64),
+    /// Numeric value between the two limits, both included.
+    Between(f64, f64),
+    /// Same number (when both parse) or same text, ignoring case.
+    EqualTo(String),
+    /// Text contains the fragment, ignoring case.
+    Contains(String),
+}
+
+/// What a matching cell looks like.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ConditionalStyle {
+    /// Light red background.
+    RedFill,
+    /// Light yellow background.
+    YellowFill,
+    /// Light green background.
+    GreenFill,
+    /// Bold dark-red text.
+    RedText,
+    /// Bold text in the normal colour.
+    Bold,
+}
+
+/// One conditional-formatting rule, applied to a named column.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ConditionalRule {
+    /// Column name the rule applies to.
+    pub column: String,
+    /// What the cell must satisfy.
+    pub test: ConditionalTest,
+    /// How a matching cell is drawn.
+    pub style: ConditionalStyle,
+}
+
+/// Condition chosen in the conditional-formatting dialog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConditionalKind {
+    /// Greater than.
+    Greater,
+    /// Less than.
+    Less,
+    /// Between two limits.
+    Between,
+    /// Equal to.
+    EqualTo,
+    /// Contains text.
+    Contains,
+}
+
+impl ConditionalRule {
+    /// `true` when the cell satisfies the rule's condition.
+    #[must_use]
+    pub fn matches(&self, value: Option<f64>, text: &str) -> bool {
+        match &self.test {
+            ConditionalTest::Greater(limit) => value.is_some_and(|value| value > *limit),
+            ConditionalTest::Less(limit) => value.is_some_and(|value| value < *limit),
+            ConditionalTest::Between(low, high) => {
+                value.is_some_and(|value| value >= *low && value <= *high)
+            }
+            ConditionalTest::EqualTo(target) => {
+                if let (Some(value), Ok(target)) = (value, target.trim().parse::<f64>()) {
+                    (value - target).abs() <= 1e-12
+                } else {
+                    text.trim().eq_ignore_ascii_case(target.trim())
+                }
+            }
+            ConditionalTest::Contains(fragment) => text
+                .to_lowercase()
+                .contains(&fragment.trim().to_lowercase()),
+        }
+    }
+}
+
 /// Actions of the worksheet context menus.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum GridMenu {
@@ -247,6 +327,9 @@ pub struct Preferences {
     /// between sessions so the user does not have to set them again.
     #[serde(default)]
     pub graph_overlay: fp_core::plot::GraphOverlay,
+    /// Conditional-formatting rules of the worksheet, kept between sessions.
+    #[serde(default)]
+    pub conditional_rules: Vec<ConditionalRule>,
 }
 
 impl Default for Preferences {
@@ -260,6 +343,7 @@ impl Default for Preferences {
             native_plot_windows: true,
             tour_seen: false,
             graph_overlay: fp_core::plot::GraphOverlay::default(),
+            conditional_rules: Vec::new(),
         }
     }
 }
@@ -465,6 +549,15 @@ pub struct FreePlotsApp {
     column_widths: Vec<f32>,
     /// Per-column display formats.
     formats: std::collections::HashMap<String, ColumnFormat>,
+    /// Conditional-formatting rules (persisted with the preferences).
+    conditional_rules: Vec<ConditionalRule>,
+    /// Dialog state of the conditional-formatting editor.
+    show_conditional_dialog: bool,
+    conditional_column: String,
+    conditional_kind: ConditionalKind,
+    conditional_value: String,
+    conditional_value2: String,
+    conditional_style: ConditionalStyle,
     /// Format Cells dialog and its options.
     show_format_dialog: bool,
     format_decimals: usize,
@@ -2281,6 +2374,7 @@ impl FreePlotsApp {
             native_plot_windows: self.native_plot_windows,
             tour_seen: self.tour_seen,
             graph_overlay: self.graph_overlay.clone(),
+            conditional_rules: self.conditional_rules.clone(),
         }
     }
 
@@ -2300,6 +2394,7 @@ impl FreePlotsApp {
         self.graph_overlay = preferences.graph_overlay.clone();
         // A hand-edited file must not make the graph text unreadable.
         self.graph_overlay.font_scale = self.graph_overlay.font_scale.clamp(0.75, 1.5);
+        self.conditional_rules = preferences.conditional_rules.clone();
     }
 
     /// Sets the file that keeps the preferences and loads it if it exists.
@@ -2385,6 +2480,7 @@ impl FreePlotsApp {
         self.show_design_dialog = false;
         self.show_desirability_dialog = false;
         self.show_diagnostic_dialog = false;
+        self.show_conditional_dialog = false;
         self.show_doe_dialog = false;
         self.show_dot_dialog = false;
         self.show_ecdf_dialog = false;
@@ -2392,6 +2488,11 @@ impl FreePlotsApp {
         self.show_exp_dialog = false;
         self.show_g_chart_dialog = false;
         self.show_gage_dialog = false;
+        self.show_graph_annotation = false;
+        self.show_graph_labels = false;
+        self.show_graph_text = false;
+        self.show_reference_line = false;
+        self.show_format_dialog = false;
         self.show_interval_dialog = false;
         self.show_km_dialog = false;
         self.show_kmeans_dialog = false;
@@ -2559,6 +2660,29 @@ impl FreePlotsApp {
             },
         );
         self.status = "Column format applied".to_owned();
+    }
+
+    /// First conditional rule that matches a cell, if any.
+    #[must_use]
+    pub fn conditional_style(
+        &self,
+        df: &fp_core::data::DataFrame,
+        column: usize,
+        row: usize,
+    ) -> Option<ConditionalStyle> {
+        if self.conditional_rules.is_empty() {
+            return None;
+        }
+        let name = df.columns().get(column)?.name();
+        let text = df.cell_text(column, row).unwrap_or_default();
+        let value = df
+            .columns()
+            .get(column)
+            .and_then(|column| column.value(row));
+        self.conditional_rules
+            .iter()
+            .find(|rule| rule.column == name && rule.matches(value, &text))
+            .map(|rule| rule.style)
     }
 
     /// Removes the display format of the selected column.

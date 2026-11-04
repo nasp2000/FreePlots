@@ -1004,6 +1004,261 @@ impl FreePlotsApp {
             self.show_sheet_dialog = false;
         }
     }
+    /// Opens the conditional-formatting editor.
+    pub fn open_conditional_dialog(&mut self) {
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| df.columns().iter().map(|c| c.name().to_owned()).collect())
+            .unwrap_or_default();
+        self.conditional_column = self
+            .selected
+            .clone()
+            .filter(|name| names.contains(name))
+            .or_else(|| names.first().cloned())
+            .unwrap_or_default();
+        self.conditional_kind = ConditionalKind::Greater;
+        self.conditional_value.clear();
+        self.conditional_value2.clear();
+        self.conditional_style = ConditionalStyle::RedFill;
+        self.show_conditional_dialog = true;
+    }
+
+    /// Adds the rule described by the dialog.
+    pub fn add_conditional_rule(&mut self) {
+        if self.conditional_column.is_empty() {
+            self.set_error("Select the column for the rule");
+            return;
+        }
+        let parse = |text: &str| text.trim().replace(',', ".").parse::<f64>().ok();
+        let test = match self.conditional_kind {
+            ConditionalKind::Greater => match parse(&self.conditional_value) {
+                Some(value) => ConditionalTest::Greater(value),
+                None => {
+                    self.set_error("Enter a number for the limit");
+                    return;
+                }
+            },
+            ConditionalKind::Less => match parse(&self.conditional_value) {
+                Some(value) => ConditionalTest::Less(value),
+                None => {
+                    self.set_error("Enter a number for the limit");
+                    return;
+                }
+            },
+            ConditionalKind::Between => {
+                match (
+                    parse(&self.conditional_value),
+                    parse(&self.conditional_value2),
+                ) {
+                    (Some(low), Some(high)) if low <= high => ConditionalTest::Between(low, high),
+                    (Some(_), Some(_)) => {
+                        self.set_error("The first limit must not be above the second");
+                        return;
+                    }
+                    _ => {
+                        self.set_error("Enter the two numbers of the interval");
+                        return;
+                    }
+                }
+            }
+            ConditionalKind::EqualTo => {
+                if self.conditional_value.trim().is_empty() {
+                    self.set_error("Enter the value to match");
+                    return;
+                }
+                ConditionalTest::EqualTo(self.conditional_value.clone())
+            }
+            ConditionalKind::Contains => {
+                if self.conditional_value.trim().is_empty() {
+                    self.set_error("Enter the text to find");
+                    return;
+                }
+                ConditionalTest::Contains(self.conditional_value.clone())
+            }
+        };
+        self.conditional_rules.push(ConditionalRule {
+            column: self.conditional_column.clone(),
+            test,
+            style: self.conditional_style,
+        });
+        self.error = None;
+        self.status = "Conditional rule added".to_owned();
+    }
+
+    /// Removes one rule by position.
+    pub fn remove_conditional_rule(&mut self, index: usize) {
+        if index < self.conditional_rules.len() {
+            self.conditional_rules.remove(index);
+            self.status = "Conditional rule removed".to_owned();
+        }
+    }
+
+    /// Removes every rule.
+    pub fn clear_conditional_rules(&mut self) {
+        self.conditional_rules.clear();
+        self.status = "Conditional rules cleared".to_owned();
+    }
+
+    pub(super) fn conditional_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_conditional_dialog {
+            return;
+        }
+        let mut open = self.show_conditional_dialog;
+        let mut add = false;
+        let mut clear = false;
+        let mut remove: Option<usize> = None;
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| df.columns().iter().map(|c| c.name().to_owned()).collect())
+            .unwrap_or_default();
+        let rules = self.conditional_rules.clone();
+        let catalog = self.catalog();
+        dialog_window(catalog.label("Conditional formatting"))
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(520.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Column:"));
+                    egui::ComboBox::from_id_salt("conditional_column")
+                        .selected_text(if self.conditional_column.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.conditional_column.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.conditional_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Condition:"));
+                    egui::ComboBox::from_id_salt("conditional_kind")
+                        .selected_text(match self.conditional_kind {
+                            ConditionalKind::Greater => catalog.label("Greater than"),
+                            ConditionalKind::Less => catalog.label("Less than"),
+                            ConditionalKind::Between => catalog.label("Between"),
+                            ConditionalKind::EqualTo => catalog.label("Equal to"),
+                            ConditionalKind::Contains => catalog.label("Contains"),
+                        })
+                        .show_ui(ui, |ui| {
+                            for (kind, name) in [
+                                (ConditionalKind::Greater, "Greater than"),
+                                (ConditionalKind::Less, "Less than"),
+                                (ConditionalKind::Between, "Between"),
+                                (ConditionalKind::EqualTo, "Equal to"),
+                                (ConditionalKind::Contains, "Contains"),
+                            ] {
+                                ui.selectable_value(
+                                    &mut self.conditional_kind,
+                                    kind,
+                                    catalog.label(name),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Value:"));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.conditional_value).desired_width(120.0),
+                    )
+                    .labelled_by(label.id);
+                    if self.conditional_kind == ConditionalKind::Between {
+                        ui.label(catalog.label("and"));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.conditional_value2)
+                                .desired_width(120.0),
+                        );
+                    }
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Style:"));
+                    egui::ComboBox::from_id_salt("conditional_style")
+                        .selected_text(match self.conditional_style {
+                            ConditionalStyle::RedFill => catalog.label("Red fill"),
+                            ConditionalStyle::YellowFill => catalog.label("Yellow fill"),
+                            ConditionalStyle::GreenFill => catalog.label("Green fill"),
+                            ConditionalStyle::RedText => catalog.label("Red text"),
+                            ConditionalStyle::Bold => catalog.label("Bold"),
+                        })
+                        .show_ui(ui, |ui| {
+                            for (style, name) in [
+                                (ConditionalStyle::RedFill, "Red fill"),
+                                (ConditionalStyle::YellowFill, "Yellow fill"),
+                                (ConditionalStyle::GreenFill, "Green fill"),
+                                (ConditionalStyle::RedText, "Red text"),
+                                (ConditionalStyle::Bold, "Bold"),
+                            ] {
+                                ui.selectable_value(
+                                    &mut self.conditional_style,
+                                    style,
+                                    catalog.label(name),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(catalog.label(
+                    "The first rule that matches a cell wins; the rules follow the column name and are kept between sessions.",
+                ));
+                ui.separator();
+                if rules.is_empty() {
+                    ui.weak(catalog.label("No rules yet."));
+                } else {
+                    for (index, rule) in rules.iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            if ui
+                                .help_button(catalog.label("Remove"))
+                                .on_hover_text(catalog.label("Remove this rule"))
+                                .clicked()
+                            {
+                                remove = Some(index);
+                            }
+                            ui.label(rule_description(rule));
+                        });
+                    }
+                }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(catalog.label("Add rule")).clicked() {
+                        add = true;
+                    }
+                    if ui.help_button(catalog.label("Clear rules")).clicked() {
+                        clear = true;
+                    }
+                    if ui.help_button(catalog.label("Close")).clicked() {
+                        self.show_conditional_dialog = false;
+                    }
+                });
+            });
+        self.show_conditional_dialog = open && self.show_conditional_dialog;
+        if add {
+            self.add_conditional_rule();
+        }
+        if let Some(index) = remove {
+            self.remove_conditional_rule(index);
+        }
+        if clear {
+            self.clear_conditional_rules();
+        }
+    }
+
     pub fn open_find_dialog(&mut self) {
         self.show_find_dialog = true;
         self.find_message.clear();
@@ -1019,4 +1274,23 @@ impl FreePlotsApp {
         self.format_align = format.align;
         self.show_format_dialog = true;
     }
+}
+
+/// Reader-facing summary of a conditional rule.
+fn rule_description(rule: &ConditionalRule) -> String {
+    let condition = match &rule.test {
+        ConditionalTest::Greater(limit) => format!("> {limit}"),
+        ConditionalTest::Less(limit) => format!("< {limit}"),
+        ConditionalTest::Between(low, high) => format!("{low} … {high}"),
+        ConditionalTest::EqualTo(value) => format!("= {value}"),
+        ConditionalTest::Contains(value) => format!("contains \"{value}\""),
+    };
+    let style = match rule.style {
+        ConditionalStyle::RedFill => "red fill",
+        ConditionalStyle::YellowFill => "yellow fill",
+        ConditionalStyle::GreenFill => "green fill",
+        ConditionalStyle::RedText => "red text",
+        ConditionalStyle::Bold => "bold",
+    };
+    format!("{} {condition} → {style}", rule.column)
 }

@@ -176,6 +176,7 @@ impl FreePlotsApp {
         self.assistant_dialog(&ctx);
         self.find_dialog(&ctx);
         self.format_dialog(&ctx);
+        self.conditional_dialog(&ctx);
         self.about_window(&ctx);
         self.settings_info_window(&ctx);
         self.agents_window(&ctx);
