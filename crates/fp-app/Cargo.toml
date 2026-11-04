@@ -15,7 +15,7 @@ path = "src/main.rs"
 default = []
 # Native window. Kept opt-in so the CLI and the pure UI tests build on machines
 # without X11/Wayland development packages (D17/ADR-002).
-desktop = ["dep:eframe", "dep:fp-ui", "dep:fp-mcp", "dep:serde_json", "dep:base64", "dep:arboard"]
+desktop = ["dep:eframe", "dep:fp-ui", "dep:fp-mcp", "dep:serde_json", "dep:base64", "dep:arboard", "dep:resvg", "dep:jpeg-encoder"]
 
 [dependencies]
 fp-core.workspace = true
@@ -25,6 +25,8 @@ eframe = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 arboard = { version = "=3.7.0", default-features = false, optional = true }
+resvg = { version = "0.45", optional = true }
+jpeg-encoder = { version = "0.6", optional = true }
 
 # Build-time only: embeds the icon and the version resource in the Windows
 # executable (build.rs). Cargo compiles build-dependencies for the host, so

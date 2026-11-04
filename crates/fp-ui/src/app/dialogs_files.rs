@@ -19,6 +19,8 @@ impl FreePlotsApp {
             FileKind::Xlsx => "Open Excel",
             FileKind::Svg => "Open SVG",
             FileKind::GraphPdf => "Open PDF",
+            FileKind::Png => "Open PNG",
+            FileKind::Jpeg => "Open JPEG",
         };
         dialog_window(title)
             .without_clear()
@@ -35,6 +37,8 @@ impl FreePlotsApp {
                     FileKind::Xlsx => "Path to an Excel workbook:",
                     FileKind::Svg => "Path to an SVG file:",
                     FileKind::GraphPdf => "Path to a PDF file:",
+                    FileKind::Png => "Path to a PNG image:",
+                    FileKind::Jpeg => "Path to a JPEG image:",
                 });
                 ui.horizontal(|ui| {
                     let response = ui
@@ -119,6 +123,8 @@ impl FreePlotsApp {
             FileKind::Pdf => "Export Session PDF",
             FileKind::Svg => "Save Graph As",
             FileKind::GraphPdf => "Print Graph",
+            FileKind::Png => "Save Graph as PNG",
+            FileKind::Jpeg => "Save Graph as JPEG",
             FileKind::Xlsx => "Save Excel Workbook",
         };
         dialog_window(title)
@@ -135,6 +141,8 @@ impl FreePlotsApp {
                     FileKind::Pdf => "Destination PDF file:",
                     FileKind::Svg => "Destination SVG file:",
                     FileKind::GraphPdf => "Destination PDF file:",
+                    FileKind::Png => "Destination PNG file:",
+                    FileKind::Jpeg => "Destination JPEG file:",
                     FileKind::Xlsx => "Destination Excel workbook:",
                 });
                 ui.horizontal(|ui| {
@@ -811,7 +819,10 @@ impl FreePlotsApp {
                             ("Panel layout…", GraphAction::PanelLayout),
                             ("Axis scale…", GraphAction::AxisScale),
                             ("Toggle gridlines", GraphAction::GridToggle),
+                            ("Toggle report data", GraphAction::ReportToggle),
                             ("Save graph…", GraphAction::Save),
+                            ("Save as PNG…", GraphAction::SavePng),
+                            ("Save as JPEG…", GraphAction::SaveJpeg),
                             ("Print graph…", GraphAction::Print),
                             ("Copy graph as SVG", GraphAction::Copy),
                             ("Clear marks", GraphAction::ClearMarks),
@@ -954,12 +965,24 @@ impl FreePlotsApp {
                             graph_action = Some(GraphAction::GridToggle);
                             ui.close();
                         }
+                        if ui.button(catalog.label("Toggle report data")).clicked() {
+                            graph_action = Some(GraphAction::ReportToggle);
+                            ui.close();
+                        }
                         if ui.button(catalog.label("Add reference lines…")).clicked() {
                             graph_action = Some(GraphAction::Reference);
                             ui.close();
                         }
                         if ui.button(catalog.label("Save graph…")).clicked() {
                             graph_action = Some(GraphAction::Save);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Save as PNG…")).clicked() {
+                            graph_action = Some(GraphAction::SavePng);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Save as JPEG…")).clicked() {
+                            graph_action = Some(GraphAction::SaveJpeg);
                             ui.close();
                         }
                         if ui.button(catalog.label("Print graph…")).clicked() {

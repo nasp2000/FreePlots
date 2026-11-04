@@ -64,6 +64,10 @@ pub enum FileKind {
     Svg,
     /// PDF page with the current graph, for printing.
     GraphPdf,
+    /// PNG raster of the current graph.
+    Png,
+    /// JPEG raster of the current graph.
+    Jpeg,
 }
 
 /// A request to read a worksheet.
@@ -1245,6 +1249,8 @@ impl FreePlotsApp {
             FileKind::Xlsx => "worksheet.xlsx".to_owned(),
             FileKind::Svg => "graph.svg".to_owned(),
             FileKind::GraphPdf => "graph.pdf".to_owned(),
+            FileKind::Png => "graph.png".to_owned(),
+            FileKind::Jpeg => "graph.jpg".to_owned(),
         };
         self.session.clear();
         self.plot = None;
@@ -1725,6 +1731,8 @@ impl FreePlotsApp {
             FileKind::Xlsx => ".xlsx",
             FileKind::Svg => ".svg",
             FileKind::GraphPdf => ".pdf",
+            FileKind::Png => ".png",
+            FileKind::Jpeg => ".jpg",
         };
         if !self.save_path.to_ascii_lowercase().ends_with(expected) {
             self.save_path = format!("{stem}{expected}");
@@ -3120,6 +3128,34 @@ fn browse_request(kind: FileKind, save: bool) -> BrowseRequest {
             "Open PDF",
             vec![
                 "PDF files (*.pdf)|*.pdf".to_owned(),
+                "All files (*.*)|*.*".to_owned(),
+            ],
+        ),
+        (FileKind::Png, true) => (
+            "Save Graph as PNG",
+            vec![
+                "PNG images (*.png)|*.png".to_owned(),
+                "All files (*.*)|*.*".to_owned(),
+            ],
+        ),
+        (FileKind::Png, false) => (
+            "Open PNG",
+            vec![
+                "PNG images (*.png)|*.png".to_owned(),
+                "All files (*.*)|*.*".to_owned(),
+            ],
+        ),
+        (FileKind::Jpeg, true) => (
+            "Save Graph as JPEG",
+            vec![
+                "JPEG images (*.jpg;*.jpeg)|*.jpg;*.jpeg".to_owned(),
+                "All files (*.*)|*.*".to_owned(),
+            ],
+        ),
+        (FileKind::Jpeg, false) => (
+            "Open JPEG",
+            vec![
+                "JPEG images (*.jpg;*.jpeg)|*.jpg;*.jpeg".to_owned(),
                 "All files (*.*)|*.*".to_owned(),
             ],
         ),

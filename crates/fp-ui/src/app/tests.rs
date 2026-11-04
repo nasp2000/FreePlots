@@ -6049,6 +6049,25 @@ fn notes_can_be_duplicated_rotated_reordered_and_deleted() {
 }
 
 #[test]
+fn the_graph_can_be_saved_as_png_and_jpeg() {
+    let mut app = FreePlotsApp::new();
+    app.load_sample("Filling line capability");
+    app.begin_graph_image(FileKind::Png);
+    assert_eq!(app.save_kind, FileKind::Png);
+    assert_eq!(app.save_path, "graph.png");
+    assert!(app.show_save);
+    app.show_save = false;
+    app.begin_graph_image(FileKind::Jpeg);
+    assert_eq!(app.save_kind, FileKind::Jpeg);
+    assert_eq!(app.save_path, "graph.jpg");
+    // The raster backends are covered by the fp-app unit tests; here we check
+    // that the SVG given to them is a complete document.
+    let svg = fp_core::plot::render_svg_with(app.plot().expect("plot"), app.graph_overlay());
+    assert!(svg.starts_with("<svg"), "{svg}");
+    assert!(svg.ends_with("</svg>\n"), "the SVG is not closed");
+}
+
+#[test]
 fn the_graph_can_be_printed_as_a_pdf_page() {
     let mut app = FreePlotsApp::new();
     app.begin_graph_pdf();
@@ -6416,6 +6435,12 @@ fn every_graph_context_menu_action_is_audited() {
     app.show_panel_layout = false;
 
     // Gridlines toggle both ways and leave the default on.
+    let report = app.graph_overlay.show_report;
+    app.apply_graph_action(&ctx, GraphAction::ReportToggle);
+    assert_ne!(app.graph_overlay.show_report, report);
+    app.apply_graph_action(&ctx, GraphAction::ReportToggle);
+    assert_eq!(app.graph_overlay.show_report, report);
+
     let before = app.graph_overlay.grid;
     app.apply_graph_action(&ctx, GraphAction::GridToggle);
     assert_ne!(app.graph_overlay.grid, before);
@@ -6431,6 +6456,14 @@ fn every_graph_context_menu_action_is_audited() {
     assert_eq!(app.save_kind, FileKind::GraphPdf);
     assert_eq!(app.save_path, "graph.pdf");
     assert!(app.show_save);
+    app.show_save = false;
+    app.apply_graph_action(&ctx, GraphAction::SavePng);
+    assert_eq!(app.save_kind, FileKind::Png);
+    assert_eq!(app.save_path, "graph.png");
+    app.show_save = false;
+    app.apply_graph_action(&ctx, GraphAction::SaveJpeg);
+    assert_eq!(app.save_kind, FileKind::Jpeg);
+    assert_eq!(app.save_path, "graph.jpg");
     app.show_save = false;
 
     // Copy puts the SVG on the clipboard (the status is what the user sees;
@@ -6475,6 +6508,8 @@ fn graph_actions_reject_a_missing_graph_and_bad_values() {
         GraphAction::AxisScale,
         GraphAction::PanelLayout,
         GraphAction::Save,
+        GraphAction::SavePng,
+        GraphAction::SaveJpeg,
         GraphAction::Print,
     ] {
         app.apply_graph_action(&ctx, action);

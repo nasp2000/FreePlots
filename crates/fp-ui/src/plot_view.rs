@@ -160,7 +160,12 @@ fn paint(
     } else {
         RIGHT
     };
-    let note_content = note_content_width(painter, spec, overlay);
+    let show_report = overlay.is_none_or(|overlay| overlay.show_report);
+    let note_content = if show_report {
+        note_content_width(painter, spec, overlay)
+    } else {
+        0.0
+    };
     let note_extent = if spec.notes.is_empty() {
         0.0
     } else {
@@ -480,7 +485,7 @@ fn paint(
         }
     }
 
-    if !spec.notes.is_empty() {
+    if show_report && !spec.notes.is_empty() {
         let font = graph_font(12.0, overlay);
         let line_h = overlay.map_or(15.0, |overlay| overlay.text_size(15.0));
         let note_left = plot.right() + base_right + 4.0;
@@ -663,6 +668,7 @@ fn panel_edits(overlay: Option<&GraphOverlay>) -> Option<GraphOverlay> {
         show_symbols: overlay.show_symbols,
         show_lines: overlay.show_lines,
         show_bands: overlay.show_bands,
+        show_report: overlay.show_report,
     })
 }
 

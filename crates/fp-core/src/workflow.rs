@@ -6836,6 +6836,49 @@ pub fn descriptive_statistics_by(
 
 /// Runs a typed analysis request.
 pub fn run_analysis(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
+    let mut output = analyze_spec(df, spec)?;
+    // Every graph carries the key numbers of its report beside the frame,
+    // unless the analysis already provided a tailored block.
+    if let Some(plot) = &mut output.plot {
+        if plot.panels.is_empty() {
+            if plot.notes.is_empty()
+                && let Some(result) = output.results.first()
+            {
+                plot.notes.push(generic_report_note(result));
+            }
+        } else if let Some(result) = output.results.first() {
+            let note = generic_report_note(result);
+            for panel in &mut plot.panels {
+                if panel.notes.is_empty() {
+                    panel.notes.push(note.clone());
+                }
+            }
+        }
+    }
+    Ok(output)
+}
+
+/// The default statistics block: N, the estimated parameters and the report
+/// statistics, at four decimals and without the parenthetical units.
+fn generic_report_note(result: &AnalysisResult) -> PlotNote {
+    let short = |label: &str| -> String {
+        let label = label.split(" (").next().unwrap_or(label);
+        label
+            .replace("Standard deviation", "StDev")
+            .replace("Anderson–Darling", "AD")
+    };
+    let mut rows: Vec<(String, String)> = vec![("N".to_owned(), result.n.to_string())];
+    for (label, value) in &result.parameters {
+        rows.push((short(label), format!("{value:.4}")));
+    }
+    for (label, value) in &result.statistics {
+        rows.push((short(label), format!("{value:.4}")));
+    }
+    rows.truncate(14);
+    PlotNote::new(rows)
+}
+
+fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
     match spec {
         AnalysisSpec::ProbabilityPlot {
             columns,
@@ -8942,6 +8985,36 @@ mod tests {
         // Phases and subgroup labels are alternatives.
         let both = spec.clone().with_subgroup_column(Some("phase".to_owned()));
         assert!(run_analysis(&df, &both).is_err());
+    }
+
+    #[test]
+    fn every_plot_gets_a_report_summary_by_default() {
+        let df = DataFrame::new(vec![Column::new_f64(
+            "weight",
+            vec![12.5, 13.1, 11.9, 12.8, 12.2, 12.9, 12.4, 13.0],
+        )])
+        .expect("frame");
+        let out = run_analysis(&df, &AnalysisSpec::histogram("weight")).expect("histogram");
+        let plot = out.plot.expect("plot");
+        let note = plot.notes.first().expect("generic report note");
+        assert!(note.rows.iter().any(|row| row.label == "N"));
+        assert!(
+            note.rows.len() > 2,
+            "the report block has more than the sample size: {:?}",
+            note.rows
+        );
+        // Hiding the report removes the block from the SVG and gives the plot
+        // the space back.
+        let hidden = crate::plot::GraphOverlay {
+            show_report: false,
+            ..crate::plot::GraphOverlay::default()
+        };
+        let svg = crate::plot::render_svg_with(&plot, &hidden);
+        let first_label = &note.rows.first().expect("row").label;
+        assert!(
+            !svg.contains(&format!(">{first_label}</text>")),
+            "the report block is still drawn"
+        );
     }
 
     #[test]

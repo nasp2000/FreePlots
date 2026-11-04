@@ -17,6 +17,8 @@
 mod bridge;
 mod cli;
 #[cfg(feature = "desktop")]
+mod export_image;
+#[cfg(feature = "desktop")]
 mod gui;
 mod platform;
 

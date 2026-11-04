@@ -2228,6 +2228,9 @@ pub struct GraphOverlay {
     /// Draw the confidence bands and the bars.
     #[serde(default = "default_true")]
     pub show_bands: bool,
+    /// Draw the report statistics block beside the plot.
+    #[serde(default = "default_true")]
+    pub show_report: bool,
 }
 
 /// How the labels added by the graph editor describe a point.
@@ -2328,6 +2331,7 @@ impl Default for GraphOverlay {
             show_symbols: true,
             show_lines: true,
             show_bands: true,
+            show_report: true,
         }
     }
 }
@@ -2464,7 +2468,11 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     // The statistics blocks live in a right-hand margin of their own: the plot
     // area gets narrower instead of the numbers sitting over the data. A
     // secondary axis keeps its tick labels and title before that margin.
-    let gutter = note_gutter(&spec.notes, overlay.font_scale());
+    let gutter = if overlay.show_report {
+        note_gutter(&spec.notes, overlay.font_scale())
+    } else {
+        0.0
+    };
     let secondary_room = if spec.secondary.is_some() { 40.0 } else { 0.0 };
     let pw = w - ML - 30.0 - secondary_room - gutter;
     let ph = h - MT - MB;
@@ -2710,6 +2718,9 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
 
     let mut note_top = MT + 4.0;
     for note in &spec.notes {
+        if !overlay.show_report {
+            break;
+        }
         if note.rows.is_empty() && note.lines.is_empty() {
             continue;
         }
@@ -2916,6 +2927,7 @@ fn render_panels_svg(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         show_symbols: overlay.show_symbols,
         show_lines: overlay.show_lines,
         show_bands: overlay.show_bands,
+        show_report: overlay.show_report,
     };
 
     let mut s = String::with_capacity(8192);

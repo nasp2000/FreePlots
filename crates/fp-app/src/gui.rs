@@ -124,8 +124,13 @@ impl eframe::App for Desktop {
                                 .map(|(_, df)| (df, request.path.clone(), Vec::new()))
                         }
                     }),
-                    FileKind::Html | FileKind::Pdf | FileKind::Svg | FileKind::GraphPdf => {
-                        Err("HTML, PDF and SVG are export-only formats".to_owned())
+                    FileKind::Html
+                    | FileKind::Pdf
+                    | FileKind::Svg
+                    | FileKind::GraphPdf
+                    | FileKind::Png
+                    | FileKind::Jpeg => {
+                        Err("HTML, PDF, SVG, PNG and JPEG are export-only formats".to_owned())
                     }
                     FileKind::Xlsx => match &request.sheet {
                         Some(sheet) => {
@@ -195,6 +200,17 @@ impl eframe::App for Desktop {
                     }
                     None => Err("No graph to print".to_owned()),
                 },
+                FileKind::Png | FileKind::Jpeg => match self.app.plot() {
+                    Some(plot) => {
+                        let svg = fp_core::plot::render_svg_with(plot, self.app.graph_overlay());
+                        let bytes = match request.kind {
+                            FileKind::Png => crate::export_image::svg_to_png(&svg, 2.0),
+                            _ => crate::export_image::svg_to_jpeg(&svg, 2.0, 90),
+                        };
+                        bytes.and_then(|bytes| crate::platform::write_bytes(path, &bytes))
+                    }
+                    None => Err("No graph to save".to_owned()),
+                },
                 FileKind::Csv | FileKind::Project | FileKind::Xlsx => match self.app.data() {
                     Some(df) => match request.kind {
                         FileKind::Csv => {
@@ -208,9 +224,12 @@ impl eframe::App for Desktop {
                         FileKind::Xlsx => {
                             crate::platform::write_bytes(path, &fp_core::xlsx::workbook(df))
                         }
-                        FileKind::Html | FileKind::Pdf | FileKind::Svg | FileKind::GraphPdf => {
-                            unreachable!()
-                        }
+                        FileKind::Html
+                        | FileKind::Pdf
+                        | FileKind::Svg
+                        | FileKind::GraphPdf
+                        | FileKind::Png
+                        | FileKind::Jpeg => unreachable!(),
                     },
                     None => Err("No worksheet to save".to_owned()),
                 },
@@ -219,7 +238,12 @@ impl eframe::App for Desktop {
                 Ok(()) if request.kind == FileKind::Html || request.kind == FileKind::Pdf => {
                     self.app.mark_session_exported(&request.path);
                 }
-                Ok(()) if request.kind == FileKind::Svg || request.kind == FileKind::GraphPdf => {
+                Ok(())
+                    if request.kind == FileKind::Svg
+                        || request.kind == FileKind::GraphPdf
+                        || request.kind == FileKind::Png
+                        || request.kind == FileKind::Jpeg =>
+                {
                     self.app.mark_graph_saved(&request.path);
                 }
                 Ok(()) => self.app.mark_saved(&request.path),

@@ -18,8 +18,11 @@ pub enum GraphAction {
     AxisScale,
     DataDisplay,
     GridToggle,
+    ReportToggle,
     Reference,
     Save,
+    SavePng,
+    SaveJpeg,
     Print,
     Copy,
     ClearMarks,
@@ -428,6 +431,20 @@ impl FreePlotsApp {
         self.show_save = true;
     }
 
+    /// Opens the save dialog for a PNG or JPEG of the current graph.
+    pub fn begin_graph_image(&mut self, kind: FileKind) {
+        if self.plot.is_none() {
+            self.set_error("No graph to save");
+            return;
+        }
+        self.save_kind = kind;
+        self.save_path = match kind {
+            FileKind::Jpeg => "graph.jpg".to_owned(),
+            _ => "graph.png".to_owned(),
+        };
+        self.show_save = true;
+    }
+
     /// Opens the save dialog for a one-page PDF with the current graph.
     pub fn begin_graph_pdf(&mut self) {
         if self.plot.is_none() {
@@ -502,6 +519,14 @@ impl FreePlotsApp {
                     self.show_data_display = true;
                 }
             }
+            GraphAction::ReportToggle => {
+                self.graph_overlay.show_report = !self.graph_overlay.show_report;
+                self.status = if self.graph_overlay.show_report {
+                    "Report data shown".to_owned()
+                } else {
+                    "Report data hidden".to_owned()
+                };
+            }
             GraphAction::GridToggle => {
                 self.graph_overlay.grid = !self.graph_overlay.grid;
                 self.status = if self.graph_overlay.grid {
@@ -512,6 +537,8 @@ impl FreePlotsApp {
             }
             GraphAction::Reference => self.open_reference_line(),
             GraphAction::Save => self.begin_plot_save(),
+            GraphAction::SavePng => self.begin_graph_image(FileKind::Png),
+            GraphAction::SaveJpeg => self.begin_graph_image(FileKind::Jpeg),
             GraphAction::Print => self.begin_graph_pdf(),
             GraphAction::Copy => {
                 if let Some(plot) = &self.plot {

@@ -123,10 +123,13 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
         "Data display…",
         "Notes…",
         "Print graph…",
+        "Save as PNG…",
+        "Save as JPEG…",
         "Add data labels…",
         "Add percentile lines…",
         "Axis scale…",
         "Toggle gridlines",
+        "Toggle report data",
     ] {
         assert!(
             menu.iter().any(|label| label == entry),
@@ -222,6 +225,7 @@ fn every_graph_context_entry_opens_and_closes() {
     // Direct actions report in the status line.
     for (item, needle) in [
         ("Toggle gridlines", "Gridlines"),
+        ("Toggle report data", "Report data"),
         ("Copy graph as SVG", "copied"),
         ("Clear marks", "Marks"),
         ("Reset graph edits", "reset"),
