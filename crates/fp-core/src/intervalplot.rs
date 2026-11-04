@@ -119,6 +119,7 @@ pub fn analyze(
         panels: Vec::new(),
         panel_columns: 0,
         secondary: None,
+        notes: Vec::new(),
     };
 
     let mut result = AnalysisResult::new(

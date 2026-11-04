@@ -406,6 +406,7 @@ fn plot(column_name: &str, chart: &RunChart) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

@@ -94,6 +94,7 @@ fn histogram_panel(name: &str, data: &[Vec<f64>], index: usize, bins: usize) -> 
         panels: Vec::new(),
         panel_columns: 0,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 
@@ -129,6 +130,7 @@ fn scatter_panel(
         panels: Vec::new(),
         panel_columns: 0,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 
@@ -191,6 +193,7 @@ pub fn analyze(df: &DataFrame, columns: &[String], bins: usize) -> Result<Analys
         panels: panels(columns, &data, bins),
         panel_columns: k,
         secondary: None,
+        notes: Vec::new(),
     };
 
     let mut result = AnalysisResult::new(

@@ -921,6 +921,7 @@ fn plot(defects_column: &str, chart: &AttributeChart) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

@@ -558,6 +558,7 @@ fn plot(model: &AltFit, time: &str) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 0,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 
@@ -1601,6 +1602,7 @@ fn step_stress_plot(fit: &StepStressFit, stress: &str) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

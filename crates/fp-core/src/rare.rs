@@ -280,6 +280,7 @@ fn plot(counts_column: &str, chart: &RareEventsChart) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

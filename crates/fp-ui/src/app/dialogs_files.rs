@@ -762,12 +762,17 @@ impl FreePlotsApp {
                     // first so no black band shows under a short plot.
                     let background = ui.visuals().window_fill;
                     ui.painter().rect_filled(ui.max_rect(), 0.0, background);
-                    // Tall multi-panel plots can be larger than the window on a
-                    // small screen; scrolling keeps every panel reachable.
-                    let response = egui::ScrollArea::both()
-                        .auto_shrink([false, false])
-                        .show(ui, |ui| crate::plot_view::show_with(ui, &plot, &overlay))
-                        .inner;
+                    // A single plot is scaled to fit and centred; a tall
+                    // multi-panel plot can outgrow a small window, so only that
+                    // case needs scrolling to keep every panel reachable.
+                    let response = if plot.panels.is_empty() {
+                        crate::plot_view::show_with(ui, &plot, &overlay)
+                    } else {
+                        egui::ScrollArea::both()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| crate::plot_view::show_with(ui, &plot, &overlay))
+                            .inner
+                    };
                     response.context_menu(|ui| {
                         for (label, action) in [
                             ("Edit graph labels…", GraphAction::Labels),
@@ -822,10 +827,14 @@ impl FreePlotsApp {
             .show(ctx, |ui| {
                 if let Some(spec) = &self.plot {
                     let overlay = self.graph_overlay.clone();
-                    let response = egui::ScrollArea::both()
-                        .auto_shrink([false, false])
-                        .show(ui, |ui| crate::plot_view::show_with(ui, spec, &overlay))
-                        .inner;
+                    let response = if spec.panels.is_empty() {
+                        crate::plot_view::show_with(ui, spec, &overlay)
+                    } else {
+                        egui::ScrollArea::both()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| crate::plot_view::show_with(ui, spec, &overlay))
+                            .inner
+                    };
                     response.context_menu(|ui| {
                         let catalog = self.catalog();
                         if ui.button(catalog.label("Edit graph labels…")).clicked() {

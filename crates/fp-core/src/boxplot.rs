@@ -391,6 +391,7 @@ fn plot(column_name: &str, by: Option<&str>, model: &Boxplot) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

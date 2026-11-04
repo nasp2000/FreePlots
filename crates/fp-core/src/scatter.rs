@@ -324,6 +324,7 @@ fn plot(x_column: &str, y_column: &str, model: &ScatterFit) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

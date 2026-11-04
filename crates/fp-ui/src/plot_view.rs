@@ -7,7 +7,7 @@ use egui::{
     Align2, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, epaint::TextShape, pos2,
     vec2,
 };
-use fp_core::plot::{GraphOverlay, PlotSpec, ReferenceAxis};
+use fp_core::plot::{GraphOverlay, NoteCorner, PlotSpec, ReferenceAxis};
 
 const LEFT: f32 = 62.0;
 const RIGHT: f32 = 18.0;
@@ -21,24 +21,33 @@ pub fn show(ui: &mut egui::Ui, spec: &PlotSpec) -> egui::Response {
 
 /// Draws a plot with the presentation edits (subtitle, footer, reference lines).
 pub fn show_with(ui: &mut egui::Ui, spec: &PlotSpec, overlay: &GraphOverlay) -> egui::Response {
-    let width = ui.available_width().max(560.0);
-    let height = if spec.panels.is_empty() {
-        560.0
+    let available = ui.available_size();
+    let width = available.x.max(320.0);
+    let visible_height = if available.y.is_finite() && available.y > 0.0 {
+        available.y.max(160.0)
     } else {
-        let columns = spec.panel_columns.max(1) as f32;
-        let rows = (spec.panels.len() as f32 / columns).ceil();
+        spec.size.1 as f32
+    };
+    let (canvas, frame) = if spec.panels.is_empty() {
+        fitted_frame(
+            vec2(width, visible_height),
+            vec2(spec.size.0.max(1) as f32, spec.size.1.max(1) as f32),
+        )
+    } else {
+        let columns = spec.panel_columns.max(1);
+        let rows = spec.panels.len().div_ceil(columns);
         let ratio = spec
             .panels
             .first()
             .map(|panel| panel.size.1 as f32 / panel.size.0.max(1) as f32)
             .unwrap_or(0.69);
-        let cell_w = (width - 16.0) / columns;
-        22.0 + rows * cell_w * ratio + 16.0
+        fitted_panels(vec2(width, visible_height), columns, rows, ratio)
     };
     // Clickable, not only hovered: the graph window opens its context menu on
     // this response (right-click anywhere over the plot).
-    let (response, painter) = ui.allocate_painter(vec2(width, height), Sense::click());
-    paint(&painter, response.rect, spec, Some(overlay));
+    let (response, painter) = ui.allocate_painter(canvas, Sense::click());
+    let rect = egui::Rect::from_center_size(response.rect.center(), frame);
+    paint(&painter, rect, spec, Some(overlay));
     response
 }
 
@@ -56,8 +65,12 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     } else {
         RIGHT
     };
+    // A subtitle takes its own line under the title, so the frame starts lower
+    // and the text never sits over the top tick.
+    let has_subtitle = overlay.is_some_and(|overlay| overlay.subtitle.is_some());
+    let top = if has_subtitle { 46.0 } else { TOP };
     let plot = Rect::from_min_max(
-        pos2(rect.left() + LEFT, rect.top() + TOP),
+        pos2(rect.left() + LEFT, rect.top() + top),
         pos2(rect.right() - right, rect.bottom() - BOTTOM),
     );
 
@@ -330,6 +343,103 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
         }
     }
 
+    for note in &spec.notes {
+        if note.rows.is_empty() && note.lines.is_empty() {
+            continue;
+        }
+        let font = FontId::proportional(12.0);
+        let label_w = note
+            .rows
+            .iter()
+            .map(|row| {
+                painter
+                    .layout_no_wrap(row.label.clone(), font.clone(), Color32::from_gray(34))
+                    .size()
+                    .x
+            })
+            .fold(0.0_f32, f32::max);
+        let value_w = note
+            .rows
+            .iter()
+            .map(|row| {
+                painter
+                    .layout_no_wrap(row.value.clone(), font.clone(), Color32::from_gray(34))
+                    .size()
+                    .x
+            })
+            .fold(0.0_f32, f32::max);
+        let text_w = note
+            .lines
+            .iter()
+            .map(|line| {
+                painter
+                    .layout_no_wrap(line.clone(), font.clone(), Color32::from_gray(34))
+                    .size()
+                    .x
+            })
+            .fold(0.0_f32, f32::max);
+        let content_w = if note.rows.is_empty() {
+            text_w
+        } else if note.lines.is_empty() {
+            label_w + 16.0 + value_w
+        } else {
+            (label_w + 16.0 + value_w).max(text_w)
+        };
+        let pad = 8.0;
+        let line_h = 15.0;
+        let rows_count = note.rows.len() + note.lines.len();
+        let box_w = content_w + 2.0 * pad;
+        let box_h = rows_count as f32 * line_h + 2.0 * pad - 4.0;
+        let (box_x, box_y) = match note.corner {
+            NoteCorner::TopRight => (plot.right() - 8.0 - box_w, plot.top() + 8.0),
+            NoteCorner::TopLeft => (plot.left() + 8.0, plot.top() + 8.0),
+            NoteCorner::BottomRight => (plot.right() - 8.0 - box_w, plot.bottom() - 8.0 - box_h),
+            NoteCorner::BottomLeft => (plot.left() + 8.0, plot.bottom() - 8.0 - box_h),
+        };
+        let rect_note = Rect::from_min_size(pos2(box_x, box_y), vec2(box_w, box_h));
+        painter.rect_filled(
+            rect_note,
+            3.0,
+            Color32::from_rgba_unmultiplied(255, 255, 255, 224),
+        );
+        painter.rect_stroke(
+            rect_note,
+            3.0,
+            Stroke::new(1.0, Color32::from_gray(208)),
+            StrokeKind::Inside,
+        );
+        let left = box_x + pad;
+        let right = box_x + box_w - pad;
+        let mut y = box_y + pad;
+        for row in &note.rows {
+            painter.text(
+                pos2(left, y),
+                Align2::LEFT_TOP,
+                &row.label,
+                font.clone(),
+                Color32::from_gray(34),
+            );
+            painter.text(
+                pos2(right, y),
+                Align2::RIGHT_TOP,
+                &row.value,
+                font.clone(),
+                Color32::from_gray(34),
+            );
+            y += line_h;
+        }
+        for line in &note.lines {
+            painter.text(
+                pos2(left, y),
+                Align2::LEFT_TOP,
+                line,
+                font.clone(),
+                Color32::from_gray(34),
+            );
+            y += line_h;
+        }
+    }
+
     painter.text(
         pos2(rect.center().x, rect.top() + 4.0),
         Align2::CENTER_TOP,
@@ -340,10 +450,10 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     if let Some(overlay) = overlay {
         if let Some(subtitle) = &overlay.subtitle {
             painter.text(
-                pos2(rect.center().x, rect.top() + 24.0),
+                pos2(rect.center().x, rect.top() + 23.0),
                 Align2::CENTER_TOP,
                 subtitle,
-                FontId::proportional(11.0),
+                FontId::proportional(13.0),
                 Color32::from_gray(70),
             );
         }
@@ -352,14 +462,29 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
                 pos2(rect.center().x, rect.bottom() - 2.0),
                 Align2::CENTER_BOTTOM,
                 footer,
-                FontId::proportional(9.0),
+                FontId::proportional(12.0),
                 Color32::from_gray(85),
             );
         }
     }
+    // The axis title sits under the tick labels, not through them: on a short
+    // panel the old fixed offset put it on top of the numbers. A footer keeps
+    // its own line at the bottom, so the title moves up to make room.
+    let has_footer = overlay.is_some_and(|overlay| overlay.footer.is_some());
+    let (x_label_pos, x_label_anchor) = if has_footer {
+        (
+            pos2(plot.center().x, rect.bottom() - 30.0),
+            Align2::CENTER_BOTTOM,
+        )
+    } else {
+        (
+            pos2(plot.center().x, plot.bottom() + 22.0),
+            Align2::CENTER_TOP,
+        )
+    };
     painter.text(
-        pos2(plot.center().x, rect.bottom() - 18.0),
-        Align2::CENTER_BOTTOM,
+        x_label_pos,
+        x_label_anchor,
         &spec.x_axis.label,
         FontId::proportional(13.5),
         Color32::from_gray(40),
@@ -405,6 +530,42 @@ fn paint_panels(painter: &egui::Painter, rect: Rect, spec: &PlotSpec) {
     }
 }
 
+/// Canvas and frame for a single plot: the plot keeps its own proportions and
+/// is fitted inside the canvas, so the spare room becomes an even band on both
+/// sides instead of a frame glued to one corner.
+/// Canvas and frame for a multi-panel plot. The panels keep their natural cell
+/// shape when the window has room; otherwise they shrink to the window (down
+/// to a readable minimum) so a chart such as I–MR shows both panels without
+/// scrolling. When the natural height is shorter than the window the grid is
+/// centred in it.
+fn fitted_panels(
+    canvas: egui::Vec2,
+    columns: usize,
+    rows: usize,
+    ratio: f32,
+) -> (egui::Vec2, egui::Vec2) {
+    let cell_w = (canvas.x - 16.0) / columns.max(1) as f32;
+    let natural = 22.0 + rows as f32 * cell_w * ratio + 16.0;
+    let readable = 22.0 + rows as f32 * 150.0 + 16.0;
+    let height = if natural <= canvas.y {
+        natural
+    } else {
+        canvas.y.max(readable)
+    };
+    (vec2(canvas.x, height.max(canvas.y)), vec2(canvas.x, height))
+}
+
+fn fitted_frame(canvas: egui::Vec2, natural: egui::Vec2) -> (egui::Vec2, egui::Vec2) {
+    let aspect = natural.y / natural.x.max(1.0);
+    let mut frame_w = canvas.x;
+    let mut frame_h = frame_w * aspect;
+    if frame_h > canvas.y {
+        frame_h = canvas.y;
+        frame_w = frame_h / aspect;
+    }
+    (canvas, vec2(frame_w.max(160.0), frame_h.max(120.0)))
+}
+
 fn series_color32(index: usize) -> Color32 {
     match index % 6 {
         0 => Color32::from_rgb(31, 78, 121),
@@ -438,6 +599,56 @@ mod tests {
         let d = Normal::fit_moments(&s).expect("fit");
         let p = normal_probability_plot(&s, &d, PlottingPosition::Benard).expect("plot");
         PlotSpec::normal_probability(&p, &d, "test")
+    }
+
+    #[test]
+    fn a_single_plot_is_centred_in_the_space() {
+        // A wide window: the plot keeps its proportions, so the spare room is
+        // split evenly and the frame sits in the middle, not on the left.
+        let (canvas, frame) = fitted_frame(vec2(1180.0, 600.0), vec2(800.0, 620.0));
+        assert_eq!(canvas, vec2(1180.0, 600.0));
+        assert!((frame.y - 600.0).abs() < 0.01, "it fills the short side");
+        let rect = Rect::from_center_size(Pos2::new(canvas.x / 2.0, canvas.y / 2.0), frame);
+        assert!((rect.center().x - 590.0).abs() < 0.01);
+        assert!((rect.left() - (1180.0 - frame.x) / 2.0).abs() < 0.01);
+        assert!((rect.right() - (1180.0 + frame.x) / 2.0).abs() < 0.01);
+        // The aspect ratio is preserved.
+        assert!((frame.x / frame.y - 800.0 / 620.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn a_tall_window_is_filled_width_ways() {
+        let (canvas, frame) = fitted_frame(vec2(800.0, 900.0), vec2(800.0, 620.0));
+        assert!((frame.x - 800.0).abs() < 0.01);
+        assert!((frame.y - 620.0).abs() < 0.01);
+        let rect = Rect::from_center_size(Pos2::new(canvas.x / 2.0, canvas.y / 2.0), frame);
+        assert!(
+            (rect.top() - 140.0).abs() < 0.01,
+            "even bands above and below"
+        );
+        assert!((rect.bottom() - 760.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn a_two_panel_chart_fits_the_window() {
+        // I–MR in a 1120x460 window: both panels shrink to the window instead
+        // of stacking far below the visible area.
+        let (canvas, frame) = fitted_panels(vec2(1120.0, 460.0), 1, 2, 0.75);
+        assert_eq!(canvas, vec2(1120.0, 460.0));
+        assert_eq!(frame, vec2(1120.0, 460.0));
+        // Every row keeps a readable minimum; below that the canvas scrolls.
+        let (canvas, frame) = fitted_panels(vec2(1120.0, 300.0), 1, 4, 0.75);
+        assert_eq!(frame.y, canvas.y);
+        assert_eq!(frame.y, 22.0 + 4.0 * 150.0 + 16.0);
+    }
+
+    #[test]
+    fn a_short_panel_grid_is_centred() {
+        let (canvas, frame) = fitted_panels(vec2(800.0, 900.0), 1, 1, 0.5);
+        assert_eq!(frame.y, 22.0 + 784.0 * 0.5 + 16.0);
+        let rect = Rect::from_center_size(Pos2::new(400.0, 450.0), frame);
+        assert!((rect.top() - (900.0 - frame.y) / 2.0).abs() < 0.01);
+        let _ = canvas;
     }
 
     #[test]

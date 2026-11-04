@@ -431,6 +431,7 @@ fn plot(time_column: &str, model: &KaplanMeier) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 
@@ -795,6 +796,7 @@ pub fn analyze_weibull(
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }),
     })
 }
@@ -1185,6 +1187,7 @@ pub fn analyze_lognormal(
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }),
     })
 }
@@ -1460,6 +1463,7 @@ pub fn analyze_exponential(
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }),
     })
 }

@@ -225,6 +225,7 @@ fn plot(model: &Pareto) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 0,
         secondary: Some(secondary),
+        notes: Vec::new(),
     }
 }
 

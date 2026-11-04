@@ -394,6 +394,64 @@ pub struct PlotSpec {
     pub panel_columns: usize,
     /// Optional right-hand axis for the series marked as secondary.
     pub secondary: Option<AxisSpec>,
+    /// Compact statistics blocks drawn inside the frame (mean, Cp, Cpk…).
+    pub notes: Vec<PlotNote>,
+}
+
+/// Corner of the plot frame where a [`PlotNote`] is anchored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NoteCorner {
+    /// Top right, the default for statistics.
+    #[default]
+    TopRight,
+    /// Top left.
+    TopLeft,
+    /// Bottom right.
+    BottomRight,
+    /// Bottom left.
+    BottomLeft,
+}
+
+/// One label/value pair in a [`PlotNote`].
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct NoteRow {
+    /// Left column: what the value is (`Mean`, `Cpk`, `UCL`…).
+    pub label: String,
+    /// Right column: the value itself.
+    pub value: String,
+}
+
+/// A compact statistics block drawn inside the plot frame, over a translucent
+/// label so points behind it stay readable.
+///
+/// The label column is left-aligned and the value column right-aligned, so the
+/// numbers line up the way they do in the Session report.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PlotNote {
+    /// Label/value rows, top to bottom.
+    pub rows: Vec<NoteRow>,
+    /// Free-text lines drawn under the rows (units, warnings).
+    pub lines: Vec<String>,
+    /// Where the block sits.
+    pub corner: NoteCorner,
+}
+
+impl PlotNote {
+    /// A note of label/value rows in the top-right corner.
+    #[must_use]
+    pub fn top_right(rows: Vec<(&str, String)>) -> Self {
+        Self {
+            rows: rows
+                .into_iter()
+                .map(|(label, value)| NoteRow {
+                    label: label.to_owned(),
+                    value,
+                })
+                .collect(),
+            lines: Vec::new(),
+            corner: NoteCorner::TopRight,
+        }
+    }
 }
 
 /// Percentage ticks used on a probability axis.
@@ -747,6 +805,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -843,6 +902,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -947,6 +1007,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -1025,6 +1086,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -1122,6 +1184,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -1222,6 +1285,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -1328,6 +1392,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -1405,6 +1470,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -1483,6 +1549,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -1580,6 +1647,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
@@ -1949,6 +2017,7 @@ pub fn overlay_plots(plots: Vec<(String, PlotSpec)>, title: impl Into<String>) -
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     })
 }
 
@@ -2030,6 +2099,7 @@ pub fn panel_plot_with_scales(
         panels,
         panel_columns: columns,
         secondary: None,
+        notes: Vec::new(),
     })
 }
 
@@ -2170,7 +2240,7 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     ));
     if let Some(subtitle) = &overlay.subtitle {
         s.push_str(&format!(
-            "<text x=\"{:.1}\" y=\"40\" font-family=\"sans-serif\" font-size=\"11\" fill=\"#444444\" text-anchor=\"middle\">{}</text>\n",
+            "<text x=\"{:.1}\" y=\"40\" font-family=\"sans-serif\" font-size=\"13\" fill=\"#444444\" text-anchor=\"middle\">{}</text>\n",
             w / 2.0,
             escape_xml(subtitle)
         ));
@@ -2354,6 +2424,75 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     }
     s.push_str("</g>\n");
 
+    for note in &spec.notes {
+        if note.rows.is_empty() && note.lines.is_empty() {
+            continue;
+        }
+        let font_size = 12.0;
+        let char_w = 6.5;
+        let line_h = 15.0;
+        let pad = 8.0;
+        let label_chars = note
+            .rows
+            .iter()
+            .map(|row| row.label.chars().count())
+            .max()
+            .unwrap_or(0);
+        let value_chars = note
+            .rows
+            .iter()
+            .map(|row| row.value.chars().count())
+            .max()
+            .unwrap_or(0);
+        let text_chars = note
+            .lines
+            .iter()
+            .map(|line| line.chars().count())
+            .max()
+            .unwrap_or(0);
+        let content_chars = if note.rows.is_empty() {
+            text_chars
+        } else if note.lines.is_empty() {
+            label_chars + 3 + value_chars
+        } else {
+            (label_chars + 3 + value_chars).max(text_chars)
+        };
+        let box_w = content_chars as f64 * char_w + 2.0 * pad;
+        let row_count = note.rows.len() + note.lines.len();
+        let box_h = row_count as f64 * line_h + 2.0 * pad - 4.0;
+        let (box_x, box_y) = match note.corner {
+            NoteCorner::TopRight => (ML + pw - 8.0 - box_w, MT + 8.0),
+            NoteCorner::TopLeft => (ML + 8.0, MT + 8.0),
+            NoteCorner::BottomRight => (ML + pw - 8.0 - box_w, MT + ph - 8.0 - box_h),
+            NoteCorner::BottomLeft => (ML + 8.0, MT + ph - 8.0 - box_h),
+        };
+        s.push_str(&format!(
+            "<rect x=\"{box_x:.1}\" y=\"{box_y:.1}\" width=\"{box_w:.1}\" height=\"{box_h:.1}\" rx=\"3\" fill=\"#ffffff\" fill-opacity=\"0.88\" stroke=\"#d0d0d0\" stroke-width=\"1\"/>\n"
+        ));
+        let left = box_x + pad;
+        let right = box_x + box_w - pad;
+        let value_x = right - value_chars as f64 * char_w;
+        let mut line_y = box_y + pad + 10.0;
+        for row in &note.rows {
+            s.push_str(&format!(
+                "<text x=\"{left:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"{font_size}\" fill=\"#222222\">{}</text>\n",
+                escape_xml(&row.label)
+            ));
+            s.push_str(&format!(
+                "<text x=\"{value_x:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"{font_size}\" fill=\"#222222\">{}</text>\n",
+                escape_xml(&row.value)
+            ));
+            line_y += line_h;
+        }
+        for line in &note.lines {
+            s.push_str(&format!(
+                "<text x=\"{left:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"{font_size}\" fill=\"#222222\">{}</text>\n",
+                escape_xml(line)
+            ));
+            line_y += line_h;
+        }
+    }
+
     if spec.series.len() > 1 {
         let legend_x = ML + pw - 8.0;
         let max_len = spec
@@ -2388,10 +2527,14 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         }
     }
 
+    let x_label_y = if overlay.footer.is_some() {
+        h - 30.0
+    } else {
+        h - 14.0
+    };
     s.push_str(&format!(
-        "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#000000\" text-anchor=\"middle\">{}</text>\n",
+        "<text x=\"{:.1}\" y=\"{x_label_y:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#000000\" text-anchor=\"middle\">{}</text>\n",
         ML + pw / 2.0,
-        h - 14.0,
         escape_xml(&spec.x_axis.label)
     ));
     s.push_str(&format!(
@@ -2402,7 +2545,7 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     ));
     if let Some(footer) = &overlay.footer {
         s.push_str(&format!(
-            "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"9\" fill=\"#555555\" text-anchor=\"middle\">{}</text>\n",
+            "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#555555\" text-anchor=\"middle\">{}</text>\n",
             w / 2.0,
             h - 8.0,
             escape_xml(footer)
@@ -2995,6 +3138,34 @@ mod tests {
     }
 
     #[test]
+    fn notes_are_drawn_inside_the_frame() {
+        let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
+        let fit = Normal::fit_moments(&sample).unwrap();
+        let probability = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
+        let mut spec = PlotSpec::normal_probability(&probability, &fit, "Normal");
+        assert!(!render_svg(&spec).contains("fill-opacity=\"0.88\""));
+        let mut note = PlotNote::top_right(vec![("N", "5".to_owned()), ("Mean", "<x>".to_owned())]);
+        note.lines.push("units: mm".to_owned());
+        spec.notes.push(note);
+        let svg = render_svg(&spec);
+        assert!(
+            svg.contains(">N</text>"),
+            "the label is a column of its own"
+        );
+        assert!(svg.contains(">5</text>"));
+        assert!(
+            svg.contains(">&lt;x&gt;</text>"),
+            "the note must be escaped"
+        );
+        assert!(svg.contains("units: mm"));
+        assert!(svg.contains("fill-opacity=\"0.88\""));
+        assert!(
+            svg.matches("<rect").count() >= 3,
+            "the note needs its own background"
+        );
+    }
+
+    #[test]
     fn the_overlay_draws_the_subtitle_footer_and_reference_lines() {
         let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
         let fit = Normal::fit_moments(&sample).unwrap();
@@ -3075,6 +3246,7 @@ mod tests {
             panels: vec![],
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         };
         let svg = render_svg(&spec);
         assert!(svg.contains("<svg"));

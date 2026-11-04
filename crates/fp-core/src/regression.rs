@@ -903,6 +903,7 @@ pub(crate) fn residual_plot(response: &str, model: &RegressionFit) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

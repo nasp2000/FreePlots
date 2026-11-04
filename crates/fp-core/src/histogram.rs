@@ -246,6 +246,7 @@ fn plot_with_options(
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

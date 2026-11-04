@@ -387,6 +387,7 @@ fn contour_plot(response: &str, model: &RsmFit) -> Result<PlotSpec> {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     })
 }
 
@@ -553,6 +554,7 @@ fn surface_plot(response: &str, model: &RsmFit) -> Result<PlotSpec> {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: Vec::new(),
     })
 }
 

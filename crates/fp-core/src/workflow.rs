@@ -17,10 +17,11 @@ use crate::gof::{
     ad_p_value, ad_p_value_exponential, ad_p_value_mc, ad_p_value_weibull, anderson_darling,
 };
 use crate::plot::{
-    PlotSpec, PlottingPosition, exponential_probability_plot, extreme_value_probability_plot,
-    gamma_probability_plot, logistic_probability_plot, loglogistic_probability_plot,
-    lognormal_probability_plot, lognormal3_probability_plot, normal_probability_plot,
-    overlay_plots, panel_plot_with_scales, weibull_probability_plot, weibull3_probability_plot,
+    PlotNote, PlotSpec, PlottingPosition, exponential_probability_plot,
+    extreme_value_probability_plot, gamma_probability_plot, logistic_probability_plot,
+    loglogistic_probability_plot, lognormal_probability_plot, lognormal3_probability_plot,
+    normal_probability_plot, overlay_plots, panel_plot_with_scales, weibull_probability_plot,
+    weibull3_probability_plot,
 };
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::spc::{ControlChartKind, TestSet};
@@ -4775,7 +4776,7 @@ fn probability_one(
     distribution: DistributionKind,
     options: ProbabilityPlotOptions,
 ) -> Result<ProbabilityPlotAnalysis> {
-    match distribution {
+    let mut out = match distribution {
         DistributionKind::Normal => normal_probability(df, column, options),
         DistributionKind::Lognormal => lognormal_probability(df, column, options),
         DistributionKind::Weibull => weibull_probability(df, column, options),
@@ -4786,7 +4787,84 @@ fn probability_one(
         DistributionKind::ExtremeValue => extreme_value_probability(df, column, options),
         DistributionKind::Weibull3 => weibull3_probability(df, column, options),
         DistributionKind::Lognormal3 => lognormal3_probability(df, column, options),
+    }?;
+    out.plot.notes.push(probability_note(&out.result));
+    Ok(out)
+}
+
+/// Short name of a fitted parameter for the block drawn inside a plot.
+fn short_parameter(label: &str) -> &str {
+    if label.starts_with("Mean") {
+        "Mean"
+    } else if label.starts_with("Standard deviation") {
+        "StDev"
+    } else {
+        label.split(" (").next().unwrap_or(label)
     }
+}
+
+/// N, the fitted parameters and the goodness of fit, as drawn inside a
+/// probability plot (the same values the Session prints).
+fn probability_note(result: &AnalysisResult) -> PlotNote {
+    let mut rows = vec![("N", result.n.to_string())];
+    for (label, value) in &result.parameters {
+        rows.push((short_parameter(label), format!("{value:.4}")));
+    }
+    for (label, value) in &result.gof {
+        let short = if label.contains("p-value") {
+            "P"
+        } else if label.contains("Anderson") || label.contains("A²") {
+            "AD"
+        } else {
+            label.split(" (").next().unwrap_or(label)
+        };
+        let shown = value
+            .parse::<f64>()
+            .map_or_else(|_| value.clone(), |number| format!("{number:.4}"));
+        rows.push((short, shown));
+    }
+    PlotNote::top_right(rows)
+}
+
+/// Mean, spread and the capability indices, as drawn inside a capability
+/// histogram. The within/overall table of the report is the source.
+fn capability_note(result: &AnalysisResult) -> PlotNote {
+    let mut rows = vec![("N", result.n.to_string())];
+    for (label, value) in &result.parameters {
+        if label.starts_with("Mean") {
+            rows.push(("Mean", format!("{value:.4}")));
+        }
+    }
+    let table = result.extra.iter().find_map(|item| match item {
+        Item::Table { headers, rows } if headers.first().map(String::as_str) == Some("Metric") => {
+            Some(rows)
+        }
+        _ => None,
+    });
+    if let Some(rows_table) = table {
+        let cell = |name: &str, column: usize| {
+            rows_table
+                .iter()
+                .find(|row| row.first().map(String::as_str) == Some(name))
+                .and_then(|row| row.get(column))
+                .filter(|value| value.as_str() != "—")
+                .cloned()
+        };
+        let pair = |first: Option<String>, second: Option<String>| match (first, second) {
+            (Some(a), Some(b)) => format!("{a} / {b}"),
+            (Some(only), None) | (None, Some(only)) => only,
+            (None, None) => "—".to_owned(),
+        };
+        rows.push(("StDev", pair(cell("StDev", 1), cell("StDev", 2))));
+        rows.push(("Cp", cell("Cp", 1).unwrap_or_else(|| "—".into())));
+        rows.push(("Cpk", cell("Cpk", 1).unwrap_or_else(|| "—".into())));
+        rows.push(("Pp", cell("Pp", 2).unwrap_or_else(|| "—".into())));
+        rows.push(("Ppk", cell("Ppk", 2).unwrap_or_else(|| "—".into())));
+        if let Some(ppm) = cell("PPM (observed)", 1) {
+            rows.push(("PPM", ppm));
+        }
+    }
+    PlotNote::top_right(rows)
 }
 
 fn numeric_at(column: &Column, row: usize) -> Option<f64> {
@@ -7683,13 +7761,14 @@ pub fn run_analysis(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutpu
             result
                 .notes
                 .push(("Analysis".to_owned(), spec.description()));
-            let plot = crate::histogram::capability_plot(
+            let mut plot = crate::histogram::capability_plot(
                 df,
                 column,
                 *lsl,
                 *usl,
                 *distribution == DistributionKind::Normal && !*box_cox,
             )?;
+            plot.notes.push(capability_note(&result));
             Ok(AnalysisOutput {
                 results: vec![result],
                 plot: Some(plot),
@@ -7768,6 +7847,37 @@ mod tests {
             .map(|t| t.label.as_str())
             .collect();
         assert!(labels.contains(&"50"));
+    }
+
+    #[test]
+    fn the_plots_carry_the_values_that_matter() {
+        let df = DataFrame::new(vec![Column::new_f64(
+            "weight",
+            vec![12.5, 13.1, 11.9, 12.8, 12.2, 12.9, 12.4, 13.0, 12.1, 12.7],
+        )])
+        .expect("frame");
+
+        // A probability plot shows n, the fit and the goodness of fit.
+        let out = run_analysis(&df, &AnalysisSpec::probability_plot("weight")).expect("plot");
+        let note = out.plot.expect("plot").notes.remove(0);
+        let label = |name: &str| note.rows.iter().find(|row| row.label == name);
+        assert_eq!(label("N").map(|row| row.value.as_str()), Some("10"));
+        assert!(label("Mean").is_some(), "{:?}", note.rows);
+        assert!(label("StDev").is_some(), "{:?}", note.rows);
+        assert!(label("AD").is_some(), "{:?}", note.rows);
+        assert!(label("P").is_some(), "{:?}", note.rows);
+
+        // A capability histogram carries the indices and the spread.
+        let out = run_analysis(
+            &df,
+            &AnalysisSpec::capability("weight", Some(12.0), Some(13.2)),
+        )
+        .expect("capability");
+        let note = out.plot.expect("plot").notes.remove(0);
+        let label = |name: &str| note.rows.iter().find(|row| row.label == name);
+        for name in ["Cp", "Cpk", "Pp", "Ppk", "StDev"] {
+            assert!(label(name).is_some(), "{name} missing from {:?}", note.rows);
+        }
     }
 
     #[test]

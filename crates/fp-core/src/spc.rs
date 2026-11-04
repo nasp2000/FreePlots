@@ -14,7 +14,7 @@
 use crate::data::{DataFrame, MissingPolicy, Sample};
 use crate::error::{Error, Result};
 use crate::estimate::c4;
-use crate::plot::{PlotSpec, Point, Segment, linear_axis, panel_plot};
+use crate::plot::{PlotNote, PlotSpec, Point, Segment, linear_axis, panel_plot};
 use crate::report::{AnalysisResult, Item};
 use crate::workflow::AnalysisOutput;
 
@@ -1944,6 +1944,15 @@ fn control_panel(
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
+        notes: if steps.is_empty() {
+            vec![PlotNote::top_right(vec![
+                ("UCL", format!("{:.4}", limits.ucl)),
+                ("CL", format!("{:.4}", limits.center)),
+                ("LCL", format!("{:.4}", limits.lcl)),
+            ])]
+        } else {
+            Vec::new()
+        },
     }
 }
 
@@ -2057,6 +2066,17 @@ mod tests {
         assert!(text.contains("No out-of-control points"));
         let plot = out.plot.expect("plot");
         assert_eq!(plot.panels.len(), 2);
+        // Both panels carry their limits inside the frame.
+        for panel in &plot.panels {
+            assert_eq!(panel.notes.len(), 1, "{:?}", panel.title);
+            let rows = &panel.notes[0].rows;
+            for name in ["UCL", "CL", "LCL"] {
+                assert!(
+                    rows.iter().any(|row| row.label == name),
+                    "{name} missing from {rows:?}"
+                );
+            }
+        }
     }
 
     #[test]

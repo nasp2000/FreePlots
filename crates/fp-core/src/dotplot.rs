@@ -228,6 +228,7 @@ fn plot(model: &Dotplot) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 0,
         secondary: None,
+        notes: Vec::new(),
     }
 }
 

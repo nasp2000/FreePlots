@@ -494,6 +494,7 @@ mod tests {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
+            notes: Vec::new(),
         }
     }
 
