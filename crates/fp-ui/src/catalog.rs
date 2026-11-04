@@ -158,6 +158,15 @@ impl UiCatalog {
             "Show the tour" => "Ver o tour",
             "Edit graph labels…" => "Editar rótulos do gráfico…",
             "Graph text…" => "Texto do gráfico…",
+            "Add text…" => "Adicionar texto…",
+            "Add text to the graph" => "Adicionar texto ao gráfico",
+            "Text:" => "Texto:",
+            "Text to place on the graph" => "Texto a colocar no gráfico",
+            "Position:" => "Posição:",
+            "Text added to the graph" => "Texto adicionado ao gráfico",
+            "0 % is the top-left corner of the plot and 100 % the bottom-right; the text is kept between sessions." => {
+                "0 % é o canto superior esquerdo do gráfico e 100 % o inferior direito; o texto fica guardado entre sessões."
+            }
             "Graph text" => "Texto do gráfico",
             "Graph text updated" => "Texto do gráfico actualizado",
             "Typeface:" => "Tipo de letra:",

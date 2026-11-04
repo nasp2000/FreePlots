@@ -430,6 +430,27 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
         }
     }
 
+    if let Some(overlay) = overlay {
+        for annotation in &overlay.annotations {
+            let x = plot.left() + annotation.x.clamp(0.0, 1.0) * plot.width();
+            let y = plot.top() + annotation.y.clamp(0.0, 1.0) * plot.height();
+            let galley = painter.layout_no_wrap(
+                annotation.text.clone(),
+                graph_font(12.0, Some(overlay)),
+                Color32::from_gray(34),
+            );
+            let size = galley.size();
+            let rect_annotation =
+                Rect::from_min_size(pos2(x - 4.0, y - 2.0), vec2(size.x + 8.0, size.y + 4.0));
+            painter.rect_filled(
+                rect_annotation,
+                2.0,
+                Color32::from_rgba_unmultiplied(255, 255, 255, 217),
+            );
+            painter.galley(pos2(x, y), galley, Color32::from_gray(34));
+        }
+    }
+
     painter.text(
         pos2(rect.center().x, rect.top() + 4.0),
         Align2::CENTER_TOP,
@@ -515,6 +536,7 @@ fn panel_edits(overlay: Option<&GraphOverlay>) -> Option<GraphOverlay> {
         reference_lines: overlay.reference_lines.clone(),
         font_family: overlay.font_family,
         font_scale: overlay.font_scale,
+        annotations: overlay.annotations.clone(),
     })
 }
 

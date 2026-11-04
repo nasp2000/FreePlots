@@ -1,13 +1,14 @@
 //! Graph presentation edits: labels, subtitle, footer and reference lines.
 
 use super::*;
-use fp_core::plot::{GraphOverlay, ReferenceAxis, ReferenceLine};
+use fp_core::plot::{Annotation, GraphOverlay, ReferenceAxis, ReferenceLine};
 
 /// Action chosen from the graph context menu.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphAction {
     Labels,
     Text,
+    Annotation,
     Reference,
     Save,
     Copy,
@@ -45,6 +46,45 @@ impl FreePlotsApp {
         self.graph_text_family = self.graph_overlay.font_family;
         self.graph_text_size = self.graph_overlay.text_size(12.0);
         self.show_graph_text = true;
+    }
+
+    /// Opens the annotation editor for a free text on the plot.
+    pub fn open_graph_annotation(&mut self) {
+        if self.plot.is_none() {
+            self.set_error("No graph to edit");
+            return;
+        }
+        self.annotation_text.clear();
+        self.annotation_x = 5.0;
+        self.annotation_y = 5.0;
+        self.show_graph_annotation = true;
+    }
+
+    /// Places the annotation at the chosen fraction of the plot area.
+    pub fn add_graph_annotation(&mut self) {
+        let text = self.annotation_text.trim();
+        if text.is_empty() {
+            self.set_error("Type the text to place on the graph");
+            return;
+        }
+        let x = if self.annotation_x.is_finite() {
+            self.annotation_x.clamp(0.0, 100.0) / 100.0
+        } else {
+            0.05
+        };
+        let y = if self.annotation_y.is_finite() {
+            self.annotation_y.clamp(0.0, 100.0) / 100.0
+        } else {
+            0.05
+        };
+        self.graph_overlay.annotations.push(Annotation {
+            text: text.to_owned(),
+            x,
+            y,
+        });
+        self.show_graph_annotation = false;
+        self.error = None;
+        self.status = "Text added to the graph".to_owned();
     }
 
     /// Applies the typeface and size to every text drawn on the graph.
@@ -149,6 +189,7 @@ impl FreePlotsApp {
         match action {
             GraphAction::Labels => self.open_graph_labels(),
             GraphAction::Text => self.open_graph_text(),
+            GraphAction::Annotation => self.open_graph_annotation(),
             GraphAction::Reference => self.open_reference_line(),
             GraphAction::Save => self.begin_plot_save(),
             GraphAction::Copy => {
@@ -207,6 +248,65 @@ impl FreePlotsApp {
             self.apply_graph_labels();
         } else {
             self.show_graph_labels = open && self.show_graph_labels;
+        }
+    }
+
+    pub(super) fn graph_annotation_window(&mut self, ctx: &egui::Context) {
+        if !self.show_graph_annotation {
+            return;
+        }
+        let mut open = self.show_graph_annotation;
+        let mut add = false;
+        let catalog = self.catalog();
+        dialog_window(self.catalog().label("Add text to the graph"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(440.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Text:"));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.annotation_text)
+                            .desired_width(300.0)
+                            .hint_text(catalog.label("Text to place on the graph")),
+                    )
+                    .labelled_by(label.id);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Position:"));
+                    ui.add(
+                        egui::DragValue::new(&mut self.annotation_x)
+                            .range(0.0..=100.0)
+                            .speed(0.5)
+                            .suffix(" % X"),
+                    );
+                    ui.add(
+                        egui::DragValue::new(&mut self.annotation_y)
+                            .range(0.0..=100.0)
+                            .speed(0.5)
+                            .suffix(" % Y"),
+                    )
+                    .labelled_by(label.id);
+                });
+                ui.small(catalog.label(
+                    "0 % is the top-left corner of the plot and 100 % the bottom-right; the text is kept between sessions.",
+                ));
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Add")).clicked() {
+                        add = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        self.show_graph_annotation = false;
+                    }
+                });
+            });
+        if add {
+            self.add_graph_annotation();
+        } else {
+            self.show_graph_annotation = open && self.show_graph_annotation;
         }
     }
 

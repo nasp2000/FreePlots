@@ -783,6 +783,7 @@ impl FreePlotsApp {
                         for (label, action) in [
                             ("Edit graph labels…", GraphAction::Labels),
                             ("Graph text…", GraphAction::Text),
+                            ("Add text…", GraphAction::Annotation),
                             ("Add reference line…", GraphAction::Reference),
                             ("Save graph…", GraphAction::Save),
                             ("Copy graph as SVG", GraphAction::Copy),
@@ -846,6 +847,10 @@ impl FreePlotsApp {
                         }
                         if ui.button(catalog.label("Graph text…")).clicked() {
                             graph_action = Some(GraphAction::Text);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Add text…")).clicked() {
+                            graph_action = Some(GraphAction::Annotation);
                             ui.close();
                         }
                         if ui.button(catalog.label("Add reference line…")).clicked() {

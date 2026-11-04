@@ -111,6 +111,10 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
         menu.iter().any(|label| label == "Graph text…"),
         "the text style entry is missing from the context menu: {menu:?}"
     );
+    assert!(
+        menu.iter().any(|label| label == "Add text…"),
+        "the annotation entry is missing from the context menu: {menu:?}"
+    );
     // The text style dialog opens from the same menu.
     ui.click("Graph text…").expect("open the text dialog");
     assert!(

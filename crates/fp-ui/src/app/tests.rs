@@ -5820,6 +5820,61 @@ fn the_graph_text_choices_apply_and_persist() {
 }
 
 #[test]
+fn graph_annotations_are_placed_and_kept() {
+    let dir = std::env::temp_dir().join(format!("fp-annotation-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("plot");
+
+    app.open_graph_annotation();
+    app.add_graph_annotation();
+    assert!(app.error.is_some(), "empty text is refused");
+    assert!(app.show_graph_annotation, "the dialog stays open");
+
+    app.annotation_text = "Night shift".to_owned();
+    app.annotation_x = 50.0;
+    app.annotation_y = 25.0;
+    app.add_graph_annotation();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    assert_eq!(app.graph_overlay.annotations.len(), 1);
+    let annotation = &app.graph_overlay.annotations[0];
+    assert_eq!(annotation.text, "Night shift");
+    assert!((annotation.x - 0.5).abs() < 1e-6);
+    assert!((annotation.y - 0.25).abs() < 1e-6);
+    assert_eq!(app.status, "Text added to the graph");
+
+    // The placement reaches the SVG and survives a restart.
+    let svg = fp_core::plot::render_svg_with(app.plot().expect("plot"), app.graph_overlay());
+    assert!(svg.contains("Night shift"), "{svg}");
+    app.persist_preferences();
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.graph_overlay.annotations.len(), 1);
+    assert_eq!(restored.graph_overlay.annotations[0].text, "Night shift");
+
+    // Out-of-range positions are clamped instead of dropping the text.
+    restored.annotation_text = "edge".to_owned();
+    restored.annotation_x = 250.0;
+    restored.annotation_y = -40.0;
+    restored.add_graph_annotation();
+    let edge = restored.graph_overlay.annotations.last().expect("edge");
+    assert!((edge.x - 1.0).abs() < 1e-6);
+    assert!((edge.y - 0.0).abs() < 1e-6);
+
+    // Reset clears every annotation.
+    restored.reset_graph_edits();
+    assert!(restored.graph_overlay.annotations.is_empty());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn resetting_the_graph_edits_also_resets_the_text_style() {
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());

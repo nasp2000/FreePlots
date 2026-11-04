@@ -2190,6 +2190,20 @@ pub struct GraphOverlay {
     /// Size multiplier for the graph text (1.0 = the designed size).
     #[serde(default = "default_font_scale")]
     pub font_scale: f32,
+    /// Free text placed inside the plot area, in frame fractions.
+    #[serde(default)]
+    pub annotations: Vec<Annotation>,
+}
+
+/// Free text placed on a graph at a fraction of the plot area.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Annotation {
+    /// Text to draw.
+    pub text: String,
+    /// Horizontal position, 0 = left edge and 1 = right edge.
+    pub x: f32,
+    /// Vertical position, 0 = top edge and 1 = bottom edge.
+    pub y: f32,
 }
 
 fn default_font_scale() -> f32 {
@@ -2204,6 +2218,7 @@ impl Default for GraphOverlay {
             reference_lines: Vec::new(),
             font_family: GraphFontFamily::Sans,
             font_scale: 1.0,
+            annotations: Vec::new(),
         }
     }
 }
@@ -2607,6 +2622,29 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         }
     }
 
+    // Free annotations: fractions of the plot area, drawn over the data with a
+    // translucent label so they stay readable.
+    let scale = f64::from(overlay.font_scale());
+    for annotation in &overlay.annotations {
+        let x = (annotation.x.clamp(0.0, 1.0) as f64) * pw;
+        let y = (annotation.y.clamp(0.0, 1.0) as f64) * ph;
+        let left = ML + x;
+        let top = MT + y;
+        let chars = annotation.text.chars().count() as f64;
+        let box_w = chars * 6.5 * scale + 8.0;
+        let box_h = 15.0 * scale + 4.0;
+        s.push_str(&format!(
+            "<rect x=\"{:.1}\" y=\"{:.1}\" width=\"{box_w:.1}\" height=\"{box_h:.1}\" rx=\"2\" fill=\"#ffffff\" fill-opacity=\"0.85\"/>\n",
+            left - 2.0,
+            top - 2.0
+        ));
+        s.push_str(&format!(
+            "<text x=\"{left:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222222\">{}</text>\n",
+            top + 11.0 * scale,
+            escape_xml(&annotation.text)
+        ));
+    }
+
     let x_label_y = if overlay.footer.is_some() {
         h - 30.0
     } else {
@@ -2696,6 +2734,7 @@ fn render_panels_svg(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         reference_lines: overlay.reference_lines.clone(),
         font_family: overlay.font_family,
         font_scale: overlay.font_scale,
+        annotations: overlay.annotations.clone(),
     };
 
     let mut s = String::with_capacity(8192);
@@ -3350,6 +3389,52 @@ mod tests {
         );
         // No white box: the margin is already empty.
         assert!(!svg.contains("fill-opacity=\"0.88\""));
+    }
+
+    #[test]
+    fn annotations_are_placed_at_the_chosen_fraction() {
+        let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
+        let fit = Normal::fit_moments(&sample).unwrap();
+        let plot = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
+        let spec = PlotSpec::normal_probability(&plot, &fit, "Normal");
+        let overlay = GraphOverlay {
+            annotations: vec![
+                Annotation {
+                    text: "line <A>".to_owned(),
+                    x: 0.5,
+                    y: 0.2,
+                },
+                Annotation {
+                    text: "fixed".to_owned(),
+                    // Out-of-range fractions are clamped to the plot.
+                    x: 4.0,
+                    y: -1.0,
+                },
+            ],
+            ..GraphOverlay::default()
+        };
+        let svg = render_svg_with(&spec, &overlay);
+        assert!(svg.contains("line &lt;A&gt;"), "the text must be escaped");
+        // 50 % of the 800 px wide plot starting at 70.
+        let x: f64 = svg
+            .split("<text x=\"")
+            .find_map(|chunk| {
+                let value = chunk.split('"').next()?.parse::<f64>().ok()?;
+                chunk.contains("line &lt;A&gt;").then_some(value)
+            })
+            .expect("the annotation");
+        assert!((x - 470.0).abs() < 0.2, "annotation at {x}");
+        // A fraction past the edge lands on the edge, not outside.
+        let fixed_x: f64 = svg
+            .split("<text x=\"")
+            .find_map(|chunk| {
+                let value = chunk.split('"').next()?.parse::<f64>().ok()?;
+                chunk.contains(">fixed<").then_some(value)
+            })
+            .expect("the clamped annotation");
+        assert!((fixed_x - 870.0).abs() < 0.2, "clamped at {fixed_x}");
+        // The white label keeps the text readable over the data.
+        assert!(svg.contains("fill-opacity=\"0.85\""));
     }
 
     #[test]
