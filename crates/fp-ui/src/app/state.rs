@@ -422,6 +422,7 @@ impl FreePlotsApp {
             annotation_size: 12.0,
             annotation_color: fp_core::plot::AnnotationColor::Black,
             annotation_angle: 0.0,
+            show_notes: false,
             show_data_labels: false,
             data_label_mode: fp_core::plot::DataLabelMode::YValue,
             show_percentiles: false,

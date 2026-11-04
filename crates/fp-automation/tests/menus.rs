@@ -121,6 +121,7 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
     );
     for entry in [
         "Data display…",
+        "Notes…",
         "Add data labels…",
         "Add percentile lines…",
         "Axis scale…",

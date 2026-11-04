@@ -6002,6 +6002,53 @@ fn marks_are_cleared_by_the_graph_action() {
 }
 
 #[test]
+fn notes_can_be_duplicated_rotated_reordered_and_deleted() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("plot");
+    let annotation = |text: &str, x: f32, angle: f32| fp_core::plot::Annotation {
+        text: text.to_owned(),
+        x,
+        y: 0.1,
+        size: 12.0,
+        color: fp_core::plot::AnnotationColor::Black,
+        angle,
+    };
+    app.graph_overlay
+        .annotations
+        .push(annotation("first", 0.1, 0.0));
+    app.graph_overlay
+        .annotations
+        .push(annotation("second", 0.5, 0.0));
+
+    app.duplicate_note(0);
+    assert_eq!(app.graph_overlay.annotations.len(), 3);
+    assert_eq!(app.graph_overlay.annotations[2].text, "first");
+    assert!(app.graph_overlay.annotations[2].x > 0.1);
+
+    app.rotate_note(0, 15.0);
+    app.rotate_note(0, 15.0);
+    assert!((app.graph_overlay.annotations[0].angle - 30.0).abs() < 1e-6);
+    // The rotation is clamped to -90..90.
+    for _ in 0..10 {
+        app.rotate_note(0, 15.0);
+    }
+    assert!((app.graph_overlay.annotations[0].angle - 90.0).abs() < 1e-6);
+
+    app.bring_note_to_front(0);
+    assert_eq!(app.graph_overlay.annotations[2].text, "first");
+    assert_eq!(app.status, "Note brought to front");
+
+    app.delete_note(0);
+    assert_eq!(app.graph_overlay.annotations.len(), 2);
+    assert_eq!(app.status, "Note removed");
+}
+
+#[test]
 fn the_axis_scale_is_validated_and_applied() {
     let spec = fp_core::plot::PlotSpec {
         title: "test".to_owned(),

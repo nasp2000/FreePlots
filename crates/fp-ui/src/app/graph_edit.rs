@@ -11,6 +11,7 @@ pub enum GraphAction {
     Labels,
     Text,
     Annotation,
+    Notes,
     DataLabels,
     Percentiles,
     PanelLayout,
@@ -44,6 +45,47 @@ impl FreePlotsApp {
         self.graph_label_subtitle = self.graph_overlay.subtitle.clone().unwrap_or_default();
         self.graph_label_footer = self.graph_overlay.footer.clone().unwrap_or_default();
         self.show_graph_labels = true;
+    }
+
+    /// Duplicates one note, offsetting it slightly so both stay visible.
+    pub fn duplicate_note(&mut self, index: usize) {
+        if let Some(note) = self.graph_overlay.annotations.get(index).cloned() {
+            let mut copy = note;
+            copy.x = (copy.x + 0.02).clamp(0.0, 1.0);
+            copy.y = (copy.y + 0.02).clamp(0.0, 1.0);
+            self.graph_overlay.annotations.push(copy);
+            self.status = "Note duplicated".to_owned();
+        }
+    }
+
+    /// Removes one note.
+    pub fn delete_note(&mut self, index: usize) {
+        if index < self.graph_overlay.annotations.len() {
+            self.graph_overlay.annotations.remove(index);
+            self.status = "Note removed".to_owned();
+        }
+    }
+
+    /// Rotates one note by `delta` degrees, within -90..90.
+    pub fn rotate_note(&mut self, index: usize, delta: f32) {
+        if let Some(note) = self.graph_overlay.annotations.get_mut(index) {
+            let angle = if note.angle.is_finite() {
+                note.angle
+            } else {
+                0.0
+            };
+            note.angle = (angle + delta).clamp(-90.0, 90.0);
+            self.status = format!("Note angle {:.0}°", note.angle);
+        }
+    }
+
+    /// Moves a note to the end of the list, so it is drawn on top.
+    pub fn bring_note_to_front(&mut self, index: usize) {
+        if index < self.graph_overlay.annotations.len() {
+            let note = self.graph_overlay.annotations.remove(index);
+            self.graph_overlay.annotations.push(note);
+            self.status = "Note brought to front".to_owned();
+        }
     }
 
     /// Opens the data-label editor with the current choice.
@@ -436,6 +478,7 @@ impl FreePlotsApp {
             GraphAction::Labels => self.open_graph_labels(),
             GraphAction::Text => self.open_graph_text(),
             GraphAction::Annotation => self.open_graph_annotation(),
+            GraphAction::Notes => self.show_notes = true,
             GraphAction::DataLabels => self.open_data_labels(),
             GraphAction::Percentiles => self.open_percentiles(),
             GraphAction::PanelLayout => self.open_panel_layout(),
@@ -578,6 +621,76 @@ impl FreePlotsApp {
             self.add_graph_annotation();
         } else {
             self.show_graph_annotation = open && self.show_graph_annotation;
+        }
+    }
+
+    pub(super) fn notes_window(&mut self, ctx: &egui::Context) {
+        if !self.show_notes {
+            return;
+        }
+        let mut open = self.show_notes;
+        let mut duplicate = None;
+        let mut delete = None;
+        let mut rotate = None;
+        let mut front = None;
+        let catalog = self.catalog();
+        let notes = self.graph_overlay.annotations.clone();
+        dialog_window(catalog.label("Notes"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                if notes.is_empty() {
+                    ui.weak(catalog.label("No notes yet."));
+                }
+                for (index, note) in notes.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        let text: String = note.text.chars().take(40).collect();
+                        ui.label(format!("{}. {text}", index + 1));
+                        if ui.help_button(catalog.label("Duplicate")).clicked() {
+                            duplicate = Some(index);
+                        }
+                        if ui.help_button(catalog.label("Delete")).clicked() {
+                            delete = Some(index);
+                        }
+                        if ui
+                            .help_button("⟲")
+                            .on_hover_text(catalog.label("Rotate left"))
+                            .clicked()
+                        {
+                            rotate = Some((index, -15.0));
+                        }
+                        if ui
+                            .help_button("⟳")
+                            .on_hover_text(catalog.label("Rotate right"))
+                            .clicked()
+                        {
+                            rotate = Some((index, 15.0));
+                        }
+                        if ui.help_button(catalog.label("To front")).clicked() {
+                            front = Some(index);
+                        }
+                    });
+                }
+                ui.separator();
+                if ui.help_button(catalog.label("Close")).clicked() {
+                    self.show_notes = false;
+                }
+            });
+        self.show_notes = open && self.show_notes;
+        if let Some(index) = duplicate {
+            self.duplicate_note(index);
+        }
+        if let Some(index) = delete {
+            self.delete_note(index);
+        }
+        if let Some((index, delta)) = rotate {
+            self.rotate_note(index, delta);
+        }
+        if let Some(index) = front {
+            self.bring_note_to_front(index);
         }
     }
 

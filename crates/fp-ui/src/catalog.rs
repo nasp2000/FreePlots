@@ -243,6 +243,15 @@ impl UiCatalog {
                 "Vale a primeira regra que corresponde à célula; as regras seguem o nome da coluna e ficam guardadas entre sessões."
             }
             "Add note…" => "Adicionar nota…",
+            "Notes…" => "Notas…",
+            "Notes" => "Notas",
+            "Duplicate" => "Duplicar",
+            "To front" => "Para a frente",
+            "Rotate left" => "Rodar à esquerda",
+            "Rotate right" => "Rodar à direita",
+            "Note duplicated" => "Nota duplicada",
+            "Note removed" => "Nota removida",
+            "Note brought to front" => "Nota trazida para a frente",
             "Add note to the graph" => "Adicionar nota ao gráfico",
             "Text:" => "Texto:",
             "Note to place on the graph" => "Nota a colocar no gráfico",

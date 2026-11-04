@@ -954,6 +954,7 @@ pub struct FreePlotsApp {
     pub(super) annotation_size: f32,
     pub(super) annotation_color: fp_core::plot::AnnotationColor,
     pub(super) annotation_angle: f32,
+    pub(super) show_notes: bool,
     pub(super) show_data_labels: bool,
     pub(super) data_label_mode: fp_core::plot::DataLabelMode,
     pub(super) show_percentiles: bool,
