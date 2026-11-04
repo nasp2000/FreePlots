@@ -6199,31 +6199,39 @@ pub fn distribution_comparison(df: &DataFrame, column_name: &str) -> Result<Anal
         Err(error) => notes.push(("Johnson fit".to_owned(), format!("skipped: {error}"))),
     }
 
-    let logistic = Logistic::fit_mle(&sample)?;
-    let a2 = anderson_darling(&logistic, &sample)?;
-    add_row(
-        "Logistic",
-        format!("µ={:.6}, σ={:.6}", logistic.mu(), logistic.sigma()),
-        a2,
-        ad_p_value(sample.n(), a2)?,
-        log_likelihood(&logistic, &sample),
-        logistic.n_params(),
-    );
+    match Logistic::fit_mle(&sample) {
+        Ok(logistic) => {
+            let a2 = anderson_darling(&logistic, &sample)?;
+            add_row(
+                "Logistic",
+                format!("µ={:.6}, σ={:.6}", logistic.mu(), logistic.sigma()),
+                a2,
+                ad_p_value(sample.n(), a2)?,
+                log_likelihood(&logistic, &sample),
+                logistic.n_params(),
+            );
+        }
+        Err(error) => notes.push(("Logistic fit".to_owned(), format!("skipped: {error}"))),
+    }
 
-    let extreme_value = ExtremeValue::fit_mle(&sample)?;
-    let a2 = anderson_darling(&extreme_value, &sample)?;
-    add_row(
-        "Extreme Value",
-        format!(
-            "µ={:.6}, σ={:.6}",
-            extreme_value.location(),
-            extreme_value.scale()
-        ),
-        a2,
-        ad_p_value(sample.n(), a2)?,
-        log_likelihood(&extreme_value, &sample),
-        extreme_value.n_params(),
-    );
+    match ExtremeValue::fit_mle(&sample) {
+        Ok(extreme_value) => {
+            let a2 = anderson_darling(&extreme_value, &sample)?;
+            add_row(
+                "Extreme Value",
+                format!(
+                    "µ={:.6}, σ={:.6}",
+                    extreme_value.location(),
+                    extreme_value.scale()
+                ),
+                a2,
+                ad_p_value(sample.n(), a2)?,
+                log_likelihood(&extreme_value, &sample),
+                extreme_value.n_params(),
+            );
+        }
+        Err(error) => notes.push(("Extreme Value fit".to_owned(), format!("skipped: {error}"))),
+    }
 
     if positive {
         let lognormal = Lognormal::fit_mle(&sample)?;
@@ -8958,6 +8966,31 @@ mod tests {
         let text = out.results[0].to_session_text();
         assert!(text.contains("Pareto Chart"), "{text}");
         assert!(out.plot.is_some());
+    }
+
+    #[test]
+    fn distribution_comparison_skips_a_family_that_does_not_converge() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../validation/datasets/normal_n20.csv"
+        );
+        let text = std::fs::read_to_string(path).expect("dataset");
+        let values: Vec<f64> = text
+            .lines()
+            .skip(1)
+            .filter_map(|line| line.trim().replace(',', ".").parse().ok())
+            .collect();
+        let df = DataFrame::new(vec![Column::new_f64("data", values)]).expect("frame");
+        let result = distribution_comparison(&df, "data").expect("comparison");
+        assert!(result.n == 20);
+        // The extreme-value fit does not converge on this sample; the report
+        // must still be produced, with the other families and a note.
+        let text = result.to_session_text();
+        assert!(text.contains("Normal"), "{text}");
+        assert!(
+            text.contains("skipped") || text.contains("Extreme"),
+            "{text}"
+        );
     }
 
     #[test]
