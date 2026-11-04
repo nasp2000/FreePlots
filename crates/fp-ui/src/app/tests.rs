@@ -5433,6 +5433,76 @@ fn arrows_tab_and_enter_move_the_selection() {
 }
 
 #[test]
+fn the_cell_editor_commits_and_moves_with_the_arrows() {
+    use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    // Typing in a cell and pressing Down commits the value and selects the
+    // cell below, without going back to the mouse.
+    harness.state_mut().select_cell(0, 0);
+    harness.state_mut().begin_inline_edit_with(0, 0, "42");
+    harness.run();
+    harness.key_press(egui::Key::ArrowDown);
+    harness.run();
+    assert_eq!(harness.state().selected_cell(), Some((0, 1)));
+    assert_eq!(
+        harness.state().data().and_then(|df| df.cell_text(0, 0)),
+        Some("42".to_owned())
+    );
+    assert!(harness.state().inline_edit.is_none(), "the editor closes");
+
+    // Right and Left move by one column and commit too.
+    harness.state_mut().begin_inline_edit_with(0, 1, "7");
+    harness.run();
+    harness.key_press(egui::Key::ArrowRight);
+    harness.run();
+    assert_eq!(harness.state().selected_cell(), Some((1, 1)));
+    assert_eq!(
+        harness.state().data().and_then(|df| df.cell_text(0, 1)),
+        Some("7".to_owned())
+    );
+
+    // Tab goes right, Shift+Tab comes back.
+    harness.state_mut().begin_inline_edit_with(0, 2, "9");
+    harness.run();
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+    assert_eq!(harness.state().selected_cell(), Some((1, 2)));
+    harness.state_mut().begin_inline_edit_with(1, 2, "10");
+    harness.run();
+    harness.key_press_modifiers(egui::Modifiers::SHIFT, egui::Key::Tab);
+    harness.run();
+    assert_eq!(harness.state().selected_cell(), Some((0, 2)));
+
+    // Escape still cancels without writing.
+    harness.state_mut().select_cell(0, 3);
+    let before = harness
+        .state()
+        .data()
+        .and_then(|df| df.cell_text(0, 3))
+        .unwrap_or_default();
+    harness.state_mut().begin_inline_edit_with(0, 3, "999");
+    harness.run();
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+    assert_eq!(harness.state().selected_cell(), Some((0, 3)));
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .and_then(|df| df.cell_text(0, 3))
+            .unwrap_or_default(),
+        before
+    );
+}
+
+#[test]
 fn the_headers_select_the_column_the_row_and_the_sheet() {
     use egui_kittest::{Harness, kittest::Queryable};
 
@@ -5677,6 +5747,97 @@ fn the_preferences_round_trip_through_the_settings_file() {
     let text = std::fs::read_to_string(&path).expect("read");
     assert!(text.contains("\"dark_mode\": true"), "{text}");
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn the_graph_text_choices_apply_and_persist() {
+    let dir = std::env::temp_dir().join(format!("fp-graph-text-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("plot");
+
+    app.open_graph_text();
+    assert!((app.graph_text_size - 12.0).abs() < 1e-6);
+    app.graph_text_family = fp_core::plot::GraphFontFamily::Serif;
+    app.graph_text_size = 15.0;
+    app.apply_graph_text();
+    assert_eq!(
+        app.graph_overlay.font_family,
+        fp_core::plot::GraphFontFamily::Serif
+    );
+    assert!((app.graph_overlay.font_scale - 1.25).abs() < 1e-6);
+    assert_eq!(app.status, "Graph text updated");
+    let svg = fp_core::plot::render_svg_with(app.plot().expect("plot"), app.graph_overlay());
+    assert!(svg.contains("DejaVu Serif, serif"), "{svg}");
+    assert!(
+        svg.contains("font-size=\"20\""),
+        "16 pt title becomes 20 pt"
+    );
+
+    // The overlay, labels included, is written to the settings file.
+    app.graph_overlay.subtitle = Some("Line A".to_owned());
+    app.graph_overlay.footer = Some("Night shift".to_owned());
+    app.persist_preferences();
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.graph_overlay.subtitle.as_deref(), Some("Line A"));
+    assert_eq!(
+        restored.graph_overlay.footer.as_deref(),
+        Some("Night shift")
+    );
+    assert_eq!(
+        restored.graph_overlay.font_family,
+        fp_core::plot::GraphFontFamily::Serif
+    );
+    assert!((restored.graph_overlay.font_scale - 1.25).abs() < 1e-6);
+
+    // An out-of-range scale in a hand-edited file is clamped.
+    std::fs::write(
+        &path,
+        r#"{"language":"en","dark_mode":false,"zoom":1.0,"show_session":true,
+            "show_grid_lines":true,"native_plot_windows":true,"tour_seen":true,
+            "graph_overlay":{"subtitle":null,"footer":null,"reference_lines":[],
+            "font_family":"Mono","font_scale":9.0}}"#,
+    )
+    .expect("write");
+    let mut clamped = FreePlotsApp::new();
+    clamped.set_preferences_path(path.clone());
+    assert!(clamped.graph_overlay.font_scale <= 1.5);
+    assert_eq!(
+        clamped.graph_overlay.font_family,
+        fp_core::plot::GraphFontFamily::Mono
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn resetting_the_graph_edits_also_resets_the_text_style() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("plot");
+    app.graph_overlay.subtitle = Some("Line A".to_owned());
+    app.graph_overlay.font_family = fp_core::plot::GraphFontFamily::Mono;
+    app.graph_overlay.font_scale = 1.5;
+    app.reset_graph_edits();
+    assert_eq!(
+        app.graph_overlay.font_family,
+        fp_core::plot::GraphFontFamily::Sans
+    );
+    assert!((app.graph_overlay.font_scale - 1.0).abs() < 1e-6);
+    assert_eq!(app.graph_overlay.subtitle, None);
 }
 
 #[test]

@@ -142,6 +142,7 @@ impl FreePlotsApp {
         let mut inline_focus = self.inline_request_focus;
         let mut inline_commit_cell: Option<(usize, usize)> = None;
         let mut inline_cancel = false;
+        let mut inline_nav: Option<(isize, isize)> = None;
         let mut inline_start: Option<(usize, usize)> = None;
 
         ui.horizontal(|ui| {
@@ -422,13 +423,41 @@ impl FreePlotsApp {
                                             response.request_focus();
                                             inline_focus = false;
                                         }
+                                        // Enter, Tab and the arrow keys commit the
+                                        // edit and move the selection, as in a
+                                        // worksheet: the formula bar stays the
+                                        // place for editing text with the caret.
+                                        let nav = ui.input(|i| {
+                                            if i.key_pressed(egui::Key::Enter)
+                                                || i.key_pressed(egui::Key::ArrowDown)
+                                            {
+                                                Some((0, 1))
+                                            } else if i.key_pressed(egui::Key::ArrowUp) {
+                                                Some((0, -1))
+                                            } else if i.key_pressed(egui::Key::ArrowRight) {
+                                                Some((1, 0))
+                                            } else if i.key_pressed(egui::Key::ArrowLeft) {
+                                                Some((-1, 0))
+                                            } else if i.key_pressed(egui::Key::Tab) {
+                                                if i.modifiers.shift {
+                                                    Some((-1, 0))
+                                                } else {
+                                                    Some((1, 0))
+                                                }
+                                            } else {
+                                                None
+                                            }
+                                        });
                                         let escape = ui.input(|i| i.key_pressed(egui::Key::Escape));
-                                        let enter = ui.input(|i| i.key_pressed(egui::Key::Enter));
-                                        if escape && response.has_focus() {
+                                        if escape && (response.has_focus() || response.lost_focus())
+                                        {
                                             inline_cancel = true;
-                                        } else if enter && response.has_focus() {
+                                        } else if let Some((columns, rows)) = nav.filter(|_| {
+                                            response.has_focus() || response.lost_focus()
+                                        }) {
                                             response.surrender_focus();
                                             inline_commit_cell = Some((index, r));
+                                            inline_nav = Some((columns, rows));
                                         } else if response.lost_focus() {
                                             inline_commit_cell = Some((index, r));
                                         }
@@ -646,10 +675,17 @@ impl FreePlotsApp {
         if inline_cancel {
             self.cancel_inline_edit();
         }
+        let mut moved_from_editor = false;
         if let Some(cell) = inline_commit_cell {
             self.inline_edit = Some(cell);
             if !self.commit_inline_edit() {
                 return;
+            }
+            if let Some((columns, rows)) = inline_nav {
+                self.move_selection(columns, rows);
+                // The same key event must not move the selection a second
+                // time in the sheet-wide handler below.
+                moved_from_editor = true;
             }
         }
         if let Some((column, row)) = inline_start {
@@ -666,7 +702,9 @@ impl FreePlotsApp {
                 self.select_cell(column, row);
             }
         }
-        self.handle_sheet_keys(ui);
+        if !moved_from_editor {
+            self.handle_sheet_keys(ui);
+        }
     }
 
     pub(super) fn handle_sheet_keys(&mut self, ui: &mut egui::Ui) {

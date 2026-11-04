@@ -157,6 +157,18 @@ impl UiCatalog {
             "Third-party licences…" => "Licenças de terceiros…",
             "Show the tour" => "Ver o tour",
             "Edit graph labels…" => "Editar rótulos do gráfico…",
+            "Graph text…" => "Texto do gráfico…",
+            "Graph text" => "Texto do gráfico",
+            "Graph text updated" => "Texto do gráfico actualizado",
+            "Typeface:" => "Tipo de letra:",
+            "Text size:" => "Tamanho do texto:",
+            "Sans" => "Sem serifa",
+            "Serif" => "Com serifa",
+            "Monospace" => "Monoespaçado",
+            "Reset" => "Repor",
+            "The size and typeface apply to every text drawn on the graph; the settings are kept for the next session." => {
+                "O tamanho e o tipo de letra aplicam-se a todo o texto do gráfico; as definições ficam guardadas para a próxima sessão."
+            }
             "Add reference line…" => "Adicionar linha de referência…",
             "Copy graph as SVG" => "Copiar gráfico como SVG",
             "Save graph…" => "Guardar gráfico…",

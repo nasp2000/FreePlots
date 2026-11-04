@@ -7,7 +7,7 @@ use egui::{
     Align2, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, epaint::TextShape, pos2,
     vec2,
 };
-use fp_core::plot::{GraphOverlay, PlotSpec, ReferenceAxis};
+use fp_core::plot::{GraphFontFamily, GraphOverlay, PlotSpec, ReferenceAxis};
 
 const LEFT: f32 = 62.0;
 const RIGHT: f32 = 18.0;
@@ -41,7 +41,15 @@ pub fn show_with(ui: &mut egui::Ui, spec: &PlotSpec, overlay: &GraphOverlay) -> 
             .first()
             .map(|panel| panel.size.1 as f32 / panel.size.0.max(1) as f32)
             .unwrap_or(0.69);
-        fitted_panels(vec2(width, visible_height), columns, rows, ratio)
+        let (title_h, footer_h) = panel_bands(spec, Some(overlay));
+        fitted_panels(
+            vec2(width, visible_height),
+            columns,
+            rows,
+            ratio,
+            title_h,
+            footer_h,
+        )
     };
     // Clickable, not only hovered: the graph window opens its context menu on
     // this response (right-click anywhere over the plot).
@@ -51,9 +59,23 @@ pub fn show_with(ui: &mut egui::Ui, spec: &PlotSpec, overlay: &GraphOverlay) -> 
     response
 }
 
+/// Font for the text drawn on a graph, applying the typeface and scale the
+/// user chose in the graph window.
+fn graph_font(size: f32, overlay: Option<&GraphOverlay>) -> FontId {
+    let Some(overlay) = overlay else {
+        return FontId::proportional(size);
+    };
+    let family = match overlay.font_family {
+        GraphFontFamily::Sans => egui::FontFamily::Proportional,
+        GraphFontFamily::Serif => egui::FontFamily::Name("serif".into()),
+        GraphFontFamily::Mono => egui::FontFamily::Monospace,
+    };
+    FontId::new(overlay.text_size(size), family)
+}
+
 fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&GraphOverlay>) {
     if !spec.panels.is_empty() {
-        paint_panels(painter, rect, spec);
+        paint_panels(painter, rect, spec, overlay);
         return;
     }
     painter.rect_filled(rect, 0.0, Color32::WHITE);
@@ -66,7 +88,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     } else {
         RIGHT
     };
-    let note_content = note_content_width(painter, spec);
+    let note_content = note_content_width(painter, spec, overlay);
     let note_extent = if spec.notes.is_empty() {
         0.0
     } else {
@@ -76,7 +98,12 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     // A subtitle takes its own line under the title, so the frame starts lower
     // and the text never sits over the top tick.
     let has_subtitle = overlay.is_some_and(|overlay| overlay.subtitle.is_some());
-    let top = if has_subtitle { 46.0 } else { TOP };
+    let scale = overlay.map_or(1.0, GraphOverlay::font_scale);
+    let top = if has_subtitle {
+        46.0 + 10.0 * (scale - 1.0).max(0.0)
+    } else {
+        TOP
+    };
     let plot = Rect::from_min_max(
         pos2(rect.left() + LEFT, rect.top() + top),
         pos2(rect.right() - right, rect.bottom() - BOTTOM),
@@ -94,6 +121,19 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
             1.0
         };
         for line in &overlay.reference_lines {
+            // A line kept from another graph may fall outside this axis
+            // range; drawing it would leave a stray mark by the frame.
+            let inside = match line.axis {
+                ReferenceAxis::Vertical => {
+                    line.value >= spec.x_axis.min - 1e-12 && line.value <= spec.x_axis.max + 1e-12
+                }
+                ReferenceAxis::Horizontal => {
+                    line.value >= spec.y_axis.min - 1e-12 && line.value <= spec.y_axis.max + 1e-12
+                }
+            };
+            if !inside {
+                continue;
+            }
             let color = Color32::from_rgb(192, 57, 43);
             let stroke = Stroke::new(1.2, color);
             match line.axis {
@@ -111,7 +151,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
                             pos2(x, plot.top() - 2.0),
                             Align2::CENTER_BOTTOM,
                             label,
-                            FontId::proportional(11.0),
+                            graph_font(11.0, Some(overlay)),
                             color,
                         );
                     }
@@ -130,7 +170,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
                             pos2(plot.right() + 4.0, y),
                             Align2::LEFT_CENTER,
                             label,
-                            FontId::proportional(11.0),
+                            graph_font(11.0, Some(overlay)),
                             color,
                         );
                     }
@@ -149,7 +189,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
 
     let grid = Stroke::new(1.0, Color32::from_gray(232));
     let tick = Color32::from_gray(70);
-    let font = FontId::proportional(11.5);
+    let font = graph_font(11.5, overlay);
 
     // Minor ticks: short marks on the axis edge, no grid line and no label.
     for x in &spec.x_axis.minor {
@@ -344,7 +384,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
                 pos2(legend_left + 26.0, y),
                 Align2::LEFT_CENTER,
                 &series.label,
-                FontId::proportional(11.0),
+                graph_font(11.0, overlay),
                 Color32::from_gray(40),
             );
             y += 13.0;
@@ -352,11 +392,12 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     }
 
     if !spec.notes.is_empty() {
-        let font = FontId::proportional(12.0);
+        let font = graph_font(12.0, overlay);
+        let line_h = overlay.map_or(15.0, |overlay| overlay.text_size(15.0));
         let note_left = plot.right() + base_right + 4.0;
         let mut y = plot.top() + 2.0;
         for note in &spec.notes {
-            let content_w = single_note_width(painter, note);
+            let content_w = single_note_width(painter, note, overlay);
             let value_right = note_left + content_w;
             for row in &note.rows {
                 painter.text(
@@ -373,7 +414,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
                     font.clone(),
                     Color32::from_gray(34),
                 );
-                y += 15.0;
+                y += line_h;
             }
             for line in &note.lines {
                 painter.text(
@@ -393,7 +434,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
         pos2(rect.center().x, rect.top() + 4.0),
         Align2::CENTER_TOP,
         &spec.title,
-        FontId::proportional(16.0),
+        graph_font(16.0, overlay),
         Color32::BLACK,
     );
     if let Some(overlay) = overlay {
@@ -402,7 +443,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
                 pos2(rect.center().x, rect.top() + 23.0),
                 Align2::CENTER_TOP,
                 subtitle,
-                FontId::proportional(13.0),
+                graph_font(13.0, Some(overlay)),
                 Color32::from_gray(70),
             );
         }
@@ -411,7 +452,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
                 pos2(rect.center().x, rect.bottom() - 2.0),
                 Align2::CENTER_BOTTOM,
                 footer,
-                FontId::proportional(12.0),
+                graph_font(12.0, Some(overlay)),
                 Color32::from_gray(85),
             );
         }
@@ -435,12 +476,12 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
         x_label_pos,
         x_label_anchor,
         &spec.x_axis.label,
-        FontId::proportional(13.5),
+        graph_font(13.5, overlay),
         Color32::from_gray(40),
     );
 
     let label = spec.y_axis.label.clone();
-    let galley = painter.layout_no_wrap(label, FontId::proportional(13.5), Color32::from_gray(40));
+    let galley = painter.layout_no_wrap(label, graph_font(13.5, overlay), Color32::from_gray(40));
     let anchor = pos2(rect.left() + 12.0, plot.center().y + galley.size().x / 2.0);
     painter.add(Shape::Text(
         TextShape::new(anchor, galley, Color32::from_gray(40))
@@ -448,23 +489,82 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     ));
 }
 
-fn paint_panels(painter: &egui::Painter, rect: Rect, spec: &PlotSpec) {
+/// Height reserved above and below the panel grid for the main title, the
+/// subtitle and the footer.
+fn panel_bands(spec: &PlotSpec, overlay: Option<&GraphOverlay>) -> (f32, f32) {
+    let subtitle = overlay.and_then(|overlay| overlay.subtitle.as_ref());
+    let footer = overlay.and_then(|overlay| overlay.footer.as_ref());
+    let scale = overlay.map_or(1.0, GraphOverlay::font_scale);
+    let title_h = if subtitle.is_some() {
+        24.0 * scale + 14.0
+    } else if spec.title.is_empty() {
+        0.0
+    } else {
+        22.0 * scale
+    };
+    let footer_h = if footer.is_some() { 18.0 * scale } else { 0.0 };
+    (title_h, footer_h)
+}
+
+/// Presentation edits for the panels: the subtitle and footer belong to the
+/// whole grid, while reference lines apply to every panel's own axes.
+fn panel_edits(overlay: Option<&GraphOverlay>) -> Option<GraphOverlay> {
+    overlay.map(|overlay| GraphOverlay {
+        subtitle: None,
+        footer: None,
+        reference_lines: overlay.reference_lines.clone(),
+        font_family: overlay.font_family,
+        font_scale: overlay.font_scale,
+    })
+}
+
+fn paint_panels(
+    painter: &egui::Painter,
+    rect: Rect,
+    spec: &PlotSpec,
+    overlay: Option<&GraphOverlay>,
+) {
     painter.rect_filled(rect, 0.0, Color32::WHITE);
     let columns = spec.panel_columns.max(1);
     let rows = spec.panels.len().div_ceil(columns);
     let margin = 8.0;
-    let title_h = if spec.title.is_empty() { 0.0 } else { 22.0 };
-    if title_h > 0.0 {
+    let (title_h, footer_h) = panel_bands(spec, overlay);
+    if !spec.title.is_empty() {
         painter.text(
             pos2(rect.center().x, rect.top() + 4.0),
             Align2::CENTER_TOP,
             &spec.title,
-            FontId::proportional(16.0),
+            graph_font(16.0, overlay),
             Color32::BLACK,
         );
     }
+    if let Some(subtitle) = overlay.and_then(|overlay| overlay.subtitle.as_ref()) {
+        let scale = overlay.map_or(1.0, GraphOverlay::font_scale);
+        let y = if spec.title.is_empty() {
+            rect.top() + 4.0
+        } else {
+            rect.top() + 8.0 + 16.0 * scale
+        };
+        painter.text(
+            pos2(rect.center().x, y),
+            Align2::CENTER_TOP,
+            subtitle,
+            graph_font(13.0, overlay),
+            Color32::from_gray(70),
+        );
+    }
+    if let Some(footer) = overlay.and_then(|overlay| overlay.footer.as_ref()) {
+        painter.text(
+            pos2(rect.center().x, rect.bottom() - 2.0),
+            Align2::CENTER_BOTTOM,
+            footer,
+            graph_font(12.0, overlay),
+            Color32::from_gray(85),
+        );
+    }
+    let edits = panel_edits(overlay);
     let cell_w = (rect.width() - 2.0 * margin) / columns as f32;
-    let cell_h = (rect.height() - title_h - 2.0 * margin) / rows as f32;
+    let cell_h = (rect.height() - title_h - footer_h - 2.0 * margin) / rows as f32;
     for (index, panel) in spec.panels.iter().enumerate() {
         let column = index % columns;
         let row = index / columns;
@@ -475,13 +575,10 @@ fn paint_panels(painter: &egui::Painter, rect: Rect, spec: &PlotSpec) {
             ),
             vec2(cell_w, cell_h),
         );
-        paint(painter, child, panel, None);
+        paint(painter, child, panel, edits.as_ref());
     }
 }
 
-/// Canvas and frame for a single plot: the plot keeps its own proportions and
-/// is fitted inside the canvas, so the spare room becomes an even band on both
-/// sides instead of a frame glued to one corner.
 /// Canvas and frame for a multi-panel plot. The panels keep their natural cell
 /// shape when the window has room; otherwise they shrink to the window (down
 /// to a readable minimum) so a chart such as I–MR shows both panels without
@@ -492,10 +589,13 @@ fn fitted_panels(
     columns: usize,
     rows: usize,
     ratio: f32,
+    title_h: f32,
+    footer_h: f32,
 ) -> (egui::Vec2, egui::Vec2) {
     let cell_w = (canvas.x - 16.0) / columns.max(1) as f32;
-    let natural = 22.0 + rows as f32 * cell_w * ratio + 16.0;
-    let readable = 22.0 + rows as f32 * 150.0 + 16.0;
+    let bands = title_h + footer_h;
+    let natural = bands + rows as f32 * cell_w * ratio + 16.0;
+    let readable = bands + rows as f32 * 150.0 + 16.0;
     let height = if natural <= canvas.y {
         natural
     } else {
@@ -504,6 +604,9 @@ fn fitted_panels(
     (vec2(canvas.x, height.max(canvas.y)), vec2(canvas.x, height))
 }
 
+/// Canvas and frame for a single plot: the plot keeps its own proportions and
+/// is fitted inside the canvas, so the spare room becomes an even band on both
+/// sides instead of a frame glued to one corner.
 fn fitted_frame(canvas: egui::Vec2, natural: egui::Vec2) -> (egui::Vec2, egui::Vec2) {
     let aspect = natural.y / natural.x.max(1.0);
     let mut frame_w = canvas.x;
@@ -516,8 +619,12 @@ fn fitted_frame(canvas: egui::Vec2, natural: egui::Vec2) -> (egui::Vec2, egui::V
 }
 
 /// Width of one note's columns, measured with the same font the note uses.
-fn single_note_width(painter: &egui::Painter, note: &fp_core::plot::PlotNote) -> f32 {
-    let font = FontId::proportional(12.0);
+fn single_note_width(
+    painter: &egui::Painter,
+    note: &fp_core::plot::PlotNote,
+    overlay: Option<&GraphOverlay>,
+) -> f32 {
+    let font = graph_font(12.0, overlay);
     let label = note
         .rows
         .iter()
@@ -558,10 +665,14 @@ fn single_note_width(painter: &egui::Painter, note: &fp_core::plot::PlotNote) ->
 }
 
 /// Widest note of the plot, zero when there is none.
-fn note_content_width(painter: &egui::Painter, spec: &PlotSpec) -> f32 {
+fn note_content_width(
+    painter: &egui::Painter,
+    spec: &PlotSpec,
+    overlay: Option<&GraphOverlay>,
+) -> f32 {
     spec.notes
         .iter()
-        .map(|note| single_note_width(painter, note))
+        .map(|note| single_note_width(painter, note, overlay))
         .fold(0.0_f32, f32::max)
 }
 
@@ -632,22 +743,65 @@ mod tests {
     fn a_two_panel_chart_fits_the_window() {
         // I–MR in a 1120x460 window: both panels shrink to the window instead
         // of stacking far below the visible area.
-        let (canvas, frame) = fitted_panels(vec2(1120.0, 460.0), 1, 2, 0.75);
+        let (canvas, frame) = fitted_panels(vec2(1120.0, 460.0), 1, 2, 0.75, 22.0, 0.0);
         assert_eq!(canvas, vec2(1120.0, 460.0));
         assert_eq!(frame, vec2(1120.0, 460.0));
         // Every row keeps a readable minimum; below that the canvas scrolls.
-        let (canvas, frame) = fitted_panels(vec2(1120.0, 300.0), 1, 4, 0.75);
+        let (canvas, frame) = fitted_panels(vec2(1120.0, 300.0), 1, 4, 0.75, 22.0, 0.0);
         assert_eq!(frame.y, canvas.y);
         assert_eq!(frame.y, 22.0 + 4.0 * 150.0 + 16.0);
     }
 
     #[test]
     fn a_short_panel_grid_is_centred() {
-        let (canvas, frame) = fitted_panels(vec2(800.0, 900.0), 1, 1, 0.5);
+        let (canvas, frame) = fitted_panels(vec2(800.0, 900.0), 1, 1, 0.5, 22.0, 0.0);
         assert_eq!(frame.y, 22.0 + 784.0 * 0.5 + 16.0);
         let rect = Rect::from_center_size(Pos2::new(400.0, 450.0), frame);
         assert!((rect.top() - (900.0 - frame.y) / 2.0).abs() < 0.01);
         let _ = canvas;
+    }
+
+    #[test]
+    fn the_graph_font_follows_the_overlay() {
+        let mut overlay = GraphOverlay {
+            font_family: GraphFontFamily::Mono,
+            font_scale: 1.5,
+            ..GraphOverlay::default()
+        };
+        let font = graph_font(12.0, Some(&overlay));
+        assert!((font.size - 18.0).abs() < 1e-6);
+        assert!(matches!(font.family, egui::FontFamily::Monospace));
+        overlay.font_family = GraphFontFamily::Serif;
+        let serif = graph_font(12.0, Some(&overlay));
+        assert!(matches!(serif.family, egui::FontFamily::Name(_)));
+        // No overlay means the designed size and the interface face.
+        let plain = graph_font(12.0, None);
+        assert!((plain.size - 12.0).abs() < 1e-6);
+        assert!(matches!(plain.family, egui::FontFamily::Proportional));
+    }
+
+    #[test]
+    fn the_subtitle_and_footer_take_bands_of_their_own() {
+        let spec = fp_core::plot::panel_plot(vec![spec(), spec()], 1, "Panels").expect("panels");
+        assert_eq!(panel_bands(&spec, None), (22.0, 0.0));
+        let with_text = GraphOverlay {
+            subtitle: Some("Line A".to_owned()),
+            footer: Some("Night shift".to_owned()),
+            reference_lines: Vec::new(),
+            ..GraphOverlay::default()
+        };
+        assert_eq!(panel_bands(&spec, Some(&with_text)), (38.0, 18.0));
+        let only_footer = GraphOverlay {
+            subtitle: None,
+            footer: Some("Night shift".to_owned()),
+            reference_lines: Vec::new(),
+            ..GraphOverlay::default()
+        };
+        assert_eq!(panel_bands(&spec, Some(&only_footer)), (22.0, 18.0));
+        // The reference lines reach each panel, the text does not.
+        let edits = panel_edits(Some(&with_text)).expect("edits");
+        assert!(edits.subtitle.is_none());
+        assert!(edits.footer.is_none());
     }
 
     #[test]

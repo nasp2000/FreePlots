@@ -782,6 +782,7 @@ impl FreePlotsApp {
                     response.context_menu(|ui| {
                         for (label, action) in [
                             ("Edit graph labels…", GraphAction::Labels),
+                            ("Graph text…", GraphAction::Text),
                             ("Add reference line…", GraphAction::Reference),
                             ("Save graph…", GraphAction::Save),
                             ("Copy graph as SVG", GraphAction::Copy),
@@ -841,6 +842,10 @@ impl FreePlotsApp {
                         let catalog = self.catalog();
                         if ui.button(catalog.label("Edit graph labels…")).clicked() {
                             graph_action = Some(GraphAction::Labels);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Graph text…")).clicked() {
+                            graph_action = Some(GraphAction::Text);
                             ui.close();
                         }
                         if ui.button(catalog.label("Add reference line…")).clicked() {

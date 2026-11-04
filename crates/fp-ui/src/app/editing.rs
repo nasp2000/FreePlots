@@ -356,6 +356,16 @@ impl FreePlotsApp {
             false
         }
     }
+    /// Moves the selection by whole cells, clamping to the first row/column.
+    pub(super) fn move_selection(&mut self, columns: isize, rows: isize) {
+        let Some((column, row)) = self.selected_cell else {
+            return;
+        };
+        let column = (column as isize + columns).max(0) as usize;
+        let row = (row as isize + rows).max(0) as usize;
+        self.select_cell(column, row);
+    }
+
     pub fn select_cell(&mut self, column: usize, row: usize) {
         self.inline_edit = None;
         self.inline_request_focus = false;

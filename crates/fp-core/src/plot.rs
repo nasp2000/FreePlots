@@ -469,14 +469,15 @@ fn note_char_width(note: &PlotNote) -> usize {
 }
 
 /// Right margin, in SVG units, reserved for all the notes of a plot.
-fn note_gutter(notes: &[PlotNote]) -> f64 {
+fn note_gutter(notes: &[PlotNote], scale: f32) -> f64 {
     if notes.is_empty() {
         0.0
     } else {
         let chars = notes.iter().map(note_char_width).max().unwrap_or(0) as f64;
         // 6.5 px per character at 12 px, plus the gap to the frame and the
         // right margin of the image.
-        12.0 + chars * 6.5 + 8.0
+        let char_width = 6.5 * f64::from(scale.clamp(0.75, 1.5));
+        12.0 + chars * char_width + 8.0
     }
 }
 
@@ -2175,7 +2176,7 @@ pub fn series_color(index: usize) -> &'static str {
 /// Presentation edits applied on top of a plot: a subtitle, a footer and
 /// reference lines. Kept separate from [`PlotSpec`] so an analysis stays
 /// reproducible and the edits can be reset.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GraphOverlay {
     /// Second title line, centred under the title.
     pub subtitle: Option<String>,
@@ -2183,10 +2184,95 @@ pub struct GraphOverlay {
     pub footer: Option<String>,
     /// Reference lines drawn over the plot, behind the data.
     pub reference_lines: Vec<ReferenceLine>,
+    /// Typeface used by every text drawn on the graph.
+    #[serde(default)]
+    pub font_family: GraphFontFamily,
+    /// Size multiplier for the graph text (1.0 = the designed size).
+    #[serde(default = "default_font_scale")]
+    pub font_scale: f32,
+}
+
+fn default_font_scale() -> f32 {
+    1.0
+}
+
+impl Default for GraphOverlay {
+    fn default() -> Self {
+        Self {
+            subtitle: None,
+            footer: None,
+            reference_lines: Vec::new(),
+            font_family: GraphFontFamily::Sans,
+            font_scale: 1.0,
+        }
+    }
+}
+
+impl GraphOverlay {
+    /// Clamped text scale, so a corrupt settings file cannot blank the labels.
+    #[must_use]
+    pub fn font_scale(&self) -> f32 {
+        if self.font_scale.is_finite() {
+            self.font_scale.clamp(0.75, 1.5)
+        } else {
+            1.0
+        }
+    }
+
+    /// A graph text size, in points, after the user's scale.
+    #[must_use]
+    pub fn text_size(&self, base: f32) -> f32 {
+        base * self.font_scale()
+    }
+
+    /// Font family name used in the SVG, with a portable fallback.
+    #[must_use]
+    pub fn svg_family(&self) -> &'static str {
+        match self.font_family {
+            GraphFontFamily::Sans => "DejaVu Sans, sans-serif",
+            GraphFontFamily::Serif => "DejaVu Serif, serif",
+            GraphFontFamily::Mono => "DejaVu Sans Mono, monospace",
+        }
+    }
+}
+
+/// Typeface for the text drawn on a graph.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum GraphFontFamily {
+    /// DejaVu Sans (the interface face).
+    #[default]
+    Sans,
+    /// DejaVu Serif.
+    Serif,
+    /// DejaVu Sans Mono.
+    Mono,
+}
+
+impl GraphFontFamily {
+    /// Parses the code stored in the settings (`sans`, `serif`, `mono`).
+    #[must_use]
+    pub fn parse(code: &str) -> Option<Self> {
+        match code {
+            "sans" => Some(Self::Sans),
+            "serif" => Some(Self::Serif),
+            "mono" => Some(Self::Mono),
+            _ => None,
+        }
+    }
+
+    /// Code stored in the settings.
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Sans => "sans",
+            Self::Serif => "serif",
+            Self::Mono => "mono",
+        }
+    }
 }
 
 /// Direction of a reference line.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ReferenceAxis {
     /// Vertical line at `x = value`.
     Vertical,
@@ -2195,7 +2281,7 @@ pub enum ReferenceAxis {
 }
 
 /// One dashed reference line with an optional label.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ReferenceLine {
     /// Direction of the line.
     pub axis: ReferenceAxis,
@@ -2215,7 +2301,7 @@ pub fn render_svg(spec: &PlotSpec) -> String {
 #[must_use]
 pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     if !spec.panels.is_empty() {
-        return render_panels_svg(spec);
+        return render_panels_svg(spec, overlay);
     }
     const ML: f64 = 70.0;
     const MT: f64 = 50.0;
@@ -2225,7 +2311,7 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     let h = f64::from(spec.size.1);
     // The statistics blocks live in a right-hand margin of their own: the plot
     // area gets narrower instead of the numbers sitting over the data.
-    let gutter = note_gutter(&spec.notes);
+    let gutter = note_gutter(&spec.notes, overlay.font_scale());
     let pw = w - ML - 30.0 - gutter;
     let ph = h - MT - MB;
 
@@ -2267,8 +2353,10 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         escape_xml(&spec.title)
     ));
     if let Some(subtitle) = &overlay.subtitle {
+        // The second line moves down with the text so the two never overlap.
+        let subtitle_y = 27.0 + 13.0 * f64::from(overlay.font_scale());
         s.push_str(&format!(
-            "<text x=\"{:.1}\" y=\"40\" font-family=\"sans-serif\" font-size=\"13\" fill=\"#444444\" text-anchor=\"middle\">{}</text>\n",
+            "<text x=\"{:.1}\" y=\"{subtitle_y:.1}\" font-family=\"sans-serif\" font-size=\"13\" fill=\"#444444\" text-anchor=\"middle\">{}</text>\n",
             w / 2.0,
             escape_xml(subtitle)
         ));
@@ -2458,9 +2546,11 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
             continue;
         }
         let chars = note_char_width(note) as f64;
-        let content_w = chars * 6.5;
+        let scale = f64::from(overlay.font_scale());
+        let content_w = chars * 6.5 * scale;
         let left = ML + pw + 12.0;
         let right = left + content_w;
+        let line_h = 15.0 * scale;
         let mut line_y = note_top + 10.0;
         for row in &note.rows {
             s.push_str(&format!(
@@ -2471,14 +2561,14 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
                 "<text x=\"{right:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222222\" text-anchor=\"end\">{}</text>\n",
                 escape_xml(&row.value)
             ));
-            line_y += 15.0;
+            line_y += line_h;
         }
         for line in &note.lines {
             s.push_str(&format!(
                 "<text x=\"{left:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222222\">{}</text>\n",
                 escape_xml(line)
             ));
-            line_y += 15.0;
+            line_y += line_h;
         }
         note_top = line_y + 4.0;
     }
@@ -2542,19 +2632,71 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         ));
     }
     s.push_str("</svg>\n");
+    style_graph_text(&mut s, overlay);
 
     s
 }
 
-fn render_panels_svg(spec: &PlotSpec) -> String {
+/// Applies the chosen typeface and text scale to the SVG that was just built.
+///
+/// The sizes come from a small, fixed set, so the substitution is exact and
+/// keeps the layout arithmetic untouched; placeholders prevent a scaled size
+/// from being matched again by the next base size.
+fn style_graph_text(svg: &mut String, overlay: &GraphOverlay) {
+    if overlay.font_family != GraphFontFamily::Sans {
+        *svg = svg.replace(
+            "font-family=\"sans-serif\"",
+            &format!("font-family=\"{}\"", overlay.svg_family()),
+        );
+    }
+    let scale = overlay.font_scale();
+    if (scale - 1.0).abs() < 1e-6 {
+        return;
+    }
+    const BASES: [f32; 5] = [10.0, 11.0, 12.0, 13.0, 16.0];
+    for (index, base) in BASES.iter().enumerate() {
+        *svg = svg.replace(
+            &format!("font-size=\"{base}\""),
+            &format!("font-size=\"__FP_TEXT_{index}__\""),
+        );
+    }
+    for (index, base) in BASES.iter().enumerate() {
+        *svg = svg.replace(
+            &format!("__FP_TEXT_{index}__"),
+            &format!("font-size=\"{}\"", overlay.text_size(*base)),
+        );
+    }
+}
+
+fn render_panels_svg(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     let w = f64::from(spec.size.0);
     let h = f64::from(spec.size.1);
     let columns = spec.panel_columns.max(1);
     let rows = spec.panels.len().div_ceil(columns);
     let margin = 8.0;
-    let title_h = if spec.title.is_empty() { 0.0 } else { 30.0 };
+    // The grid title, the subtitle and the footer belong to the whole grid;
+    // each panel keeps its own title inside its cell.
+    let subtitle_h = if overlay.subtitle.is_some() {
+        16.0
+    } else {
+        0.0
+    };
+    let title_h = if spec.title.is_empty() && subtitle_h == 0.0 {
+        0.0
+    } else {
+        30.0 + subtitle_h
+    };
+    let footer_h = if overlay.footer.is_some() { 18.0 } else { 0.0 };
     let cell_w = (w - 2.0 * margin) / columns as f64;
-    let cell_h = (h - title_h - 2.0 * margin) / rows as f64;
+    let cell_h = (h - title_h - footer_h - 2.0 * margin) / rows as f64;
+    // Reference lines are in axis coordinates, so they apply to every panel.
+    let edits = GraphOverlay {
+        subtitle: None,
+        footer: None,
+        reference_lines: overlay.reference_lines.clone(),
+        font_family: overlay.font_family,
+        font_scale: overlay.font_scale,
+    };
 
     let mut s = String::with_capacity(8192);
     s.push_str(&format!(
@@ -2563,11 +2705,37 @@ fn render_panels_svg(spec: &PlotSpec) -> String {
     s.push_str(&format!(
         "<rect x=\"0\" y=\"0\" width=\"{w:.0}\" height=\"{h:.0}\" fill=\"#ffffff\"/>\n"
     ));
-    if title_h > 0.0 {
+    if !spec.title.is_empty() {
         s.push_str(&format!(
-            "<text x=\"{:.1}\" y=\"24\" font-family=\"sans-serif\" font-size=\"16\" fill=\"#000000\" text-anchor=\"middle\">{}</text>\n",
+            "<text x=\"{:.1}\" y=\"24\" font-family=\"{}\" font-size=\"{}\" fill=\"#000000\" text-anchor=\"middle\">{}</text>\n",
             w / 2.0,
+            overlay.svg_family(),
+            overlay.text_size(16.0),
             escape_xml(&spec.title)
+        ));
+    }
+    if let Some(subtitle) = &overlay.subtitle {
+        let y = if spec.title.is_empty() {
+            20.0
+        } else {
+            27.0 + 13.0 * f64::from(overlay.font_scale())
+        };
+        s.push_str(&format!(
+            "<text x=\"{:.1}\" y=\"{y:.1}\" font-family=\"{}\" font-size=\"{}\" fill=\"#444444\" text-anchor=\"middle\">{}</text>\n",
+            w / 2.0,
+            overlay.svg_family(),
+            overlay.text_size(13.0),
+            escape_xml(subtitle)
+        ));
+    }
+    if let Some(footer) = &overlay.footer {
+        s.push_str(&format!(
+            "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"{}\" font-size=\"{}\" fill=\"#555555\" text-anchor=\"middle\">{}</text>\n",
+            w / 2.0,
+            h - 10.0,
+            overlay.svg_family(),
+            overlay.text_size(12.0),
+            escape_xml(footer)
         ));
     }
 
@@ -2576,7 +2744,7 @@ fn render_panels_svg(spec: &PlotSpec) -> String {
         let row = index / columns;
         let x = margin + column as f64 * cell_w;
         let y = title_h + margin + row as f64 * cell_h;
-        let rendered = render_svg(panel);
+        let rendered = render_svg_with(panel, &edits);
         let start = rendered.find('>').map_or(0, |position| position + 1);
         let end = rendered.rfind("</svg>").unwrap_or(rendered.len());
         let inner = &rendered[start..end];
@@ -3149,7 +3317,7 @@ mod tests {
         );
         assert!(svg.contains("units: mm"));
         // The note sits to the right of the plot rectangle, never over it.
-        let plot_right = 800.0 - 30.0 - note_gutter(&spec.notes);
+        let plot_right = 800.0 - 30.0 - note_gutter(&spec.notes, 1.0);
         let note_x: f64 = svg
             .split("<text x=\"")
             .find_map(|chunk| {
@@ -3175,13 +3343,107 @@ mod tests {
             .and_then(|w| w.parse().ok())
             .expect("plot width");
         assert!(
-            (width_without - width_with - note_gutter(&spec.notes)).abs() < 0.2,
+            (width_without - width_with - note_gutter(&spec.notes, 1.0)).abs() < 0.2,
             "the frame shrank by {} instead of {}",
             width_without - width_with,
-            note_gutter(&spec.notes)
+            note_gutter(&spec.notes, 1.0)
         );
         // No white box: the margin is already empty.
         assert!(!svg.contains("fill-opacity=\"0.88\""));
+    }
+
+    #[test]
+    fn the_graph_text_family_and_size_reach_the_svg() {
+        let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
+        let fit = Normal::fit_moments(&sample).unwrap();
+        let plot = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
+        let spec = PlotSpec::normal_probability(&plot, &fit, "Normal");
+        let mut overlay = GraphOverlay {
+            font_family: GraphFontFamily::Mono,
+            font_scale: 1.25,
+            ..GraphOverlay::default()
+        };
+        let svg = render_svg_with(&spec, &overlay);
+        assert!(svg.contains("DejaVu Sans Mono, monospace"), "{svg}");
+        assert!(!svg.contains("sans-serif"), "the family is replaced");
+        assert!(
+            svg.contains("font-size=\"20\""),
+            "the 16 pt title becomes 20 pt"
+        );
+        assert!(svg.contains("font-size=\"15\""), "12 pt becomes 15 pt");
+
+        // The serif family and the default size.
+        overlay.font_family = GraphFontFamily::Serif;
+        overlay.font_scale = 1.0;
+        let serif = render_svg_with(&spec, &overlay);
+        assert!(serif.contains("DejaVu Serif, serif"));
+        assert!(serif.contains("font-size=\"16\""));
+
+        // A bigger text needs a wider note gutter, so the plot gets narrower.
+        let mut with_note = spec.clone();
+        with_note
+            .notes
+            .push(PlotNote::new(vec![("Mean", "12.5".to_owned())]));
+        let narrow = render_svg_with(&with_note, &GraphOverlay::default());
+        overlay.font_scale = 2.0;
+        let wide = render_svg_with(&with_note, &overlay);
+        let width = |svg: &str| {
+            svg.split("<rect x=\"70.0\" y=\"50.0\" width=\"")
+                .nth(1)
+                .and_then(|rest| rest.split('"').next())
+                .and_then(|w| w.parse::<f64>().ok())
+                .expect("plot width")
+        };
+        assert!(
+            width(&wide) < width(&narrow),
+            "the gutter must grow with the text"
+        );
+    }
+
+    #[test]
+    fn presentation_edits_reach_every_panel() {
+        let make = |values: Vec<f64>, label: &str| {
+            let sample = Sample::new(values, MissingPolicy::Drop).unwrap();
+            let fit = Normal::fit_moments(&sample).unwrap();
+            let plot = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
+            PlotSpec::normal_probability(&plot, &fit, label)
+        };
+        let spec = panel_plot(
+            vec![
+                make(vec![1.0, 2.0, 3.0, 4.0, 5.0], "A"),
+                make(vec![6.0, 7.0, 8.0, 9.0, 10.0], "B"),
+            ],
+            1,
+            "Separate panels",
+        )
+        .expect("panels");
+        let overlay = GraphOverlay {
+            subtitle: Some("Design = Tissue 50um".to_owned()),
+            footer: Some("Night shift".to_owned()),
+            reference_lines: vec![ReferenceLine {
+                axis: ReferenceAxis::Horizontal,
+                value: 0.0,
+                label: Some("median".to_owned()),
+            }],
+            ..GraphOverlay::default()
+        };
+        let svg = render_svg_with(&spec, &overlay);
+        assert_eq!(
+            svg.matches("Design = Tissue 50um").count(),
+            1,
+            "the subtitle belongs to the whole grid"
+        );
+        assert_eq!(svg.matches("Night shift").count(), 1);
+        assert_eq!(
+            svg.matches("stroke-dasharray=\"4 3\"").count(),
+            2,
+            "the reference line must be drawn in both panels"
+        );
+        assert!(svg.contains(">median<"));
+        // Without the overlay none of it appears.
+        let plain = render_svg(&spec);
+        assert!(!plain.contains("Design = Tissue 50um"));
+        assert!(!plain.contains("stroke-dasharray"));
     }
 
     #[test]
@@ -3205,6 +3467,7 @@ mod tests {
                     label: None,
                 },
             ],
+            ..GraphOverlay::default()
         };
         let svg = render_svg_with(&spec, &overlay);
         assert!(svg.contains("Normal - 95% CI"));

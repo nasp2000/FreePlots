@@ -107,6 +107,20 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
         menu.iter().any(|label| label == "Edit graph labels…"),
         "the context menu did not open: {menu:?}"
     );
+    assert!(
+        menu.iter().any(|label| label == "Graph text…"),
+        "the text style entry is missing from the context menu: {menu:?}"
+    );
+    // The text style dialog opens from the same menu.
+    ui.click("Graph text…").expect("open the text dialog");
+    assert!(
+        ui.window_titles().iter().any(|title| title == "Graph text"),
+        "the text dialog did not open: {:?}",
+        ui.window_titles()
+    );
+    ui.click("Cancel").expect("cancel the text dialog");
+    // The menu closed with the dialog; open it again for the next edit.
+    ui.right_click_at(centre);
     ui.click("Edit graph labels…").expect("open the editor");
     ui.set_text("Subtitle", "Night shift")
         .expect("set the subtitle");

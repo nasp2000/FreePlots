@@ -243,6 +243,10 @@ pub struct Preferences {
     pub native_plot_windows: bool,
     /// `true` once the first-run tour has been shown.
     pub tour_seen: bool,
+    /// Graph presentation edits (labels, reference lines, text style), kept
+    /// between sessions so the user does not have to set them again.
+    #[serde(default)]
+    pub graph_overlay: fp_core::plot::GraphOverlay,
 }
 
 impl Default for Preferences {
@@ -255,6 +259,7 @@ impl Default for Preferences {
             show_grid_lines: true,
             native_plot_windows: true,
             tour_seen: false,
+            graph_overlay: fp_core::plot::GraphOverlay::default(),
         }
     }
 }
@@ -842,6 +847,9 @@ pub struct FreePlotsApp {
     pub(super) graph_label_footer: String,
     pub(super) graph_label_x: String,
     pub(super) graph_label_y: String,
+    pub(super) show_graph_text: bool,
+    pub(super) graph_text_family: fp_core::plot::GraphFontFamily,
+    pub(super) graph_text_size: f32,
     pub(super) show_reference_line: bool,
     pub(super) reference_axis: fp_core::plot::ReferenceAxis,
     pub(super) reference_value: String,
@@ -2268,6 +2276,7 @@ impl FreePlotsApp {
             show_grid_lines: self.show_grid_lines,
             native_plot_windows: self.native_plot_windows,
             tour_seen: self.tour_seen,
+            graph_overlay: self.graph_overlay.clone(),
         }
     }
 
@@ -2284,6 +2293,9 @@ impl FreePlotsApp {
         self.show_grid_lines = preferences.show_grid_lines;
         self.native_plot_windows = preferences.native_plot_windows;
         self.tour_seen = preferences.tour_seen;
+        self.graph_overlay = preferences.graph_overlay.clone();
+        // A hand-edited file must not make the graph text unreadable.
+        self.graph_overlay.font_scale = self.graph_overlay.font_scale.clamp(0.75, 1.5);
     }
 
     /// Sets the file that keeps the preferences and loads it if it exists.
@@ -3737,18 +3749,36 @@ fn apply_theme(ctx: &egui::Context, light: bool) {
 /// companion drawing program).
 fn install_fonts(ctx: &egui::Context) {
     use std::sync::Arc;
-    // Only the bundled face is loaded: the default font set (four faces) is
-    // not compiled in, which keeps the binary and the font atlas small.
+    // Only the bundled faces are loaded: the default font set (four faces) is
+    // not compiled in, which keeps the binary and the font atlas small. The
+    // serif and mono faces are offered to the graph text dialog.
     let mut fonts = egui::FontDefinitions::empty();
-    fonts.font_data.insert(
-        "dejavu".to_owned(),
-        Arc::new(egui::FontData::from_static(include_bytes!(
-            "../assets/DejaVuSans.ttf"
-        ))),
-    );
-    for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
-        fonts.families.insert(family, vec!["dejavu".to_owned()]);
+    for (name, bytes) in [
+        ("dejavu", &include_bytes!("../assets/DejaVuSans.ttf")[..]),
+        (
+            "dejavu-serif",
+            &include_bytes!("../assets/DejaVuSerif.ttf")[..],
+        ),
+        (
+            "dejavu-mono",
+            &include_bytes!("../assets/DejaVuSansMono.ttf")[..],
+        ),
+    ] {
+        fonts.font_data.insert(
+            name.to_owned(),
+            Arc::new(egui::FontData::from_static(bytes)),
+        );
     }
+    fonts
+        .families
+        .insert(egui::FontFamily::Proportional, vec!["dejavu".to_owned()]);
+    fonts.families.insert(
+        egui::FontFamily::Name("serif".into()),
+        vec!["dejavu-serif".to_owned()],
+    );
+    fonts
+        .families
+        .insert(egui::FontFamily::Monospace, vec!["dejavu-mono".to_owned()]);
     ctx.set_fonts(fonts);
 }
 

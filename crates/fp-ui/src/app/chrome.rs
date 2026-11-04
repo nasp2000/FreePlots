@@ -182,6 +182,7 @@ impl FreePlotsApp {
         self.licences_window(&ctx);
         self.tour_window(&ctx);
         self.graph_labels_window(&ctx);
+        self.graph_text_window(&ctx);
         self.reference_line_window(&ctx);
         self.graph_window(&ctx);
         self.persist_preferences();

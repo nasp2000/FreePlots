@@ -7,6 +7,7 @@ use fp_core::plot::{GraphOverlay, ReferenceAxis, ReferenceLine};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphAction {
     Labels,
+    Text,
     Reference,
     Save,
     Copy,
@@ -33,6 +34,30 @@ impl FreePlotsApp {
         self.graph_label_subtitle = self.graph_overlay.subtitle.clone().unwrap_or_default();
         self.graph_label_footer = self.graph_overlay.footer.clone().unwrap_or_default();
         self.show_graph_labels = true;
+    }
+
+    /// Opens the graph text editor with the current typeface and size.
+    pub fn open_graph_text(&mut self) {
+        if self.plot.is_none() {
+            self.set_error("No graph to edit");
+            return;
+        }
+        self.graph_text_family = self.graph_overlay.font_family;
+        self.graph_text_size = self.graph_overlay.text_size(12.0);
+        self.show_graph_text = true;
+    }
+
+    /// Applies the typeface and size to every text drawn on the graph.
+    pub fn apply_graph_text(&mut self) {
+        self.graph_overlay.font_family = self.graph_text_family;
+        let size = if self.graph_text_size.is_finite() {
+            self.graph_text_size.clamp(9.0, 18.0)
+        } else {
+            12.0
+        };
+        self.graph_overlay.font_scale = size / 12.0;
+        self.show_graph_text = false;
+        self.status = "Graph text updated".to_owned();
     }
 
     /// Applies the label editor.
@@ -123,6 +148,7 @@ impl FreePlotsApp {
     pub(super) fn apply_graph_action(&mut self, ctx: &egui::Context, action: GraphAction) {
         match action {
             GraphAction::Labels => self.open_graph_labels(),
+            GraphAction::Text => self.open_graph_text(),
             GraphAction::Reference => self.open_reference_line(),
             GraphAction::Save => self.begin_plot_save(),
             GraphAction::Copy => {
@@ -181,6 +207,83 @@ impl FreePlotsApp {
             self.apply_graph_labels();
         } else {
             self.show_graph_labels = open && self.show_graph_labels;
+        }
+    }
+
+    pub(super) fn graph_text_window(&mut self, ctx: &egui::Context) {
+        if !self.show_graph_text {
+            return;
+        }
+        let mut open = self.show_graph_text;
+        let mut apply = false;
+        let mut reset = false;
+        let catalog = self.catalog();
+        dialog_window(self.catalog().label("Graph text"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Typeface:"));
+                    egui::ComboBox::from_id_salt("graph_text_family")
+                        .selected_text(match self.graph_text_family {
+                            fp_core::plot::GraphFontFamily::Sans => catalog.label("Sans"),
+                            fp_core::plot::GraphFontFamily::Serif => catalog.label("Serif"),
+                            fp_core::plot::GraphFontFamily::Mono => catalog.label("Monospace"),
+                        })
+                        .show_ui(ui, |ui| {
+                            for (family, name) in [
+                                (fp_core::plot::GraphFontFamily::Sans, "Sans"),
+                                (fp_core::plot::GraphFontFamily::Serif, "Serif"),
+                                (fp_core::plot::GraphFontFamily::Mono, "Monospace"),
+                            ] {
+                                ui.selectable_value(
+                                    &mut self.graph_text_family,
+                                    family,
+                                    catalog.label(name),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Text size:"));
+                    ui.add(
+                        egui::DragValue::new(&mut self.graph_text_size)
+                            .range(9.0..=18.0)
+                            .speed(0.25)
+                            .suffix(" pt"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.small(catalog.label(
+                    "The size and typeface apply to every text drawn on the graph; the settings are kept for the next session.",
+                ));
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Apply")).clicked() {
+                        apply = true;
+                    }
+                    if ui.help_button(self.catalog().label("Reset")).clicked() {
+                        reset = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        self.show_graph_text = false;
+                    }
+                });
+            });
+        if reset {
+            self.graph_text_family = fp_core::plot::GraphFontFamily::Sans;
+            self.graph_text_size = 12.0;
+        } else if apply {
+            self.apply_graph_text();
+        } else {
+            self.show_graph_text = open && self.show_graph_text;
         }
     }
 
