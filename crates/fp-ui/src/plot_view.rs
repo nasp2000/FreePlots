@@ -342,8 +342,11 @@ fn paint(
     );
 
     let clipped = painter.with_clip_rect(plot);
+    let show_symbols = overlay.is_none_or(|overlay| overlay.show_symbols);
+    let show_lines = overlay.is_none_or(|overlay| overlay.show_lines);
+    let show_bands = overlay.is_none_or(|overlay| overlay.show_bands);
     for band in &spec.bands {
-        if band.lower.len() < 2 || band.lower.len() != band.upper.len() {
+        if !show_bands || band.lower.len() < 2 || band.lower.len() != band.upper.len() {
             continue;
         }
         let fill = Color32::from_rgb(226, 226, 226);
@@ -362,6 +365,9 @@ fn paint(
         }
     }
     for seg in &spec.lines {
+        if !show_lines {
+            break;
+        }
         clipped.line_segment(
             [
                 pos2(sx(seg.from.x), sy(seg.from.y)),
@@ -370,14 +376,16 @@ fn paint(
             Stroke::new(seg.width as f32, Color32::from_rgb(192, 0, 0)),
         );
     }
-    for p in &spec.points {
-        clipped.circle_filled(pos2(sx(p.x), sy(p.y)), 2.6, Color32::from_rgb(31, 78, 121));
+    if show_symbols {
+        for p in &spec.points {
+            clipped.circle_filled(pos2(sx(p.x), sy(p.y)), 2.6, Color32::from_rgb(31, 78, 121));
+        }
     }
 
     for (index, series) in spec.series.iter().enumerate() {
         let color = series_color32(index);
         for band in &series.bands {
-            if band.lower.len() < 2 || band.lower.len() != band.upper.len() {
+            if !show_bands || band.lower.len() < 2 || band.lower.len() != band.upper.len() {
                 continue;
             }
             let fill = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 30);
@@ -409,6 +417,9 @@ fn paint(
             }
         };
         for seg in &series.lines {
+            if !show_lines {
+                break;
+            }
             clipped.line_segment(
                 [
                     pos2(sx(seg.from.x), map_y(seg.from.y)),
@@ -417,8 +428,10 @@ fn paint(
                 Stroke::new(seg.width as f32, color),
             );
         }
-        for p in &series.points {
-            clipped.circle_filled(pos2(sx(p.x), map_y(p.y)), 2.6, color);
+        if show_symbols {
+            for p in &series.points {
+                clipped.circle_filled(pos2(sx(p.x), map_y(p.y)), 2.6, color);
+            }
         }
     }
 
@@ -647,6 +660,9 @@ fn panel_edits(overlay: Option<&GraphOverlay>) -> Option<GraphOverlay> {
         data_labels: overlay.data_labels,
         x_range: None,
         y_range: None,
+        show_symbols: overlay.show_symbols,
+        show_lines: overlay.show_lines,
+        show_bands: overlay.show_bands,
     })
 }
 

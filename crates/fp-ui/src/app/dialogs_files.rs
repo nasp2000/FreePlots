@@ -798,6 +798,7 @@ impl FreePlotsApp {
                         for (label, action) in [
                             ("Graph options…", GraphAction::Labels),
                             ("Graph text…", GraphAction::Text),
+                            ("Data display…", GraphAction::DataDisplay),
                             ("Add note…", GraphAction::Annotation),
                             ("Add data labels…", GraphAction::DataLabels),
                             ("Add reference lines…", GraphAction::Reference),
@@ -878,6 +879,10 @@ impl FreePlotsApp {
                         }
                         if ui.button(catalog.label("Graph text…")).clicked() {
                             graph_action = Some(GraphAction::Text);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Data display…")).clicked() {
+                            graph_action = Some(GraphAction::DataDisplay);
                             ui.close();
                         }
                         if ui.button(catalog.label("Add note…")).clicked() {

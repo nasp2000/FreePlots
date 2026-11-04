@@ -120,6 +120,7 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
         "the brush reset is missing from the context menu: {menu:?}"
     );
     for entry in [
+        "Data display…",
         "Add data labels…",
         "Add percentile lines…",
         "Axis scale…",

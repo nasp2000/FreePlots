@@ -15,6 +15,7 @@ pub enum GraphAction {
     Percentiles,
     PanelLayout,
     AxisScale,
+    DataDisplay,
     GridToggle,
     Reference,
     Save,
@@ -126,6 +127,41 @@ impl FreePlotsApp {
         }
         self.show_percentiles = false;
         self.status = format!("{added} percentile line(s) added");
+    }
+
+    pub(super) fn data_display_window(&mut self, ctx: &egui::Context) {
+        if !self.show_data_display {
+            return;
+        }
+        let mut open = self.show_data_display;
+        let catalog = self.catalog();
+        dialog_window(catalog.label("Data display"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(360.0)
+            .show(ctx, |ui| {
+                ui.checkbox(&mut self.graph_overlay.show_symbols, catalog.label("Symbols"));
+                ui.checkbox(&mut self.graph_overlay.show_lines, catalog.label("Lines"));
+                ui.checkbox(
+                    &mut self.graph_overlay.show_bands,
+                    catalog.label("Bands / bars"),
+                );
+                ui.small(catalog.label(
+                    "Unchecking an element hides it in the window and in the saved SVG/PDF; the settings are kept between sessions.",
+                ));
+                ui.separator();
+                if ui.help_button(catalog.label("Show all")).clicked() {
+                    self.graph_overlay.show_symbols = true;
+                    self.graph_overlay.show_lines = true;
+                    self.graph_overlay.show_bands = true;
+                }
+                if ui.help_button(catalog.label("Close")).clicked() {
+                    self.show_data_display = false;
+                }
+            });
+        self.show_data_display = open && self.show_data_display;
     }
 
     /// Opens the manual axis-scale editor.
@@ -404,6 +440,13 @@ impl FreePlotsApp {
             GraphAction::Percentiles => self.open_percentiles(),
             GraphAction::PanelLayout => self.open_panel_layout(),
             GraphAction::AxisScale => self.open_axis_scale(),
+            GraphAction::DataDisplay => {
+                if self.plot.is_none() {
+                    self.set_error("No graph to edit");
+                } else {
+                    self.show_data_display = true;
+                }
+            }
             GraphAction::GridToggle => {
                 self.graph_overlay.grid = !self.graph_overlay.grid;
                 self.status = if self.graph_overlay.grid {

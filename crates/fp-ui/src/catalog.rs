@@ -161,6 +161,15 @@ impl UiCatalog {
             "Clear marks" => "Limpar marcas",
             "Add data labels…" => "Adicionar rótulos de dados…",
             "Axis scale…" => "Escala dos eixos…",
+            "Data display…" => "Apresentação dos dados…",
+            "Data display" => "Apresentação dos dados",
+            "Symbols" => "Símbolos",
+            "Lines" => "Linhas",
+            "Bands / bars" => "Bandas / barras",
+            "Show all" => "Mostrar tudo",
+            "Unchecking an element hides it in the window and in the saved SVG/PDF; the settings are kept between sessions." => {
+                "Desmarcar um elemento esconde-o na janela e no SVG/PDF guardado; as definições ficam entre sessões."
+            }
             "Axis scale" => "Escala dos eixos",
             "Axis scale updated" => "Escala dos eixos actualizada",
             "Axis scale automatic" => "Escala dos eixos automática",

@@ -2219,6 +2219,15 @@ pub struct GraphOverlay {
     /// Manual vertical-axis limits (raw values), when set.
     #[serde(default)]
     pub y_range: Option<(f64, f64)>,
+    /// Draw the point markers.
+    #[serde(default = "default_true")]
+    pub show_symbols: bool,
+    /// Draw the fitted/series lines.
+    #[serde(default = "default_true")]
+    pub show_lines: bool,
+    /// Draw the confidence bands and the bars.
+    #[serde(default = "default_true")]
+    pub show_bands: bool,
 }
 
 /// How the labels added by the graph editor describe a point.
@@ -2316,6 +2325,9 @@ impl Default for GraphOverlay {
             data_labels: None,
             x_range: None,
             y_range: None,
+            show_symbols: true,
+            show_lines: true,
+            show_bands: true,
         }
     }
 }
@@ -2611,7 +2623,7 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         }
     }
     for band in &spec.bands {
-        if band.lower.len() < 2 || band.lower.len() != band.upper.len() {
+        if !overlay.show_bands || band.lower.len() < 2 || band.lower.len() != band.upper.len() {
             continue;
         }
         let mut d = String::new();
@@ -2629,6 +2641,9 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     }
 
     for seg in &spec.lines {
+        if !overlay.show_lines {
+            break;
+        }
         s.push_str(&format!(
             "<line x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\" stroke=\"#c00000\" stroke-width=\"{:.1}\"/>\n",
             sx(seg.from.x),
@@ -2639,18 +2654,20 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         ));
     }
 
-    for p in &spec.points {
-        s.push_str(&format!(
-            "<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"3\" fill=\"#1f4e79\"/>\n",
-            sx(p.x),
-            sy(p.y)
-        ));
+    if overlay.show_symbols {
+        for p in &spec.points {
+            s.push_str(&format!(
+                "<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"3\" fill=\"#1f4e79\"/>\n",
+                sx(p.x),
+                sy(p.y)
+            ));
+        }
     }
 
     for (index, series) in spec.series.iter().enumerate() {
         let color = series_color(index);
         for band in &series.bands {
-            if band.lower.len() < 2 || band.lower.len() != band.upper.len() {
+            if !overlay.show_bands || band.lower.len() < 2 || band.lower.len() != band.upper.len() {
                 continue;
             }
             let mut d = String::new();
@@ -2667,6 +2684,9 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
             ));
         }
         for seg in &series.lines {
+            if !overlay.show_lines {
+                break;
+            }
             s.push_str(&format!(
                 "<line x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\" stroke=\"{color}\" stroke-width=\"{:.1}\"/>\n",
                 sx(seg.from.x),
@@ -2676,12 +2696,14 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
                 seg.width
             ));
         }
-        for p in &series.points {
-            s.push_str(&format!(
-                "<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"3\" fill=\"{color}\"/>\n",
-                sx(p.x),
-                sy(p.y)
-            ));
+        if overlay.show_symbols {
+            for p in &series.points {
+                s.push_str(&format!(
+                    "<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"3\" fill=\"{color}\"/>\n",
+                    sx(p.x),
+                    sy(p.y)
+                ));
+            }
         }
     }
     s.push_str("</g>\n");
@@ -2891,6 +2913,9 @@ fn render_panels_svg(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         data_labels: overlay.data_labels,
         x_range: None,
         y_range: None,
+        show_symbols: overlay.show_symbols,
+        show_lines: overlay.show_lines,
+        show_bands: overlay.show_bands,
     };
 
     let mut s = String::with_capacity(8192);
@@ -3488,6 +3513,29 @@ mod tests {
         assert!(svg.contains(">A<"), "legend A missing");
         assert!(svg.contains(">B<"), "legend B missing");
         assert!(svg.contains("#c00000"), "second series colour missing");
+    }
+
+    #[test]
+    fn data_display_can_hide_symbols_lines_and_bands() {
+        let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
+        let fit = Normal::fit_moments(&sample).unwrap();
+        let plot = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
+        let spec = PlotSpec::normal_probability(&plot, &fit, "Normal");
+        let full = render_svg_with(&spec, &GraphOverlay::default());
+        assert!(full.contains("<circle cx"));
+        assert!(full.contains("stroke=\"#c00000\""));
+        assert!(full.contains("fill=\"#d9d9d9\""));
+
+        let hidden = GraphOverlay {
+            show_symbols: false,
+            show_lines: false,
+            show_bands: false,
+            ..GraphOverlay::default()
+        };
+        let svg = render_svg_with(&spec, &hidden);
+        assert!(!svg.contains("<circle cx"), "symbols are hidden");
+        assert!(!svg.contains("stroke=\"#c00000\""), "lines are hidden");
+        assert!(!svg.contains("fill=\"#d9d9d9\""), "bands are hidden");
     }
 
     #[test]

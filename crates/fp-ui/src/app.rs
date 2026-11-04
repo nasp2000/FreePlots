@@ -962,6 +962,7 @@ pub struct FreePlotsApp {
     pub(super) show_panel_layout: bool,
     pub(super) panel_columns_draft: usize,
     pub(super) show_axis_scale: bool,
+    pub(super) show_data_display: bool,
     pub(super) axis_x_min: String,
     pub(super) axis_x_max: String,
     pub(super) axis_y_min: String,

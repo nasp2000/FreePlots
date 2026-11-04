@@ -430,6 +430,7 @@ impl FreePlotsApp {
             show_panel_layout: false,
             panel_columns_draft: 1,
             show_axis_scale: false,
+            show_data_display: false,
             axis_x_min: String::new(),
             axis_x_max: String::new(),
             axis_y_min: String::new(),

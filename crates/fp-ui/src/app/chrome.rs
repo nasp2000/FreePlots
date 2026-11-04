@@ -189,6 +189,7 @@ impl FreePlotsApp {
         self.percentiles_window(&ctx);
         self.panel_layout_window(&ctx);
         self.axis_scale_window(&ctx);
+        self.data_display_window(&ctx);
         self.reference_line_window(&ctx);
         self.graph_window(&ctx);
         self.persist_preferences();
