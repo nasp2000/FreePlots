@@ -346,6 +346,12 @@ pub struct ControlChart {
     pub dispersion_steps: Vec<Limits>,
     /// Subgroup sizes for unequal subgroups; empty when they are constant.
     pub subgroup_sizes: Vec<usize>,
+    /// One-based x positions of the dispersion points; empty means 2, 3, …
+    /// (I–MR) or 1, 2, … (subgroup charts). Phases leave a gap where a moving
+    /// range spans a phase boundary.
+    pub dispersion_positions: Vec<usize>,
+    /// Limits of each phase; empty when the chart has no phase column.
+    pub phases: Vec<Phase>,
     /// Within sigma estimate.
     pub sigma: f64,
     /// Subgroup size (1 for I–MR).
@@ -362,6 +368,23 @@ pub struct ControlChart {
     pub notes: Vec<(String, String)>,
     /// Warnings added by the estimator.
     pub warnings: Vec<String>,
+}
+
+/// Limits of one phase of a control chart.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Phase {
+    /// Label read from the phase column.
+    pub label: String,
+    /// One-based index of the first point of the phase on the location chart.
+    pub start: usize,
+    /// Number of points in the phase.
+    pub points: usize,
+    /// Location limits of the phase.
+    pub location: Limits,
+    /// Dispersion limits of the phase.
+    pub dispersion: Limits,
+    /// Within sigma of the phase.
+    pub sigma: f64,
 }
 
 /// Signals listed in a report before the table switches to a summary row.
@@ -486,6 +509,176 @@ pub fn analyze_variable_subgroups(
 ) -> Result<AnalysisOutput> {
     let groups = group_samples(df, column, group)?;
     let chart = variable_subgroup_chart(&groups, kind, tests)?;
+    Ok(AnalysisOutput {
+        results: vec![report(column, &chart)],
+        plot: Some(plot(column, &chart)),
+    })
+}
+
+/// Runs a control chart whose limits are computed **within each phase** of a
+/// label column.
+///
+/// A phase is a run of consecutive rows with the same label, so the worksheet
+/// order is the chart order. Supported for the I–MR, X̄–R and X̄–S charts;
+/// EWMA and CUSUM reset and are better expressed as separate charts.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for another chart family, a phase with too
+/// few observations, and the usual errors of the chosen chart.
+pub fn analyze_with_phase(
+    df: &DataFrame,
+    column: &str,
+    kind: ControlChartKind,
+    subgroup: usize,
+    tests: TestSet,
+    phase: &str,
+) -> Result<AnalysisOutput> {
+    if !matches!(
+        kind,
+        ControlChartKind::IndividualsMovingRange
+            | ControlChartKind::XbarR
+            | ControlChartKind::XbarS
+    ) {
+        return Err(Error::Unsupported(
+            "phases are available for the I–MR, X̄–R and X̄–S charts".to_owned(),
+        ));
+    }
+    let values_column = df.column(column)?;
+    let phase_column = df.column(phase)?;
+    let mut runs: Vec<(String, Vec<f64>)> = Vec::new();
+    let mut excluded = 0usize;
+    for row in 0..df.n_rows() {
+        let (Some(value), Some(label)) = (values_column.value(row), phase_column.label(row)) else {
+            excluded += 1;
+            continue;
+        };
+        match runs.last_mut() {
+            Some((last, values)) if *last == label => values.push(value),
+            _ => runs.push((label, vec![value])),
+        }
+    }
+    if runs.is_empty() {
+        return Err(Error::EmptySample);
+    }
+
+    let mut location = Vec::new();
+    let mut dispersion = Vec::new();
+    let mut dispersion_positions = Vec::new();
+    let mut location_steps = Vec::new();
+    let mut dispersion_steps = Vec::new();
+    let mut signals = Vec::new();
+    let mut phases = Vec::new();
+    let mut warnings = Vec::new();
+    let mut notes = Vec::new();
+    let mut used_observations = 0usize;
+    let mut point_start = 0usize;
+    let mut first: Option<ControlChart> = None;
+    for (label, values) in runs {
+        let sample = Sample::new(values, MissingPolicy::Drop)?;
+        let mut chart = match kind {
+            ControlChartKind::IndividualsMovingRange => {
+                individuals_moving_range_with_tests(&sample, tests)
+            }
+            ControlChartKind::XbarR => subgroup_chart(&sample, subgroup, Spread::Range, tests),
+            ControlChartKind::XbarS => {
+                subgroup_chart(&sample, subgroup, Spread::StandardDeviation, tests)
+            }
+            _ => unreachable!("checked above"),
+        }
+        .map_err(|error| Error::Unsupported(format!("phase '{label}': {error}")))?;
+        if kind != ControlChartKind::IndividualsMovingRange
+            && chart.location.len() * subgroup < sample.n()
+        {
+            let dropped = sample.n() - chart.location.len() * subgroup;
+            warnings.push(format!(
+                "phase '{label}': {dropped} trailing observation(s) did not fill a complete subgroup"
+            ));
+        }
+        let points = chart.location.len();
+        let location_limits = chart.location_limits;
+        let dispersion_limits = chart.dispersion_limits;
+        location_steps.extend(std::iter::repeat_n(location_limits, points));
+        dispersion_steps.extend(std::iter::repeat_n(
+            dispersion_limits,
+            chart.dispersion.len(),
+        ));
+        for index in 0..chart.dispersion.len() {
+            dispersion_positions.push(if kind == ControlChartKind::IndividualsMovingRange {
+                point_start + index + 2
+            } else {
+                point_start + index + 1
+            });
+        }
+        for signal in std::mem::take(&mut chart.signals) {
+            let index = signal.index
+                + match (kind, signal.chart) {
+                    (ControlChartKind::IndividualsMovingRange, SignalChart::Dispersion) => {
+                        point_start + 1
+                    }
+                    _ => point_start,
+                };
+            signals.push(Signal {
+                index,
+                description: format!("Phase {label}: {}", signal.description),
+                ..signal
+            });
+        }
+        phases.push(Phase {
+            label,
+            start: point_start + 1,
+            points,
+            location: location_limits,
+            dispersion: dispersion_limits,
+            sigma: chart.sigma,
+        });
+        location.extend_from_slice(&chart.location);
+        dispersion.extend_from_slice(&chart.dispersion);
+        used_observations += chart.n;
+        point_start += points;
+        if first.is_none() {
+            notes = chart.notes.clone();
+            first = Some(chart);
+        }
+    }
+    let Some(base) = first else {
+        return Err(Error::EmptySample);
+    };
+    notes.push((
+        "Phases".to_owned(),
+        "consecutive runs of the phase column; each phase has its own limits".to_owned(),
+    ));
+    if kind == ControlChartKind::IndividualsMovingRange && phases.len() > 1 {
+        notes.push((
+            "Moving ranges".to_owned(),
+            "computed within each phase; the first observation of a phase has no moving range"
+                .to_owned(),
+        ));
+    }
+    let chart = ControlChart {
+        kind,
+        n: used_observations,
+        excluded,
+        location,
+        dispersion,
+        // With phases the table carries the limits; these are the first phase's
+        // values and keep older code paths well defined.
+        location_limits: phases[0].location,
+        dispersion_limits: phases[0].dispersion,
+        location_steps,
+        dispersion_steps,
+        subgroup_sizes: Vec::new(),
+        dispersion_positions,
+        phases,
+        sigma: base.sigma,
+        subgroup: base.subgroup,
+        tests,
+        cusum: None,
+        ewma: None,
+        signals,
+        notes,
+        warnings,
+    };
     Ok(AnalysisOutput {
         results: vec![report(column, &chart)],
         plot: Some(plot(column, &chart)),
@@ -685,6 +878,8 @@ pub fn variable_subgroup_chart(
         location_steps,
         dispersion_steps,
         subgroup_sizes: sizes.clone(),
+        dispersion_positions: Vec::new(),
+        phases: Vec::new(),
         sigma,
         subgroup: 0,
         tests,
@@ -815,6 +1010,8 @@ pub fn individuals_moving_range_with_tests(
         location_steps: Vec::new(),
         dispersion_steps: Vec::new(),
         subgroup_sizes: Vec::new(),
+        dispersion_positions: Vec::new(),
+        phases: Vec::new(),
         sigma,
         subgroup: 1,
         tests,
@@ -923,6 +1120,8 @@ pub fn ewma_chart_with_options(
         location_steps: Vec::new(),
         dispersion_steps: Vec::new(),
         subgroup_sizes: Vec::new(),
+        dispersion_positions: Vec::new(),
+        phases: Vec::new(),
         sigma,
         subgroup: 1,
         tests,
@@ -1180,6 +1379,8 @@ pub fn cusum_chart_with_options(
         location_steps: Vec::new(),
         dispersion_steps: Vec::new(),
         subgroup_sizes: Vec::new(),
+        dispersion_positions: Vec::new(),
+        phases: Vec::new(),
         sigma,
         subgroup,
         tests: TestSet::none(),
@@ -1309,6 +1510,8 @@ fn subgroup_chart(
         location_steps: Vec::new(),
         dispersion_steps: Vec::new(),
         subgroup_sizes: Vec::new(),
+        dispersion_positions: Vec::new(),
+        phases: Vec::new(),
         sigma,
         subgroup,
         tests,
@@ -1601,23 +1804,38 @@ fn report(column: &str, chart: &ControlChart) -> AnalysisResult {
     );
     result.n = chart.n;
     result.excluded = chart.excluded;
-    result.statistics = vec![
-        ("Center line", chart.location_limits.center),
-        ("Location LCL", chart.location_limits.lcl),
-        ("Location UCL", chart.location_limits.ucl),
-    ];
-    if chart.kind != ControlChartKind::Ewma {
-        result
-            .statistics
-            .push(("Dispersion center line", chart.dispersion_limits.center));
-        result
-            .statistics
-            .push(("Dispersion LCL", chart.dispersion_limits.lcl));
-        result
-            .statistics
-            .push(("Dispersion UCL", chart.dispersion_limits.ucl));
+    let phased = !chart.phases.is_empty();
+    if phased {
+        result.statistics = vec![
+            ("Phases", chart.phases.len() as f64),
+            ("Points", chart.location.len() as f64),
+        ];
+        if chart.subgroup > 1 {
+            result
+                .statistics
+                .push(("Subgroup size", chart.subgroup as f64));
+        }
+    } else {
+        result.statistics = vec![
+            ("Center line", chart.location_limits.center),
+            ("Location LCL", chart.location_limits.lcl),
+            ("Location UCL", chart.location_limits.ucl),
+        ];
     }
-    result.statistics.push(("Sigma estimate", chart.sigma));
+    if !phased {
+        if chart.kind != ControlChartKind::Ewma {
+            result
+                .statistics
+                .push(("Dispersion center line", chart.dispersion_limits.center));
+            result
+                .statistics
+                .push(("Dispersion LCL", chart.dispersion_limits.lcl));
+            result
+                .statistics
+                .push(("Dispersion UCL", chart.dispersion_limits.ucl));
+        }
+        result.statistics.push(("Sigma estimate", chart.sigma));
+    }
     if chart.kind == ControlChartKind::Cusum {
         let cusum = chart.cusum.unwrap_or_default();
         result.statistics = vec![
@@ -1634,7 +1852,7 @@ fn report(column: &str, chart: &ControlChart) -> AnalysisResult {
                 .push(("Subgroups used", chart.location.len() as f64));
         }
     }
-    if chart.subgroup > 1 {
+    if chart.subgroup > 1 && !phased {
         result
             .statistics
             .push(("Subgroup size", chart.subgroup as f64));
@@ -1642,42 +1860,77 @@ fn report(column: &str, chart: &ControlChart) -> AnalysisResult {
             .statistics
             .push(("Subgroups used", chart.location.len() as f64));
     }
-    result.extra.push(Item::Table {
-        headers: vec![
-            "Chart".to_owned(),
-            "Center".to_owned(),
-            "LCL".to_owned(),
-            "UCL".to_owned(),
-            "Points".to_owned(),
-        ],
-        rows: {
-            let mut rows = vec![vec![
-                if chart.kind == ControlChartKind::Cusum {
-                    "Upper CUSUM".to_owned()
-                } else {
-                    "Location".to_owned()
-                },
-                format!("{:.6}", chart.location_limits.center),
-                format!("{:.6}", chart.location_limits.lcl),
-                format!("{:.6}", chart.location_limits.ucl),
-                chart.location.len().to_string(),
-            ]];
-            if chart.kind != ControlChartKind::Ewma {
-                rows.push(vec![
+    if phased {
+        result.extra.push(Item::Table {
+            headers: vec![
+                "Phase".to_owned(),
+                "Start".to_owned(),
+                "Points".to_owned(),
+                "Location CL".to_owned(),
+                "Location LCL".to_owned(),
+                "Location UCL".to_owned(),
+                "Dispersion CL".to_owned(),
+                "Dispersion LCL".to_owned(),
+                "Dispersion UCL".to_owned(),
+                "Sigma".to_owned(),
+            ],
+            rows: chart
+                .phases
+                .iter()
+                .map(|phase| {
+                    vec![
+                        phase.label.clone(),
+                        phase.start.to_string(),
+                        phase.points.to_string(),
+                        format!("{:.6}", phase.location.center),
+                        format!("{:.6}", phase.location.lcl),
+                        format!("{:.6}", phase.location.ucl),
+                        format!("{:.6}", phase.dispersion.center),
+                        format!("{:.6}", phase.dispersion.lcl),
+                        format!("{:.6}", phase.dispersion.ucl),
+                        format!("{:.6}", phase.sigma),
+                    ]
+                })
+                .collect(),
+        });
+    } else {
+        result.extra.push(Item::Table {
+            headers: vec![
+                "Chart".to_owned(),
+                "Center".to_owned(),
+                "LCL".to_owned(),
+                "UCL".to_owned(),
+                "Points".to_owned(),
+            ],
+            rows: {
+                let mut rows = vec![vec![
                     if chart.kind == ControlChartKind::Cusum {
-                        "Lower CUSUM".to_owned()
+                        "Upper CUSUM".to_owned()
                     } else {
-                        "Dispersion".to_owned()
+                        "Location".to_owned()
                     },
-                    format!("{:.6}", chart.dispersion_limits.center),
-                    format!("{:.6}", chart.dispersion_limits.lcl),
-                    format!("{:.6}", chart.dispersion_limits.ucl),
-                    chart.dispersion.len().to_string(),
-                ]);
-            }
-            rows
-        },
-    });
+                    format!("{:.6}", chart.location_limits.center),
+                    format!("{:.6}", chart.location_limits.lcl),
+                    format!("{:.6}", chart.location_limits.ucl),
+                    chart.location.len().to_string(),
+                ]];
+                if chart.kind != ControlChartKind::Ewma {
+                    rows.push(vec![
+                        if chart.kind == ControlChartKind::Cusum {
+                            "Lower CUSUM".to_owned()
+                        } else {
+                            "Dispersion".to_owned()
+                        },
+                        format!("{:.6}", chart.dispersion_limits.center),
+                        format!("{:.6}", chart.dispersion_limits.lcl),
+                        format!("{:.6}", chart.dispersion_limits.ucl),
+                        chart.dispersion.len().to_string(),
+                    ]);
+                }
+                rows
+            },
+        });
+    }
     if !chart.subgroup_sizes.is_empty() {
         result.extra.push(Item::Table {
             headers: vec![
@@ -1819,6 +2072,7 @@ fn plot(column: &str, chart: &ControlChart) -> PlotSpec {
     let location = control_panel(
         &chart.location,
         1,
+        &[],
         chart.location_limits,
         &chart.location_steps,
         location_label,
@@ -1829,6 +2083,7 @@ fn plot(column: &str, chart: &ControlChart) -> PlotSpec {
         return control_panel(
             &chart.location,
             1,
+            &[],
             chart.location_limits,
             &chart.location_steps,
             "EWMA",
@@ -1843,6 +2098,7 @@ fn plot(column: &str, chart: &ControlChart) -> PlotSpec {
         } else {
             1
         },
+        &chart.dispersion_positions,
         chart.dispersion_limits,
         &chart.dispersion_steps,
         dispersion_label,
@@ -1857,6 +2113,7 @@ fn plot(column: &str, chart: &ControlChart) -> PlotSpec {
         control_panel(
             &chart.location,
             1,
+            &[],
             chart.location_limits,
             &chart.location_steps,
             location_label,
@@ -1866,17 +2123,26 @@ fn plot(column: &str, chart: &ControlChart) -> PlotSpec {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn control_panel(
     values: &[f64],
     start: usize,
+    positions: &[usize],
     limits: Limits,
     steps: &[Limits],
     title: &str,
     x_label: &str,
     y_label: &str,
 ) -> PlotSpec {
-    let x_min = start as f64;
-    let x_max = (start + values.len().saturating_sub(1)) as f64;
+    let xs: Vec<f64> = if positions.len() == values.len() && !positions.is_empty() {
+        positions.iter().map(|position| *position as f64).collect()
+    } else {
+        (start..start + values.len())
+            .map(|index| index as f64)
+            .collect()
+    };
+    let x_min = xs.first().copied().unwrap_or(start as f64);
+    let x_max = xs.last().copied().unwrap_or(x_min);
     let mut y_min = values.iter().copied().fold(limits.lcl, f64::min);
     let mut y_max = values.iter().copied().fold(limits.ucl, f64::max);
     for step in steps {
@@ -1897,9 +2163,9 @@ fn control_panel(
             .collect()
     } else {
         let mut lines = Vec::with_capacity(steps.len() * 6);
-        for index in 0..steps.len() {
-            let x0 = (start + index) as f64;
-            let x1 = x0 + 1.0;
+        for index in 0..steps.len().min(xs.len()) {
+            let x0 = xs[index] - 0.5;
+            let x1 = xs[index] + 0.5;
             for y in [steps[index].center, steps[index].lcl, steps[index].ucl] {
                 lines.push(Segment {
                     from: Point { x: x0, y },
@@ -1907,7 +2173,7 @@ fn control_panel(
                     width: 1.5,
                 });
             }
-            if index + 1 < steps.len() {
+            if index + 1 < steps.len().min(xs.len()) && xs[index + 1] - xs[index] <= 1.0 {
                 for (current, next) in [
                     (steps[index].center, steps[index + 1].center),
                     (steps[index].lcl, steps[index + 1].lcl),
@@ -1934,7 +2200,7 @@ fn control_panel(
             .iter()
             .enumerate()
             .map(|(index, value)| Point {
-                x: (start + index) as f64,
+                x: xs[index],
                 y: *value,
             })
             .collect(),
@@ -2077,6 +2343,145 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn phases_get_their_own_limits() {
+        let values = vec![10.0, 10.2, 9.8, 10.1, 20.0, 20.2, 19.8, 20.1];
+        let phases = vec![
+            "before".to_owned(),
+            "before".to_owned(),
+            "before".to_owned(),
+            "before".to_owned(),
+            "after".to_owned(),
+            "after".to_owned(),
+            "after".to_owned(),
+            "after".to_owned(),
+        ];
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", values),
+            Column::new_text("phase", phases),
+        ])
+        .expect("frame");
+        let out = analyze_with_phase(
+            &df,
+            "weight",
+            ControlChartKind::IndividualsMovingRange,
+            1,
+            TestSet::default(),
+            "phase",
+        )
+        .expect("phased chart");
+        let chart = &out.results[0];
+        let text = chart.to_session_text();
+        assert!(text.contains("Phases"), "{text}");
+        assert!(text.contains("before"), "{text}");
+        assert!(text.contains("after"), "{text}");
+        assert!(text.contains("Location CL"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.panels.len(), 2);
+        // Both moving-range series skip the boundary: positions 2,3,4 and 6,7,8.
+        let dispersion_x: Vec<f64> = plot.panels[1].points.iter().map(|point| point.x).collect();
+        assert_eq!(dispersion_x, vec![2.0, 3.0, 4.0, 6.0, 7.0, 8.0]);
+        // The location chart has every observation, with stepped limits.
+        let location_x: Vec<f64> = plot.panels[0].points.iter().map(|point| point.x).collect();
+        assert_eq!(location_x, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        assert!(
+            plot.panels[0].lines.len() > 3,
+            "the limits must change at the phase boundary"
+        );
+    }
+
+    #[test]
+    fn phases_are_checked_and_not_applied_to_ewma() {
+        let values = vec![10.0, 11.0, 20.0, 21.0];
+        let phases = vec![
+            "a".to_owned(),
+            "a".to_owned(),
+            "b".to_owned(),
+            "b".to_owned(),
+        ];
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", values),
+            Column::new_text("phase", phases),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            analyze_with_phase(
+                &df,
+                "weight",
+                ControlChartKind::Ewma,
+                1,
+                TestSet::default(),
+                "phase"
+            ),
+            Err(Error::Unsupported(_))
+        ));
+        // A phase with a single point has no moving range.
+        let single = DataFrame::new(vec![
+            Column::new_f64("weight", vec![10.0, 12.0, 20.0]),
+            Column::new_text(
+                "phase",
+                vec!["a".to_owned(), "a".to_owned(), "b".to_owned()],
+            ),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            analyze_with_phase(
+                &single,
+                "weight",
+                ControlChartKind::IndividualsMovingRange,
+                1,
+                TestSet::default(),
+                "phase"
+            ),
+            Err(Error::Unsupported(_))
+        ));
+        // A missing phase column is the usual column error.
+        assert!(matches!(
+            analyze_with_phase(
+                &df,
+                "weight",
+                ControlChartKind::IndividualsMovingRange,
+                1,
+                TestSet::default(),
+                "nope"
+            ),
+            Err(Error::ColumnNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn subgroup_phases_keep_their_own_limits() {
+        let values: Vec<f64> = vec![
+            10.0, 10.2, 9.8, 10.1, 10.3, 9.9, // two subgroups of 3
+            20.0, 20.2, 19.8, 20.1, 20.3, 19.9,
+        ];
+        let phases: Vec<String> = std::iter::repeat_n("before".to_owned(), 6)
+            .chain(std::iter::repeat_n("after".to_owned(), 6))
+            .collect();
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", values),
+            Column::new_text("phase", phases),
+        ])
+        .expect("frame");
+        let out = analyze_with_phase(
+            &df,
+            "weight",
+            ControlChartKind::XbarR,
+            3,
+            TestSet::default(),
+            "phase",
+        )
+        .expect("phased Xbar-R");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Subgroup size"), "{text}");
+        assert!(text.contains("before"), "{text}");
+        let plot = out.plot.expect("plot");
+        // Two subgroups per phase, with four sets of limits.
+        assert_eq!(plot.panels[0].points.len(), 4);
+        assert!(plot.panels[0].lines.len() > 3);
+        assert_eq!(plot.panels[1].points.len(), 4);
     }
 
     #[test]

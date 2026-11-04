@@ -672,6 +672,64 @@ fn logistic_and_loglogistic_capability_run_from_the_cli() {
 }
 
 #[test]
+fn a_phased_control_chart_runs_from_the_cli() {
+    let dir = temp_dir("control-chart-phases");
+    let csv = dir.join("phased.csv");
+    fs::write(
+        &csv,
+        "weight;phase\n10;before\n10,2;before\n9,8;before\n10,1;before\n\
+         20;after\n20,2;after\n19,8;after\n20,1;after\n",
+    )
+    .expect("write csv");
+
+    let out = Command::new(bin())
+        .args([
+            "controlchart",
+            csv.to_str().expect("utf8"),
+            "--column",
+            "weight",
+            "--chart",
+            "imr",
+            "--phase",
+            "phase",
+        ])
+        .output()
+        .expect("run binary");
+
+    assert!(
+        out.status.success(),
+        "failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Phases"), "{session}");
+    assert!(session.contains("before"), "{session}");
+    assert!(session.contains("after"), "{session}");
+
+    // The phase column is only meaningful for the variable charts.
+    let rejected = Command::new(bin())
+        .args([
+            "controlchart",
+            csv.to_str().expect("utf8"),
+            "--column",
+            "weight",
+            "--chart",
+            "ewma",
+            "--phase",
+            "phase",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(!rejected.status.success());
+    assert!(
+        String::from_utf8_lossy(&rejected.stderr).contains("--phase"),
+        "{}",
+        String::from_utf8_lossy(&rejected.stderr)
+    );
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn control_chart_runs_from_the_cli_and_exports_svg() {
     let dir = temp_dir("control-chart");
     let csv = dir.join("weights.csv");

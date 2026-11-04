@@ -17,7 +17,9 @@ use std::collections::BTreeMap;
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
-use crate::plot::{AxisSpec, Band, PlotSpec, Point, Scale, Segment, Series, Tick, linear_axis};
+use crate::plot::{
+    AxisSpec, Band, PlotNote, PlotSpec, Point, Scale, Segment, Series, Tick, linear_axis,
+};
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::workflow::AnalysisOutput;
 
@@ -399,9 +401,30 @@ fn build(model: Pareto, column_name: &str, weight: Option<&str>) -> Result<Analy
          captured output"
             .to_owned(),
     );
+    let mut chart = plot(&model);
+    chart.notes.push(PlotNote::new(vec![
+        ("Categories", model.categories.len().to_string()),
+        (
+            if model.weighted {
+                "Total weight"
+            } else {
+                "Total"
+            },
+            if model.weighted {
+                format!("{:.3}", model.total)
+            } else {
+                format!("{:.0}", model.total)
+            },
+        ),
+        ("Vital few", model.vital_few.to_string()),
+        (
+            "Largest share",
+            format!("{:.2}%", model.percents.first().copied().unwrap_or(0.0)),
+        ),
+    ]));
     Ok(AnalysisOutput {
         results: vec![result],
-        plot: Some(plot(&model)),
+        plot: Some(chart),
     })
 }
 
@@ -573,5 +596,12 @@ mod tests {
         // The category names are the ticks of the x axis.
         assert!(svg.contains(">scratch<"), "the category tick is missing");
         assert_eq!(plot.x_axis.label, "Category");
+        // The block on the right carries the summary of the report.
+        let note = plot.notes.first().expect("summary note");
+        let labels: Vec<&str> = note.rows.iter().map(|row| row.label.as_str()).collect();
+        assert!(labels.contains(&"Categories"));
+        assert!(labels.contains(&"Total"));
+        assert!(labels.contains(&"Vital few"));
+        assert!(labels.contains(&"Largest share"));
     }
 }

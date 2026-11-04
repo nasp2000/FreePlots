@@ -424,12 +424,12 @@ pub struct PlotNote {
 impl PlotNote {
     /// A note of label/value rows.
     #[must_use]
-    pub fn new(rows: Vec<(&str, String)>) -> Self {
+    pub fn new<S: Into<String>>(rows: Vec<(S, String)>) -> Self {
         Self {
             rows: rows
                 .into_iter()
                 .map(|(label, value)| NoteRow {
-                    label: label.to_owned(),
+                    label: label.into(),
                     value,
                 })
                 .collect(),
@@ -2193,6 +2193,53 @@ pub struct GraphOverlay {
     /// Free text placed inside the plot area, in frame fractions.
     #[serde(default)]
     pub annotations: Vec<Annotation>,
+    /// Grid lines behind the data (on by default).
+    #[serde(default = "default_true")]
+    pub grid: bool,
+    /// Labels drawn next to each point.
+    #[serde(default)]
+    pub data_labels: Option<DataLabelMode>,
+}
+
+/// How the labels added by the graph editor describe a point.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum DataLabelMode {
+    /// The y value of the point.
+    #[default]
+    YValue,
+    /// One-based position of the point in the plot.
+    Index,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Colour of a free text annotation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum AnnotationColor {
+    /// Near-black.
+    #[default]
+    Black,
+    /// Dark red.
+    Red,
+    /// Dark blue.
+    Blue,
+    /// Dark green.
+    Green,
+}
+
+impl AnnotationColor {
+    /// Colour used in the SVG.
+    #[must_use]
+    pub fn hex(self) -> &'static str {
+        match self {
+            Self::Black => "#222222",
+            Self::Red => "#b02a37",
+            Self::Blue => "#1f4e79",
+            Self::Green => "#2e7d32",
+        }
+    }
 }
 
 /// Free text placed on a graph at a fraction of the plot area.
@@ -2204,6 +2251,32 @@ pub struct Annotation {
     pub x: f32,
     /// Vertical position, 0 = top edge and 1 = bottom edge.
     pub y: f32,
+    /// Text size in points.
+    #[serde(default = "default_annotation_size")]
+    pub size: f32,
+    /// Text colour.
+    #[serde(default)]
+    pub color: AnnotationColor,
+    /// Rotation in degrees (clockwise).
+    #[serde(default)]
+    pub angle: f32,
+}
+
+fn default_annotation_size() -> f32 {
+    12.0
+}
+
+impl Default for Annotation {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            x: 0.05,
+            y: 0.05,
+            size: 12.0,
+            color: AnnotationColor::Black,
+            angle: 0.0,
+        }
+    }
 }
 
 fn default_font_scale() -> f32 {
@@ -2219,6 +2292,8 @@ impl Default for GraphOverlay {
             font_family: GraphFontFamily::Sans,
             font_scale: 1.0,
             annotations: Vec::new(),
+            grid: true,
+            data_labels: None,
         }
     }
 }
@@ -2325,9 +2400,11 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     let w = f64::from(spec.size.0);
     let h = f64::from(spec.size.1);
     // The statistics blocks live in a right-hand margin of their own: the plot
-    // area gets narrower instead of the numbers sitting over the data.
+    // area gets narrower instead of the numbers sitting over the data. A
+    // secondary axis keeps its tick labels and title before that margin.
     let gutter = note_gutter(&spec.notes, overlay.font_scale());
-    let pw = w - ML - 30.0 - gutter;
+    let secondary_room = if spec.secondary.is_some() { 40.0 } else { 0.0 };
+    let pw = w - ML - 30.0 - secondary_room - gutter;
     let ph = h - MT - MB;
 
     let (x0, x1) = (spec.x_axis.min, spec.x_axis.max);
@@ -2386,10 +2463,12 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     // Grid and ticks come from the engine-owned axis descriptions.
     for tick in &spec.x_axis.ticks {
         let px = sx(tick.position);
-        s.push_str(&format!(
-            "<line x1=\"{px:.1}\" y1=\"{MT:.1}\" x2=\"{px:.1}\" y2=\"{:.1}\" stroke=\"#e6e6e6\" stroke-width=\"1\"/>\n",
-            MT + ph
-        ));
+        if overlay.grid {
+            s.push_str(&format!(
+                "<line x1=\"{px:.1}\" y1=\"{MT:.1}\" x2=\"{px:.1}\" y2=\"{:.1}\" stroke=\"#e6e6e6\" stroke-width=\"1\"/>\n",
+                MT + ph
+            ));
+        }
         s.push_str(&format!(
             "<line x1=\"{px:.1}\" y1=\"{:.1}\" x2=\"{px:.1}\" y2=\"{:.1}\" stroke=\"#000000\" stroke-width=\"1\"/>\n",
             MT + ph,
@@ -2404,10 +2483,12 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
 
     for tick in &spec.y_axis.ticks {
         let py = sy(tick.position);
-        s.push_str(&format!(
-            "<line x1=\"{ML:.1}\" y1=\"{py:.1}\" x2=\"{:.1}\" y2=\"{py:.1}\" stroke=\"#e6e6e6\" stroke-width=\"1\"/>\n",
-            ML + pw
-        ));
+        if overlay.grid {
+            s.push_str(&format!(
+                "<line x1=\"{ML:.1}\" y1=\"{py:.1}\" x2=\"{:.1}\" y2=\"{py:.1}\" stroke=\"#e6e6e6\" stroke-width=\"1\"/>\n",
+                ML + pw
+            ));
+        }
         s.push_str(&format!(
             "<line x1=\"{:.1}\" y1=\"{py:.1}\" x2=\"{ML:.1}\" y2=\"{py:.1}\" stroke=\"#000000\" stroke-width=\"1\"/>\n",
             ML - 5.0
@@ -2437,9 +2518,9 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         }
         s.push_str(&format!(
             "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"11\" fill=\"#333333\" text-anchor=\"middle\" transform=\"rotate(90 {:.1} {:.1})\">{}</text>\n",
-            w - 8.0,
+            ML + pw + 30.0,
             MT + ph / 2.0,
-            w - 8.0,
+            ML + pw + 30.0,
             MT + ph / 2.0,
             escape_xml(&axis.label)
         ));
@@ -2563,7 +2644,7 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         let chars = note_char_width(note) as f64;
         let scale = f64::from(overlay.font_scale());
         let content_w = chars * 6.5 * scale;
-        let left = ML + pw + 12.0;
+        let left = ML + pw + 12.0 + secondary_room;
         let right = left + content_w;
         let line_h = 15.0 * scale;
         let mut line_y = note_top + 10.0;
@@ -2631,18 +2712,39 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         let left = ML + x;
         let top = MT + y;
         let chars = annotation.text.chars().count() as f64;
-        let box_w = chars * 6.5 * scale + 8.0;
-        let box_h = 15.0 * scale + 4.0;
+        let size = f64::from(annotation.size.clamp(6.0, 48.0)) * scale;
+        let box_w = chars * size * 0.55 + 8.0;
+        let box_h = size + 4.0;
+        if annotation.angle.abs() < 1e-6 {
+            s.push_str(&format!(
+                "<rect x=\"{:.1}\" y=\"{:.1}\" width=\"{box_w:.1}\" height=\"{box_h:.1}\" rx=\"2\" fill=\"#ffffff\" fill-opacity=\"0.85\"/>\n",
+                left - 2.0,
+                top - 2.0
+            ));
+        }
         s.push_str(&format!(
-            "<rect x=\"{:.1}\" y=\"{:.1}\" width=\"{box_w:.1}\" height=\"{box_h:.1}\" rx=\"2\" fill=\"#ffffff\" fill-opacity=\"0.85\"/>\n",
-            left - 2.0,
-            top - 2.0
-        ));
-        s.push_str(&format!(
-            "<text x=\"{left:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222222\">{}</text>\n",
-            top + 11.0 * scale,
+            "<text x=\"{left:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"{size:.1}\" fill=\"{}\" transform=\"rotate({:.1} {left:.1} {:.1})\">{}</text>\n",
+            top + size,
+            annotation.color.hex(),
+            annotation.angle,
+            top + size,
             escape_xml(&annotation.text)
         ));
+    }
+
+    if let Some(mode) = overlay.data_labels {
+        for (index, point) in spec.points.iter().enumerate() {
+            let label = match mode {
+                DataLabelMode::YValue => format!("{:.4}", point.y),
+                DataLabelMode::Index => (index + 1).to_string(),
+            };
+            s.push_str(&format!(
+                "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"sans-serif\" font-size=\"10\" fill=\"#333333\">{}</text>\n",
+                sx(point.x) + 5.0,
+                sy(point.y) - 5.0,
+                escape_xml(&label)
+            ));
+        }
     }
 
     let x_label_y = if overlay.footer.is_some() {
@@ -2735,6 +2837,8 @@ fn render_panels_svg(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         font_family: overlay.font_family,
         font_scale: overlay.font_scale,
         annotations: overlay.annotations.clone(),
+        grid: overlay.grid,
+        data_labels: overlay.data_labels,
     };
 
     let mut s = String::with_capacity(8192);
@@ -3335,6 +3439,35 @@ mod tests {
     }
 
     #[test]
+    fn data_labels_grid_and_annotation_style_reach_the_svg() {
+        let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
+        let fit = Normal::fit_moments(&sample).unwrap();
+        let plot = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
+        let spec = PlotSpec::normal_probability(&plot, &fit, "Normal");
+        let overlay = GraphOverlay {
+            grid: false,
+            data_labels: Some(DataLabelMode::YValue),
+            annotations: vec![Annotation {
+                text: "marked".to_owned(),
+                x: 0.2,
+                y: 0.3,
+                size: 16.0,
+                color: AnnotationColor::Red,
+                angle: 90.0,
+            }],
+            ..GraphOverlay::default()
+        };
+        let svg = render_svg_with(&spec, &overlay);
+        assert!(!svg.contains("#e6e6e6"), "the grid must be off");
+        assert!(svg.contains("font-size=\"16.0\""), "{svg}");
+        assert!(svg.contains("fill=\"#b02a37\""));
+        assert!(svg.contains("rotate(90"));
+        // One label per point, as a y value with four decimals.
+        let labels = svg.matches("fill=\"#333333\">").count();
+        assert!(labels >= spec.points.len(), "{labels} labels");
+    }
+
+    #[test]
     fn notes_are_drawn_beside_the_frame() {
         let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
         let fit = Normal::fit_moments(&sample).unwrap();
@@ -3403,12 +3536,14 @@ mod tests {
                     text: "line <A>".to_owned(),
                     x: 0.5,
                     y: 0.2,
+                    ..Annotation::default()
                 },
                 Annotation {
                     text: "fixed".to_owned(),
                     // Out-of-range fractions are clamped to the plot.
                     x: 4.0,
                     y: -1.0,
+                    ..Annotation::default()
                 },
             ],
             ..GraphOverlay::default()

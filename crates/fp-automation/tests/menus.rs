@@ -74,8 +74,8 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
     ui.open_menu(&["Graph"]).expect("open the Graph menu");
     let labels: Vec<String> = ui.widgets().into_iter().filter_map(|w| w.label).collect();
     for gone in [
-        "Edit graph labels…",
-        "Add reference line…",
+        "Graph options…",
+        "Add reference lines…",
         "Save graph…",
         "Copy graph as SVG",
         "Reset graph edits",
@@ -104,7 +104,7 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
     ui.right_click_at(centre);
     let menu: Vec<String> = ui.widgets().into_iter().filter_map(|w| w.label).collect();
     assert!(
-        menu.iter().any(|label| label == "Edit graph labels…"),
+        menu.iter().any(|label| label == "Graph options…"),
         "the context menu did not open: {menu:?}"
     );
     assert!(
@@ -112,9 +112,23 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
         "the text style entry is missing from the context menu: {menu:?}"
     );
     assert!(
-        menu.iter().any(|label| label == "Add text…"),
+        menu.iter().any(|label| label == "Add note…"),
         "the annotation entry is missing from the context menu: {menu:?}"
     );
+    assert!(
+        menu.iter().any(|label| label == "Clear marks"),
+        "the brush reset is missing from the context menu: {menu:?}"
+    );
+    for entry in [
+        "Add data labels…",
+        "Add percentile lines…",
+        "Toggle gridlines",
+    ] {
+        assert!(
+            menu.iter().any(|label| label == entry),
+            "{entry} is missing from the context menu: {menu:?}"
+        );
+    }
     // The text style dialog opens from the same menu.
     ui.click("Graph text…").expect("open the text dialog");
     assert!(
@@ -125,12 +139,12 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
     ui.click("Cancel").expect("cancel the text dialog");
     // The menu closed with the dialog; open it again for the next edit.
     ui.right_click_at(centre);
-    ui.click("Edit graph labels…").expect("open the editor");
+    ui.click("Graph options…").expect("open the editor");
     ui.set_text("Subtitle", "Night shift")
         .expect("set the subtitle");
     ui.click("Apply").expect("apply the labels");
     assert!(
-        ui.status().contains("Graph labels updated"),
+        ui.status().contains("Graph options updated"),
         "{}",
         ui.status()
     );

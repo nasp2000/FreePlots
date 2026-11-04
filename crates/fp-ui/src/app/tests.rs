@@ -5503,6 +5503,26 @@ fn the_cell_editor_commits_and_moves_with_the_arrows() {
 }
 
 #[test]
+fn cells_past_the_eighth_column_can_be_written() {
+    let mut app = FreePlotsApp::new();
+    assert_eq!(app.data().map(DataFrame::n_columns), Some(8));
+    // The grid shows 26 columns; the ones past the data become real when used.
+    app.ensure_columns(9);
+    assert_eq!(app.data().map(DataFrame::n_columns), Some(9));
+    app.select_cell(8, 0);
+    assert_eq!(app.selected_column(), Some("C9"));
+    app.begin_inline_edit_with(8, 0, "5");
+    assert!(app.commit_inline_edit());
+    assert_eq!(
+        app.data().and_then(|df| df.cell_text(8, 0)),
+        Some("5".to_owned())
+    );
+    // Asking for an earlier width changes nothing.
+    app.ensure_columns(3);
+    assert_eq!(app.data().map(DataFrame::n_columns), Some(9));
+}
+
+#[test]
 fn the_headers_select_the_column_the_row_and_the_sheet() {
     use egui_kittest::{Harness, kittest::Queryable};
 
@@ -5856,6 +5876,37 @@ fn conditional_rules_apply_to_the_worksheet_and_persist() {
 }
 
 #[test]
+fn a_control_chart_can_use_a_phase_column() {
+    let mut app = FreePlotsApp::new();
+    let values = vec![10.0, 10.2, 9.8, 10.1, 20.0, 20.2, 19.8, 20.1];
+    let phases: Vec<String> = std::iter::repeat_n("before".to_owned(), 4)
+        .chain(std::iter::repeat_n("after".to_owned(), 4))
+        .collect();
+    let df = DataFrame::new(vec![
+        Column::new_f64("weight", values),
+        Column::new_text("phase", phases),
+    ])
+    .expect("frame");
+    app.set_data(df, "phased.csv".to_owned());
+    app.chart_phase_column = "phase".to_owned();
+    app.run_control_chart_with_options(
+        "weight",
+        fp_core::spc::ControlChartKind::IndividualsMovingRange,
+        1,
+        fp_core::spc::TestSet::default(),
+        fp_core::spc::CusumOptions::default(),
+        fp_core::spc::EwmaOptions::default(),
+    );
+    assert!(app.error.is_none(), "{:?}", app.error);
+    let text = app.session_text();
+    assert!(text.contains("Phases"), "{text}");
+    assert!(text.contains("after"), "{text}");
+    assert!(app.plot().is_some());
+    // The phase column is cleared when a chart family without phases runs.
+    app.chart_phase_column.clear();
+}
+
+#[test]
 fn the_graph_text_choices_apply_and_persist() {
     let dir = std::env::temp_dir().join(format!("fp-graph-text-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("dir");
@@ -5926,6 +5977,100 @@ fn the_graph_text_choices_apply_and_persist() {
 }
 
 #[test]
+fn marks_are_cleared_by_the_graph_action() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("plot");
+    app.brush_marks.lock().expect("marks").push((2, 0));
+    assert_eq!(app.brush_marks.lock().expect("marks").len(), 1);
+    let ctx = egui::Context::default();
+    app.apply_graph_action(&ctx, crate::app::graph_edit::GraphAction::ClearMarks);
+    assert!(app.brush_marks.lock().expect("marks").is_empty());
+    assert_eq!(app.status, "Marks cleared");
+    // A new analysis clears any mark from the previous graph.
+    app.brush_marks.lock().expect("marks").push((0, 0));
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("plot");
+    assert!(app.brush_marks.lock().expect("marks").is_empty());
+}
+
+#[test]
+fn data_labels_percentiles_layout_and_grid_are_editable() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("plot");
+
+    // Data labels: y value, then removed.
+    app.open_data_labels();
+    app.data_label_mode = fp_core::plot::DataLabelMode::Index;
+    app.apply_data_labels(false);
+    assert_eq!(
+        app.graph_overlay.data_labels,
+        Some(fp_core::plot::DataLabelMode::Index)
+    );
+    app.open_data_labels();
+    app.apply_data_labels(true);
+    assert_eq!(app.graph_overlay.data_labels, None);
+
+    // Percentile lines at the 50th percentile are added as reference lines.
+    app.open_percentiles();
+    app.percentile_axis = fp_core::plot::ReferenceAxis::Horizontal;
+    app.percentile_values = "50".to_owned();
+    app.add_percentile_lines();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    let line = app
+        .graph_overlay
+        .reference_lines
+        .last()
+        .expect("percentile line");
+    assert_eq!(line.label.as_deref(), Some("P50"));
+    assert!((line.value - 0.0).abs() < 1e-6, "median z = {}", line.value);
+    // An invalid percentile is refused.
+    app.open_percentiles();
+    app.percentile_values = "101".to_owned();
+    app.add_percentile_lines();
+    assert!(app.error.is_some());
+
+    // Gridlines toggle.
+    let before = app.graph_overlay.grid;
+    app.apply_graph_action(
+        &egui::Context::default(),
+        crate::app::graph_edit::GraphAction::GridToggle,
+    );
+    assert_ne!(app.graph_overlay.grid, before);
+
+    // Panel layout only works on a panel graph.
+    app.open_panel_layout();
+    assert!(app.error.is_some(), "a single plot has no panels");
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::control_chart(
+            "weight",
+            fp_core::spc::ControlChartKind::IndividualsMovingRange,
+            1,
+        ),
+        "I-MR".to_owned(),
+    )
+    .expect("chart");
+    app.open_panel_layout();
+    app.panel_columns_draft = 2;
+    app.apply_panel_layout();
+    assert_eq!(app.plot().map(|plot| plot.panel_columns), Some(2));
+    assert_eq!(app.status, "Panel layout: 2 column(s)");
+}
+
+#[test]
 fn graph_annotations_are_placed_and_kept() {
     let dir = std::env::temp_dir().join(format!("fp-annotation-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("dir");
@@ -5947,6 +6092,9 @@ fn graph_annotations_are_placed_and_kept() {
     app.annotation_text = "Night shift".to_owned();
     app.annotation_x = 50.0;
     app.annotation_y = 25.0;
+    app.annotation_size = 16.0;
+    app.annotation_color = fp_core::plot::AnnotationColor::Red;
+    app.annotation_angle = 90.0;
     app.add_graph_annotation();
     assert!(app.error.is_none(), "{:?}", app.error);
     assert_eq!(app.graph_overlay.annotations.len(), 1);
@@ -5954,7 +6102,10 @@ fn graph_annotations_are_placed_and_kept() {
     assert_eq!(annotation.text, "Night shift");
     assert!((annotation.x - 0.5).abs() < 1e-6);
     assert!((annotation.y - 0.25).abs() < 1e-6);
-    assert_eq!(app.status, "Text added to the graph");
+    assert!((annotation.size - 16.0).abs() < 1e-6);
+    assert_eq!(annotation.color, fp_core::plot::AnnotationColor::Red);
+    assert!((annotation.angle - 90.0).abs() < 1e-6);
+    assert_eq!(app.status, "Note added to the graph");
 
     // The placement reaches the SVG and survives a restart.
     let svg = fp_core::plot::render_svg_with(app.plot().expect("plot"), app.graph_overlay());

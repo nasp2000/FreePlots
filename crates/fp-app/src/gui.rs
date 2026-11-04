@@ -384,6 +384,9 @@ impl Desktop {
                 if let Some(group) = request.get("subgroup_column").and_then(Value::as_str) {
                     spec = spec.with_subgroup_column(Some(group.to_owned()));
                 }
+                if let Some(phase) = request.get("phase_column").and_then(Value::as_str) {
+                    spec = spec.with_phase_column(Some(phase.to_owned()));
+                }
                 self.reply_spec(spec, format!("Control chart: {column}"))
             }
             "regression" => {

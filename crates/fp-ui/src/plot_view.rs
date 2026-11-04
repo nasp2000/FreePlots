@@ -21,6 +21,19 @@ pub fn show(ui: &mut egui::Ui, spec: &PlotSpec) -> egui::Response {
 
 /// Draws a plot with the presentation edits (subtitle, footer, reference lines).
 pub fn show_with(ui: &mut egui::Ui, spec: &PlotSpec, overlay: &GraphOverlay) -> egui::Response {
+    let mut marks = Vec::new();
+    show_with_marks(ui, spec, overlay, &mut marks)
+}
+
+/// Draws the plot and lets Ctrl+click mark (brush) single points, as the
+/// reference graph editor does. The marks are plain indices into
+/// [`PlotSpec::points`]; the caller keeps them between frames.
+pub fn show_with_marks(
+    ui: &mut egui::Ui,
+    spec: &PlotSpec,
+    overlay: &GraphOverlay,
+    marks: &mut Vec<(usize, usize)>,
+) -> egui::Response {
     let available = ui.available_size();
     let width = available.x.max(320.0);
     let visible_height = if available.y.is_finite() && available.y > 0.0 {
@@ -55,8 +68,55 @@ pub fn show_with(ui: &mut egui::Ui, spec: &PlotSpec, overlay: &GraphOverlay) -> 
     // this response (right-click anywhere over the plot).
     let (response, painter) = ui.allocate_painter(canvas, Sense::click());
     let rect = egui::Rect::from_center_size(response.rect.center(), frame);
-    paint(&painter, rect, spec, Some(overlay));
+    let plot = paint(&painter, rect, spec, Some(overlay));
+    if spec.panels.is_empty() {
+        let ctrl = ui.input(|input| input.modifiers.command || input.modifiers.ctrl);
+        if ctrl
+            && response.clicked()
+            && let Some(position) = response.interact_pointer_pos()
+            && let Some(index) = nearest_point(plot, spec, position)
+        {
+            if let Some(at) = marks.iter().position(|(point, _)| *point == index) {
+                marks.remove(at);
+            } else {
+                marks.push((index, 0));
+            }
+        }
+        for (index, _) in marks.iter() {
+            if let Some(point) = spec.points.get(*index) {
+                let x0 = spec.x_axis.min;
+                let y0 = spec.y_axis.min;
+                let xspan = (spec.x_axis.max - x0).abs().max(f64::MIN_POSITIVE);
+                let yspan = (spec.y_axis.max - y0).abs().max(f64::MIN_POSITIVE);
+                let x = plot.left() + ((point.x - x0) / xspan) as f32 * plot.width();
+                let y = plot.bottom() - ((point.y - y0) / yspan) as f32 * plot.height();
+                painter.circle_stroke(
+                    pos2(x, y),
+                    6.0,
+                    Stroke::new(2.0, Color32::from_rgb(198, 64, 0)),
+                );
+            }
+        }
+    }
     response
+}
+
+/// Index of the data point nearest to `position`, within a few pixels.
+fn nearest_point(plot: Rect, spec: &PlotSpec, position: Pos2) -> Option<usize> {
+    let x0 = spec.x_axis.min;
+    let y0 = spec.y_axis.min;
+    let xspan = (spec.x_axis.max - x0).abs().max(f64::MIN_POSITIVE);
+    let yspan = (spec.y_axis.max - y0).abs().max(f64::MIN_POSITIVE);
+    let mut best: Option<(f32, usize)> = None;
+    for (index, point) in spec.points.iter().enumerate() {
+        let x = plot.left() + ((point.x - x0) / xspan) as f32 * plot.width();
+        let y = plot.bottom() - ((point.y - y0) / yspan) as f32 * plot.height();
+        let distance = (x - position.x).hypot(y - position.y);
+        if distance <= 10.0 && best.is_none_or(|(current, _)| distance < current) {
+            best = Some((distance, index));
+        }
+    }
+    best.map(|(_, index)| index)
 }
 
 /// Font for the text drawn on a graph, applying the typeface and scale the
@@ -73,10 +133,15 @@ fn graph_font(size: f32, overlay: Option<&GraphOverlay>) -> FontId {
     FontId::new(overlay.text_size(size), family)
 }
 
-fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&GraphOverlay>) {
+fn paint(
+    painter: &egui::Painter,
+    rect: Rect,
+    spec: &PlotSpec,
+    overlay: Option<&GraphOverlay>,
+) -> Rect {
     if !spec.panels.is_empty() {
         paint_panels(painter, rect, spec, overlay);
-        return;
+        return rect;
     }
     painter.rect_filled(rect, 0.0, Color32::WHITE);
 
@@ -208,7 +273,9 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     }
     for t in &spec.x_axis.ticks {
         let px = sx(t.position);
-        painter.line_segment([pos2(px, plot.top()), pos2(px, plot.bottom())], grid);
+        if overlay.is_none_or(|overlay| overlay.grid) {
+            painter.line_segment([pos2(px, plot.top()), pos2(px, plot.bottom())], grid);
+        }
         painter.text(
             pos2(px, plot.bottom() + 5.0),
             Align2::CENTER_TOP,
@@ -219,7 +286,9 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     }
     for t in &spec.y_axis.ticks {
         let py = sy(t.position);
-        painter.line_segment([pos2(plot.left(), py), pos2(plot.right(), py)], grid);
+        if overlay.is_none_or(|overlay| overlay.grid) {
+            painter.line_segment([pos2(plot.left(), py), pos2(plot.right(), py)], grid);
+        }
         painter.text(
             pos2(plot.left() - 6.0, py),
             Align2::RIGHT_CENTER,
@@ -434,20 +503,49 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
         for annotation in &overlay.annotations {
             let x = plot.left() + annotation.x.clamp(0.0, 1.0) * plot.width();
             let y = plot.top() + annotation.y.clamp(0.0, 1.0) * plot.height();
+            let color = match annotation.color {
+                fp_core::plot::AnnotationColor::Black => Color32::from_gray(34),
+                fp_core::plot::AnnotationColor::Red => Color32::from_rgb(176, 42, 55),
+                fp_core::plot::AnnotationColor::Blue => Color32::from_rgb(31, 78, 121),
+                fp_core::plot::AnnotationColor::Green => Color32::from_rgb(46, 125, 50),
+            };
             let galley = painter.layout_no_wrap(
                 annotation.text.clone(),
-                graph_font(12.0, Some(overlay)),
-                Color32::from_gray(34),
+                graph_font(annotation.size.clamp(6.0, 48.0), Some(overlay)),
+                color,
             );
-            let size = galley.size();
-            let rect_annotation =
-                Rect::from_min_size(pos2(x - 4.0, y - 2.0), vec2(size.x + 8.0, size.y + 4.0));
-            painter.rect_filled(
-                rect_annotation,
-                2.0,
-                Color32::from_rgba_unmultiplied(255, 255, 255, 217),
-            );
-            painter.galley(pos2(x, y), galley, Color32::from_gray(34));
+            if annotation.angle.abs() < 1e-6 {
+                let size = galley.size();
+                let rect_annotation =
+                    Rect::from_min_size(pos2(x - 4.0, y - 2.0), vec2(size.x + 8.0, size.y + 4.0));
+                painter.rect_filled(
+                    rect_annotation,
+                    2.0,
+                    Color32::from_rgba_unmultiplied(255, 255, 255, 217),
+                );
+                painter.galley(pos2(x, y), galley, color);
+            } else {
+                painter.add(Shape::Text(
+                    TextShape::new(pos2(x, y), galley, color)
+                        .with_angle(-annotation.angle.to_radians()),
+                ));
+            }
+        }
+        if let Some(mode) = overlay.data_labels {
+            let font = graph_font(10.0, Some(overlay));
+            for (index, point) in spec.points.iter().enumerate() {
+                let label = match mode {
+                    fp_core::plot::DataLabelMode::YValue => format!("{:.4}", point.y),
+                    fp_core::plot::DataLabelMode::Index => (index + 1).to_string(),
+                };
+                painter.text(
+                    pos2(sx(point.x) + 5.0, sy(point.y) - 5.0),
+                    Align2::LEFT_BOTTOM,
+                    label,
+                    font.clone(),
+                    Color32::from_gray(51),
+                );
+            }
         }
     }
 
@@ -508,6 +606,7 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
         TextShape::new(anchor, galley, Color32::from_gray(40))
             .with_angle(-std::f32::consts::FRAC_PI_2),
     ));
+    plot
 }
 
 /// Height reserved above and below the panel grid for the main title, the
@@ -537,6 +636,8 @@ fn panel_edits(overlay: Option<&GraphOverlay>) -> Option<GraphOverlay> {
         font_family: overlay.font_family,
         font_scale: overlay.font_scale,
         annotations: overlay.annotations.clone(),
+        grid: overlay.grid,
+        data_labels: overlay.data_labels,
     })
 }
 
@@ -781,6 +882,29 @@ mod tests {
         let rect = Rect::from_center_size(Pos2::new(400.0, 450.0), frame);
         assert!((rect.top() - (900.0 - frame.y) / 2.0).abs() < 0.01);
         let _ = canvas;
+    }
+
+    #[test]
+    fn a_click_finds_the_nearest_point() {
+        let spec = spec();
+        let plot = Rect::from_min_size(Pos2::new(40.0, 20.0), vec2(600.0, 400.0));
+        let xspan = spec.x_axis.max - spec.x_axis.min;
+        let yspan = spec.y_axis.max - spec.y_axis.min;
+        let point = &spec.points[2];
+        let position = Pos2::new(
+            plot.left() + ((point.x - spec.x_axis.min) / xspan) as f32 * plot.width(),
+            plot.bottom() - ((point.y - spec.y_axis.min) / yspan) as f32 * plot.height(),
+        );
+        assert_eq!(nearest_point(plot, &spec, position), Some(2));
+        // Nine pixels away still hits; twenty away does not.
+        assert_eq!(
+            nearest_point(plot, &spec, position + vec2(9.0, 0.0)),
+            Some(2)
+        );
+        assert_eq!(
+            nearest_point(plot, &spec, position + vec2(20.0, 20.0)),
+            None
+        );
     }
 
     #[test]

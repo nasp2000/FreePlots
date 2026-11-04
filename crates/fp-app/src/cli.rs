@@ -36,7 +36,7 @@ Usage:
   FreePlots normality <file.csv> [--column <name>] [--test <ad|ks|rj|k2>]
   FreePlots distcompare <file.csv> [--column <name>]
   FreePlots capability <file.csv> [--column <name>] --lsl <x> --usl <x> [--target <x>] [--distribution <normal|lognormal|loglogistic|weibull|exponential|logistic|gamma|extremevalue|weibull3>] [--subgroup <n>] [--confidence <pct>] [--bootstrap <n>] [--box-cox]
-  FreePlots controlchart <file.csv> --column <name> --chart <imr|xbar-r|xbar-s|ewma|cusum> [--subgroup <n>] [--subgroup-column <name>] [--tests <1:8|1,3,5>] [--sensitivity <test=K,...>] [--cusum-k <k>] [--cusum-h <h>] [--ewma-lambda <λ>] [--ewma-l <L>] [--svg <file>]
+  FreePlots controlchart <file.csv> --column <name> --chart <imr|xbar-r|xbar-s|ewma|cusum> [--subgroup <n>] [--subgroup-column <name>] [--phase <name>] [--tests <1:8|1,3,5>] [--sensitivity <test=K,...>] [--cusum-k <k>] [--cusum-h <h>] [--ewma-lambda <λ>] [--ewma-l <L>] [--svg <file>]
   FreePlots attrchart <file.csv> --column <defects> --chart <p|np|c|u> [--sizes <name>] [--size <n>] [--svg <file>]
   FreePlots runchart <file.csv> [--column <name>] [--svg <file>]
   FreePlots movingaverage <file.csv> --column <name> [--window <n>] [--svg <file>]
@@ -918,6 +918,7 @@ fn controlchart(args: &[String]) -> Result<(), String> {
     let mut ewma_lambda = 0.2f64;
     let mut ewma_limit = 3.0f64;
     let mut subgroup_column: Option<String> = None;
+    let mut phase_column: Option<String> = None;
     let mut svg: Option<PathBuf> = None;
     let mut it = args.iter();
     while let Some(arg) = it.next() {
@@ -933,6 +934,13 @@ fn controlchart(args: &[String]) -> Result<(), String> {
                 subgroup_column = Some(
                     it.next()
                         .ok_or_else(|| format!("{arg} requires a column name"))?
+                        .clone(),
+                );
+            }
+            "--phase" => {
+                phase_column = Some(
+                    it.next()
+                        .ok_or_else(|| "--phase requires a column name".to_owned())?
                         .clone(),
                 );
             }
@@ -1040,6 +1048,19 @@ fn controlchart(args: &[String]) -> Result<(), String> {
     {
         return Err("--subgroup-column is only used by the xbar-r and xbar-s charts".to_owned());
     }
+    if phase_column.is_some()
+        && !matches!(
+            kind,
+            ControlChartKind::IndividualsMovingRange
+                | ControlChartKind::XbarR
+                | ControlChartKind::XbarS
+        )
+    {
+        return Err("--phase is only used by the imr, xbar-r and xbar-s charts".to_owned());
+    }
+    if phase_column.is_some() && subgroup_column.is_some() {
+        return Err("choose either --phase or --subgroup-column, not both".to_owned());
+    }
     let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
     let column = match column {
         Some(name) => name,
@@ -1060,7 +1081,8 @@ fn controlchart(args: &[String]) -> Result<(), String> {
         .with_control_chart_tests(tests)
         .with_cusum_options(cusum)
         .with_ewma_options(ewma)
-        .with_subgroup_column(subgroup_column);
+        .with_subgroup_column(subgroup_column)
+        .with_phase_column(phase_column);
     let out = run_local(&df, &spec).map_err(|e| e.to_string())?;
     for (index, result) in out.results.iter().enumerate() {
         if index > 0 {

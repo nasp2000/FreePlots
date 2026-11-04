@@ -156,8 +156,45 @@ impl UiCatalog {
             "Where the settings are stored…" => "Onde estão guardadas as definições…",
             "Third-party licences…" => "Licenças de terceiros…",
             "Show the tour" => "Ver o tour",
-            "Edit graph labels…" => "Editar rótulos do gráfico…",
+            "Graph options…" => "Opções do gráfico…",
             "Graph text…" => "Texto do gráfico…",
+            "Clear marks" => "Limpar marcas",
+            "Add data labels…" => "Adicionar rótulos de dados…",
+            "Add percentile lines…" => "Adicionar linhas de percentis…",
+            "Panel layout…" => "Disposição dos painéis…",
+            "Toggle gridlines" => "Mostrar/ocultar grelha",
+            "Data labels" => "Rótulos de dados",
+            "Label:" => "Rótulo:",
+            "Y value" => "Valor de Y",
+            "Point number" => "Número do ponto",
+            "Remove labels" => "Remover rótulos",
+            "Data labels added" => "Rótulos de dados adicionados",
+            "Data labels removed" => "Rótulos de dados removidos",
+            "Percentile lines" => "Linhas de percentis",
+            "X values" => "Valores de X",
+            "Y values" => "Valores de Y",
+            "Percentiles:" => "Percentis:",
+            "Panel layout" => "Disposição dos painéis",
+            "Columns:" => "Colunas:",
+            "Panels are filled left to right, top to bottom." => {
+                "Os painéis são preenchidos da esquerda para a direita, de cima para baixo."
+            }
+            "Colour:" => "Cor:",
+            "Black" => "Preto",
+            "Red" => "Vermelho",
+            "Blue" => "Azul",
+            "Green" => "Verde",
+            "Angle:" => "Ângulo:",
+            "Gridlines shown" => "Grelha visível",
+            "Gridlines hidden" => "Grelha oculta",
+            "One label per point, drawn next to the marker." => {
+                "Um rótulo por ponto, desenhado junto ao marcador."
+            }
+            "Comma-separated percentages between 0 and 100; each adds a labelled reference line." => {
+                "Percentagens entre 0 e 100 separadas por vírgulas; cada uma acrescenta uma linha de referência com rótulo."
+            }
+            "Marks cleared" => "Marcas limpas",
+            "Brush points: Ctrl+click a point" => "Ctrl+clique num ponto para o marcar",
             "Conditional formatting…" => "Formatação condicional…",
             "Conditional formatting" => "Formatação condicional",
             "Greater than" => "Maior que",
@@ -184,12 +221,12 @@ impl UiCatalog {
             "The first rule that matches a cell wins; the rules follow the column name and are kept between sessions." => {
                 "Vale a primeira regra que corresponde à célula; as regras seguem o nome da coluna e ficam guardadas entre sessões."
             }
-            "Add text…" => "Adicionar texto…",
-            "Add text to the graph" => "Adicionar texto ao gráfico",
+            "Add note…" => "Adicionar nota…",
+            "Add note to the graph" => "Adicionar nota ao gráfico",
             "Text:" => "Texto:",
-            "Text to place on the graph" => "Texto a colocar no gráfico",
+            "Note to place on the graph" => "Nota a colocar no gráfico",
             "Position:" => "Posição:",
-            "Text added to the graph" => "Texto adicionado ao gráfico",
+            "Note added to the graph" => "Nota adicionada ao gráfico",
             "0 % is the top-left corner of the plot and 100 % the bottom-right; the text is kept between sessions." => {
                 "0 % é o canto superior esquerdo do gráfico e 100 % o inferior direito; o texto fica guardado entre sessões."
             }
@@ -204,15 +241,15 @@ impl UiCatalog {
             "The size and typeface apply to every text drawn on the graph; the settings are kept for the next session." => {
                 "O tamanho e o tipo de letra aplicam-se a todo o texto do gráfico; as definições ficam guardadas para a próxima sessão."
             }
-            "Add reference line…" => "Adicionar linha de referência…",
+            "Add reference lines…" => "Adicionar linha de referência…",
             "Copy graph as SVG" => "Copiar gráfico como SVG",
             "Save graph…" => "Guardar gráfico…",
             "Save Graph As" => "Guardar gráfico como",
             "Destination SVG file:" => "Ficheiro SVG de destino:",
             "Graph edits reset" => "Edições do gráfico repostas",
-            "Graph labels updated" => "Rótulos do gráfico actualizados",
+            "Graph options updated" => "Opções do gráfico actualizadas",
             "Reset graph edits" => "Repor edições do gráfico",
-            "Graph labels" => "Rótulos do gráfico",
+            "Graph options" => "Opções do gráfico",
             "Title" => "Título",
             "Subtitle" => "Subtítulo",
             "X axis" => "Eixo X",

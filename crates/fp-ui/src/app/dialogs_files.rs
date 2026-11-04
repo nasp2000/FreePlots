@@ -749,6 +749,7 @@ impl FreePlotsApp {
             let overlay = self.graph_overlay.clone();
             let catalog = self.catalog();
             let action_tx = self.plot_action_tx.clone();
+            let brush = self.brush_marks.clone();
             let flag = self
                 .plot_viewport
                 .get_or_insert_with(|| Arc::new(AtomicBool::new(true)))
@@ -762,8 +763,14 @@ impl FreePlotsApp {
                 egui::ViewportId::from_hash_of("fp_graph"),
                 egui::ViewportBuilder::default()
                     .with_title(title)
-                    .with_inner_size(default_size),
+                    .with_inner_size(default_size)
+                    // A graph that opens behind the worksheet hides the context
+                    // menu under it; ask the window manager for the focus.
+                    .with_active(true),
                 move |ui, _class| {
+                    if ui.ctx().input(|input| input.pointer.any_pressed()) {
+                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Focus);
+                    }
                     // The viewport is cleared to black; paint the theme surface
                     // first so no black band shows under a short plot.
                     let background = ui.visuals().window_fill;
@@ -771,23 +778,39 @@ impl FreePlotsApp {
                     // A single plot is scaled to fit and centred; a tall
                     // multi-panel plot can outgrow a small window, so only that
                     // case needs scrolling to keep every panel reachable.
+                    let mut marks = brush.lock().map(|marks| marks.clone()).unwrap_or_default();
                     let response = if plot.panels.is_empty() {
-                        crate::plot_view::show_with(ui, &plot, &overlay)
+                        crate::plot_view::show_with_marks(ui, &plot, &overlay, &mut marks)
                     } else {
                         egui::ScrollArea::both()
                             .auto_shrink([false, false])
-                            .show(ui, |ui| crate::plot_view::show_with(ui, &plot, &overlay))
+                            .show(ui, |ui| {
+                                crate::plot_view::show_with_marks(ui, &plot, &overlay, &mut marks)
+                            })
                             .inner
                     };
+                    if let Ok(mut shared) = brush.lock() {
+                        *shared = marks;
+                    }
                     response.context_menu(|ui| {
+                        ui.weak(catalog.label("Brush points: Ctrl+click a point"));
+                        ui.separator();
                         for (label, action) in [
-                            ("Edit graph labels…", GraphAction::Labels),
+                            ("Graph options…", GraphAction::Labels),
                             ("Graph text…", GraphAction::Text),
-                            ("Add text…", GraphAction::Annotation),
-                            ("Add reference line…", GraphAction::Reference),
+                            ("Add note…", GraphAction::Annotation),
+                            ("Add data labels…", GraphAction::DataLabels),
+                            ("Add reference lines…", GraphAction::Reference),
+                            ("Add percentile lines…", GraphAction::Percentiles),
+                            ("Panel layout…", GraphAction::PanelLayout),
+                            ("Toggle gridlines", GraphAction::GridToggle),
                             ("Save graph…", GraphAction::Save),
                             ("Copy graph as SVG", GraphAction::Copy),
+                            ("Clear marks", GraphAction::ClearMarks),
                         ] {
+                            if action == GraphAction::PanelLayout && plot.panels.is_empty() {
+                                continue;
+                            }
                             if ui.button(catalog.label(label)).clicked() {
                                 action_tx.send(action).ok();
                                 ui.close();
@@ -821,6 +844,7 @@ impl FreePlotsApp {
             .filter(|title| !title.is_empty())
             .unwrap_or_else(|| self.catalog().label("Graph").to_owned());
         let mut graph_action = None;
+        let brush = self.brush_marks.clone();
         dialog_window(title)
             .without_clear()
             .id(egui::Id::new("graph_window"))
@@ -831,17 +855,23 @@ impl FreePlotsApp {
             .show(ctx, |ui| {
                 if let Some(spec) = &self.plot {
                     let overlay = self.graph_overlay.clone();
+                    let mut marks = brush.lock().map(|marks| marks.clone()).unwrap_or_default();
                     let response = if spec.panels.is_empty() {
-                        crate::plot_view::show_with(ui, spec, &overlay)
+                        crate::plot_view::show_with_marks(ui, spec, &overlay, &mut marks)
                     } else {
                         egui::ScrollArea::both()
                             .auto_shrink([false, false])
-                            .show(ui, |ui| crate::plot_view::show_with(ui, spec, &overlay))
+                            .show(ui, |ui| {
+                                crate::plot_view::show_with_marks(ui, spec, &overlay, &mut marks)
+                            })
                             .inner
                     };
+                    if let Ok(mut shared) = brush.lock() {
+                        *shared = marks;
+                    }
                     response.context_menu(|ui| {
                         let catalog = self.catalog();
-                        if ui.button(catalog.label("Edit graph labels…")).clicked() {
+                        if ui.button(catalog.label("Graph options…")).clicked() {
                             graph_action = Some(GraphAction::Labels);
                             ui.close();
                         }
@@ -849,11 +879,29 @@ impl FreePlotsApp {
                             graph_action = Some(GraphAction::Text);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Add text…")).clicked() {
+                        if ui.button(catalog.label("Add note…")).clicked() {
                             graph_action = Some(GraphAction::Annotation);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Add reference line…")).clicked() {
+                        if ui.button(catalog.label("Add data labels…")).clicked() {
+                            graph_action = Some(GraphAction::DataLabels);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Add percentile lines…")).clicked() {
+                            graph_action = Some(GraphAction::Percentiles);
+                            ui.close();
+                        }
+                        if !spec.panels.is_empty()
+                            && ui.button(catalog.label("Panel layout…")).clicked()
+                        {
+                            graph_action = Some(GraphAction::PanelLayout);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Toggle gridlines")).clicked() {
+                            graph_action = Some(GraphAction::GridToggle);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Add reference lines…")).clicked() {
                             graph_action = Some(GraphAction::Reference);
                             ui.close();
                         }
@@ -865,6 +913,11 @@ impl FreePlotsApp {
                             graph_action = Some(GraphAction::Copy);
                             ui.close();
                         }
+                        if ui.button(catalog.label("Clear marks")).clicked() {
+                            graph_action = Some(GraphAction::ClearMarks);
+                            ui.close();
+                        }
+                        ui.weak(catalog.label("Brush points: Ctrl+click a point"));
                         ui.separator();
                         if ui.button(catalog.label("Reset graph edits")).clicked() {
                             graph_action = Some(GraphAction::Reset);

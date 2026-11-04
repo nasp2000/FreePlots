@@ -356,6 +356,19 @@ impl FreePlotsApp {
             false
         }
     }
+    /// Adds empty columns until the worksheet has at least `columns` of them.
+    ///
+    /// The grid shows spare columns on the right; writing in one first makes
+    /// it a real colum of the worksheet.
+    pub(super) fn ensure_columns(&mut self, columns: usize) {
+        let Some(df) = self.data.as_mut() else {
+            return;
+        };
+        while df.n_columns() < columns {
+            df.add_column(fp_core::data::DType::Float);
+        }
+    }
+
     /// Moves the selection by whole cells, clamping to the first row/column.
     pub(super) fn move_selection(&mut self, columns: isize, rows: isize) {
         let Some((column, row)) = self.selected_cell else {

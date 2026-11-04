@@ -185,6 +185,9 @@ impl FreePlotsApp {
         self.graph_labels_window(&ctx);
         self.graph_text_window(&ctx);
         self.graph_annotation_window(&ctx);
+        self.data_labels_window(&ctx);
+        self.percentiles_window(&ctx);
+        self.panel_layout_window(&ctx);
         self.reference_line_window(&ctx);
         self.graph_window(&ctx);
         self.persist_preferences();

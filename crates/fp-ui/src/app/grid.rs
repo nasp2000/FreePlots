@@ -538,16 +538,16 @@ impl FreePlotsApp {
                                                 &cell_label,
                                             )
                                         });
-                                        if response.clicked() && index < names.len() {
+                                        // The spare columns on the right are
+                                        // real cells: clicking one extends the
+                                        // worksheet so it can be written to.
+                                        if response.clicked() {
                                             clicked = Some((index, r, shift));
                                         }
-                                        if response.double_clicked() && index < names.len() {
+                                        if response.double_clicked() {
                                             inline_start = Some((index, r));
                                         }
-                                        if response.secondary_clicked()
-                                            && index < names.len()
-                                            && !in_selection
-                                        {
+                                        if response.secondary_clicked() && !in_selection {
                                             // Right-clicking inside the selection keeps it.
                                             clicked = Some((index, r, false));
                                         }
@@ -711,6 +711,7 @@ impl FreePlotsApp {
             }
         }
         if let Some((column, row)) = inline_start {
+            self.ensure_columns(column + 1);
             self.begin_inline_edit(column, row);
             return;
         }
@@ -718,6 +719,7 @@ impl FreePlotsApp {
             if self.edit_dirty && !self.commit_cell() {
                 return;
             }
+            self.ensure_columns(column + 1);
             if extend {
                 self.extend_selection(column, row);
             } else {

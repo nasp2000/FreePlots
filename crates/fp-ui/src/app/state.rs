@@ -40,6 +40,7 @@ impl FreePlotsApp {
             column_widths: Vec::new(),
             formats: std::collections::HashMap::new(),
             conditional_rules: Vec::new(),
+            brush_marks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
             show_conditional_dialog: false,
             conditional_column: String::new(),
             conditional_kind: ConditionalKind::Greater,
@@ -93,6 +94,7 @@ impl FreePlotsApp {
             chart_kind: ControlChartKind::IndividualsMovingRange,
             chart_subgroup: 5,
             chart_subgroup_column: String::new(),
+            chart_phase_column: String::new(),
             chart_tests: TestSet::default(),
             chart_cusum_k: 0.5,
             chart_cusum_h: 4.0,
@@ -417,6 +419,16 @@ impl FreePlotsApp {
             annotation_text: String::new(),
             annotation_x: 5.0,
             annotation_y: 5.0,
+            annotation_size: 12.0,
+            annotation_color: fp_core::plot::AnnotationColor::Black,
+            annotation_angle: 0.0,
+            show_data_labels: false,
+            data_label_mode: fp_core::plot::DataLabelMode::YValue,
+            show_percentiles: false,
+            percentile_axis: fp_core::plot::ReferenceAxis::Horizontal,
+            percentile_values: String::new(),
+            show_panel_layout: false,
+            panel_columns_draft: 1,
             show_reference_line: false,
             reference_axis: fp_core::plot::ReferenceAxis::Vertical,
             reference_value: String::new(),
@@ -471,6 +483,7 @@ impl FreePlotsApp {
         self.chart_kind = ControlChartKind::IndividualsMovingRange;
         self.chart_subgroup = 5;
         self.chart_subgroup_column.clear();
+        self.chart_phase_column.clear();
         self.chart_tests = TestSet::default();
         self.attr_column = self.selected.clone().unwrap_or_default();
         self.attr_kind = AttributeChartKind::P;

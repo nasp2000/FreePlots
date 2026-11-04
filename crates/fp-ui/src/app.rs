@@ -551,6 +551,9 @@ pub struct FreePlotsApp {
     formats: std::collections::HashMap<String, ColumnFormat>,
     /// Conditional-formatting rules (persisted with the preferences).
     conditional_rules: Vec<ConditionalRule>,
+    /// Points marked with Ctrl+click in the graph window, shared with the
+    /// native viewport closure.
+    brush_marks: std::sync::Arc<std::sync::Mutex<Vec<(usize, usize)>>>,
     /// Dialog state of the conditional-formatting editor.
     show_conditional_dialog: bool,
     conditional_column: String,
@@ -612,6 +615,7 @@ pub struct FreePlotsApp {
     chart_kind: ControlChartKind,
     chart_subgroup: usize,
     chart_subgroup_column: String,
+    chart_phase_column: String,
     chart_tests: TestSet,
     chart_cusum_k: f64,
     chart_cusum_h: f64,
@@ -947,6 +951,16 @@ pub struct FreePlotsApp {
     pub(super) annotation_text: String,
     pub(super) annotation_x: f32,
     pub(super) annotation_y: f32,
+    pub(super) annotation_size: f32,
+    pub(super) annotation_color: fp_core::plot::AnnotationColor,
+    pub(super) annotation_angle: f32,
+    pub(super) show_data_labels: bool,
+    pub(super) data_label_mode: fp_core::plot::DataLabelMode,
+    pub(super) show_percentiles: bool,
+    pub(super) percentile_axis: fp_core::plot::ReferenceAxis,
+    pub(super) percentile_values: String,
+    pub(super) show_panel_layout: bool,
+    pub(super) panel_columns_draft: usize,
     pub(super) show_reference_line: bool,
     pub(super) reference_axis: fp_core::plot::ReferenceAxis,
     pub(super) reference_value: String,
@@ -1824,6 +1838,7 @@ impl FreePlotsApp {
         }
         self.show_plot = output.plot.is_some();
         self.plot = output.plot;
+        self.brush_marks.lock().map(|mut marks| marks.clear()).ok();
         self.status = label;
         self.error = None;
     }
@@ -1918,8 +1933,16 @@ impl FreePlotsApp {
         ewma: fp_core::spc::EwmaOptions,
     ) {
         let column = column.into();
-        let subgroup_column =
-            (!self.chart_subgroup_column.is_empty()).then(|| self.chart_subgroup_column.clone());
+        let phases = matches!(
+            kind,
+            ControlChartKind::IndividualsMovingRange
+                | ControlChartKind::XbarR
+                | ControlChartKind::XbarS
+        );
+        let phase_column = (phases && !self.chart_phase_column.is_empty())
+            .then(|| self.chart_phase_column.clone());
+        let subgroup_column = (phase_column.is_none() && !self.chart_subgroup_column.is_empty())
+            .then(|| self.chart_subgroup_column.clone());
         let subgroup = if subgroup_column.is_some() {
             0
         } else {
@@ -1930,7 +1953,8 @@ impl FreePlotsApp {
                 .with_control_chart_tests(tests)
                 .with_cusum_options(cusum)
                 .with_ewma_options(ewma)
-                .with_subgroup_column(subgroup_column),
+                .with_subgroup_column(subgroup_column)
+                .with_phase_column(phase_column),
             format!("{} chart: {column}", kind.name()),
         );
     }

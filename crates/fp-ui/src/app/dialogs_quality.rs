@@ -279,7 +279,18 @@ impl FreePlotsApp {
                                 ControlChartKind::Ewma,
                                 ControlChartKind::Cusum,
                             ] {
-                                ui.selectable_value(&mut self.chart_kind, kind, kind.name());
+                                if ui
+                                    .selectable_value(&mut self.chart_kind, kind, kind.name())
+                                    .clicked()
+                                    && !matches!(
+                                        kind,
+                                        ControlChartKind::IndividualsMovingRange
+                                            | ControlChartKind::XbarR
+                                            | ControlChartKind::XbarS
+                                    )
+                                {
+                                    self.chart_phase_column.clear();
+                                }
                             }
                         })
                         .response
@@ -291,7 +302,7 @@ impl FreePlotsApp {
                     let enabled = matches!(
                         self.chart_kind,
                         ControlChartKind::XbarR | ControlChartKind::XbarS
-                    );
+                    ) && self.chart_phase_column.is_empty();
                     ui.add_enabled_ui(enabled, |ui| {
                         egui::ComboBox::from_id_salt("chart_subgroup_column")
                             .selected_text(if self.chart_subgroup_column.is_empty() {
@@ -318,6 +329,46 @@ impl FreePlotsApp {
                             .hover_from(&label);
                     });
                 });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Phase column (optional):");
+                    let enabled = matches!(
+                        self.chart_kind,
+                        ControlChartKind::IndividualsMovingRange
+                            | ControlChartKind::XbarR
+                            | ControlChartKind::XbarS
+                    );
+                    ui.add_enabled_ui(enabled, |ui| {
+                        egui::ComboBox::from_id_salt("chart_phase_column")
+                            .selected_text(if self.chart_phase_column.is_empty() {
+                                "None".to_owned()
+                            } else {
+                                self.chart_phase_column.clone()
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut self.chart_phase_column,
+                                    String::new(),
+                                    "None",
+                                );
+                                for name in &all_columns {
+                                    ui.selectable_value(
+                                        &mut self.chart_phase_column,
+                                        name.clone(),
+                                        name.as_str(),
+                                    );
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                });
+                if !self.chart_phase_column.is_empty() {
+                    ui.small(
+                        "Each consecutive run of the phase column gets its own limits; the \
+                         subgroup column is not used.",
+                    );
+                }
                 ui.horizontal(|ui| {
                     let cusum = self.chart_kind == ControlChartKind::Cusum;
                     let enabled = (matches!(

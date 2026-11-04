@@ -312,6 +312,9 @@ pub enum AnalysisSpec {
         /// Optional column whose labels define subgroups of different sizes
         /// (X̄–R and X̄–S only).
         subgroup_column: Option<String>,
+        /// Optional column whose consecutive labels define phases with their
+        /// own limits (I–MR, X̄–R and X̄–S only).
+        phase_column: Option<String>,
     },
     /// K-means clustering of several numeric columns.
     KMeans {
@@ -1133,6 +1136,7 @@ impl AnalysisSpec {
             cusum: crate::spc::CusumOptions::default(),
             ewma: crate::spc::EwmaOptions::default(),
             subgroup_column: None,
+            phase_column: None,
         }
     }
 
@@ -2232,6 +2236,15 @@ impl AnalysisSpec {
         } = &mut self
         {
             *subgroup_column = column;
+        }
+        self
+    }
+
+    /// Uses a column of phase labels: each consecutive run gets its own limits.
+    #[must_use]
+    pub fn with_phase_column(mut self, column: Option<String>) -> Self {
+        if let Self::ControlChart { phase_column, .. } = &mut self {
+            *phase_column = column;
         }
         self
     }
@@ -3381,6 +3394,7 @@ impl AnalysisSpec {
                 cusum,
                 ewma,
                 subgroup_column,
+                phase_column,
                 ..
             } => {
                 if *kind == ControlChartKind::Cusum {
@@ -3392,6 +3406,12 @@ impl AnalysisSpec {
                     format!(
                         "Control Chart — EWMA, λ = {}, L = {}σ, subgroup {subgroup}",
                         ewma.lambda, ewma.limit
+                    )
+                } else if let Some(phase) = phase_column {
+                    format!(
+                        "Control Chart — {}, tests {}, phase column {phase}",
+                        kind.name(),
+                        tests.summary()
                     )
                 } else if let Some(group) = subgroup_column {
                     format!(
@@ -4841,6 +4861,22 @@ fn probability_note(result: &AnalysisResult) -> PlotNote {
     PlotNote::new(rows)
 }
 
+/// One line per series for an overlay: its name next to N, mean and spread, so
+/// no value sits in an unlabelled column.
+fn overlay_results_note(labels: &[String], results: &[AnalysisResult]) -> PlotNote {
+    let mut rows: Vec<(String, String)> = Vec::new();
+    for (label, result) in labels.iter().zip(results) {
+        rows.push((label.clone(), format!("n {}", result.n)));
+        for (name, value) in &result.parameters {
+            rows.push((
+                format!("{label} {}", short_parameter(name)),
+                format!("{value:.4}"),
+            ));
+        }
+    }
+    PlotNote::new(rows)
+}
+
 /// Mean, spread and the capability indices, as drawn inside a capability
 /// histogram. The within/overall table of the report is the source.
 fn capability_note(result: &AnalysisResult) -> PlotNote {
@@ -4957,7 +4993,8 @@ fn grouped_probability(
     let plot = if plots.len() == 1 {
         plots.pop().map(|(_, plot)| plot)
     } else {
-        match layout {
+        let labels: Vec<String> = plots.iter().map(|(label, _)| label.clone()).collect();
+        let mut plot = match layout {
             PlotLayout::Overlay => overlay_plots(
                 plots,
                 format!(
@@ -4975,7 +5012,13 @@ fn grouped_probability(
                 same_x,
                 same_y,
             ),
+        };
+        if layout == PlotLayout::Overlay
+            && let Some(plot) = &mut plot
+        {
+            plot.notes.push(overlay_results_note(&labels, &results));
         }
+        plot
     };
     Ok(AnalysisOutput { results, plot })
 }
@@ -6860,7 +6903,8 @@ pub fn run_analysis(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutpu
                 results.push(out.result);
                 plots.push((column, out.plot));
             }
-            let plot = match layout {
+            let labels: Vec<String> = plots.iter().map(|(label, _)| label.clone()).collect();
+            let mut plot = match layout {
                 PlotLayout::Separate => panel_plot_with_scales(
                     plots.into_iter().map(|(_, plot)| plot).collect(),
                     2,
@@ -6877,6 +6921,9 @@ pub fn run_analysis(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutpu
                 ),
             }
             .ok_or_else(|| Error::Unsupported("invalid multi-Y layout".to_owned()))?;
+            if *layout == PlotLayout::Overlay {
+                plot.notes.push(overlay_results_note(&labels, &results));
+            }
             Ok(AnalysisOutput {
                 results,
                 plot: Some(plot),
@@ -6890,8 +6937,16 @@ pub fn run_analysis(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutpu
             cusum,
             ewma,
             subgroup_column,
+            phase_column,
         } => {
-            let mut out = if let Some(group) = subgroup_column {
+            if phase_column.is_some() && subgroup_column.is_some() {
+                return Err(Error::Unsupported(
+                    "choose either a phase column or a subgroup column, not both".to_owned(),
+                ));
+            }
+            let mut out = if let Some(phase) = phase_column {
+                crate::spc::analyze_with_phase(df, column, *kind, *subgroup, *tests, phase)?
+            } else if let Some(group) = subgroup_column {
                 crate::spc::analyze_variable_subgroups(df, column, group, *kind, *tests)?
             } else {
                 crate::spc::analyze_with_options(
@@ -8860,6 +8915,67 @@ mod tests {
         let text = out.results[0].to_session_text();
         assert!(text.contains("Pareto Chart"), "{text}");
         assert!(out.plot.is_some());
+    }
+
+    #[test]
+    fn a_phased_control_chart_runs_through_the_workflow() {
+        let values = vec![10.0, 10.2, 9.8, 10.1, 20.0, 20.2, 19.8, 20.1];
+        let phases: Vec<String> = std::iter::repeat_n("before".to_owned(), 4)
+            .chain(std::iter::repeat_n("after".to_owned(), 4))
+            .collect();
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", values),
+            Column::new_text("phase", phases),
+        ])
+        .expect("frame");
+        let spec = AnalysisSpec::control_chart(
+            "weight",
+            crate::spc::ControlChartKind::IndividualsMovingRange,
+            1,
+        )
+        .with_phase_column(Some("phase".to_owned()));
+        assert!(spec.description().contains("phase column phase"));
+        let out = run_analysis(&df, &spec).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Phases"), "{text}");
+        assert!(out.plot.is_some());
+        // Phases and subgroup labels are alternatives.
+        let both = spec.clone().with_subgroup_column(Some("phase".to_owned()));
+        assert!(run_analysis(&df, &both).is_err());
+    }
+
+    #[test]
+    fn an_overlay_labelled_each_series_mean() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("a", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+            Column::new_f64("b", vec![6.0, 7.0, 8.0, 9.0, 10.0]),
+        ])
+        .expect("frame");
+        let mut spec = AnalysisSpec::probability_plot_multi(vec!["a".to_owned(), "b".to_owned()]);
+        if let AnalysisSpec::ProbabilityPlot { layout, .. } = &mut spec {
+            *layout = PlotLayout::Overlay;
+        }
+        let out = run_analysis(&df, &spec).expect("overlay");
+        let plot = out.plot.expect("plot");
+        let note = plot.notes.first().expect("overlay note");
+        let labels: Vec<&str> = note.rows.iter().map(|row| row.label.as_str()).collect();
+        assert!(labels.contains(&"a"), "{labels:?}");
+        assert!(labels.contains(&"a Mean"), "{labels:?}");
+        assert!(labels.contains(&"a StDev"), "{labels:?}");
+        assert!(labels.contains(&"b Mean"), "{labels:?}");
+        // The mean values are the sample means.
+        let row = |label: &str| {
+            note.rows
+                .iter()
+                .find(|row| row.label == label)
+                .map(|row| row.value.clone())
+                .expect(label)
+        };
+        assert_eq!(row("a Mean"), "3.0000");
+        assert_eq!(row("b Mean"), "8.0000");
+        // The same block reaches the SVG (outside the frame).
+        let svg = crate::plot::render_svg_with(&plot, &Default::default());
+        assert!(svg.contains(">a Mean</text>"), "{svg}");
     }
 
     #[test]

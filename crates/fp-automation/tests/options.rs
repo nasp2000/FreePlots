@@ -2751,6 +2751,30 @@ fn the_imr_chart_dialog_draws_the_individuals() {
 }
 
 #[test]
+fn the_imr_chart_dialog_reads_a_phase_column() {
+    let mut ui = Automation::new();
+    let values = vec![10.0, 10.2, 9.8, 10.1, 20.0, 20.2, 19.8, 20.1];
+    let phases: Vec<String> = std::iter::repeat_n("before".to_owned(), 4)
+        .chain(std::iter::repeat_n("after".to_owned(), 4))
+        .collect();
+    let df = DataFrame::new(vec![
+        Column::new_f64("weight", values),
+        Column::new_text("phase", phases),
+    ])
+    .expect("frame");
+    ui.load_frame(df, "phased.csv");
+    open(&mut ui, &["Stat", "Control Charts", "I–MR…"]);
+    ui.select("Phase column (optional):", "phase")
+        .expect("phase column");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Phases"), "{session}");
+    assert!(session.contains("before"), "{session}");
+    assert!(session.contains("after"), "{session}");
+    assert!(ui.plot().is_some());
+}
+
+#[test]
 fn the_imr_chart_dialog_enables_a_special_cause_test() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");
