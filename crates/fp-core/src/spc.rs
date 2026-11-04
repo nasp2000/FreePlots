@@ -784,7 +784,10 @@ pub fn variable_subgroup_chart(
         };
         let df = (n - 1) as f64;
         degrees += df;
-        pooled += df * sigma * sigma;
+        // The captured run averages the per-subgroup estimates weighted by
+        // their degrees of freedom; it does not pool the variances (which
+        // would give a larger within sigma for these unequal subgroups).
+        pooled += df * sigma;
         weighted_mean += n as f64 * mean;
         total += n;
         excluded += sample.excluded();
@@ -795,7 +798,7 @@ pub fn variable_subgroup_chart(
     if degrees <= 0.0 {
         return Err(Error::ConstantSample);
     }
-    let sigma = (pooled / degrees).sqrt();
+    let sigma = pooled / degrees;
     if !sigma.is_finite() || sigma <= 0.0 {
         return Err(Error::ConstantSample);
     }
@@ -2343,6 +2346,44 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn unequal_subgroups_match_the_captured_chart() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../validation/parity19/datasets/unequal.csv"
+        );
+        let text = std::fs::read_to_string(path).expect("dataset");
+        let mut groups: std::collections::BTreeMap<String, Vec<f64>> = Default::default();
+        for line in text.lines().skip(1) {
+            let mut parts = line.trim().split(',');
+            let value: f64 = parts
+                .next()
+                .and_then(|value| value.parse().ok())
+                .expect("value");
+            let group = parts.next().expect("group").to_owned();
+            groups.entry(group).or_default().push(value);
+        }
+        let samples: Vec<Sample> = groups
+            .values()
+            .map(|values| Sample::new(values.clone(), MissingPolicy::Drop).expect("sample"))
+            .collect();
+        let chart = variable_subgroup_chart(&samples, ControlChartKind::XbarR, TestSet::default())
+            .expect("chart");
+        assert!((chart.sigma - 0.148851).abs() < 1e-5, "{}", chart.sigma);
+        assert!((chart.location_limits.center - 9.979272).abs() < 1e-5);
+        // The third subgroup has n = 3; the captured chart shows these limits.
+        let third = chart.location_steps[2];
+        assert!((third.lcl - 9.7214).abs() < 5e-4, "{}", third.lcl);
+        assert!((third.ucl - 10.2371).abs() < 5e-4, "{}", third.ucl);
+        let dispersion = chart.dispersion_steps[2];
+        assert!(
+            (dispersion.center - 0.2520).abs() < 5e-4,
+            "{}",
+            dispersion.center
+        );
+        assert!((dispersion.ucl - 0.6487).abs() < 5e-4, "{}", dispersion.ucl);
     }
 
     #[test]
