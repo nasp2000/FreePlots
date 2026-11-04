@@ -1945,7 +1945,7 @@ fn control_panel(
         panel_columns: 1,
         secondary: None,
         notes: if steps.is_empty() {
-            vec![PlotNote::top_right(vec![
+            vec![PlotNote::new(vec![
                 ("UCL", format!("{:.4}", limits.ucl)),
                 ("CL", format!("{:.4}", limits.center)),
                 ("LCL", format!("{:.4}", limits.lcl)),

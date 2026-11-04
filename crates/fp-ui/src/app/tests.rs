@@ -1361,6 +1361,39 @@ fn pareto_dialog_reaches_the_session() {
 }
 
 #[test]
+fn the_pareto_dialog_carries_a_weight_column() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![
+        Column::new_text(
+            "defect",
+            vec![
+                "scratch".to_owned(),
+                "scratch".to_owned(),
+                "dent".to_owned(),
+                "crack".to_owned(),
+            ],
+        ),
+        Column::new_f64("cost", vec![1.0, 1.0, 8.0, 2.0]),
+    ])
+    .expect("frame");
+    app.set_data(df, "defects.csv".to_owned());
+    app.open_pareto_dialog();
+    assert!(app.pareto_weight.is_empty(), "a new dialog has no weight");
+    app.pareto_column = "defect".to_owned();
+    app.pareto_weight = "cost".to_owned();
+    app.run_pareto_dialog();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    let text = app.session_text();
+    assert!(text.contains("weighted by cost"), "{text}");
+    assert!(text.contains("Weight"), "{text}");
+    assert!(text.contains("dent"), "{text}");
+    // Opening the dialog again clears the weight, so a later run is the plain
+    // count unless the user chooses one.
+    app.open_pareto_dialog();
+    assert!(app.pareto_weight.is_empty());
+}
+
+#[test]
 fn ordinal_dialog_reaches_the_session() {
     let mut app = FreePlotsApp::new();
     // Ordered codes 1..3 rising with the predictor but overlapping, so the

@@ -940,6 +940,7 @@ impl FreePlotsApp {
     }
     pub fn open_pareto_dialog(&mut self) {
         self.pareto_column = self.selected.clone().unwrap_or_default();
+        self.pareto_weight.clear();
         self.show_pareto_dialog = true;
     }
     pub fn run_pareto_dialog(&mut self) {
@@ -947,8 +948,20 @@ impl FreePlotsApp {
             self.set_error("Select the column to count");
             return;
         }
-        let spec = AnalysisSpec::pareto(self.pareto_column.clone());
-        self.execute_spec(spec, format!("Pareto: {}", self.pareto_column));
+        let spec = if self.pareto_weight.is_empty() {
+            AnalysisSpec::pareto(self.pareto_column.clone())
+        } else {
+            AnalysisSpec::pareto_weighted(self.pareto_column.clone(), self.pareto_weight.clone())
+        };
+        let label = if self.pareto_weight.is_empty() {
+            format!("Pareto: {}", self.pareto_column)
+        } else {
+            format!(
+                "Pareto: {} weighted by {}",
+                self.pareto_column, self.pareto_weight
+            )
+        };
+        self.execute_spec(spec, label);
         self.show_pareto_dialog = false;
     }
     pub(super) fn pareto_dialog(&mut self, ctx: &egui::Context) {
@@ -988,7 +1001,32 @@ impl FreePlotsApp {
                         .labelled_by(label.id)
                         .hover_from(&label);
                 });
-                ui.small("The categories are counted and sorted by frequency.");
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Weight column (optional):");
+                    egui::ComboBox::from_id_salt("pareto_weight")
+                        .selected_text(if self.pareto_weight.is_empty() {
+                            "— none —".to_owned()
+                        } else {
+                            self.pareto_weight.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.pareto_weight, String::new(), "— none —");
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.pareto_weight,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "The categories are counted and sorted by frequency; with a weight column \
+                     each row adds that value instead of one.",
+                );
                 ui.separator();
                 if ui.help_button(self.catalog().label("Run")).clicked() {
                     run = true;

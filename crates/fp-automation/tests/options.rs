@@ -3203,6 +3203,44 @@ fn the_pareto_dialog_accepts_a_numeric_column() {
 }
 
 #[test]
+fn the_pareto_dialog_weights_the_rows() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Quality Tools", "Pareto Chart…"]);
+    ui.select("Column:", "batch").expect("column");
+    ui.select("Weight column (optional):", "weight")
+        .expect("weight");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Pareto Chart — column batch, weighted by weight"),
+        "{session}"
+    );
+    assert!(session.contains("Weight"), "{session}");
+    assert!(
+        session.contains("each row adds the value of weight"),
+        "{session}"
+    );
+}
+
+#[test]
+fn the_pareto_dialog_rejects_a_text_weight() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Quality Tools", "Pareto Chart…"]);
+    ui.select("Column:", "batch").expect("column");
+    ui.select("Weight column (optional):", "line")
+        .expect("weight");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("weight column must be numeric"),
+        "{}",
+        ui.status()
+    );
+    assert!(!ui.session().contains("Pareto Chart"));
+}
+
+#[test]
 fn the_pareto_dialog_needs_observations() {
     let mut ui = Automation::new();
     ui.load_frame(empty_frame(), "empty.csv");

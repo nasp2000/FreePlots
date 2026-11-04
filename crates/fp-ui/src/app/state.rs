@@ -212,6 +212,7 @@ impl FreePlotsApp {
             calc_expression: String::new(),
             show_pareto_dialog: false,
             pareto_column: String::new(),
+            pareto_weight: String::new(),
             show_ordinal_dialog: false,
             ordinal_response: String::new(),
             ordinal_predictors: String::new(),

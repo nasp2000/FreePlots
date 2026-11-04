@@ -7,7 +7,7 @@ use egui::{
     Align2, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, epaint::TextShape, pos2,
     vec2,
 };
-use fp_core::plot::{GraphOverlay, NoteCorner, PlotSpec, ReferenceAxis};
+use fp_core::plot::{GraphOverlay, PlotSpec, ReferenceAxis};
 
 const LEFT: f32 = 62.0;
 const RIGHT: f32 = 18.0;
@@ -59,12 +59,20 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
     painter.rect_filled(rect, 0.0, Color32::WHITE);
 
     // A secondary axis puts its ticks and title to the right of the frame,
-    // so it needs a wider margin than a plain plot.
-    let right = if spec.secondary.is_some() {
+    // so it needs a wider margin than a plain plot. The notes need a margin of
+    // their own beyond that, so they never sit over the data.
+    let base_right = if spec.secondary.is_some() {
         78.0
     } else {
         RIGHT
     };
+    let note_content = note_content_width(painter, spec);
+    let note_extent = if spec.notes.is_empty() {
+        0.0
+    } else {
+        note_content + 20.0
+    };
+    let right = base_right + note_extent;
     // A subtitle takes its own line under the title, so the frame starts lower
     // and the text never sits over the top tick.
     let has_subtitle = overlay.is_some_and(|overlay| overlay.subtitle.is_some());
@@ -343,100 +351,41 @@ fn paint(painter: &egui::Painter, rect: Rect, spec: &PlotSpec, overlay: Option<&
         }
     }
 
-    for note in &spec.notes {
-        if note.rows.is_empty() && note.lines.is_empty() {
-            continue;
-        }
+    if !spec.notes.is_empty() {
         let font = FontId::proportional(12.0);
-        let label_w = note
-            .rows
-            .iter()
-            .map(|row| {
-                painter
-                    .layout_no_wrap(row.label.clone(), font.clone(), Color32::from_gray(34))
-                    .size()
-                    .x
-            })
-            .fold(0.0_f32, f32::max);
-        let value_w = note
-            .rows
-            .iter()
-            .map(|row| {
-                painter
-                    .layout_no_wrap(row.value.clone(), font.clone(), Color32::from_gray(34))
-                    .size()
-                    .x
-            })
-            .fold(0.0_f32, f32::max);
-        let text_w = note
-            .lines
-            .iter()
-            .map(|line| {
-                painter
-                    .layout_no_wrap(line.clone(), font.clone(), Color32::from_gray(34))
-                    .size()
-                    .x
-            })
-            .fold(0.0_f32, f32::max);
-        let content_w = if note.rows.is_empty() {
-            text_w
-        } else if note.lines.is_empty() {
-            label_w + 16.0 + value_w
-        } else {
-            (label_w + 16.0 + value_w).max(text_w)
-        };
-        let pad = 8.0;
-        let line_h = 15.0;
-        let rows_count = note.rows.len() + note.lines.len();
-        let box_w = content_w + 2.0 * pad;
-        let box_h = rows_count as f32 * line_h + 2.0 * pad - 4.0;
-        let (box_x, box_y) = match note.corner {
-            NoteCorner::TopRight => (plot.right() - 8.0 - box_w, plot.top() + 8.0),
-            NoteCorner::TopLeft => (plot.left() + 8.0, plot.top() + 8.0),
-            NoteCorner::BottomRight => (plot.right() - 8.0 - box_w, plot.bottom() - 8.0 - box_h),
-            NoteCorner::BottomLeft => (plot.left() + 8.0, plot.bottom() - 8.0 - box_h),
-        };
-        let rect_note = Rect::from_min_size(pos2(box_x, box_y), vec2(box_w, box_h));
-        painter.rect_filled(
-            rect_note,
-            3.0,
-            Color32::from_rgba_unmultiplied(255, 255, 255, 224),
-        );
-        painter.rect_stroke(
-            rect_note,
-            3.0,
-            Stroke::new(1.0, Color32::from_gray(208)),
-            StrokeKind::Inside,
-        );
-        let left = box_x + pad;
-        let right = box_x + box_w - pad;
-        let mut y = box_y + pad;
-        for row in &note.rows {
-            painter.text(
-                pos2(left, y),
-                Align2::LEFT_TOP,
-                &row.label,
-                font.clone(),
-                Color32::from_gray(34),
-            );
-            painter.text(
-                pos2(right, y),
-                Align2::RIGHT_TOP,
-                &row.value,
-                font.clone(),
-                Color32::from_gray(34),
-            );
-            y += line_h;
-        }
-        for line in &note.lines {
-            painter.text(
-                pos2(left, y),
-                Align2::LEFT_TOP,
-                line,
-                font.clone(),
-                Color32::from_gray(34),
-            );
-            y += line_h;
+        let note_left = plot.right() + base_right + 4.0;
+        let mut y = plot.top() + 2.0;
+        for note in &spec.notes {
+            let content_w = single_note_width(painter, note);
+            let value_right = note_left + content_w;
+            for row in &note.rows {
+                painter.text(
+                    pos2(note_left, y),
+                    Align2::LEFT_TOP,
+                    &row.label,
+                    font.clone(),
+                    Color32::from_gray(34),
+                );
+                painter.text(
+                    pos2(value_right, y),
+                    Align2::RIGHT_TOP,
+                    &row.value,
+                    font.clone(),
+                    Color32::from_gray(34),
+                );
+                y += 15.0;
+            }
+            for line in &note.lines {
+                painter.text(
+                    pos2(note_left, y),
+                    Align2::LEFT_TOP,
+                    line,
+                    font.clone(),
+                    Color32::from_gray(34),
+                );
+                y += 15.0;
+            }
+            y += 4.0;
         }
     }
 
@@ -564,6 +513,56 @@ fn fitted_frame(canvas: egui::Vec2, natural: egui::Vec2) -> (egui::Vec2, egui::V
         frame_w = frame_h / aspect;
     }
     (canvas, vec2(frame_w.max(160.0), frame_h.max(120.0)))
+}
+
+/// Width of one note's columns, measured with the same font the note uses.
+fn single_note_width(painter: &egui::Painter, note: &fp_core::plot::PlotNote) -> f32 {
+    let font = FontId::proportional(12.0);
+    let label = note
+        .rows
+        .iter()
+        .map(|row| {
+            painter
+                .layout_no_wrap(row.label.clone(), font.clone(), Color32::from_gray(34))
+                .size()
+                .x
+        })
+        .fold(0.0_f32, f32::max);
+    let value = note
+        .rows
+        .iter()
+        .map(|row| {
+            painter
+                .layout_no_wrap(row.value.clone(), font.clone(), Color32::from_gray(34))
+                .size()
+                .x
+        })
+        .fold(0.0_f32, f32::max);
+    let lines = note
+        .lines
+        .iter()
+        .map(|line| {
+            painter
+                .layout_no_wrap(line.clone(), font.clone(), Color32::from_gray(34))
+                .size()
+                .x
+        })
+        .fold(0.0_f32, f32::max);
+    if note.rows.is_empty() {
+        lines
+    } else if note.lines.is_empty() {
+        label + 16.0 + value
+    } else {
+        (label + 16.0 + value).max(lines)
+    }
+}
+
+/// Widest note of the plot, zero when there is none.
+fn note_content_width(painter: &egui::Painter, spec: &PlotSpec) -> f32 {
+    spec.notes
+        .iter()
+        .map(|note| single_note_width(painter, note))
+        .fold(0.0_f32, f32::max)
 }
 
 fn series_color32(index: usize) -> Color32 {

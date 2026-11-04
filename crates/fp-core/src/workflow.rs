@@ -422,6 +422,8 @@ pub enum AnalysisSpec {
     Pareto {
         /// Column to count.
         column: String,
+        /// Optional numeric column whose values weight each row.
+        weight: Option<String>,
     },
     /// Taguchi signal-to-noise analysis.
     Taguchi {
@@ -1368,6 +1370,16 @@ impl AnalysisSpec {
     pub fn pareto(column: impl Into<String>) -> Self {
         Self::Pareto {
             column: column.into(),
+            weight: None,
+        }
+    }
+
+    /// Weighted Pareto chart: each row adds the value of `weight`.
+    #[must_use]
+    pub fn pareto_weighted(column: impl Into<String>, weight: impl Into<String>) -> Self {
+        Self::Pareto {
+            column: column.into(),
+            weight: Some(weight.into()),
         }
     }
 
@@ -2632,7 +2644,7 @@ impl AnalysisSpec {
             | Self::HotellingT2 { columns, .. } => columns.first().map_or("", String::as_str),
             Self::AcceptanceSampling { .. } => "",
             Self::Taguchi { response, .. } => response,
-            Self::Pareto { column } => column,
+            Self::Pareto { column, .. } => column,
             Self::IntervalPlot { response, .. } => response,
             Self::MatrixPlot { columns, .. } => columns.first().map_or("", String::as_str),
             Self::Dotplot { column, .. }
@@ -3799,7 +3811,10 @@ impl AnalysisSpec {
                 "Interval Plot — {response} by {factor}, {:.0}% intervals",
                 confidence * 100.0
             ),
-            Self::Pareto { column } => format!("Pareto Chart — {column}"),
+            Self::Pareto { column, weight } => match weight {
+                Some(weight) => format!("Pareto Chart — {column}, weighted by {weight}"),
+                None => format!("Pareto Chart — {column}"),
+            },
             Self::Taguchi {
                 response,
                 factors,
@@ -4823,7 +4838,7 @@ fn probability_note(result: &AnalysisResult) -> PlotNote {
             .map_or_else(|_| value.clone(), |number| format!("{number:.4}"));
         rows.push((short, shown));
     }
-    PlotNote::top_right(rows)
+    PlotNote::new(rows)
 }
 
 /// Mean, spread and the capability indices, as drawn inside a capability
@@ -4864,7 +4879,7 @@ fn capability_note(result: &AnalysisResult) -> PlotNote {
             rows.push(("PPM", ppm));
         }
     }
-    PlotNote::top_right(rows)
+    PlotNote::new(rows)
 }
 
 fn numeric_at(column: &Column, row: usize) -> Option<f64> {
@@ -7563,7 +7578,10 @@ pub fn run_analysis(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutpu
             factor,
             confidence,
         } => crate::intervalplot::analyze(df, response, factor, *confidence),
-        AnalysisSpec::Pareto { column } => crate::pareto::analyze(df, column),
+        AnalysisSpec::Pareto { column, weight } => match weight {
+            Some(weight) => crate::pareto::analyze_weighted(df, column, weight),
+            None => crate::pareto::analyze(df, column),
+        },
         AnalysisSpec::Taguchi {
             response,
             factors,
@@ -8841,6 +8859,29 @@ mod tests {
         let out = run_analysis(&df, &spec).expect("analysis");
         let text = out.results[0].to_session_text();
         assert!(text.contains("Pareto Chart"), "{text}");
+        assert!(out.plot.is_some());
+    }
+
+    #[test]
+    fn a_weighted_pareto_runs_through_the_workflow() {
+        let df = DataFrame::new(vec![
+            Column::new_text(
+                "defect",
+                vec!["scratch".to_owned(), "dent".to_owned(), "dent".to_owned()],
+            ),
+            Column::new_f64("cost", vec![1.0, 4.0, 4.0]),
+        ])
+        .expect("frame");
+        let spec = AnalysisSpec::pareto_weighted("defect", "cost");
+        assert_eq!(
+            spec.description(),
+            "Pareto Chart — defect, weighted by cost"
+        );
+        assert_eq!(spec.column(), "defect");
+        let out = run_analysis(&df, &spec).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("weighted by cost"), "{text}");
+        assert!(text.contains("Total weight"), "{text}");
         assert!(out.plot.is_some());
     }
 

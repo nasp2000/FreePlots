@@ -640,6 +640,7 @@ pub struct FreePlotsApp {
     calc_expression: String,
     show_pareto_dialog: bool,
     pareto_column: String,
+    pareto_weight: String,
     show_ordinal_dialog: bool,
     ordinal_response: String,
     ordinal_predictors: String,
@@ -1457,6 +1458,12 @@ impl FreePlotsApp {
     /// Switches the dark theme on or off.
     pub fn set_dark_mode(&mut self, dark: bool) {
         self.dark_mode = dark;
+    }
+
+    /// Chooses whether graphs open in their own window (off keeps them as a
+    /// floating dialog inside the main window).
+    pub fn set_native_plot_windows(&mut self, native: bool) {
+        self.native_plot_windows = native;
     }
 
     /// Whether the dark theme is active.

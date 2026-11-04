@@ -1246,67 +1246,6 @@ impl FreePlotsApp {
                     self.open_scatter_dialog();
                     ui.close();
                 }
-                ui.separator();
-                let has_plot = self.plot.is_some();
-                if menu_text_item(
-                    ui,
-                    self.catalog().label("Edit graph labels…"),
-                    None,
-                    has_plot,
-                )
-                .clicked()
-                {
-                    self.open_graph_labels();
-                    ui.close();
-                }
-                if menu_text_item(
-                    ui,
-                    self.catalog().label("Add reference line…"),
-                    None,
-                    has_plot,
-                )
-                .clicked()
-                {
-                    self.open_reference_line();
-                    ui.close();
-                }
-                if menu_text_item(
-                    ui,
-                    self.catalog().label("Save graph…"),
-                    None,
-                    has_plot,
-                )
-                .clicked()
-                {
-                    self.begin_plot_save();
-                    ui.close();
-                }
-                if menu_text_item(
-                    ui,
-                    self.catalog().label("Copy graph as SVG"),
-                    None,
-                    has_plot,
-                )
-                .clicked()
-                {
-                    if let Some(plot) = &self.plot {
-                        let svg = fp_core::plot::render_svg_with(plot, &self.graph_overlay);
-                        ui.ctx().copy_text(svg);
-                        self.status = "Graph copied as SVG".to_owned();
-                    }
-                    ui.close();
-                }
-                if menu_text_item(
-                    ui,
-                    self.catalog().label("Reset graph edits"),
-                    None,
-                    has_plot,
-                )
-                .clicked()
-                {
-                    self.reset_graph_edits();
-                    ui.close();
-                }
             });
 
             help_menu_button(ui, self.catalog().label("Assistant"), |ui| {

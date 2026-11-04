@@ -398,20 +398,6 @@ pub struct PlotSpec {
     pub notes: Vec<PlotNote>,
 }
 
-/// Corner of the plot frame where a [`PlotNote`] is anchored.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum NoteCorner {
-    /// Top right, the default for statistics.
-    #[default]
-    TopRight,
-    /// Top left.
-    TopLeft,
-    /// Bottom right.
-    BottomRight,
-    /// Bottom left.
-    BottomLeft,
-}
-
 /// One label/value pair in a [`PlotNote`].
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct NoteRow {
@@ -421,25 +407,24 @@ pub struct NoteRow {
     pub value: String,
 }
 
-/// A compact statistics block drawn inside the plot frame, over a translucent
-/// label so points behind it stay readable.
+/// A compact statistics block drawn in the margin to the right of the plot
+/// frame, so it never covers the data.
 ///
 /// The label column is left-aligned and the value column right-aligned, so the
-/// numbers line up the way they do in the Session report.
+/// numbers line up the way they do in the Session report. The plot area shrinks
+/// by the width of the widest block; the image keeps its own size.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PlotNote {
     /// Label/value rows, top to bottom.
     pub rows: Vec<NoteRow>,
     /// Free-text lines drawn under the rows (units, warnings).
     pub lines: Vec<String>,
-    /// Where the block sits.
-    pub corner: NoteCorner,
 }
 
 impl PlotNote {
-    /// A note of label/value rows in the top-right corner.
+    /// A note of label/value rows.
     #[must_use]
-    pub fn top_right(rows: Vec<(&str, String)>) -> Self {
+    pub fn new(rows: Vec<(&str, String)>) -> Self {
         Self {
             rows: rows
                 .into_iter()
@@ -449,8 +434,49 @@ impl PlotNote {
                 })
                 .collect(),
             lines: Vec::new(),
-            corner: NoteCorner::TopRight,
         }
+    }
+}
+
+/// Width of the longest line of a note in characters, used to reserve the
+/// right margin in the SVG.
+fn note_char_width(note: &PlotNote) -> usize {
+    let labels = note
+        .rows
+        .iter()
+        .map(|row| row.label.chars().count())
+        .max()
+        .unwrap_or(0);
+    let values = note
+        .rows
+        .iter()
+        .map(|row| row.value.chars().count())
+        .max()
+        .unwrap_or(0);
+    let lines = note
+        .lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+    if note.rows.is_empty() {
+        lines
+    } else if note.lines.is_empty() {
+        labels + 3 + values
+    } else {
+        (labels + 3 + values).max(lines)
+    }
+}
+
+/// Right margin, in SVG units, reserved for all the notes of a plot.
+fn note_gutter(notes: &[PlotNote]) -> f64 {
+    if notes.is_empty() {
+        0.0
+    } else {
+        let chars = notes.iter().map(note_char_width).max().unwrap_or(0) as f64;
+        // 6.5 px per character at 12 px, plus the gap to the frame and the
+        // right margin of the image.
+        12.0 + chars * 6.5 + 8.0
     }
 }
 
@@ -2192,13 +2218,15 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         return render_panels_svg(spec);
     }
     const ML: f64 = 70.0;
-    const MR: f64 = 30.0;
     const MT: f64 = 50.0;
     const MB: f64 = 60.0;
 
     let w = f64::from(spec.size.0);
     let h = f64::from(spec.size.1);
-    let pw = w - ML - MR;
+    // The statistics blocks live in a right-hand margin of their own: the plot
+    // area gets narrower instead of the numbers sitting over the data.
+    let gutter = note_gutter(&spec.notes);
+    let pw = w - ML - 30.0 - gutter;
     let ph = h - MT - MB;
 
     let (x0, x1) = (spec.x_axis.min, spec.x_axis.max);
@@ -2424,73 +2452,35 @@ pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
     }
     s.push_str("</g>\n");
 
+    let mut note_top = MT + 4.0;
     for note in &spec.notes {
         if note.rows.is_empty() && note.lines.is_empty() {
             continue;
         }
-        let font_size = 12.0;
-        let char_w = 6.5;
-        let line_h = 15.0;
-        let pad = 8.0;
-        let label_chars = note
-            .rows
-            .iter()
-            .map(|row| row.label.chars().count())
-            .max()
-            .unwrap_or(0);
-        let value_chars = note
-            .rows
-            .iter()
-            .map(|row| row.value.chars().count())
-            .max()
-            .unwrap_or(0);
-        let text_chars = note
-            .lines
-            .iter()
-            .map(|line| line.chars().count())
-            .max()
-            .unwrap_or(0);
-        let content_chars = if note.rows.is_empty() {
-            text_chars
-        } else if note.lines.is_empty() {
-            label_chars + 3 + value_chars
-        } else {
-            (label_chars + 3 + value_chars).max(text_chars)
-        };
-        let box_w = content_chars as f64 * char_w + 2.0 * pad;
-        let row_count = note.rows.len() + note.lines.len();
-        let box_h = row_count as f64 * line_h + 2.0 * pad - 4.0;
-        let (box_x, box_y) = match note.corner {
-            NoteCorner::TopRight => (ML + pw - 8.0 - box_w, MT + 8.0),
-            NoteCorner::TopLeft => (ML + 8.0, MT + 8.0),
-            NoteCorner::BottomRight => (ML + pw - 8.0 - box_w, MT + ph - 8.0 - box_h),
-            NoteCorner::BottomLeft => (ML + 8.0, MT + ph - 8.0 - box_h),
-        };
-        s.push_str(&format!(
-            "<rect x=\"{box_x:.1}\" y=\"{box_y:.1}\" width=\"{box_w:.1}\" height=\"{box_h:.1}\" rx=\"3\" fill=\"#ffffff\" fill-opacity=\"0.88\" stroke=\"#d0d0d0\" stroke-width=\"1\"/>\n"
-        ));
-        let left = box_x + pad;
-        let right = box_x + box_w - pad;
-        let value_x = right - value_chars as f64 * char_w;
-        let mut line_y = box_y + pad + 10.0;
+        let chars = note_char_width(note) as f64;
+        let content_w = chars * 6.5;
+        let left = ML + pw + 12.0;
+        let right = left + content_w;
+        let mut line_y = note_top + 10.0;
         for row in &note.rows {
             s.push_str(&format!(
-                "<text x=\"{left:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"{font_size}\" fill=\"#222222\">{}</text>\n",
+                "<text x=\"{left:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222222\">{}</text>\n",
                 escape_xml(&row.label)
             ));
             s.push_str(&format!(
-                "<text x=\"{value_x:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"{font_size}\" fill=\"#222222\">{}</text>\n",
+                "<text x=\"{right:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222222\" text-anchor=\"end\">{}</text>\n",
                 escape_xml(&row.value)
             ));
-            line_y += line_h;
+            line_y += 15.0;
         }
         for line in &note.lines {
             s.push_str(&format!(
-                "<text x=\"{left:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"{font_size}\" fill=\"#222222\">{}</text>\n",
+                "<text x=\"{left:.1}\" y=\"{line_y:.1}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222222\">{}</text>\n",
                 escape_xml(line)
             ));
-            line_y += line_h;
+            line_y += 15.0;
         }
+        note_top = line_y + 4.0;
     }
 
     if spec.series.len() > 1 {
@@ -3138,13 +3128,13 @@ mod tests {
     }
 
     #[test]
-    fn notes_are_drawn_inside_the_frame() {
+    fn notes_are_drawn_beside_the_frame() {
         let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
         let fit = Normal::fit_moments(&sample).unwrap();
         let probability = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
         let mut spec = PlotSpec::normal_probability(&probability, &fit, "Normal");
-        assert!(!render_svg(&spec).contains("fill-opacity=\"0.88\""));
-        let mut note = PlotNote::top_right(vec![("N", "5".to_owned()), ("Mean", "<x>".to_owned())]);
+        let plain = render_svg(&spec);
+        let mut note = PlotNote::new(vec![("N", "5".to_owned()), ("Mean", "<x>".to_owned())]);
         note.lines.push("units: mm".to_owned());
         spec.notes.push(note);
         let svg = render_svg(&spec);
@@ -3158,11 +3148,40 @@ mod tests {
             "the note must be escaped"
         );
         assert!(svg.contains("units: mm"));
-        assert!(svg.contains("fill-opacity=\"0.88\""));
+        // The note sits to the right of the plot rectangle, never over it.
+        let plot_right = 800.0 - 30.0 - note_gutter(&spec.notes);
+        let note_x: f64 = svg
+            .split("<text x=\"")
+            .find_map(|chunk| {
+                let x = chunk.split('"').next()?.parse::<f64>().ok()?;
+                chunk.contains(">N</text>").then_some(x)
+            })
+            .expect("the note text");
         assert!(
-            svg.matches("<rect").count() >= 3,
-            "the note needs its own background"
+            note_x >= plot_right,
+            "the note starts at {note_x}, inside the frame that ends at {plot_right}"
         );
+        // The plot area gives up exactly the gutter.
+        let width_without: f64 = plain
+            .split("<rect x=\"70.0\" y=\"50.0\" width=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|w| w.parse().ok())
+            .expect("plot width");
+        let width_with: f64 = svg
+            .split("<rect x=\"70.0\" y=\"50.0\" width=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|w| w.parse().ok())
+            .expect("plot width");
+        assert!(
+            (width_without - width_with - note_gutter(&spec.notes)).abs() < 0.2,
+            "the frame shrank by {} instead of {}",
+            width_without - width_with,
+            note_gutter(&spec.notes)
+        );
+        // No white box: the margin is already empty.
+        assert!(!svg.contains("fill-opacity=\"0.88\""));
     }
 
     #[test]

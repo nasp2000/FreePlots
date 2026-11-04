@@ -237,7 +237,12 @@ impl Automation {
 
     /// Sends a real pointer click at a point.
     pub fn click_at(&mut self, pos: egui::Pos2) {
-        self.pointer_click(pos);
+        self.pointer_click(pos, egui::PointerButton::Primary);
+    }
+
+    /// Right-clicks at a position, to open a context menu.
+    pub fn right_click_at(&mut self, pos: egui::Pos2) {
+        self.pointer_click(pos, egui::PointerButton::Secondary);
     }
 
     /// Presses a key (for example Escape to close a dialog).
@@ -430,17 +435,17 @@ impl Automation {
             .find(matches)
     }
 
-    fn pointer_click(&mut self, pos: egui::Pos2) {
+    fn pointer_click(&mut self, pos: egui::Pos2, button: egui::PointerButton) {
         self.harness.event(egui::Event::PointerMoved(pos));
         self.harness.event(egui::Event::PointerButton {
             pos,
-            button: egui::PointerButton::Primary,
+            button,
             pressed: true,
             modifiers: egui::Modifiers::default(),
         });
         self.harness.event(egui::Event::PointerButton {
             pos,
-            button: egui::PointerButton::Primary,
+            button,
             pressed: false,
             modifiers: egui::Modifiers::default(),
         });

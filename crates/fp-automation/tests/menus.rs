@@ -51,9 +51,11 @@ fn an_invalid_option_is_reported_in_the_status_bar() {
 }
 
 #[test]
-fn the_graph_menu_edits_and_saves_the_plot() {
+fn the_graph_actions_live_in_the_plot_context_menu() {
     let mut ui = Automation::new();
     ui.load_csv(fixture()).expect("load csv");
+    // Keep the graph inside the main window so its context menu is reachable.
+    ui.app_mut().set_native_plot_windows(false);
     ui.open_menu(&["Stat", "Control Charts", "P/NP/C/U Chart…"])
         .expect("open the attribute dialog");
     ui.select("Chart:", "P").expect("select the P chart");
@@ -61,11 +63,51 @@ fn the_graph_menu_edits_and_saves_the_plot() {
         .expect("select the column");
     ui.set_text("Constant size:", "50").expect("set the size");
     ui.click("Run").expect("run the chart");
-    assert!(ui.plot().is_some(), "the chart produced no plot");
+    let plot_title = ui.plot().expect("the chart produced no plot").title.clone();
+    assert!(
+        ui.window_titles()
+            .iter()
+            .any(|window| window == &plot_title)
+    );
 
-    // The Graph menu edits the plot through the same dialog the window uses.
-    ui.open_menu(&["Graph", "Edit graph labels…"])
-        .expect("open the label editor");
+    // The Graph menu no longer repeats the presentation edits.
+    ui.open_menu(&["Graph"]).expect("open the Graph menu");
+    let labels: Vec<String> = ui.widgets().into_iter().filter_map(|w| w.label).collect();
+    for gone in [
+        "Edit graph labels…",
+        "Add reference line…",
+        "Save graph…",
+        "Copy graph as SVG",
+        "Reset graph edits",
+    ] {
+        assert!(
+            !labels.iter().any(|label| label == gone),
+            "{gone} is still in the Graph menu: {labels:?}"
+        );
+    }
+    assert!(
+        labels.iter().any(|label| label == "Pareto Chart…"),
+        "the plot entries stay in the menu: {labels:?}"
+    );
+    // Close the menu again by clicking its title (Escape would also close the
+    // graph dialog underneath).
+    ui.click("Graph").expect("close the Graph menu");
+
+    // Right-clicking the graph opens the same edits, and they still work.
+    let rect = ui
+        .widgets()
+        .into_iter()
+        .find(|widget| widget.role == "Window" && widget.label.as_deref() == Some(&plot_title))
+        .map(|widget| widget.rect)
+        .expect("the graph window rect");
+    let centre = egui::pos2((rect[0] + rect[2]) / 2.0, (rect[1] + rect[3]) / 2.0);
+    ui.right_click_at(centre);
+    let menu: Vec<String> = ui.widgets().into_iter().filter_map(|w| w.label).collect();
+    assert!(
+        menu.iter().any(|label| label == "Edit graph labels…"),
+        "the context menu did not open: {menu:?}"
+    );
+    ui.click("Edit graph labels…").expect("open the editor");
     ui.set_text("Subtitle", "Night shift")
         .expect("set the subtitle");
     ui.click("Apply").expect("apply the labels");
@@ -73,25 +115,6 @@ fn the_graph_menu_edits_and_saves_the_plot() {
         ui.status().contains("Graph labels updated"),
         "{}",
         ui.status()
-    );
-
-    // Saving the graph asks for an SVG destination.
-    ui.open_menu(&["Graph", "Save graph…"])
-        .expect("open the save dialog");
-    assert!(
-        ui.window_titles()
-            .iter()
-            .any(|title| title == "Save Graph As"),
-        "the SVG save dialog did not open: {:?}",
-        ui.window_titles()
-    );
-    ui.click("Cancel").expect("cancel the save");
-    assert!(
-        !ui.window_titles()
-            .iter()
-            .any(|title| title == "Save Graph As"),
-        "the dialog stayed open: {:?}",
-        ui.window_titles()
     );
 }
 

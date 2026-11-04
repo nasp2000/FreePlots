@@ -38,20 +38,70 @@ pub struct Pareto {
     pub vital_few: usize,
     /// Rows with a missing label (not counted).
     pub excluded: usize,
+    /// Rows that contributed to the totals (label and weight present).
+    pub observations: usize,
+    /// Whether a weight column was used.
+    pub weighted: bool,
 }
 
 /// Counts the categories of a column.
 pub fn fit(df: &DataFrame, column_name: &str) -> Result<Pareto> {
+    fit_with(df, column_name, None)
+}
+
+/// Counts the categories of a column, adding the numeric values of `weight`
+/// instead of one per row.
+pub fn fit_weighted(df: &DataFrame, column_name: &str, weight: &str) -> Result<Pareto> {
+    fit_with(df, column_name, Some(weight))
+}
+
+/// Shared implementation: `weight` names a numeric column, or is empty for the
+/// classical count.
+fn fit_with(df: &DataFrame, column_name: &str, weight: Option<&str>) -> Result<Pareto> {
     let column = df.column(column_name)?;
+    let weight_column = match weight.filter(|name| !name.is_empty()) {
+        Some(name) => {
+            let column = df.column(name)?;
+            match column.dtype() {
+                crate::data::DType::Float | crate::data::DType::Integer => Some(column),
+                _ => {
+                    return Err(Error::Unsupported(
+                        "the weight column must be numeric".to_owned(),
+                    ));
+                }
+            }
+        }
+        None => None,
+    };
     let mut counts: BTreeMap<String, f64> = BTreeMap::new();
     let mut excluded = 0usize;
+    let mut observations = 0usize;
     for row in 0..df.n_rows() {
         if column.is_missing(row) {
             excluded += 1;
             continue;
         }
-        *counts.entry(column.cell_text(row)).or_insert(0.0) += 1.0;
+        let value = match weight_column {
+            None => 1.0,
+            Some(weights) => {
+                let Some(value) = weights.value(row) else {
+                    excluded += 1;
+                    continue;
+                };
+                if value < 0.0 {
+                    return Err(Error::Unsupported(
+                        "the weights must not be negative".to_owned(),
+                    ));
+                }
+                value
+            }
+        };
+        *counts.entry(column.cell_text(row)).or_insert(0.0) += value;
+        observations += 1;
     }
+    // A category whose weights add up to zero carries no information; the
+    // same holds for the whole sample.
+    counts.retain(|_, count| *count > 0.0);
     if counts.is_empty() {
         return Err(Error::EmptySample);
     }
@@ -91,6 +141,8 @@ pub fn fit(df: &DataFrame, column_name: &str) -> Result<Pareto> {
         total,
         vital_few,
         excluded,
+        observations,
+        weighted: weight_column.is_some(),
     })
 }
 
@@ -202,7 +254,11 @@ fn plot(model: &Pareto) -> PlotSpec {
     PlotSpec {
         title: "Pareto Chart".to_owned(),
         x_axis,
-        y_axis: linear_axis("Count", 0.0, (high * 1.05).max(1.0)),
+        y_axis: linear_axis(
+            if model.weighted { "Weight" } else { "Count" },
+            0.0,
+            (high * 1.05).max(1.0),
+        ),
         size: (900, 540),
         points: model
             .counts
@@ -231,16 +287,42 @@ fn plot(model: &Pareto) -> PlotSpec {
 
 /// Runs the analysis and builds the report and the chart.
 pub fn analyze(df: &DataFrame, column_name: &str) -> Result<AnalysisOutput> {
-    let model = fit(df, column_name)?;
+    build(fit(df, column_name)?, column_name, None)
+}
+
+/// Weighted variant: each row counts by the numeric value of `weight`.
+pub fn analyze_weighted(df: &DataFrame, column_name: &str, weight: &str) -> Result<AnalysisOutput> {
+    build(
+        fit_weighted(df, column_name, weight)?,
+        column_name,
+        Some(weight),
+    )
+}
+
+fn build(model: Pareto, column_name: &str, weight: Option<&str>) -> Result<AnalysisOutput> {
     let mut result = AnalysisResult::new(
-        format!("Pareto Chart — column {column_name}"),
-        "Categories sorted by frequency with the cumulative percentage".to_owned(),
+        match weight {
+            Some(weight) => format!("Pareto Chart — column {column_name}, weighted by {weight}"),
+            None => format!("Pareto Chart — column {column_name}"),
+        },
+        match weight {
+            Some(_) => "Categories sorted by weighted frequency with the cumulative percentage",
+            None => "Categories sorted by frequency with the cumulative percentage",
+        }
+        .to_owned(),
     );
-    result.n = model.total as usize;
+    result.n = model.observations;
     result.excluded = model.excluded;
     result.statistics = vec![
         ("Categories", model.categories.len() as f64),
-        ("Total", model.total),
+        (
+            if model.weighted {
+                "Total weight"
+            } else {
+                "Total"
+            },
+            model.total,
+        ),
         ("Vital few (80%)", model.vital_few as f64),
         (
             "Largest share (%)",
@@ -251,7 +333,7 @@ pub fn analyze(df: &DataFrame, column_name: &str) -> Result<AnalysisOutput> {
         headers: vec![
             "Rank".to_owned(),
             "Category".to_owned(),
-            "Count".to_owned(),
+            if model.weighted { "Weight" } else { "Count" }.to_owned(),
             "Percent".to_owned(),
             "Cumulative %".to_owned(),
         ],
@@ -263,7 +345,11 @@ pub fn analyze(df: &DataFrame, column_name: &str) -> Result<AnalysisOutput> {
                 vec![
                     format!("{}", index + 1),
                     category.clone(),
-                    format!("{:.0}", model.counts[index]),
+                    if model.weighted {
+                        format!("{:.3}", model.counts[index])
+                    } else {
+                        format!("{:.0}", model.counts[index])
+                    },
                     format!("{:.2}", model.percents[index]),
                     format!("{:.2}", model.cumulative[index]),
                 ]
@@ -290,9 +376,23 @@ pub fn analyze(df: &DataFrame, column_name: &str) -> Result<AnalysisOutput> {
         ),
         (
             "Data policy".to_owned(),
-            "cells without a label are not counted and are reported as excluded".to_owned(),
+            match weight {
+                Some(_) => {
+                    "rows without a label or a weight are not counted and are reported as excluded"
+                }
+                None => "cells without a label are not counted and are reported as excluded",
+            }
+            .to_owned(),
         ),
     ];
+    if let Some(weight) = weight {
+        result.notes.push((
+            "Weight".to_owned(),
+            format!(
+                "each row adds the value of {weight} instead of one; weights must not be negative"
+            ),
+        ));
+    }
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the ordering and the 80% rule are standard choices and have not been verified against \
@@ -349,6 +449,101 @@ mod tests {
         )])
         .expect("frame");
         assert!(matches!(fit(&df, "defect"), Err(Error::Unsupported(_))));
+    }
+
+    fn weighted_frame() -> DataFrame {
+        DataFrame::new(vec![
+            Column::new_text(
+                "defect",
+                vec![
+                    "scratch".to_owned(),
+                    "scratch".to_owned(),
+                    "dent".to_owned(),
+                    "crack".to_owned(),
+                    "crack".to_owned(),
+                ],
+            ),
+            Column::new_f64("cost", vec![10.0, 5.0, 20.0, 2.0, 3.0]),
+        ])
+        .expect("frame")
+    }
+
+    #[test]
+    fn the_weights_replace_the_count() {
+        let model = fit_weighted(&weighted_frame(), "defect", "cost").expect("fit");
+        assert!(model.weighted);
+        assert_eq!(model.observations, 5);
+        assert_eq!(model.total, 40.0);
+        // dent (20) now beats scratch (15), which has more rows.
+        assert_eq!(model.categories, vec!["dent", "scratch", "crack"]);
+        assert_eq!(model.counts, vec![20.0, 15.0, 5.0]);
+        assert!((model.percents[0] - 50.0).abs() < 1e-9);
+        assert!((model.cumulative[2] - 100.0).abs() < 1e-9);
+        assert_eq!(model.vital_few, 2);
+    }
+
+    #[test]
+    fn a_missing_weight_excludes_the_row() {
+        let df = DataFrame::new(vec![
+            Column::new_text(
+                "defect",
+                vec!["a".to_owned(), "a".to_owned(), "b".to_owned()],
+            ),
+            Column::new_f64("cost", vec![2.0, f64::NAN, 1.0]),
+        ])
+        .expect("frame");
+        let model = fit_weighted(&df, "defect", "cost").expect("fit");
+        assert_eq!(model.excluded, 1);
+        assert_eq!(model.observations, 2);
+        assert_eq!(model.total, 3.0);
+    }
+
+    #[test]
+    fn an_invalid_weight_is_rejected() {
+        let negative = DataFrame::new(vec![
+            Column::new_text("defect", vec!["a".to_owned(), "b".to_owned()]),
+            Column::new_f64("cost", vec![1.0, -2.0]),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            fit_weighted(&negative, "defect", "cost"),
+            Err(Error::Unsupported(_))
+        ));
+
+        let text = DataFrame::new(vec![
+            Column::new_text("defect", vec!["a".to_owned(), "b".to_owned()]),
+            Column::new_text("cost", vec!["1".to_owned(), "2".to_owned()]),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            fit_weighted(&text, "defect", "cost"),
+            Err(Error::Unsupported(_))
+        ));
+
+        let zero = DataFrame::new(vec![
+            Column::new_text("defect", vec!["a".to_owned(), "b".to_owned()]),
+            Column::new_f64("cost", vec![0.0, 0.0]),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            fit_weighted(&zero, "defect", "cost"),
+            Err(Error::EmptySample)
+        ));
+    }
+
+    #[test]
+    fn the_weighted_report_names_the_weight() {
+        let out = analyze_weighted(&weighted_frame(), "defect", "cost").expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("weighted by cost"), "{text}");
+        assert!(text.contains("Observations (n)      5"), "{text}");
+        assert!(text.contains("Weight"), "{text}");
+        assert!(
+            text.contains("each row adds the value of cost"),
+            "the method note must explain the weight"
+        );
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.bands.len(), 3);
     }
 
     #[test]

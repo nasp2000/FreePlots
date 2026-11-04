@@ -730,8 +730,14 @@ impl FreePlotsApp {
                 self.show_plot = false;
                 return;
             };
+            // The statistics block lives beside the frame, so a plot that
+            // carries one opens in a wider window and keeps its plot size.
             let default_size = if plot.panels.is_empty() {
-                [784.0, 620.0]
+                if plot.notes.is_empty() {
+                    [784.0, 620.0]
+                } else {
+                    [940.0, 620.0]
+                }
             } else {
                 [1120.0, 460.0]
             };
@@ -799,14 +805,10 @@ impl FreePlotsApp {
             return;
         }
         let mut open = self.show_plot;
-        let default_size = if self
-            .plot
-            .as_ref()
-            .is_some_and(|plot| !plot.panels.is_empty())
-        {
-            [1120.0, 460.0]
-        } else {
-            [784.0, 620.0]
+        let default_size = match self.plot.as_ref() {
+            Some(plot) if !plot.panels.is_empty() => [1120.0, 460.0],
+            Some(plot) if !plot.notes.is_empty() => [940.0, 620.0],
+            _ => [784.0, 620.0],
         };
         // The window carries the title of the graph it shows, so a control
         // chart is not presented as a probability plot.
