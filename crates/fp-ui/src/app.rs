@@ -62,6 +62,8 @@ pub enum FileKind {
     Xlsx,
     /// SVG export of the current graph.
     Svg,
+    /// PDF page with the current graph, for printing.
+    GraphPdf,
 }
 
 /// A request to read a worksheet.
@@ -554,6 +556,9 @@ pub struct FreePlotsApp {
     /// Points marked with Ctrl+click in the graph window, shared with the
     /// native viewport closure.
     brush_marks: std::sync::Arc<std::sync::Mutex<Vec<(usize, usize)>>>,
+    /// Screen rectangle of the floating graph window, used to dock the graph
+    /// editor to its right side.
+    pub(super) graph_dialog_rect: Option<egui::Rect>,
     /// Dialog state of the conditional-formatting editor.
     show_conditional_dialog: bool,
     conditional_column: String,
@@ -1239,6 +1244,7 @@ impl FreePlotsApp {
             FileKind::Pdf => "session.pdf".to_owned(),
             FileKind::Xlsx => "worksheet.xlsx".to_owned(),
             FileKind::Svg => "graph.svg".to_owned(),
+            FileKind::GraphPdf => "graph.pdf".to_owned(),
         };
         self.session.clear();
         self.plot = None;
@@ -1586,6 +1592,37 @@ impl FreePlotsApp {
         self.dark_mode = dark;
     }
 
+    /// `true` when one of the graph edit dialogs is open.
+    #[must_use]
+    pub fn any_graph_editor_open(&self) -> bool {
+        self.show_graph_labels
+            || self.show_graph_text
+            || self.show_graph_annotation
+            || self.show_notes
+            || self.show_data_labels
+            || self.show_percentiles
+            || self.show_panel_layout
+            || self.show_axis_scale
+            || self.show_data_display
+            || self.show_reference_line
+    }
+
+    /// Dialog builder for a graph editor, pinned to the right of the floating
+    /// graph window when it is visible.
+    fn graph_editor_dialog(&self, title: impl Into<String>) -> DialogWindow<'static> {
+        let mut dialog = dialog_window(title.into())
+            .without_clear()
+            .collapsible(false)
+            .resizable(false)
+            .default_width(376.0);
+        if let Some(rect) = self.graph_dialog_rect {
+            let width = 372.0;
+            let x = (rect.right() - width - 6.0).max(rect.left());
+            dialog = dialog.fixed_pos(egui::pos2(x, rect.top() + 4.0));
+        }
+        dialog
+    }
+
     /// Chooses whether graphs open in their own window (off keeps them as a
     /// floating dialog inside the main window).
     pub fn set_native_plot_windows(&mut self, native: bool) {
@@ -1687,6 +1724,7 @@ impl FreePlotsApp {
             FileKind::Pdf => ".pdf",
             FileKind::Xlsx => ".xlsx",
             FileKind::Svg => ".svg",
+            FileKind::GraphPdf => ".pdf",
         };
         if !self.save_path.to_ascii_lowercase().ends_with(expected) {
             self.save_path = format!("{stem}{expected}");
@@ -3071,6 +3109,20 @@ fn browse_request(kind: FileKind, save: bool) -> BrowseRequest {
                 "All files (*.*)|*.*".to_owned(),
             ],
         ),
+        (FileKind::GraphPdf, true) => (
+            "Print Graph",
+            vec![
+                "PDF files (*.pdf)|*.pdf".to_owned(),
+                "All files (*.*)|*.*".to_owned(),
+            ],
+        ),
+        (FileKind::GraphPdf, false) => (
+            "Open PDF",
+            vec![
+                "PDF files (*.pdf)|*.pdf".to_owned(),
+                "All files (*.*)|*.*".to_owned(),
+            ],
+        ),
     };
     BrowseRequest {
         title: title.to_owned(),
@@ -3689,6 +3741,8 @@ fn tool_icon(ui: &mut egui::Ui, icon: ToolIcon, tooltip: &str, enabled: bool) ->
 struct DialogWindow<'a> {
     inner: egui::Window<'a>,
     clear: bool,
+    /// The dialog is pinned (docked) instead of centred.
+    fixed: bool,
 }
 
 impl<'a> DialogWindow<'a> {
@@ -3718,6 +3772,18 @@ impl<'a> DialogWindow<'a> {
         self
     }
 
+    /// Pins the dialog at a screen position (the graph editor docks itself to
+    /// the right of the graph).
+    fn fixed_pos(mut self, value: egui::Pos2) -> Self {
+        self.fixed = true;
+        self.inner = self
+            .inner
+            .fixed_pos(value)
+            .pivot(egui::Align2::LEFT_TOP)
+            .movable(false);
+        self
+    }
+
     fn default_size(mut self, value: impl Into<egui::Vec2>) -> Self {
         self.inner = self.inner.default_size(value);
         self
@@ -3738,11 +3804,14 @@ impl<'a> DialogWindow<'a> {
         ctx: &egui::Context,
         add_contents: impl FnOnce(&mut egui::Ui) -> R,
     ) -> Option<egui::InnerResponse<Option<R>>> {
-        // Open in the middle of the window, then let the user drag it.
-        self.inner = self
-            .inner
-            .default_pos(ctx.content_rect().center())
-            .pivot(egui::Align2::CENTER_CENTER);
+        // Open in the middle of the window, then let the user drag it. A
+        // pinned dialog keeps the position it was given.
+        if !self.fixed {
+            self.inner = self
+                .inner
+                .default_pos(ctx.content_rect().center())
+                .pivot(egui::Align2::CENTER_CENTER);
+        }
         let theme = ctx.theme();
         let previous = ctx.global_style();
         let dark = (
@@ -3999,6 +4068,7 @@ fn about_formula(ui: &mut egui::Ui) {
 fn dialog_window<'a>(title: impl Into<String>) -> DialogWindow<'a> {
     DialogWindow {
         clear: true,
+        fixed: false,
         inner: egui::Window::new(egui::RichText::new(title.into()).heading())
             .title_frame(
                 egui::Frame::window(&egui::Style::default())

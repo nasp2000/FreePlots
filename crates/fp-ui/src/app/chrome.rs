@@ -182,6 +182,7 @@ impl FreePlotsApp {
         self.agents_window(&ctx);
         self.licences_window(&ctx);
         self.tour_window(&ctx);
+        self.graph_window(&ctx);
         self.graph_labels_window(&ctx);
         self.graph_text_window(&ctx);
         self.graph_annotation_window(&ctx);
@@ -192,7 +193,6 @@ impl FreePlotsApp {
         self.axis_scale_window(&ctx);
         self.data_display_window(&ctx);
         self.reference_line_window(&ctx);
-        self.graph_window(&ctx);
         self.persist_preferences();
     }
     pub(super) fn toolbar(&mut self, ui: &mut egui::Ui) {

@@ -6049,6 +6049,27 @@ fn notes_can_be_duplicated_rotated_reordered_and_deleted() {
 }
 
 #[test]
+fn the_graph_can_be_printed_as_a_pdf_page() {
+    let mut app = FreePlotsApp::new();
+    app.begin_graph_pdf();
+    assert!(app.error.is_some(), "no graph yet");
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("plot");
+    app.begin_graph_pdf();
+    assert_eq!(app.save_kind, FileKind::GraphPdf);
+    assert_eq!(app.save_path, "graph.pdf");
+    assert!(app.show_save);
+    // The PDF writer accepts an empty session and still draws the graph.
+    let bytes = fp_core::pdf::session_pdf("Probability", "", app.plot());
+    assert!(bytes.starts_with(b"%PDF-1.4"), "not a PDF");
+    assert!(bytes.len() > 1000, "the page is too small: {}", bytes.len());
+}
+
+#[test]
 fn the_axis_scale_is_validated_and_applied() {
     let spec = fp_core::plot::PlotSpec {
         title: "test".to_owned(),
@@ -6338,6 +6359,152 @@ fn the_tour_walks_through_the_window_and_closes() {
     harness.get_by_label("Finish").click();
     harness.run();
     assert!(!harness.state().show_tour);
+}
+
+#[test]
+fn every_graph_context_menu_action_is_audited() {
+    use graph_edit::GraphAction;
+
+    let mut app = FreePlotsApp::new();
+    app.load_sample("Filling line capability");
+    let ctx = egui::Context::default();
+
+    // Each editor opens its own dialog.
+    app.apply_graph_action(&ctx, GraphAction::Labels);
+    assert!(app.show_graph_labels);
+    app.show_graph_labels = false;
+    app.apply_graph_action(&ctx, GraphAction::Text);
+    assert!(app.show_graph_text);
+    app.show_graph_text = false;
+    app.apply_graph_action(&ctx, GraphAction::DataDisplay);
+    assert!(app.show_data_display);
+    app.show_data_display = false;
+    app.apply_graph_action(&ctx, GraphAction::Annotation);
+    assert!(app.show_graph_annotation);
+    app.show_graph_annotation = false;
+    app.apply_graph_action(&ctx, GraphAction::Notes);
+    assert!(app.show_notes);
+    app.show_notes = false;
+    app.apply_graph_action(&ctx, GraphAction::DataLabels);
+    assert!(app.show_data_labels);
+    app.show_data_labels = false;
+    app.apply_graph_action(&ctx, GraphAction::Reference);
+    assert!(app.show_reference_line);
+    app.show_reference_line = false;
+    app.apply_graph_action(&ctx, GraphAction::Percentiles);
+    assert!(app.show_percentiles);
+    app.show_percentiles = false;
+    app.apply_graph_action(&ctx, GraphAction::AxisScale);
+    assert!(app.show_axis_scale);
+    app.show_axis_scale = false;
+
+    // Panel layout needs panels; on a single plot it explains the refusal.
+    app.apply_graph_action(&ctx, GraphAction::PanelLayout);
+    assert!(app.error.is_some(), "a single plot has no panel layout");
+    app.load_sample("Filling line capability");
+    app.run_spec_blocking(
+        fp_core::workflow::AnalysisSpec::control_chart(
+            "diameter",
+            fp_core::spc::ControlChartKind::IndividualsMovingRange,
+            1,
+        ),
+        "I-MR".to_owned(),
+    )
+    .expect("chart");
+    app.apply_graph_action(&ctx, GraphAction::PanelLayout);
+    assert!(app.show_panel_layout);
+    app.show_panel_layout = false;
+
+    // Gridlines toggle both ways and leave the default on.
+    let before = app.graph_overlay.grid;
+    app.apply_graph_action(&ctx, GraphAction::GridToggle);
+    assert_ne!(app.graph_overlay.grid, before);
+    app.apply_graph_action(&ctx, GraphAction::GridToggle);
+    assert_eq!(app.graph_overlay.grid, before);
+
+    // Save and print open the save dialog with the right format.
+    app.apply_graph_action(&ctx, GraphAction::Save);
+    assert_eq!(app.save_kind, FileKind::Svg);
+    assert!(app.show_save);
+    app.show_save = false;
+    app.apply_graph_action(&ctx, GraphAction::Print);
+    assert_eq!(app.save_kind, FileKind::GraphPdf);
+    assert_eq!(app.save_path, "graph.pdf");
+    assert!(app.show_save);
+    app.show_save = false;
+
+    // Copy puts the SVG on the clipboard (the status is what the user sees;
+    // the platform command is covered by the copy UI test).
+    app.apply_graph_action(&ctx, GraphAction::Copy);
+    assert_eq!(app.status, "Graph copied as SVG");
+
+    // Marks and the whole overlay are cleared.
+    app.brush_marks.lock().expect("marks").push((0, 0));
+    app.apply_graph_action(&ctx, GraphAction::ClearMarks);
+    assert!(app.brush_marks.lock().expect("marks").is_empty());
+    assert_eq!(app.status, "Marks cleared");
+
+    app.graph_overlay.subtitle = Some("Line A".to_owned());
+    app.graph_overlay
+        .annotations
+        .push(fp_core::plot::Annotation {
+            text: "note".to_owned(),
+            ..fp_core::plot::Annotation::default()
+        });
+    app.graph_overlay.x_range = Some((1.0, 2.0));
+    app.apply_graph_action(&ctx, GraphAction::Reset);
+    assert_eq!(app.graph_overlay, fp_core::plot::GraphOverlay::default());
+    assert_eq!(app.status, "Graph edits reset");
+}
+
+#[test]
+fn graph_actions_reject_a_missing_graph_and_bad_values() {
+    use graph_edit::GraphAction;
+
+    let mut app = FreePlotsApp::new();
+    let ctx = egui::Context::default();
+    for action in [
+        GraphAction::Labels,
+        GraphAction::Text,
+        GraphAction::DataDisplay,
+        GraphAction::Annotation,
+        GraphAction::Notes,
+        GraphAction::DataLabels,
+        GraphAction::Reference,
+        GraphAction::Percentiles,
+        GraphAction::AxisScale,
+        GraphAction::PanelLayout,
+        GraphAction::Save,
+        GraphAction::Print,
+    ] {
+        app.apply_graph_action(&ctx, action);
+        if !matches!(action, GraphAction::Notes | GraphAction::DataDisplay) {
+            assert!(app.error.is_some(), "{action:?} accepted an empty app");
+        }
+        app.error = None;
+    }
+
+    // Reference line: a non-numeric value is refused and adds nothing.
+    app.load_sample("Filling line capability");
+    app.open_reference_line();
+    app.reference_value = "abc".to_owned();
+    app.add_reference_line();
+    assert!(app.error.is_some());
+    assert!(app.graph_overlay.reference_lines.is_empty());
+
+    // Percentiles out of range are refused.
+    app.open_percentiles();
+    app.percentile_values = "0, 100".to_owned();
+    app.add_percentile_lines();
+    assert!(app.error.is_some());
+    assert!(app.graph_overlay.reference_lines.is_empty());
+
+    // Note management on an empty list is harmless.
+    app.duplicate_note(3);
+    app.delete_note(3);
+    app.rotate_note(3, 15.0);
+    app.bring_note_to_front(3);
+    assert!(app.graph_overlay.annotations.is_empty());
 }
 
 #[test]

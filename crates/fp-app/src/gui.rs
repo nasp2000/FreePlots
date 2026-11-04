@@ -124,7 +124,7 @@ impl eframe::App for Desktop {
                                 .map(|(_, df)| (df, request.path.clone(), Vec::new()))
                         }
                     }),
-                    FileKind::Html | FileKind::Pdf | FileKind::Svg => {
+                    FileKind::Html | FileKind::Pdf | FileKind::Svg | FileKind::GraphPdf => {
                         Err("HTML, PDF and SVG are export-only formats".to_owned())
                     }
                     FileKind::Xlsx => match &request.sheet {
@@ -183,6 +183,18 @@ impl eframe::App for Desktop {
                     ),
                     None => Err("No graph to save".to_owned()),
                 },
+                FileKind::GraphPdf => match self.app.plot() {
+                    Some(plot) => {
+                        let title = if plot.title.is_empty() {
+                            "Graph"
+                        } else {
+                            plot.title.as_str()
+                        };
+                        let bytes = fp_core::pdf::session_pdf(title, "", Some(plot));
+                        crate::platform::write_bytes(path, &bytes)
+                    }
+                    None => Err("No graph to print".to_owned()),
+                },
                 FileKind::Csv | FileKind::Project | FileKind::Xlsx => match self.app.data() {
                     Some(df) => match request.kind {
                         FileKind::Csv => {
@@ -196,7 +208,9 @@ impl eframe::App for Desktop {
                         FileKind::Xlsx => {
                             crate::platform::write_bytes(path, &fp_core::xlsx::workbook(df))
                         }
-                        FileKind::Html | FileKind::Pdf | FileKind::Svg => unreachable!(),
+                        FileKind::Html | FileKind::Pdf | FileKind::Svg | FileKind::GraphPdf => {
+                            unreachable!()
+                        }
                     },
                     None => Err("No worksheet to save".to_owned()),
                 },
@@ -205,7 +219,7 @@ impl eframe::App for Desktop {
                 Ok(()) if request.kind == FileKind::Html || request.kind == FileKind::Pdf => {
                     self.app.mark_session_exported(&request.path);
                 }
-                Ok(()) if request.kind == FileKind::Svg => {
+                Ok(()) if request.kind == FileKind::Svg || request.kind == FileKind::GraphPdf => {
                     self.app.mark_graph_saved(&request.path);
                 }
                 Ok(()) => self.app.mark_saved(&request.path),

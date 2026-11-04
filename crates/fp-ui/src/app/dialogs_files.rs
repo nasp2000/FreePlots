@@ -18,6 +18,7 @@ impl FreePlotsApp {
             FileKind::Pdf => "Open PDF",
             FileKind::Xlsx => "Open Excel",
             FileKind::Svg => "Open SVG",
+            FileKind::GraphPdf => "Open PDF",
         };
         dialog_window(title)
             .without_clear()
@@ -33,6 +34,7 @@ impl FreePlotsApp {
                     FileKind::Pdf => "Path to a PDF file:",
                     FileKind::Xlsx => "Path to an Excel workbook:",
                     FileKind::Svg => "Path to an SVG file:",
+                    FileKind::GraphPdf => "Path to a PDF file:",
                 });
                 ui.horizontal(|ui| {
                     let response = ui
@@ -116,6 +118,7 @@ impl FreePlotsApp {
             FileKind::Html => "Export Session HTML",
             FileKind::Pdf => "Export Session PDF",
             FileKind::Svg => "Save Graph As",
+            FileKind::GraphPdf => "Print Graph",
             FileKind::Xlsx => "Save Excel Workbook",
         };
         dialog_window(title)
@@ -131,6 +134,7 @@ impl FreePlotsApp {
                     FileKind::Html => "Destination HTML file:",
                     FileKind::Pdf => "Destination PDF file:",
                     FileKind::Svg => "Destination SVG file:",
+                    FileKind::GraphPdf => "Destination PDF file:",
                     FileKind::Xlsx => "Destination Excel workbook:",
                 });
                 ui.horizontal(|ui| {
@@ -725,7 +729,7 @@ impl FreePlotsApp {
         while let Ok(action) = self.plot_action_rx.try_recv() {
             self.apply_graph_action(ctx, action);
         }
-        if self.native_plot_windows {
+        if self.native_plot_windows && !self.any_graph_editor_open() {
             let Some(plot) = self.plot.clone() else {
                 self.show_plot = false;
                 return;
@@ -808,6 +812,7 @@ impl FreePlotsApp {
                             ("Axis scale…", GraphAction::AxisScale),
                             ("Toggle gridlines", GraphAction::GridToggle),
                             ("Save graph…", GraphAction::Save),
+                            ("Print graph…", GraphAction::Print),
                             ("Copy graph as SVG", GraphAction::Copy),
                             ("Clear marks", GraphAction::ClearMarks),
                         ] {
@@ -832,9 +837,25 @@ impl FreePlotsApp {
             );
             return;
         }
+        // An open editor docks to the right, so the window grows to keep the
+        // plot at its usual size next to the form.
+        if self.native_plot_windows && self.plot_viewport.take().is_some() {
+            ctx.send_viewport_cmd_to(
+                egui::ViewportId::from_hash_of("fp_graph"),
+                egui::ViewportCommand::Close,
+            );
+        }
         let mut open = self.show_plot;
+        let editing = self.any_graph_editor_open();
         let default_size = match self.plot.as_ref() {
-            Some(plot) if !plot.panels.is_empty() => [1120.0, 460.0],
+            Some(plot) if !plot.panels.is_empty() => {
+                if editing {
+                    [1500.0, 560.0]
+                } else {
+                    [1120.0, 460.0]
+                }
+            }
+            Some(_) if editing => [1180.0, 700.0],
             Some(plot) if !plot.notes.is_empty() => [940.0, 620.0],
             _ => [784.0, 620.0],
         };
@@ -848,7 +869,7 @@ impl FreePlotsApp {
             .unwrap_or_else(|| self.catalog().label("Graph").to_owned());
         let mut graph_action = None;
         let brush = self.brush_marks.clone();
-        dialog_window(title)
+        let dialog_response = dialog_window(title)
             .without_clear()
             .id(egui::Id::new("graph_window"))
             .open(&mut open)
@@ -859,16 +880,33 @@ impl FreePlotsApp {
                 if let Some(spec) = &self.plot {
                     let overlay = self.graph_overlay.clone();
                     let mut marks = brush.lock().map(|marks| marks.clone()).unwrap_or_default();
-                    let response = if spec.panels.is_empty() {
-                        crate::plot_view::show_with_marks(ui, spec, &overlay, &mut marks)
+                    let available = ui.available_size();
+                    let plot_width = if editing {
+                        (available.x - 386.0).max(420.0)
                     } else {
-                        egui::ScrollArea::both()
-                            .auto_shrink([false, false])
-                            .show(ui, |ui| {
-                                crate::plot_view::show_with_marks(ui, spec, &overlay, &mut marks)
-                            })
-                            .inner
+                        available.x
                     };
+                    let plot_ui = |ui: &mut egui::Ui| {
+                        if spec.panels.is_empty() {
+                            crate::plot_view::show_with_marks(ui, spec, &overlay, &mut marks)
+                        } else {
+                            egui::ScrollArea::both()
+                                .auto_shrink([false, false])
+                                .show(ui, |ui| {
+                                    crate::plot_view::show_with_marks(
+                                        ui, spec, &overlay, &mut marks,
+                                    )
+                                })
+                                .inner
+                        }
+                    };
+                    let response = ui
+                        .allocate_ui_with_layout(
+                            egui::vec2(plot_width, available.y),
+                            egui::Layout::top_down(egui::Align::Min),
+                            plot_ui,
+                        )
+                        .inner;
                     if let Ok(mut shared) = brush.lock() {
                         *shared = marks;
                     }
@@ -924,6 +962,10 @@ impl FreePlotsApp {
                             graph_action = Some(GraphAction::Save);
                             ui.close();
                         }
+                        if ui.button(catalog.label("Print graph…")).clicked() {
+                            graph_action = Some(GraphAction::Print);
+                            ui.close();
+                        }
                         if ui.button(catalog.label("Copy graph as SVG")).clicked() {
                             graph_action = Some(GraphAction::Copy);
                             ui.close();
@@ -943,6 +985,7 @@ impl FreePlotsApp {
                     ui.help_label("No graph yet.");
                 }
             });
+        self.graph_dialog_rect = dialog_response.as_ref().map(|r| r.response.rect);
         self.show_plot = open;
         if let Some(action) = graph_action {
             self.apply_graph_action(ctx, action);

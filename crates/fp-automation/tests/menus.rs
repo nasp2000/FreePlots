@@ -122,6 +122,7 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
     for entry in [
         "Data display…",
         "Notes…",
+        "Print graph…",
         "Add data labels…",
         "Add percentile lines…",
         "Axis scale…",
@@ -151,6 +152,89 @@ fn the_graph_actions_live_in_the_plot_context_menu() {
         "{}",
         ui.status()
     );
+}
+
+#[test]
+fn every_graph_context_entry_opens_and_closes() {
+    let mut ui = Automation::new();
+    ui.load_csv(fixture()).expect("load csv");
+    ui.app_mut().set_native_plot_windows(false);
+    ui.open_menu(&["Stat", "Control Charts", "P/NP/C/U Chart…"])
+        .expect("open the attribute dialog");
+    ui.select("Chart:", "P").expect("select the P chart");
+    ui.select("Defects column:", "defects")
+        .expect("select the column");
+    ui.set_text("Constant size:", "50").expect("set the size");
+    ui.click("Run").expect("run the chart");
+    let plot_title = ui.plot().expect("plot").title.clone();
+    let rect = ui
+        .widgets()
+        .into_iter()
+        .find(|widget| widget.role == "Window" && widget.label.as_deref() == Some(&plot_title))
+        .map(|widget| widget.rect)
+        .expect("the graph window rect");
+    let centre = egui::pos2((rect[0] + rect[2]) / 2.0, (rect[1] + rect[3]) / 2.0);
+
+    let editors = [
+        ("Graph options…", "Graph options", "Cancel"),
+        ("Graph text…", "Graph text", "Cancel"),
+        ("Data display…", "Data display", "Close"),
+        ("Add note…", "Add note to the graph", "Cancel"),
+        ("Notes…", "Notes", "Close"),
+        ("Add data labels…", "Data labels", "Cancel"),
+        ("Add reference lines…", "Reference line", "Cancel"),
+        ("Add percentile lines…", "Percentile lines", "Cancel"),
+        ("Axis scale…", "Axis scale", "Cancel"),
+    ];
+    for (item, title, close) in editors {
+        ui.right_click_at(centre);
+        ui.click(item)
+            .unwrap_or_else(|error| panic!("open {item}: {error}"));
+        assert!(
+            ui.window_titles().iter().any(|open| open == title),
+            "{item} opened {:?}, not {title:?}",
+            ui.window_titles()
+        );
+        ui.click(close)
+            .unwrap_or_else(|error| panic!("close {item}: {error}"));
+        assert!(
+            !ui.window_titles().iter().any(|open| open == title),
+            "{item} left its editor open"
+        );
+    }
+
+    // Save and print ask for a destination.
+    for (item, title) in [
+        ("Save graph…", "Save Graph As"),
+        ("Print graph…", "Print Graph"),
+    ] {
+        ui.right_click_at(centre);
+        ui.click(item)
+            .unwrap_or_else(|error| panic!("open {item}: {error}"));
+        assert!(
+            ui.window_titles().iter().any(|open| open == title),
+            "{item} opened {:?}",
+            ui.window_titles()
+        );
+        ui.click("Cancel").expect("cancel the save");
+    }
+
+    // Direct actions report in the status line.
+    for (item, needle) in [
+        ("Toggle gridlines", "Gridlines"),
+        ("Copy graph as SVG", "copied"),
+        ("Clear marks", "Marks"),
+        ("Reset graph edits", "reset"),
+    ] {
+        ui.right_click_at(centre);
+        ui.click(item)
+            .unwrap_or_else(|error| panic!("click {item}: {error}"));
+        assert!(
+            ui.status().to_lowercase().contains(&needle.to_lowercase()),
+            "{item} left status {:?}",
+            ui.status()
+        );
+    }
 }
 
 #[test]

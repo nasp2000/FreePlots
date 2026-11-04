@@ -20,6 +20,7 @@ pub enum GraphAction {
     GridToggle,
     Reference,
     Save,
+    Print,
     Copy,
     ClearMarks,
     Reset,
@@ -177,7 +178,7 @@ impl FreePlotsApp {
         }
         let mut open = self.show_data_display;
         let catalog = self.catalog();
-        dialog_window(catalog.label("Data display"))
+        self.graph_editor_dialog(catalog.label("Data display"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -427,6 +428,17 @@ impl FreePlotsApp {
         self.show_save = true;
     }
 
+    /// Opens the save dialog for a one-page PDF with the current graph.
+    pub fn begin_graph_pdf(&mut self) {
+        if self.plot.is_none() {
+            self.set_error("No graph to print");
+            return;
+        }
+        self.save_kind = FileKind::GraphPdf;
+        self.save_path = "graph.pdf".to_owned();
+        self.show_save = true;
+    }
+
     /// Opens the reference-line dialog.
     pub fn open_reference_line(&mut self) {
         if self.plot.is_none() {
@@ -500,6 +512,7 @@ impl FreePlotsApp {
             }
             GraphAction::Reference => self.open_reference_line(),
             GraphAction::Save => self.begin_plot_save(),
+            GraphAction::Print => self.begin_graph_pdf(),
             GraphAction::Copy => {
                 if let Some(plot) = &self.plot {
                     let svg = fp_core::plot::render_svg_with(plot, &self.graph_overlay);
@@ -524,7 +537,7 @@ impl FreePlotsApp {
         let mut open = self.show_graph_labels;
         let mut apply = false;
         let catalog = self.catalog();
-        dialog_window(self.catalog().label("Graph options"))
+        self.graph_editor_dialog(self.catalog().label("Graph options"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -572,7 +585,7 @@ impl FreePlotsApp {
         let mut open = self.show_graph_annotation;
         let mut add = false;
         let catalog = self.catalog();
-        dialog_window(self.catalog().label("Add note to the graph"))
+        self.graph_editor_dialog(self.catalog().label("Add note to the graph"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -635,7 +648,7 @@ impl FreePlotsApp {
         let mut front = None;
         let catalog = self.catalog();
         let notes = self.graph_overlay.annotations.clone();
-        dialog_window(catalog.label("Notes"))
+        self.graph_editor_dialog(catalog.label("Notes"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -702,7 +715,7 @@ impl FreePlotsApp {
         let mut apply = false;
         let mut remove = false;
         let catalog = self.catalog();
-        dialog_window(catalog.label("Data labels"))
+        self.graph_editor_dialog(catalog.label("Data labels"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -762,7 +775,7 @@ impl FreePlotsApp {
         let mut open = self.show_percentiles;
         let mut add = false;
         let catalog = self.catalog();
-        dialog_window(catalog.label("Percentile lines"))
+        self.graph_editor_dialog(catalog.label("Percentile lines"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -816,7 +829,7 @@ impl FreePlotsApp {
         let mut open = self.show_panel_layout;
         let mut apply = false;
         let catalog = self.catalog();
-        dialog_window(catalog.label("Panel layout"))
+        self.graph_editor_dialog(catalog.label("Panel layout"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -855,7 +868,7 @@ impl FreePlotsApp {
         let mut apply = false;
         let mut automatic = false;
         let catalog = self.catalog();
-        dialog_window(catalog.label("Axis scale"))
+        self.graph_editor_dialog(catalog.label("Axis scale"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -909,7 +922,7 @@ impl FreePlotsApp {
         let mut apply = false;
         let mut reset = false;
         let catalog = self.catalog();
-        dialog_window(self.catalog().label("Graph text"))
+        self.graph_editor_dialog(self.catalog().label("Graph text"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -985,7 +998,7 @@ impl FreePlotsApp {
         let mut open = self.show_reference_line;
         let mut add = false;
         let catalog = self.catalog();
-        dialog_window(self.catalog().label("Reference line"))
+        self.graph_editor_dialog(self.catalog().label("Reference line"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)

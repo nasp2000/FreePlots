@@ -41,6 +41,7 @@ impl FreePlotsApp {
             formats: std::collections::HashMap::new(),
             conditional_rules: Vec::new(),
             brush_marks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+            graph_dialog_rect: None,
             show_conditional_dialog: false,
             conditional_column: String::new(),
             conditional_kind: ConditionalKind::Greater,
