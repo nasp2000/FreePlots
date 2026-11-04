@@ -1349,15 +1349,29 @@ pub fn analyze_exponential(
     let se = model.theta / (model.events as f64).sqrt();
     let factor = (1.959_963_984_540_054 / (model.events as f64).sqrt()).exp();
     let interval = |estimate: f64| (estimate / factor, estimate * factor);
-    result.statistics = vec![
-        ("Mean/scale (θ)", model.theta),
-        ("Standard error", se),
-        ("Log-likelihood", model.log_likelihood),
-        ("AIC", model.aic),
-        ("B10 life", model.b10),
-        ("Events", model.events as f64),
-        ("Censored", model.censored as f64),
-    ];
+    result.statistics = {
+        let mut statistics = vec![
+            ("Mean/scale (θ)", model.theta),
+            ("Standard error", se),
+            ("Log-likelihood", model.log_likelihood),
+            ("AIC", model.aic),
+            ("B10 life", model.b10),
+            ("Events", model.events as f64),
+            ("Censored", model.censored as f64),
+        ];
+        if model.censored == 0
+            && let Some(adjusted) = adjusted_ad_exponential(
+                &df.column(time_column)
+                    .and_then(|column| column.sample(crate::data::MissingPolicy::Drop))
+                    .map(|sample| sample.sorted())
+                    .unwrap_or_default(),
+                model.theta,
+            )
+        {
+            statistics.push(("Anderson–Darling (adjusted)", adjusted));
+        }
+        statistics
+    };
     if let Some((lower, upper)) = model.theta_ci {
         result.statistics.push(("θ CI lower", lower));
         result.statistics.push(("θ CI upper", upper));
@@ -1466,6 +1480,47 @@ pub fn analyze_exponential(
             notes: Vec::new(),
         }),
     })
+}
+
+/// Adjusted Anderson–Darling statistic for an uncensored exponential fit.
+///
+/// The formula is the one in the reliability method notes, evaluated at the
+/// median-rank plot points `(i − 0.3)/(n + 0.4)`, with the fitted CDF
+/// `z_i = 1 − exp(−x_i/θ)`, `z_0 = 0` and `z_{n+1} = 1 − 10⁻¹²`.
+fn adjusted_ad_exponential(sorted: &[f64], theta: f64) -> Option<f64> {
+    let n = sorted.len();
+    if n < 2 || !theta.is_finite() || theta <= 0.0 {
+        return None;
+    }
+    let eps = 1e-12;
+    let mut z = Vec::with_capacity(n + 2);
+    z.push(0.0);
+    for value in sorted {
+        z.push(1.0 - (-value / theta).exp());
+    }
+    z.push(1.0 - eps);
+    let rank = |below: usize| -> f64 {
+        if below == 0 {
+            0.0
+        } else {
+            (below as f64 - 0.3) / (n as f64 + 0.4)
+        }
+    };
+    let mut total = 0.0;
+    for i in 1..=n + 1 {
+        let z_prev = z[i - 1];
+        let z_next = z[i];
+        let f = rank(i - 1);
+        if i == 1 {
+            total += -z_next - (1.0 - z_next).ln();
+        } else {
+            total += -z_next - (1.0 - z_next).ln() + z_prev + (1.0 - z_prev).ln();
+            total += 2.0 * (1.0 - z_next).ln() * f - 2.0 * (1.0 - z_prev).ln() * f;
+            total +=
+                (z_next.ln() - (1.0 - z_next).ln() - z_prev.ln() + (1.0 - z_prev).ln()) * f * f;
+        }
+    }
+    Some(n as f64 * total)
 }
 
 #[cfg(test)]
@@ -1634,6 +1689,32 @@ mod tests {
         assert!(text.contains("Exponential Reliability"), "{text}");
         assert!(text.contains("B10 life"), "{text}");
         assert!(!out.plot.expect("plot").lines.is_empty());
+    }
+
+    #[test]
+    fn the_adjusted_ad_matches_the_captured_reliability_value() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../validation/datasets/exponential_n20.csv"
+        );
+        let text = std::fs::read_to_string(path).expect("dataset");
+        let mut values: Vec<f64> = text
+            .lines()
+            .skip(1)
+            .filter_map(|line| line.trim().replace(',', ".").parse::<f64>().ok())
+            .collect();
+        assert_eq!(values.len(), 20);
+        values.sort_by(f64::total_cmp);
+        let theta = values.iter().sum::<f64>() / values.len() as f64;
+        let adjusted = adjusted_ad_exponential(&values, theta).expect("statistic");
+        // Captured from the reference distribution analysis (n = 20).
+        assert!((adjusted - 0.896290).abs() < 1e-4, "{adjusted}");
+        // The report prints it in the statistics block.
+        let df = DataFrame::new(vec![Column::new_f64("time", values)]).expect("frame");
+        let out = analyze_exponential(&df, "time", None, 0.0).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Anderson–Darling (adjusted)"), "{text}");
+        assert!(text.contains("0.8962"), "{text}");
     }
 
     #[test]
