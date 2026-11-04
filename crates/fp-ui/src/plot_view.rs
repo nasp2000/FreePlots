@@ -34,6 +34,13 @@ pub fn show_with_marks(
     overlay: &GraphOverlay,
     marks: &mut Vec<(usize, usize)>,
 ) -> egui::Response {
+    let rescaled;
+    let spec = if overlay.x_range.is_some() || overlay.y_range.is_some() {
+        rescaled = overlay.rescale(spec);
+        &rescaled
+    } else {
+        spec
+    };
     let available = ui.available_size();
     let width = available.x.max(320.0);
     let visible_height = if available.y.is_finite() && available.y > 0.0 {
@@ -638,6 +645,8 @@ fn panel_edits(overlay: Option<&GraphOverlay>) -> Option<GraphOverlay> {
         annotations: overlay.annotations.clone(),
         grid: overlay.grid,
         data_labels: overlay.data_labels,
+        x_range: None,
+        y_range: None,
     })
 }
 

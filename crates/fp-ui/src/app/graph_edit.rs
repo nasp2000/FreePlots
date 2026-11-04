@@ -14,6 +14,7 @@ pub enum GraphAction {
     DataLabels,
     Percentiles,
     PanelLayout,
+    AxisScale,
     GridToggle,
     Reference,
     Save,
@@ -125,6 +126,87 @@ impl FreePlotsApp {
         }
         self.show_percentiles = false;
         self.status = format!("{added} percentile line(s) added");
+    }
+
+    /// Opens the manual axis-scale editor.
+    pub fn open_axis_scale(&mut self) {
+        let Some(plot) = &self.plot else {
+            self.set_error("No graph to edit");
+            return;
+        };
+        let text = |range: Option<(f64, f64)>, low: bool| match range {
+            Some((low_value, high_value)) => {
+                if low {
+                    format!("{low_value}")
+                } else {
+                    format!("{high_value}")
+                }
+            }
+            None => String::new(),
+        };
+        self.axis_x_min = text(self.graph_overlay.x_range, true);
+        self.axis_x_max = text(self.graph_overlay.x_range, false);
+        self.axis_y_min = text(self.graph_overlay.y_range, true);
+        self.axis_y_max = text(self.graph_overlay.y_range, false);
+        let _ = plot;
+        self.show_axis_scale = true;
+    }
+
+    /// Parses one min/max pair; `Ok(None)` means automatic.
+    fn parse_range(low: &str, high: &str, name: &str) -> Result<Option<(f64, f64)>, String> {
+        let low = low.trim();
+        let high = high.trim();
+        if low.is_empty() && high.is_empty() {
+            return Ok(None);
+        }
+        if low.is_empty() || high.is_empty() {
+            return Err(format!("Enter both limits of the {name} axis, or neither"));
+        }
+        let parse = |value: &str| value.replace(',', ".").parse::<f64>().ok();
+        match (parse(low), parse(high)) {
+            (Some(low), Some(high)) if low < high => Ok(Some((low, high))),
+            (Some(_), Some(_)) => Err(format!("The {name} minimum must be below the maximum")),
+            _ => Err(format!("The {name} limits must be numbers")),
+        }
+    }
+
+    /// Applies the manual axis limits, or clears them.
+    pub fn apply_axis_scale(&mut self, automatic: bool) {
+        if automatic {
+            self.graph_overlay.x_range = None;
+            self.graph_overlay.y_range = None;
+            self.show_axis_scale = false;
+            self.status = "Axis scale automatic".to_owned();
+            return;
+        }
+        let x = Self::parse_range(&self.axis_x_min, &self.axis_x_max, "x");
+        let y = Self::parse_range(&self.axis_y_min, &self.axis_y_max, "y");
+        let (x, y) = match (x, y) {
+            (Ok(x), Ok(y)) => (x, y),
+            (Err(error), _) | (_, Err(error)) => {
+                self.set_error(&error);
+                return;
+            }
+        };
+        if let Some(plot) = &self.plot {
+            if x.is_some() && matches!(plot.x_axis.scale, fp_core::plot::Scale::Probability(_)) {
+                self.set_error("Manual limits are not available on a probability axis");
+                return;
+            }
+            if y.is_some() && matches!(plot.y_axis.scale, fp_core::plot::Scale::Probability(_)) {
+                self.set_error("Manual limits are not available on a probability axis");
+                return;
+            }
+            if !plot.panels.is_empty() && (x.is_some() || y.is_some()) {
+                self.set_error("Manual limits are available on single plots, not on panels");
+                return;
+            }
+        }
+        self.graph_overlay.x_range = x;
+        self.graph_overlay.y_range = y;
+        self.show_axis_scale = false;
+        self.error = None;
+        self.status = "Axis scale updated".to_owned();
     }
 
     /// Opens the panel layout editor (multi-panel graphs only).
@@ -321,6 +403,7 @@ impl FreePlotsApp {
             GraphAction::DataLabels => self.open_data_labels(),
             GraphAction::Percentiles => self.open_percentiles(),
             GraphAction::PanelLayout => self.open_panel_layout(),
+            GraphAction::AxisScale => self.open_axis_scale(),
             GraphAction::GridToggle => {
                 self.graph_overlay.grid = !self.graph_overlay.grid;
                 self.status = if self.graph_overlay.grid {
@@ -605,6 +688,60 @@ impl FreePlotsApp {
             self.apply_panel_layout();
         } else {
             self.show_panel_layout = open && self.show_panel_layout;
+        }
+    }
+
+    pub(super) fn axis_scale_window(&mut self, ctx: &egui::Context) {
+        if !self.show_axis_scale {
+            return;
+        }
+        let mut open = self.show_axis_scale;
+        let mut apply = false;
+        let mut automatic = false;
+        let catalog = self.catalog();
+        dialog_window(catalog.label("Axis scale"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                for (title, low, high) in [
+                    ("X axis", &mut self.axis_x_min, &mut self.axis_x_max),
+                    ("Y axis", &mut self.axis_y_min, &mut self.axis_y_max),
+                ] {
+                    ui.horizontal(|ui| {
+                        ui.help_label(catalog.label(title));
+                        ui.label(catalog.label("from"));
+                        ui.add(egui::TextEdit::singleline(low).desired_width(90.0))
+                            .labelled_by(ui.help_label(catalog.label("Minimum")).id);
+                        ui.label(catalog.label("to"));
+                        ui.add(egui::TextEdit::singleline(high).desired_width(90.0))
+                            .labelled_by(ui.help_label(catalog.label("Maximum")).id);
+                    });
+                }
+                ui.small(catalog.label(
+                    "Leave both fields of an axis empty for automatic limits; probabilities and panels keep their own scales.",
+                ));
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(catalog.label("Apply")).clicked() {
+                        apply = true;
+                    }
+                    if ui.help_button(catalog.label("Automatic")).clicked() {
+                        automatic = true;
+                    }
+                    if ui.help_button(catalog.label("Cancel")).clicked() {
+                        self.show_axis_scale = false;
+                    }
+                });
+            });
+        if apply {
+            self.apply_axis_scale(false);
+        } else if automatic {
+            self.apply_axis_scale(true);
+        } else {
+            self.show_axis_scale = open && self.show_axis_scale;
         }
     }
 

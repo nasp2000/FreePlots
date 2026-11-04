@@ -481,6 +481,20 @@ fn note_gutter(notes: &[PlotNote], scale: f32) -> f64 {
     }
 }
 
+/// Rebuilds a linear or log axis for a manual range, or returns `None` when
+/// the scale cannot be expressed in raw values (probability axes).
+fn rescaled_axis(axis: &AxisSpec, range: (f64, f64)) -> Option<AxisSpec> {
+    let (low, high) = range;
+    if !low.is_finite() || !high.is_finite() || low >= high {
+        return None;
+    }
+    match axis.scale {
+        Scale::Linear => Some(linear_axis(&axis.label, low, high)),
+        Scale::Log10 => Some(log10_axis(axis.label.clone(), low, high)),
+        Scale::Probability(_) => None,
+    }
+}
+
 /// Percentage ticks used on a probability axis.
 ///
 /// The normal/lognormal and the Weibull/exponential sets are the ones captured
@@ -2199,6 +2213,12 @@ pub struct GraphOverlay {
     /// Labels drawn next to each point.
     #[serde(default)]
     pub data_labels: Option<DataLabelMode>,
+    /// Manual horizontal-axis limits (raw values), when set.
+    #[serde(default)]
+    pub x_range: Option<(f64, f64)>,
+    /// Manual vertical-axis limits (raw values), when set.
+    #[serde(default)]
+    pub y_range: Option<(f64, f64)>,
 }
 
 /// How the labels added by the graph editor describe a point.
@@ -2294,6 +2314,8 @@ impl Default for GraphOverlay {
             annotations: Vec::new(),
             grid: true,
             data_labels: None,
+            x_range: None,
+            y_range: None,
         }
     }
 }
@@ -2307,6 +2329,27 @@ impl GraphOverlay {
         } else {
             1.0
         }
+    }
+
+    /// Plot with the manual axis limits applied: the ticks are rebuilt, so
+    /// labels and values stay inside the requested window. Probability axes
+    /// keep their engine ticks (their coordinates are not raw values).
+    #[must_use]
+    pub fn rescale(&self, spec: &PlotSpec) -> PlotSpec {
+        let mut out = spec.clone();
+        if out.panels.is_empty() {
+            if let Some(range) = self.x_range
+                && let Some(axis) = rescaled_axis(&out.x_axis, range)
+            {
+                out.x_axis = axis;
+            }
+            if let Some(range) = self.y_range
+                && let Some(axis) = rescaled_axis(&out.y_axis, range)
+            {
+                out.y_axis = axis;
+            }
+        }
+        out
     }
 
     /// A graph text size, in points, after the user's scale.
@@ -2390,6 +2433,13 @@ pub fn render_svg(spec: &PlotSpec) -> String {
 /// Renders the plot with the subtitle, footer and reference lines.
 #[must_use]
 pub fn render_svg_with(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
+    let rescaled;
+    let spec = if overlay.x_range.is_some() || overlay.y_range.is_some() {
+        rescaled = overlay.rescale(spec);
+        &rescaled
+    } else {
+        spec
+    };
     if !spec.panels.is_empty() {
         return render_panels_svg(spec, overlay);
     }
@@ -2839,6 +2889,8 @@ fn render_panels_svg(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
         annotations: overlay.annotations.clone(),
         grid: overlay.grid,
         data_labels: overlay.data_labels,
+        x_range: None,
+        y_range: None,
     };
 
     let mut s = String::with_capacity(8192);
@@ -3436,6 +3488,54 @@ mod tests {
         assert!(svg.contains(">A<"), "legend A missing");
         assert!(svg.contains(">B<"), "legend B missing");
         assert!(svg.contains("#c00000"), "second series colour missing");
+    }
+
+    #[test]
+    fn manual_axis_limits_rebuild_linear_ticks() {
+        let spec = PlotSpec {
+            title: "test".to_owned(),
+            x_axis: linear_axis("x", 0.0, 10.0),
+            y_axis: linear_axis("y", 0.0, 10.0),
+            size: (600, 400),
+            points: vec![Point { x: 2.0, y: 3.0 }, Point { x: 8.0, y: 7.0 }],
+            lines: Vec::new(),
+            bands: Vec::new(),
+            series: Vec::new(),
+            panels: Vec::new(),
+            panel_columns: 0,
+            secondary: None,
+            notes: Vec::new(),
+        };
+        let overlay = GraphOverlay {
+            x_range: Some((2.0, 4.0)),
+            y_range: Some((1.0, 5.0)),
+            ..GraphOverlay::default()
+        };
+        let out = overlay.rescale(&spec);
+        assert_eq!((out.x_axis.min, out.x_axis.max), (2.0, 4.0));
+        assert_eq!((out.y_axis.min, out.y_axis.max), (1.0, 5.0));
+        assert!(
+            out.x_axis
+                .ticks
+                .iter()
+                .all(|tick| tick.position >= 2.0 - 1e-9 && tick.position <= 4.0 + 1e-9),
+            "ticks outside the window"
+        );
+        let svg = render_svg_with(&spec, &overlay);
+        assert!(svg.contains(">test<"), "{svg}");
+
+        // A probability axis cannot be expressed in raw values: the engine
+        // ticks stay as they are.
+        let sample = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
+        let fit = Normal::fit_moments(&sample).unwrap();
+        let plot = normal_probability_plot(&sample, &fit, PlottingPosition::Benard).unwrap();
+        let probability = PlotSpec::normal_probability(&plot, &fit, "Normal");
+        let overlay = GraphOverlay {
+            y_range: Some((-2.0, 2.0)),
+            ..GraphOverlay::default()
+        };
+        let out = overlay.rescale(&probability);
+        assert_eq!(out.y_axis.min, probability.y_axis.min);
     }
 
     #[test]

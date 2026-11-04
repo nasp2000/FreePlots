@@ -803,6 +803,7 @@ impl FreePlotsApp {
                             ("Add reference lines…", GraphAction::Reference),
                             ("Add percentile lines…", GraphAction::Percentiles),
                             ("Panel layout…", GraphAction::PanelLayout),
+                            ("Axis scale…", GraphAction::AxisScale),
                             ("Toggle gridlines", GraphAction::GridToggle),
                             ("Save graph…", GraphAction::Save),
                             ("Copy graph as SVG", GraphAction::Copy),
@@ -895,6 +896,10 @@ impl FreePlotsApp {
                             && ui.button(catalog.label("Panel layout…")).clicked()
                         {
                             graph_action = Some(GraphAction::PanelLayout);
+                            ui.close();
+                        }
+                        if ui.button(catalog.label("Axis scale…")).clicked() {
+                            graph_action = Some(GraphAction::AxisScale);
                             ui.close();
                         }
                         if ui.button(catalog.label("Toggle gridlines")).clicked() {

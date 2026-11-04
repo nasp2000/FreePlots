@@ -6002,6 +6002,64 @@ fn marks_are_cleared_by_the_graph_action() {
 }
 
 #[test]
+fn the_axis_scale_is_validated_and_applied() {
+    let spec = fp_core::plot::PlotSpec {
+        title: "test".to_owned(),
+        x_axis: fp_core::plot::AxisSpec {
+            label: "x".to_owned(),
+            scale: fp_core::plot::Scale::Linear,
+            min: 0.0,
+            max: 10.0,
+            ticks: Vec::new(),
+            minor: Vec::new(),
+        },
+        y_axis: fp_core::plot::AxisSpec {
+            label: "y".to_owned(),
+            scale: fp_core::plot::Scale::Linear,
+            min: 0.0,
+            max: 10.0,
+            ticks: Vec::new(),
+            minor: Vec::new(),
+        },
+        size: (600, 400),
+        points: vec![fp_core::plot::Point { x: 2.0, y: 3.0 }],
+        lines: Vec::new(),
+        bands: Vec::new(),
+        series: Vec::new(),
+        panels: Vec::new(),
+        panel_columns: 0,
+        secondary: None,
+        notes: Vec::new(),
+    };
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(spec);
+    app.open_axis_scale();
+    app.axis_x_min = "2".to_owned();
+    app.axis_x_max = "8".to_owned();
+    app.axis_y_min = "1".to_owned();
+    app.axis_y_max = "5".to_owned();
+    app.apply_axis_scale(false);
+    assert!(app.error.is_none(), "{:?}", app.error);
+    assert_eq!(app.graph_overlay.x_range, Some((2.0, 8.0)));
+    assert_eq!(app.graph_overlay.y_range, Some((1.0, 5.0)));
+
+    // A reversed interval and a half-filled pair are refused.
+    app.open_axis_scale();
+    app.axis_x_min = "9".to_owned();
+    app.axis_x_max = "2".to_owned();
+    app.apply_axis_scale(false);
+    assert!(app.error.is_some());
+    app.axis_x_min = String::new();
+    app.apply_axis_scale(false);
+    assert!(app.error.is_some());
+
+    // Automatic clears both ranges.
+    app.apply_axis_scale(true);
+    assert_eq!(app.graph_overlay.x_range, None);
+    assert_eq!(app.graph_overlay.y_range, None);
+}
+
+#[test]
 fn data_labels_percentiles_layout_and_grid_are_editable() {
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());

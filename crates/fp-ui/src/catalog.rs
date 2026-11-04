@@ -160,6 +160,18 @@ impl UiCatalog {
             "Graph text…" => "Texto do gráfico…",
             "Clear marks" => "Limpar marcas",
             "Add data labels…" => "Adicionar rótulos de dados…",
+            "Axis scale…" => "Escala dos eixos…",
+            "Axis scale" => "Escala dos eixos",
+            "Axis scale updated" => "Escala dos eixos actualizada",
+            "Axis scale automatic" => "Escala dos eixos automática",
+            "from" => "de",
+            "to" => "a",
+            "Minimum" => "Mínimo",
+            "Maximum" => "Máximo",
+            "Automatic" => "Automática",
+            "Leave both fields of an axis empty for automatic limits; probabilities and panels keep their own scales." => {
+                "Deixe os dois campos de um eixo vazios para limites automáticos; as probabilidades e os painéis mantêm as suas escalas."
+            }
             "Add percentile lines…" => "Adicionar linhas de percentis…",
             "Panel layout…" => "Disposição dos painéis…",
             "Toggle gridlines" => "Mostrar/ocultar grelha",
