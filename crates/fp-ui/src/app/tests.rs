@@ -5729,6 +5729,37 @@ fn the_undo_stack_stays_bounded_under_large_edits() {
 }
 
 #[test]
+fn the_batch_dialog_requests_a_folder_and_builds_the_summary() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.open_batch_dialog();
+    assert!(app.show_batch_dialog);
+    app.run_batch_dialog();
+    assert!(app.error.is_some(), "the folder is required");
+    app.batch_folder = "/tmp/opencode".to_owned();
+    app.batch_column = "weight".to_owned();
+    app.run_batch_dialog();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    let request = app.take_batch_request().expect("batch request");
+    assert_eq!(request.folder, "/tmp/opencode");
+    assert_eq!(request.column, "weight");
+    app.apply_batch(
+        vec![
+            ("a.csv".to_owned(), Ok(frame())),
+            ("b.csv".to_owned(), Ok(frame())),
+        ],
+        "weight",
+    );
+    let text = app.session_text();
+    assert!(text.contains("Batch descriptive statistics"), "{text}");
+    assert!(text.contains("a.csv"), "{text}");
+    assert_eq!(app.status, "Batch summary: 2 file(s), column weight");
+    // An empty folder is refused by the applier, not silently accepted.
+    app.apply_batch(Vec::new(), "weight");
+    assert!(app.error.is_some());
+}
+
+#[test]
 fn the_preferences_round_trip_through_the_settings_file() {
     let dir = std::env::temp_dir().join(format!("fp-prefs-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("dir");

@@ -182,6 +182,7 @@ impl FreePlotsApp {
         self.agents_window(&ctx);
         self.licences_window(&ctx);
         self.tour_window(&ctx);
+        self.batch_dialog(&ctx);
         self.graph_window(&ctx);
         self.graph_labels_window(&ctx);
         self.graph_text_window(&ctx);

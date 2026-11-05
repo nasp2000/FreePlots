@@ -44,6 +44,46 @@ pub fn read_csv(path: &Path) -> Result<(fp_core::data::DataFrame, &'static str),
     fp_core::io::read_csv_file(path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
+/// Reads every `*.csv` in a folder, in name order, for the batch report.
+///
+/// A file that cannot be read is returned with its error so the report can
+/// name it instead of hiding it.
+#[cfg(feature = "desktop")]
+pub fn read_csv_folder(path: &Path) -> Vec<(String, Result<fp_core::data::DataFrame, String>)> {
+    let mut entries: Vec<_> = match std::fs::read_dir(path) {
+        Ok(entries) => entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.is_file()
+                    && path
+                        .extension()
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("csv"))
+            })
+            .collect(),
+        Err(error) => {
+            return vec![(
+                path.display().to_string(),
+                Err(format!("{}: {error}", path.display())),
+            )];
+        }
+    };
+    entries.sort_by(|left, right| left.file_name().cmp(&right.file_name()));
+    entries
+        .into_iter()
+        .map(|file| {
+            let name = file.file_name().map_or_else(
+                || file.display().to_string(),
+                |name| name.to_string_lossy().to_string(),
+            );
+            match read_csv(&file) {
+                Ok((frame, _encoding)) => (name, Ok(frame)),
+                Err(error) => (name, Err(error)),
+            }
+        })
+        .collect()
+}
+
 /// Reads a CSV file with the options confirmed in the preview.
 #[cfg(feature = "desktop")]
 pub fn read_csv_with_options(
@@ -250,6 +290,26 @@ pub fn prepare_console(args: &[String]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "desktop")]
+    #[test]
+    fn a_folder_of_csv_files_is_read_in_name_order() {
+        let dir = std::env::temp_dir().join(format!("fp-batch-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("dir");
+        fs::write(dir.join("b.csv"), "weight\n2\n3\n").expect("b");
+        fs::write(dir.join("a.csv"), "weight\n1\n2\n").expect("a");
+        fs::write(dir.join("notes.txt"), "ignored").expect("txt");
+        let files = read_csv_folder(&dir);
+        assert_eq!(files.len(), 2, "{files:?}");
+        assert_eq!(files[0].0, "a.csv");
+        assert_eq!(files[1].0, "b.csv");
+        assert!(files.iter().all(|(_, frame)| frame.is_ok()));
+        // A missing folder is an error row, not a panic.
+        let missing = read_csv_folder(&dir.join("does-not-exist"));
+        assert_eq!(missing.len(), 1);
+        assert!(missing[0].1.is_err());
+        fs::remove_dir_all(&dir).ok();
+    }
 
     #[cfg(feature = "desktop")]
     #[test]

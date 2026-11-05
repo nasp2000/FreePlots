@@ -7,6 +7,7 @@ use fp_core::data::{Column, DataFrame};
 const DIALOG_MENUS: &[&[&str]] = &[
     &["Calc", "Calculator…"],
     &["Edit", "Conditional formatting…"],
+    &["File", "Batch descriptive statistics…"],
     &["Assistant", "Choose an analysis…"],
     &["Help", "Keyboard shortcuts"],
     &["Graph", "Dotplot…"],

@@ -1393,6 +1393,130 @@ impl FreePlotsApp {
         }
     }
 
+    /// Opens the batch-folder dialog.
+    pub fn open_batch_dialog(&mut self) {
+        self.batch_column = self.selected.clone().unwrap_or_default();
+        self.show_batch_dialog = true;
+    }
+
+    /// Asks the desktop runner to read the folder and summarise the column.
+    pub fn run_batch_dialog(&mut self) {
+        let folder = self.batch_folder.trim().to_owned();
+        let column = self.batch_column.trim().to_owned();
+        if folder.is_empty() {
+            self.set_error("Enter the folder with the CSV files");
+            return;
+        }
+        if column.is_empty() {
+            self.set_error("Select the column to summarise");
+            return;
+        }
+        self.batch_request = Some(BatchRequest { folder, column });
+        self.show_batch_dialog = false;
+        self.error = None;
+        self.status = "Reading the batch folder…".to_owned();
+    }
+
+    /// Takes the pending batch request (the desktop runner reads the folder).
+    pub fn take_batch_request(&mut self) -> Option<BatchRequest> {
+        self.batch_request.take()
+    }
+
+    /// Appends the batch summary once the runner has read the files.
+    pub fn apply_batch(
+        &mut self,
+        files: Vec<(String, Result<fp_core::data::DataFrame, String>)>,
+        column: &str,
+    ) {
+        if files.is_empty() {
+            self.set_error("No CSV files found in the folder");
+            return;
+        }
+        let result = fp_core::batch::describe(&files, column);
+        self.append_result(&result);
+        self.status = format!("Batch summary: {} file(s), column {column}", files.len());
+        self.error = None;
+    }
+
+    pub(super) fn batch_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_batch_dialog {
+            return;
+        }
+        let mut open = self.show_batch_dialog;
+        let mut run = false;
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| {
+                        matches!(
+                            column.dtype(),
+                            fp_core::data::DType::Float | fp_core::data::DType::Integer
+                        )
+                    })
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let catalog = self.catalog();
+        dialog_window(catalog.label("Batch descriptive statistics"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(520.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Folder:"));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.batch_folder)
+                            .desired_width(340.0)
+                            .hint_text(catalog.label("Folder with .csv files")),
+                    )
+                    .labelled_by(label.id);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(catalog.label("Column:"));
+                    egui::ComboBox::from_id_salt("batch_column")
+                        .selected_text(if self.batch_column.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.batch_column.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.batch_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(catalog.label(
+                    "Every .csv in the folder is summarised in one Session table; unreadable files are listed with the reason.",
+                ));
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(catalog.label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(catalog.label("Cancel")).clicked() {
+                        self.show_batch_dialog = false;
+                    }
+                });
+            });
+        self.show_batch_dialog = open && self.show_batch_dialog;
+        if run {
+            self.run_batch_dialog();
+        }
+    }
+
     pub fn open_find_dialog(&mut self) {
         self.show_find_dialog = true;
         self.find_message.clear();

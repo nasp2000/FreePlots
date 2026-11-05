@@ -41,6 +41,19 @@ impl FreePlotsApp {
                     self.begin_open(FileKind::Project);
                     ui.close();
                 }
+                if menu_icon_item(
+                    ui,
+                    ToolIcon::Grid,
+                    self.catalog().label("Batch descriptive statistics…"),
+                    None,
+                    true,
+                )
+                .on_hover_text("Summarise one column across every CSV in a folder")
+                .clicked()
+                {
+                    self.open_batch_dialog();
+                    ui.close();
+                }
                 help_menu_button(ui, self.catalog().label("Sample projects"), |ui| {
                     for label in [
                         "Filling line capability",

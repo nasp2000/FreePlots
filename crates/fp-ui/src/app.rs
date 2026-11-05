@@ -109,6 +109,15 @@ pub struct SaveRequest {
     pub decimal_comma: bool,
 }
 
+/// A request to summarise every CSV in a folder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BatchRequest {
+    /// Folder to scan.
+    pub folder: String,
+    /// Numeric column to summarise in each file.
+    pub column: String,
+}
+
 const UNDO_LIMIT: usize = 100;
 /// Largest Session text kept in memory (bytes). Well above any realistic
 /// session, so the cap never removes text a user would miss.
@@ -990,7 +999,11 @@ pub struct FreePlotsApp {
     save_kind: FileKind,
     save_decimal_comma: bool,
     save_request: Option<SaveRequest>,
+    batch_request: Option<BatchRequest>,
     browse_request: Option<BrowseRequest>,
+    show_batch_dialog: bool,
+    batch_folder: String,
+    batch_column: String,
     show_rename: bool,
     rename_text: String,
     show_sheet_rename: bool,
@@ -2557,6 +2570,7 @@ impl FreePlotsApp {
         self.show_design_dialog = false;
         self.show_desirability_dialog = false;
         self.show_diagnostic_dialog = false;
+        self.show_batch_dialog = false;
         self.show_conditional_dialog = false;
         self.show_doe_dialog = false;
         self.show_dot_dialog = false;

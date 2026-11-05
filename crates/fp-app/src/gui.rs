@@ -251,6 +251,11 @@ impl eframe::App for Desktop {
             }
         }
 
+        if let Some(request) = self.app.take_batch_request() {
+            let files = crate::platform::read_csv_folder(std::path::Path::new(&request.folder));
+            self.app.apply_batch(files, &request.column);
+        }
+
         if let Some((reply, path, inline)) = self.pending_shot.take() {
             let shot = ui.ctx().input(|input| {
                 input.events.iter().find_map(|event| match event {

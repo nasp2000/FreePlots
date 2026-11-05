@@ -16,6 +16,7 @@ pub mod agreement;
 pub mod alt;
 pub mod anova;
 pub mod attribute;
+pub mod batch;
 pub mod boxcox;
 pub mod boxplot;
 pub mod calc;

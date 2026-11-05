@@ -158,6 +158,16 @@ impl UiCatalog {
             "Show the tour" => "Ver o tour",
             "Graph options…" => "Opções do gráfico…",
             "Graph text…" => "Texto do gráfico…",
+            "Batch descriptive statistics…" => "Estatísticas descritivas em lote…",
+            "Batch descriptive statistics" => "Estatísticas descritivas em lote",
+            "Folder:" => "Pasta:",
+            "Folder with .csv files" => "Pasta com ficheiros .csv",
+            "Every .csv in the folder is summarised in one Session table; unreadable files are listed with the reason." => {
+                "Cada .csv da pasta é resumido numa tabela da sessão; os ficheiros ilegíveis aparecem com o motivo."
+            }
+            "Enter the folder with the CSV files" => "Indique a pasta com os ficheiros CSV",
+            "Select the column to summarise" => "Escolha a coluna a resumir",
+            "No CSV files found in the folder" => "Não há ficheiros CSV na pasta",
             "Clear marks" => "Limpar marcas",
             "Add data labels…" => "Adicionar rótulos de dados…",
             "Axis scale…" => "Escala dos eixos…",
