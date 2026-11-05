@@ -19,8 +19,8 @@ desktop = ["dep:eframe", "dep:fp-ui", "dep:fp-mcp", "dep:serde_json", "dep:base6
 
 [dependencies]
 fp-core.workspace = true
-fp-ui = { path = "../fp-ui", optional = true }
-fp-mcp = { path = "../fp-mcp", optional = true }
+fp-ui = { path = "../fp-ui", version = "0.1.0", optional = true }
+fp-mcp = { path = "../fp-mcp", version = "0.1.0", optional = true }
 eframe = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }

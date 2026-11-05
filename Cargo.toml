@@ -10,8 +10,8 @@ license = "MIT"
 authors = ["FreePlots contributors"]
 
 [workspace.dependencies]
-fp-core = { path = "crates/fp-core" }
-fp-ui = { path = "crates/fp-ui" }
+fp-core = { path = "crates/fp-core", version = "0.1.0" }
+fp-ui = { path = "crates/fp-ui", version = "0.1.0" }
 
 # Núcleo: dependências mínimas, todas permissivas.
 libm = "=0.2.15"
