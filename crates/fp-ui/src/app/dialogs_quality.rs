@@ -901,8 +901,7 @@ impl FreePlotsApp {
                 for result in &out.results {
                     self.append_result(result);
                 }
-                self.show_plot = out.plot.is_some();
-                self.plot = out.plot;
+                self.adopt_plot(out.plot);
                 self.status = "Acceptance Sampling".to_owned();
                 self.error = None;
                 self.show_sampling_dialog = false;

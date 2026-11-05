@@ -85,23 +85,259 @@ impl FreePlotsApp {
         self.show_tour = open && !finished;
     }
 
+    /// Built-in sample projects shown in Help > Sample projects.
+    pub fn sample_projects() -> &'static [(&'static str, &'static str, &'static str)] {
+        SAMPLE_PROJECTS
+    }
+
+    /// Loads one sample project and runs its analysis.
     pub(super) fn load_sample(&mut self, label: &str) {
-        let (df, source) = match label {
-            "Filling line capability" => (sample_capability(), "filling-line.csv"),
-            "Gage R&R (3 operators)" => (sample_gage(), "gage-rr.csv"),
-            "Screening experiment (2^2)" => (sample_doe(), "screening.csv"),
-            _ => return,
+        let Some((source, spec)) = sample_spec(label) else {
+            return;
         };
-        self.set_data(df, source.to_owned());
-        let spec = match label {
-            "Filling line capability" => {
-                AnalysisSpec::capability("diameter", Some(24.7), Some(25.3))
-            }
-            "Gage R&R (3 operators)" => AnalysisSpec::gage_rr("measure", "part", "operator"),
-            _ => AnalysisSpec::factorial("y", vec!["A".to_owned(), "B".to_owned()]),
-        };
+        self.set_data(sample_data(label), source.to_owned());
         let _ = self.run_spec_blocking(spec, label.to_owned());
         self.status = format!("Sample project: {label}");
+    }
+
+    /// Opens the sample gallery.
+    pub fn open_samples_dialog(&mut self) {
+        self.show_samples_dialog = true;
+    }
+
+    pub(super) fn samples_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_samples_dialog {
+            return;
+        }
+        let mut open = self.show_samples_dialog;
+        let mut chosen: Option<&'static str> = None;
+        let catalog = self.catalog();
+        dialog_window(catalog.label("Sample projects"))
+            .without_clear()
+            .open(&mut open)
+            .resizable(false)
+            .default_width(760.0)
+            .show(ctx, |ui| {
+                ui.small(catalog.label(
+                    "Each sample opens a worksheet and runs the analysis, ready to explore.",
+                ));
+                let mut category = "";
+                for (label, group, description) in SAMPLE_PROJECTS {
+                    if *group != category {
+                        ui.add_space(8.0);
+                        ui.strong(catalog.label(group));
+                        category = group;
+                    }
+                    ui.horizontal_wrapped(|ui| {
+                        if ui
+                            .help_button(catalog.label(label))
+                            .on_hover_text(catalog.label(description))
+                            .clicked()
+                        {
+                            chosen = Some(label);
+                        }
+                    });
+                }
+                ui.add_space(8.0);
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(catalog.label("Close")).clicked() {
+                        self.show_samples_dialog = false;
+                    }
+                });
+            });
+        self.show_samples_dialog = open && self.show_samples_dialog;
+        if let Some(label) = chosen {
+            self.show_samples_dialog = false;
+            self.load_sample(label);
+        }
+    }
+}
+
+/// The sample projects: label, category and one-line description.
+const SAMPLE_PROJECTS: &[(&str, &str, &str)] = &[
+    (
+        "Filling line capability",
+        "Capability",
+        "Cpk/Ppk of 120 diameters, LSL 24.7 and USL 25.3.",
+    ),
+    (
+        "Weibull capability (PPM)",
+        "Capability",
+        "Positive lifetimes with LSL 4 and USL 12, fitted by Weibull.",
+    ),
+    (
+        "Gage R&R (3 operators)",
+        "Measurement systems",
+        "Crossed study: 10 parts, 3 operators, 3 trials.",
+    ),
+    (
+        "Screening experiment (2^2)",
+        "Design of experiments",
+        "Two-factor screening design with a real interaction.",
+    ),
+    (
+        "Response surface (CCD)",
+        "Design of experiments",
+        "Central composite design with a quadratic response.",
+    ),
+    (
+        "I-MR control chart",
+        "Control charts",
+        "40 measurements with a small process shift.",
+    ),
+    (
+        "X-bar - R chart (subgroups of 5)",
+        "Control charts",
+        "30 subgroups of five measurements.",
+    ),
+    (
+        "Attribute P chart",
+        "Control charts",
+        "Defect counts from 25 samples of 100 units.",
+    ),
+    (
+        "Two probability plots",
+        "Graphs",
+        "Two columns on separate probability panels.",
+    ),
+    (
+        "Three probability plots",
+        "Graphs",
+        "Three columns on separate probability panels.",
+    ),
+    (
+        "Matrix plot (3 variables)",
+        "Graphs",
+        "Pairwise scatterplots with histograms on the diagonal.",
+    ),
+    (
+        "Scatter with fit",
+        "Graphs",
+        "Correlation with a least-squares line.",
+    ),
+    (
+        "Histogram of diameters",
+        "Graphs",
+        "Frequency histogram with a normal overlay.",
+    ),
+    (
+        "Pareto of defects",
+        "Quality tools",
+        "Defect categories sorted by frequency.",
+    ),
+    (
+        "Regression / calibration",
+        "Regression",
+        "Calibration line with measurement noise.",
+    ),
+    (
+        "Kaplan-Meier reliability",
+        "Reliability",
+        "Right-censored survival times.",
+    ),
+    (
+        "Time series decomposition",
+        "Time series",
+        "36 months with trend and seasonality.",
+    ),
+];
+
+/// Worksheets and analyses behind the sample labels.
+fn sample_spec(label: &str) -> Option<(&'static str, AnalysisSpec)> {
+    Some(match label {
+        "Filling line capability" => (
+            "filling-line.csv",
+            AnalysisSpec::capability("diameter", Some(24.7), Some(25.3)),
+        ),
+        "Weibull capability (PPM)" => (
+            "bearing-life.csv",
+            AnalysisSpec::capability("life", Some(4.0), Some(12.0))
+                .with_capability_distribution(DistributionKind::Weibull),
+        ),
+        "Gage R&R (3 operators)" => (
+            "gage-rr.csv",
+            AnalysisSpec::gage_rr("measure", "part", "operator"),
+        ),
+        "Screening experiment (2^2)" => (
+            "screening.csv",
+            AnalysisSpec::factorial("y", vec!["A".to_owned(), "B".to_owned()]),
+        ),
+        "Response surface (CCD)" => (
+            "response-surface.csv",
+            AnalysisSpec::response_surface("y", vec!["A".to_owned(), "B".to_owned()]),
+        ),
+        "I-MR control chart" => (
+            "line-imr.csv",
+            AnalysisSpec::control_chart("measurement", ControlChartKind::IndividualsMovingRange, 1),
+        ),
+        "X-bar - R chart (subgroups of 5)" => (
+            "line-xbar.csv",
+            AnalysisSpec::control_chart("measurement", ControlChartKind::XbarR, 5),
+        ),
+        "Attribute P chart" => (
+            "defects.csv",
+            AnalysisSpec::attribute_chart(AttributeChartKind::P, "defects")
+                .with_attribute_size(None, Some(100)),
+        ),
+        "Two probability plots" => (
+            "two-lines.csv",
+            AnalysisSpec::probability_plot_multi(vec!["line_a".to_owned(), "line_b".to_owned()]),
+        ),
+        "Three probability plots" => (
+            "three-lines.csv",
+            AnalysisSpec::probability_plot_multi(vec![
+                "line_a".to_owned(),
+                "line_b".to_owned(),
+                "line_c".to_owned(),
+            ]),
+        ),
+        "Matrix plot (3 variables)" => (
+            "three-variables.csv",
+            AnalysisSpec::matrix_plot(vec!["x".to_owned(), "y".to_owned(), "z".to_owned()]),
+        ),
+        "Scatter with fit" => ("scatter.csv", AnalysisSpec::scatterplot("x", "y")),
+        "Histogram of diameters" => ("diameters.csv", AnalysisSpec::histogram("diameter")),
+        "Pareto of defects" => ("defect-log.csv", AnalysisSpec::pareto("defect")),
+        "Regression / calibration" => (
+            "calibration.csv",
+            AnalysisSpec::regression("y", vec!["x".to_owned()]),
+        ),
+        "Kaplan-Meier reliability" => (
+            "survival.csv",
+            AnalysisSpec::kaplan_meier("time").with_censoring(Some("event".to_owned()), 0.0),
+        ),
+        "Time series decomposition" => (
+            "monthly.csv",
+            AnalysisSpec::decomposition(
+                "value",
+                12,
+                fp_core::timeseries::DecompositionModel::Additive,
+            ),
+        ),
+        _ => return None,
+    })
+}
+
+fn sample_data(label: &str) -> DataFrame {
+    match label {
+        "Filling line capability" | "Histogram of diameters" => sample_capability(),
+        "Weibull capability (PPM)" => sample_weibull_life(),
+        "Gage R&R (3 operators)" => sample_gage(),
+        "Screening experiment (2^2)" => sample_doe(),
+        "Response surface (CCD)" => sample_rsm(),
+        "I-MR control chart" => sample_imr(),
+        "X-bar - R chart (subgroups of 5)" => sample_xbar_r(),
+        "Attribute P chart" => sample_attribute(),
+        "Two probability plots" => sample_probability(2),
+        "Three probability plots" => sample_probability(3),
+        "Matrix plot (3 variables)" => sample_matrix(),
+        "Scatter with fit" => sample_scatter(),
+        "Pareto of defects" => sample_pareto(),
+        "Regression / calibration" => sample_regression(),
+        "Kaplan-Meier reliability" => sample_survival(),
+        "Time series decomposition" => sample_timeseries(),
+        _ => DataFrame::blank(1, 0).expect("blank sample"),
     }
 }
 
@@ -114,6 +350,18 @@ fn sample_capability() -> DataFrame {
         })
         .collect();
     DataFrame::new(vec![Column::new_f64("diameter", values)]).expect("sample")
+}
+
+/// Positive, right-skewed lifetimes for a Weibull capability study.
+fn sample_weibull_life() -> DataFrame {
+    let values = (1..=80)
+        .map(|index| {
+            let u = f64::from(index) / 81.0;
+            let shape = 1.8;
+            4.0 + 3.0 * (-(1.0 - u).ln()).powf(1.0 / shape)
+        })
+        .collect();
+    DataFrame::new(vec![Column::new_f64("life", values)]).expect("sample")
 }
 
 /// Ten parts, three operators, three replicates: a crossed Gage R&R.
@@ -165,4 +413,186 @@ fn sample_doe() -> DataFrame {
         Column::new_f64("y", y),
     ])
     .expect("sample")
+}
+
+/// Central composite design with a curved response and a small interaction.
+fn sample_rsm() -> DataFrame {
+    let design = [
+        (-1.0, -1.0),
+        (1.0, -1.0),
+        (-1.0, 1.0),
+        (1.0, 1.0),
+        (-1.0, -1.0),
+        (1.0, -1.0),
+        (-1.0, 1.0),
+        (1.0, 1.0),
+        (1.414, 0.0),
+        (-1.414, 0.0),
+        (0.0, 1.414),
+        (0.0, -1.414),
+        (0.0, 0.0),
+        (0.0, 0.0),
+        (0.0, 0.0),
+        (0.0, 0.0),
+    ];
+    let mut a = Vec::new();
+    let mut b = Vec::new();
+    let mut y = Vec::new();
+    for (index, (level_a, level_b)) in design.iter().enumerate() {
+        a.push(*level_a);
+        b.push(*level_b);
+        let noise = 0.12 * ((index as f64 * 1.7).sin());
+        y.push(
+            50.0 + 3.0 * level_a + 2.0 * level_b
+                - 2.0 * level_a * level_a
+                - 1.5 * level_b * level_b
+                + 1.2 * level_a * level_b
+                + noise,
+        );
+    }
+    DataFrame::new(vec![
+        Column::new_f64("A", a),
+        Column::new_f64("B", b),
+        Column::new_f64("y", y),
+    ])
+    .expect("sample")
+}
+
+/// 40 measurements with a step in the mean at observation 25.
+fn sample_imr() -> DataFrame {
+    let values = (0..40)
+        .map(|index| {
+            let shift = if index >= 25 { 1.2 } else { 0.0 };
+            10.0 + shift + 0.35 * ((index as f64) * 0.9).sin() + 0.15 * ((index as f64) * 2.3).cos()
+        })
+        .collect();
+    DataFrame::new(vec![Column::new_f64("measurement", values)]).expect("sample")
+}
+
+/// 30 subgroups of five measurements, with a late shift.
+fn sample_xbar_r() -> DataFrame {
+    let mut measurement = Vec::new();
+    for subgroup in 0..30 {
+        let center = 10.0 + 0.02 * f64::from(subgroup) + if subgroup >= 20 { 0.8 } else { 0.0 };
+        for repeat in 0..5 {
+            let index = f64::from(subgroup * 5 + repeat);
+            measurement.push(center + 0.25 * (index * 1.3).sin());
+        }
+    }
+    DataFrame::new(vec![Column::new_f64("measurement", measurement)]).expect("sample")
+}
+
+/// 25 samples of 100 units with a few defect counts.
+fn sample_attribute() -> DataFrame {
+    let defects = (0..25).map(|index| f64::from((index * 7) % 6)).collect();
+    DataFrame::new(vec![Column::new_f64("defects", defects)]).expect("sample")
+}
+
+/// Two or three columns for separate probability panels.
+fn sample_probability(count: usize) -> DataFrame {
+    let mut columns = Vec::new();
+    for line in 0..count {
+        let offset = 20.0 + 0.8 * line as f64;
+        let values = (0..40)
+            .map(|index| {
+                offset
+                    + 0.8 * ((index as f64) * 1.1).sin()
+                    + 0.3 * ((index as f64) * 0.37 + line as f64).cos()
+            })
+            .collect();
+        columns.push(Column::new_f64(
+            format!("line_{}", (b'a' + line as u8) as char),
+            values,
+        ));
+    }
+    DataFrame::new(columns).expect("sample")
+}
+
+/// Three related variables for a matrix plot.
+fn sample_matrix() -> DataFrame {
+    let mut x = Vec::new();
+    let mut y = Vec::new();
+    let mut z = Vec::new();
+    for index in 0..40 {
+        let value = f64::from(index);
+        x.push(value);
+        y.push(2.0 * value + 3.0 * (value * 0.7).sin());
+        z.push(-value + 2.0 * (value * 0.4).cos());
+    }
+    DataFrame::new(vec![
+        Column::new_f64("x", x),
+        Column::new_f64("y", y),
+        Column::new_f64("z", z),
+    ])
+    .expect("sample")
+}
+
+/// Two variables with a clear linear relationship.
+fn sample_scatter() -> DataFrame {
+    let mut x = Vec::new();
+    let mut y = Vec::new();
+    for index in 0..30 {
+        let value = f64::from(index) + 1.0;
+        x.push(value);
+        y.push(4.0 + 1.8 * value + 2.0 * (value * 1.3).sin());
+    }
+    DataFrame::new(vec![Column::new_f64("x", x), Column::new_f64("y", y)]).expect("sample")
+}
+
+/// Defect categories with the usual long tail.
+fn sample_pareto() -> DataFrame {
+    let mut defect = Vec::new();
+    for (name, count) in [
+        ("Scratch", 22),
+        ("Dent", 14),
+        ("Crack", 9),
+        ("Stain", 5),
+        ("Other", 3),
+    ] {
+        for _ in 0..count {
+            defect.push(name.to_owned());
+        }
+    }
+    DataFrame::new(vec![Column::new_text("defect", defect)]).expect("sample")
+}
+
+/// A calibration line with measurement noise.
+fn sample_regression() -> DataFrame {
+    let mut x = Vec::new();
+    let mut y = Vec::new();
+    for index in 1..=25 {
+        let value = f64::from(index);
+        x.push(value);
+        y.push(5.0 + 2.0 * value + 0.6 * (value * 1.9).sin());
+    }
+    DataFrame::new(vec![Column::new_f64("x", x), Column::new_f64("y", y)]).expect("sample")
+}
+
+/// Right-censored survival times (0 marks a censored unit).
+fn sample_survival() -> DataFrame {
+    let mut time = Vec::new();
+    let mut event = Vec::new();
+    for index in 0..30 {
+        let value = f64::from(index);
+        time.push(5.0 + 1.1 * value + 0.4 * (value * 0.9).sin());
+        event.push(f64::from(u8::from(index % 4 != 0)));
+    }
+    DataFrame::new(vec![
+        Column::new_f64("time", time),
+        Column::new_f64("event", event),
+    ])
+    .expect("sample")
+}
+
+/// 36 monthly values with a linear trend and a seasonal pattern.
+fn sample_timeseries() -> DataFrame {
+    let values = (0..36)
+        .map(|index| {
+            let value = f64::from(index);
+            20.0 + 0.3 * value
+                + 2.0 * (std::f64::consts::TAU * value / 12.0).sin()
+                + 0.4 * (value * 1.7).cos()
+        })
+        .collect();
+    DataFrame::new(vec![Column::new_f64("value", values)]).expect("sample")
 }

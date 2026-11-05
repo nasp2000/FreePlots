@@ -5434,6 +5434,62 @@ fn arrows_tab_and_enter_move_the_selection() {
 }
 
 #[test]
+fn the_arrows_reach_the_spare_columns() {
+    use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let columns = app.data().expect("data").n_columns();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.state_mut().select_cell(columns - 1, 0);
+    harness.run();
+    harness.key_press(egui::Key::ArrowRight);
+    harness.run();
+    // Right from the last real column reaches C9, which becomes real.
+    assert_eq!(
+        harness.state().selected_cell().map(|(c, _)| c),
+        Some(columns)
+    );
+    assert_eq!(
+        harness.state().data().expect("data").n_columns(),
+        columns + 1
+    );
+    assert_eq!(
+        harness.state().selected.as_deref(),
+        Some(format!("C{}", columns + 1).as_str())
+    );
+    // Writing into it works like any other cell.
+    harness
+        .state_mut()
+        .begin_inline_edit_with(columns, 0, "3.5");
+    harness.run();
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .and_then(|df| df.cell_text(columns, 0)),
+        Some("3.5".to_owned())
+    );
+    // Left comes back without removing the column.
+    harness.key_press(egui::Key::ArrowLeft);
+    harness.run();
+    assert_eq!(
+        harness.state().selected_cell().map(|(c, _)| c),
+        Some(columns - 1)
+    );
+    assert_eq!(
+        harness.state().data().expect("data").n_columns(),
+        columns + 1
+    );
+}
+
+#[test]
 fn the_cell_editor_commits_and_moves_with_the_arrows() {
     use egui_kittest::Harness;
 
@@ -5771,6 +5827,59 @@ fn the_stepwise_and_test_option_choices_persist() {
     assert_eq!(restored.equivalence_null, "2.5");
     assert_eq!(restored.equivalence_margin, "0.25");
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn graph_edits_do_not_leak_into_another_graph() {
+    use fp_core::plot::{Annotation, ReferenceAxis, ReferenceLine};
+    use fp_core::workflow::AnalysisSpec;
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.run_spec_blocking(
+        AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("probability plot");
+    app.graph_overlay.subtitle = Some("Refe".to_owned());
+    app.graph_overlay.footer = Some("edgedgsg".to_owned());
+    app.graph_overlay.reference_lines.push(ReferenceLine {
+        axis: ReferenceAxis::Vertical,
+        value: 12.0,
+        label: Some("verdhdfgfdg".to_owned()),
+    });
+    app.graph_overlay.annotations.push(Annotation {
+        text: "note".to_owned(),
+        ..Annotation::default()
+    });
+    app.graph_overlay.x_range = Some((11.0, 14.0));
+
+    // A different graph starts clean: no letters or lines from the old one.
+    app.run_spec_blocking(AnalysisSpec::histogram("weight"), "Histogram".to_owned())
+        .expect("histogram");
+    assert!(app.graph_overlay.reference_lines.is_empty());
+    assert!(app.graph_overlay.annotations.is_empty());
+    assert!(app.graph_overlay.subtitle.is_none());
+    assert!(app.graph_overlay.footer.is_none());
+    assert!(app.graph_overlay.x_range.is_none());
+
+    // Running the same graph again keeps the edits made for it.
+    app.run_spec_blocking(
+        AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("probability plot");
+    app.graph_overlay.annotations.push(Annotation {
+        text: "keep".to_owned(),
+        ..Annotation::default()
+    });
+    app.run_spec_blocking(
+        AnalysisSpec::probability_plot("weight"),
+        "Probability".to_owned(),
+    )
+    .expect("probability plot");
+    assert_eq!(app.graph_overlay.annotations.len(), 1);
+    assert_eq!(app.graph_overlay.annotations[0].text, "keep");
 }
 
 #[test]
@@ -7138,6 +7247,43 @@ fn the_tour_runs_once_and_the_flag_persists() {
     next.begin_tour();
     assert!(next.show_tour);
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn the_sample_gallery_loads_a_project() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.open_samples_dialog();
+    assert!(app.show_samples_dialog);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1200.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    let button = harness
+        .get_all_by_label("Weibull capability (PPM)")
+        .next()
+        .expect("sample button");
+    button.click();
+    harness.run();
+    harness.run();
+    assert!(!harness.state().show_samples_dialog);
+    assert!(harness.state().session_text().contains("Capability"));
+    assert!(harness.state().data().unwrap().column("life").is_ok());
+}
+
+#[test]
+fn every_sample_project_loads_and_runs() {
+    for (label, _, _) in FreePlotsApp::sample_projects() {
+        let mut app = FreePlotsApp::new();
+        app.load_sample(label);
+        assert!(app.error.is_none(), "{label}: {:?}", app.error);
+        assert!(
+            app.data().is_some_and(|df| df.n_rows() > 0),
+            "{label}: no worksheet data"
+        );
+        assert!(!app.session_text().is_empty(), "{label}: no Session report");
+    }
 }
 
 #[test]

@@ -370,12 +370,24 @@ impl FreePlotsApp {
     }
 
     /// Moves the selection by whole cells, clamping to the first row/column.
+    ///
+    /// The grid always shows at least 26 columns, so the arrows can reach the
+    /// spare ones; moving into a spare column makes it a real worksheet column
+    /// (the same rule as clicking or typing in it).
     pub(super) fn move_selection(&mut self, columns: isize, rows: isize) {
         let Some((column, row)) = self.selected_cell else {
             return;
         };
-        let column = (column as isize + columns).max(0) as usize;
+        let display_columns = self.data.as_ref().map_or(26, |df| df.n_columns().max(26));
+        let column = (column as isize + columns).clamp(0, display_columns as isize - 1) as usize;
         let row = (row as isize + rows).max(0) as usize;
+        if self
+            .data
+            .as_ref()
+            .is_some_and(|df| column >= df.n_columns())
+        {
+            self.ensure_columns(column + 1);
+        }
         self.select_cell(column, row);
     }
 

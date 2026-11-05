@@ -346,6 +346,10 @@ pub struct Preferences {
     /// between sessions so the user does not have to set them again.
     #[serde(default)]
     pub graph_overlay: fp_core::plot::GraphOverlay,
+    /// Title of the graph the overlay content (annotations, reference lines,
+    /// subtitle/footer, axis ranges) belongs to.
+    #[serde(default)]
+    pub graph_overlay_title: Option<String>,
     /// Conditional-formatting rules of the worksheet, kept between sessions.
     #[serde(default)]
     pub conditional_rules: Vec<ConditionalRule>,
@@ -577,6 +581,7 @@ impl Default for Preferences {
             native_plot_windows: true,
             tour_seen: false,
             graph_overlay: fp_core::plot::GraphOverlay::default(),
+            graph_overlay_title: None,
             conditional_rules: Vec::new(),
             probability_distribution: None,
             probability_display: None,
@@ -1284,6 +1289,9 @@ pub struct FreePlotsApp {
     pub(super) tour_seen: bool,
     /// Presentation edits of the current graph.
     pub(super) graph_overlay: fp_core::plot::GraphOverlay,
+    /// Title of the graph the overlay content belongs to, so annotations and
+    /// reference lines never travel to an unrelated graph.
+    pub(super) graph_overlay_title: Option<String>,
     /// Labels before the first edit, for "Reset graph edits".
     pub(super) graph_auto: Option<(String, String, String)>,
     pub(super) show_graph_labels: bool,
@@ -1332,6 +1340,7 @@ pub struct FreePlotsApp {
     batch_request: Option<BatchRequest>,
     browse_request: Option<BrowseRequest>,
     show_batch_dialog: bool,
+    show_samples_dialog: bool,
     batch_folder: String,
     batch_column: String,
     show_rename: bool,
@@ -2227,13 +2236,33 @@ impl FreePlotsApp {
         self.background_analyses = enabled;
     }
 
+    /// Adopts a new graph and drops the content edits of the previous one.
+    ///
+    /// Font size, colours, grid and the other presentation defaults stay (the
+    /// user set them once); annotations, reference lines, subtitle/footer and
+    /// manual axis ranges belong to one graph and must not leak into another.
+    fn adopt_plot(&mut self, plot: Option<fp_core::plot::PlotSpec>) {
+        if let Some(next) = &plot
+            && self.graph_overlay_title.as_deref() != Some(next.title.as_str())
+        {
+            self.graph_overlay.subtitle = None;
+            self.graph_overlay.footer = None;
+            self.graph_overlay.reference_lines.clear();
+            self.graph_overlay.annotations.clear();
+            self.graph_overlay.x_range = None;
+            self.graph_overlay.y_range = None;
+            self.graph_overlay_title = Some(next.title.clone());
+        }
+        self.show_plot = plot.is_some();
+        self.plot = plot;
+    }
+
     /// Applies a finished analysis to the Session and the plot.
     fn apply_output(&mut self, output: AnalysisOutput, label: String) {
         for result in &output.results {
             self.append_result(result);
         }
-        self.show_plot = output.plot.is_some();
-        self.plot = output.plot;
+        self.adopt_plot(output.plot);
         self.brush_marks.lock().map(|mut marks| marks.clear()).ok();
         self.status = label;
         self.error = None;
@@ -2281,8 +2310,7 @@ impl FreePlotsApp {
                 for result in &out.results {
                     self.append_result(result);
                 }
-                self.show_plot = out.plot.is_some();
-                self.plot = out.plot;
+                self.adopt_plot(out.plot);
                 self.status = format!("Plugin: {id}");
                 self.error = None;
             }
@@ -2794,6 +2822,7 @@ impl FreePlotsApp {
             native_plot_windows: self.native_plot_windows,
             tour_seen: self.tour_seen,
             graph_overlay: self.graph_overlay.clone(),
+            graph_overlay_title: self.graph_overlay_title.clone(),
             conditional_rules: self.conditional_rules.clone(),
             probability_distribution: Some(self.distribution.as_str().to_owned()),
             probability_display: Some(self.dialog_display.as_str().to_owned()),
@@ -2989,6 +3018,7 @@ impl FreePlotsApp {
         self.native_plot_windows = preferences.native_plot_windows;
         self.tour_seen = preferences.tour_seen;
         self.graph_overlay = preferences.graph_overlay.clone();
+        self.graph_overlay_title = preferences.graph_overlay_title.clone();
         // A hand-edited file must not make the graph text unreadable.
         self.graph_overlay.font_scale = self.graph_overlay.font_scale.clamp(0.75, 1.5);
         self.conditional_rules = preferences.conditional_rules.clone();

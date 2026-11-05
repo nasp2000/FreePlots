@@ -54,18 +54,18 @@ impl FreePlotsApp {
                     self.open_batch_dialog();
                     ui.close();
                 }
-                help_menu_button(ui, self.catalog().label("Sample projects"), |ui| {
-                    for label in [
-                        "Filling line capability",
-                        "Gage R&R (3 operators)",
-                        "Screening experiment (2^2)",
-                    ] {
-                        if menu_text_item(ui, self.catalog().label(label), None, true).clicked() {
-                            self.load_sample(label);
-                            ui.close();
-                        }
-                    }
-                });
+                if menu_text_item(
+                    ui,
+                    self.catalog().label("Sample projects…"),
+                    None,
+                    true,
+                )
+                .on_hover_text("Open a sample worksheet with its analysis ready")
+                .clicked()
+                {
+                    self.open_samples_dialog();
+                    ui.close();
+                }
                 if menu_icon_item(
                     ui,
                     ToolIcon::Open,

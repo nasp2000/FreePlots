@@ -746,7 +746,8 @@ impl FreePlotsApp {
         let Some(df) = self.data.as_ref() else {
             return;
         };
-        let columns = df.n_columns();
+        // The grid paints 26 spare columns even when the worksheet is narrower.
+        let columns = df.n_columns().max(26);
         let rows = df.n_rows().max(60);
         let mut next = (column, row);
         let mut clear = false;
@@ -871,6 +872,15 @@ impl FreePlotsApp {
         }
         next.1 = next.1.min(rows.saturating_sub(1));
         if next != (column, row) {
+            // Reaching a spare column with the arrows makes it real, so the
+            // selection and the inline editor can live there.
+            if self
+                .data
+                .as_ref()
+                .is_some_and(|df| next.0 >= df.n_columns())
+            {
+                self.ensure_columns(next.0 + 1);
+            }
             if extend {
                 self.extend_selection(next.0, next.1);
             } else {

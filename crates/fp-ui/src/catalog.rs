@@ -533,6 +533,74 @@ impl UiCatalog {
             // Help.
             "User Guide" => "Guia do utilizador",
             "About" => "Acerca",
+            "Sample projects…" => "Projectos de exemplo…",
+            "Each sample opens a worksheet and runs the analysis, ready to explore." => {
+                "Cada exemplo abre uma folha e executa a análise, pronta a explorar."
+            }
+            "Capability" => "Capacidade",
+            "Measurement systems" => "Sistemas de medição",
+            "Design of experiments" => "Planeamento de experiências",
+            "Control charts" => "Cartas de controlo",
+            "Graphs" => "Gráficos",
+            "Quality tools" => "Ferramentas da qualidade",
+            "Time series" => "Séries temporais",
+            "Weibull capability (PPM)" => "Capacidade Weibull (PPM)",
+            "Response surface (CCD)" => "Superfície de resposta (CCD)",
+            "I-MR control chart" => "Carta de controlo I-MR",
+            "X-bar - R chart (subgroups of 5)" => "Carta X-barra - R (subgrupos de 5)",
+            "Attribute P chart" => "Carta P de atributos",
+            "Two probability plots" => "Dois gráficos de probabilidade",
+            "Three probability plots" => "Três gráficos de probabilidade",
+            "Matrix plot (3 variables)" => "Matriz de gráficos (3 variáveis)",
+            "Scatter with fit" => "Dispersão com ajuste",
+            "Histogram of diameters" => "Histograma de diâmetros",
+            "Pareto of defects" => "Pareto de defeitos",
+            "Regression / calibration" => "Regressão / calibração",
+            "Kaplan-Meier reliability" => "Fiabilidade Kaplan-Meier",
+            "Time series decomposition" => "Decomposição de séries temporais",
+            "Cpk/Ppk of 120 diameters, LSL 24.7 and USL 25.3." => {
+                "Cpk/Ppk de 120 diâmetros, LSL 24,7 e USL 25,3."
+            }
+            "Positive lifetimes with LSL 4 and USL 12, fitted by Weibull." => {
+                "Tempos de vida positivos com LSL 4 e USL 12, ajustados por Weibull."
+            }
+            "Crossed study: 10 parts, 3 operators, 3 trials." => {
+                "Estudo cruzado: 10 peças, 3 operadores, 3 ensaios."
+            }
+            "Two-factor screening design with a real interaction." => {
+                "Plano de triagem de dois fatores com interação real."
+            }
+            "Central composite design with a quadratic response." => {
+                "Plano composto central com resposta quadrática."
+            }
+            "40 measurements with a small process shift." => {
+                "40 medições com um pequeno desvio do processo."
+            }
+            "30 subgroups of five measurements." => "30 subgrupos de cinco medições.",
+            "Defect counts from 25 samples of 100 units." => {
+                "Contagens de defeitos em 25 amostras de 100 unidades."
+            }
+            "Two columns on separate probability panels." => {
+                "Duas colunas em painéis de probabilidade separados."
+            }
+            "Three columns on separate probability panels." => {
+                "Três colunas em painéis de probabilidade separados."
+            }
+            "Pairwise scatterplots with histograms on the diagonal." => {
+                "Dispersões duas a duas com histogramas na diagonal."
+            }
+            "Correlation with a least-squares line." => "Correlação com reta de mínimos quadrados.",
+            "Frequency histogram with a normal overlay." => {
+                "Histograma de frequências com curva normal sobreposta."
+            }
+            "Defect categories sorted by frequency." => {
+                "Categorias de defeitos ordenadas por frequência."
+            }
+            "Calibration line with measurement noise." => {
+                "Reta de calibração com ruído de medição."
+            }
+            "Right-censored survival times." => "Tempos de sobrevivência com censura à direita.",
+            "36 months with trend and seasonality." => "36 meses com tendência e sazonalidade.",
             // Labels used by the dialogs and the graph editor.
             "1 Proportion…" => "1 Proporção…",
             "1 Variance…" => "1 Variância…",
