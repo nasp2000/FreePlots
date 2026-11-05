@@ -23,10 +23,7 @@ impl FreePlotsApp {
         self.cap_bootstrap = 0;
         self.cap_box_cox = false;
         self.chart_column = self.selected.clone().unwrap_or_default();
-        self.chart_kind = ControlChartKind::IndividualsMovingRange;
-        self.chart_subgroup = 5;
         self.chart_subgroup_column.clear();
-        self.chart_tests = TestSet::default();
         self.attr_column = self.selected.clone().unwrap_or_default();
         self.attr_kind = AttributeChartKind::P;
         self.attr_sizes = None;
@@ -46,7 +43,7 @@ impl FreePlotsApp {
         self.test2_confidence = 95.0;
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
-        self.reg_confidence = 95.0;
+        // The confidence is a user preference now.
         self.step_response = self.selected.clone().unwrap_or_default();
         self.step_candidates.clear();
         self.step_method = StepMethod::Stepwise;
@@ -57,7 +54,7 @@ impl FreePlotsApp {
         self.step_confidence = 95.0;
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
-        self.anova_confidence = 95.0;
+        // The confidence is a user preference now.
         self.km_time = self.selected.clone().unwrap_or_default();
         self.km_censor = None;
         self.km_censor_value = "0".to_owned();

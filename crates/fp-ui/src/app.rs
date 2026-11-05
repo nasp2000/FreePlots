@@ -366,6 +366,34 @@ pub struct Preferences {
     /// Last capability confidence level.
     #[serde(default)]
     pub capability_confidence: Option<f64>,
+    /// Last control-chart family.
+    #[serde(default)]
+    pub control_chart_kind: Option<String>,
+    /// Last subgroup size.
+    #[serde(default)]
+    pub control_chart_subgroup: Option<usize>,
+    /// Enabled special-cause tests (`"1 2 5"`).
+    #[serde(default)]
+    pub control_chart_tests: Option<String>,
+    /// Eight sensitivities, comma-separated.
+    #[serde(default)]
+    pub control_chart_sensitivity: Option<String>,
+    /// Last CUSUM reference and decision interval.
+    #[serde(default)]
+    pub control_cusum_k: Option<f64>,
+    #[serde(default)]
+    pub control_cusum_h: Option<f64>,
+    /// Last EWMA smoothing and limit width.
+    #[serde(default)]
+    pub control_ewma_lambda: Option<f64>,
+    #[serde(default)]
+    pub control_ewma_limit: Option<f64>,
+    /// Last regression confidence level (percent).
+    #[serde(default)]
+    pub regression_confidence: Option<f64>,
+    /// Last one-way ANOVA confidence level (percent).
+    #[serde(default)]
+    pub anova_confidence: Option<f64>,
 }
 
 impl Default for Preferences {
@@ -387,6 +415,16 @@ impl Default for Preferences {
             probability_same_y: false,
             capability_distribution: None,
             capability_confidence: None,
+            control_chart_kind: None,
+            control_chart_subgroup: None,
+            control_chart_tests: None,
+            control_chart_sensitivity: None,
+            control_cusum_k: None,
+            control_cusum_h: None,
+            control_ewma_lambda: None,
+            control_ewma_limit: None,
+            regression_confidence: None,
+            anova_confidence: None,
         }
     }
 }
@@ -2500,6 +2538,36 @@ impl FreePlotsApp {
             probability_same_y: self.dialog_same_y,
             capability_distribution: Some(self.cap_distribution.as_str().to_owned()),
             capability_confidence: Some(self.cap_confidence),
+            control_chart_kind: Some(
+                match self.chart_kind {
+                    fp_core::spc::ControlChartKind::IndividualsMovingRange => "imr",
+                    fp_core::spc::ControlChartKind::XbarR => "xbar-r",
+                    fp_core::spc::ControlChartKind::XbarS => "xbar-s",
+                    fp_core::spc::ControlChartKind::Ewma => "ewma",
+                    fp_core::spc::ControlChartKind::Cusum => "cusum",
+                }
+                .to_owned(),
+            ),
+            control_chart_subgroup: Some(self.chart_subgroup),
+            control_chart_tests: Some(
+                (1..=8u8)
+                    .filter(|test| self.chart_tests.is_enabled(*test))
+                    .map(|test| test.to_string())
+                    .collect::<Vec<String>>()
+                    .join(" "),
+            ),
+            control_chart_sensitivity: Some(
+                (1..=8u8)
+                    .map(|test| self.chart_tests.sensitivity(test).to_string())
+                    .collect::<Vec<String>>()
+                    .join(","),
+            ),
+            control_cusum_k: Some(self.chart_cusum_k),
+            control_cusum_h: Some(self.chart_cusum_h),
+            control_ewma_lambda: Some(self.chart_ewma_lambda),
+            control_ewma_limit: Some(self.chart_ewma_limit),
+            regression_confidence: Some(self.reg_confidence),
+            anova_confidence: Some(self.anova_confidence),
         }
     }
 
@@ -2547,6 +2615,47 @@ impl FreePlotsApp {
             && (50.0..=99.99).contains(&confidence)
         {
             self.cap_confidence = confidence;
+        }
+        if let Some(code) = &preferences.control_chart_kind
+            && let Some(kind) = fp_core::spc::ControlChartKind::parse(code)
+        {
+            self.chart_kind = kind;
+        }
+        if let Some(subgroup) = preferences.control_chart_subgroup
+            && (1..=25).contains(&subgroup)
+        {
+            self.chart_subgroup = subgroup;
+        }
+        if let Some(list) = &preferences.control_chart_tests {
+            if list.trim().is_empty() {
+                self.chart_tests = fp_core::spc::TestSet::none();
+            } else if let Ok(mut tests) = fp_core::spc::TestSet::parse_list(list) {
+                if let Some(values) = &preferences.control_chart_sensitivity {
+                    for (index, value) in values.split(',').enumerate() {
+                        if let (Ok(test), Ok(k)) =
+                            (u8::try_from(index + 1), value.trim().parse::<u8>())
+                            && let Ok(updated) = tests.with_sensitivity(test, k)
+                        {
+                            tests = updated;
+                        }
+                    }
+                }
+                self.chart_tests = tests;
+            }
+        }
+        for (slot, value) in [
+            (&mut self.chart_cusum_k, preferences.control_cusum_k),
+            (&mut self.chart_cusum_h, preferences.control_cusum_h),
+            (&mut self.chart_ewma_lambda, preferences.control_ewma_lambda),
+            (&mut self.chart_ewma_limit, preferences.control_ewma_limit),
+            (&mut self.reg_confidence, preferences.regression_confidence),
+            (&mut self.anova_confidence, preferences.anova_confidence),
+        ] {
+            if let Some(value) = value
+                && value.is_finite()
+            {
+                *slot = value;
+            }
         }
     }
 

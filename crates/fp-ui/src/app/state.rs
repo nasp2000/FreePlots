@@ -493,7 +493,7 @@ impl FreePlotsApp {
         self.chart_subgroup = 5;
         self.chart_subgroup_column.clear();
         self.chart_phase_column.clear();
-        self.chart_tests = TestSet::default();
+        // The test set is a user preference now.
         self.attr_column = self.selected.clone().unwrap_or_default();
         self.attr_kind = AttributeChartKind::P;
         self.attr_sizes = None;

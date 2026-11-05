@@ -5729,6 +5729,47 @@ fn the_undo_stack_stays_bounded_under_large_edits() {
 }
 
 #[test]
+fn the_control_chart_and_regression_choices_persist() {
+    use fp_core::spc::{ControlChartKind, TestSet};
+
+    let dir = std::env::temp_dir().join(format!("fp-chart-prefs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.chart_kind = ControlChartKind::XbarR;
+    app.chart_subgroup = 4;
+    app.chart_tests = TestSet::only(&[1, 2, 5])
+        .expect("tests")
+        .with_sensitivity(2, 8)
+        .expect("sensitivity");
+    app.chart_cusum_k = 0.7;
+    app.chart_cusum_h = 5.0;
+    app.chart_ewma_lambda = 0.3;
+    app.chart_ewma_limit = 2.5;
+    app.reg_confidence = 90.0;
+    app.anova_confidence = 99.0;
+    app.persist_preferences();
+
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.chart_kind, ControlChartKind::XbarR);
+    assert_eq!(restored.chart_subgroup, 4);
+    assert!(restored.chart_tests.is_enabled(1));
+    assert!(restored.chart_tests.is_enabled(2));
+    assert!(restored.chart_tests.is_enabled(5));
+    assert!(!restored.chart_tests.is_enabled(3));
+    assert_eq!(restored.chart_tests.sensitivity(2), 8);
+    assert!((restored.chart_cusum_k - 0.7).abs() < 1e-9);
+    assert!((restored.chart_cusum_h - 5.0).abs() < 1e-9);
+    assert!((restored.chart_ewma_lambda - 0.3).abs() < 1e-9);
+    assert!((restored.chart_ewma_limit - 2.5).abs() < 1e-9);
+    assert!((restored.reg_confidence - 90.0).abs() < 1e-9);
+    assert!((restored.anova_confidence - 99.0).abs() < 1e-9);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn the_batch_dialog_requests_a_folder_and_builds_the_summary() {
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());
