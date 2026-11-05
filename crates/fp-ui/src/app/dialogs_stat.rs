@@ -83,11 +83,6 @@ impl FreePlotsApp {
         self.scatter_x = self.selected.clone().unwrap_or_default();
         self.scatter_y = String::new();
         self.scatter_fit = true;
-        self.design_factors = "A,B".to_owned();
-        self.design_replicates = 2;
-        self.design_centers = 0;
-        self.design_randomize = true;
-        self.design_seed = 2026;
         self.describe_column = self.selected.clone().unwrap_or_default();
         self.describe_by = None;
         self.dialog_distribution = self.distribution;
@@ -688,9 +683,7 @@ impl FreePlotsApp {
             .collect();
         self.step_method = StepMethod::Stepwise;
         self.step_criterion = StepCriterion::PValue;
-        self.step_alpha_enter = 0.15;
-        self.step_alpha_remove = 0.15;
-        self.step_max_steps = 50;
+        // The entry/removal alphas and the step limit are preferences now.
         self.show_step_dialog = true;
     }
     pub fn run_stepwise_dialog(&mut self) {

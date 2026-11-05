@@ -436,6 +436,50 @@ pub struct Preferences {
     pub sampling_alpha: Option<f64>,
     #[serde(default)]
     pub sampling_beta: Option<f64>,
+    /// DOE design options (factorial, Box–Behnken, Plackett–Burman, Taguchi).
+    #[serde(default)]
+    pub doe_factors: Option<String>,
+    #[serde(default)]
+    pub doe_runs: Option<usize>,
+    #[serde(default)]
+    pub doe_replicates: Option<usize>,
+    #[serde(default)]
+    pub doe_centers: Option<usize>,
+    #[serde(default)]
+    pub doe_block_size: Option<usize>,
+    #[serde(default)]
+    pub doe_randomize: Option<bool>,
+    #[serde(default)]
+    pub doe_seed: Option<u64>,
+    #[serde(default)]
+    pub taguchi_runs: Option<usize>,
+    #[serde(default)]
+    pub taguchi_design_factors: Option<usize>,
+    /// PCA and matrix-plot options.
+    #[serde(default)]
+    pub pca_keep: Option<usize>,
+    #[serde(default)]
+    pub matrix_bins: Option<usize>,
+    /// Time-series options.
+    #[serde(default)]
+    pub timeseries_kind: Option<String>,
+    #[serde(default)]
+    pub timeseries_window: Option<usize>,
+    #[serde(default)]
+    pub timeseries_period: Option<usize>,
+    #[serde(default)]
+    pub timeseries_model: Option<String>,
+    #[serde(default)]
+    pub timeseries_season: Option<usize>,
+    #[serde(default)]
+    pub timeseries_horizon: Option<usize>,
+    /// Stepwise selection limits.
+    #[serde(default)]
+    pub step_max_steps: Option<usize>,
+    #[serde(default)]
+    pub step_alpha_enter: Option<f64>,
+    #[serde(default)]
+    pub step_alpha_remove: Option<f64>,
 }
 
 impl Default for Preferences {
@@ -483,6 +527,26 @@ impl Default for Preferences {
             sampling_ltpd: None,
             sampling_alpha: None,
             sampling_beta: None,
+            doe_factors: None,
+            doe_runs: None,
+            doe_replicates: None,
+            doe_centers: None,
+            doe_block_size: None,
+            doe_randomize: None,
+            doe_seed: None,
+            taguchi_runs: None,
+            taguchi_design_factors: None,
+            pca_keep: None,
+            matrix_bins: None,
+            timeseries_kind: None,
+            timeseries_window: None,
+            timeseries_period: None,
+            timeseries_model: None,
+            timeseries_season: None,
+            timeseries_horizon: None,
+            step_max_steps: None,
+            step_alpha_enter: None,
+            step_alpha_remove: None,
         }
     }
 }
@@ -562,6 +626,27 @@ impl TimeSeriesKind {
             Self::MovingAverage => "Moving Average",
             Self::Decomposition => "Decomposition",
             Self::ExponentialSmoothing => "Exponential Smoothing",
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::MovingAverage => "moving-average",
+            Self::Decomposition => "decomposition",
+            Self::ExponentialSmoothing => "exponential-smoothing",
+        }
+    }
+
+    fn parse(text: &str) -> Option<Self> {
+        match text.to_ascii_lowercase().as_str() {
+            "moving-average" | "moving_average" | "ma" | "moving average" => {
+                Some(Self::MovingAverage)
+            }
+            "decomposition" | "decompose" => Some(Self::Decomposition),
+            "exponential-smoothing" | "exponential_smoothing" | "smoothing" | "holt-winters" => {
+                Some(Self::ExponentialSmoothing)
+            }
+            _ => None,
         }
     }
 }
@@ -2685,6 +2770,26 @@ impl FreePlotsApp {
             sampling_ltpd: Some(self.sampling_ltpd),
             sampling_alpha: Some(self.sampling_alpha),
             sampling_beta: Some(self.sampling_beta),
+            doe_factors: Some(self.design_factors.clone()),
+            doe_runs: Some(self.design_runs),
+            doe_replicates: Some(self.design_replicates),
+            doe_centers: Some(self.design_centers),
+            doe_block_size: Some(self.design_block_size),
+            doe_randomize: Some(self.design_randomize),
+            doe_seed: Some(self.design_seed),
+            taguchi_runs: Some(self.taguchi_runs),
+            taguchi_design_factors: Some(self.taguchi_design_factors),
+            pca_keep: Some(self.pca_keep),
+            matrix_bins: Some(self.matrix_bins),
+            timeseries_kind: Some(self.timeseries_kind.as_str().to_owned()),
+            timeseries_window: Some(self.timeseries_window),
+            timeseries_period: Some(self.timeseries_period),
+            timeseries_model: Some(self.timeseries_model.name().to_owned()),
+            timeseries_season: Some(self.timeseries_season),
+            timeseries_horizon: Some(self.timeseries_horizon),
+            step_max_steps: Some(self.step_max_steps),
+            step_alpha_enter: Some(self.step_alpha_enter),
+            step_alpha_remove: Some(self.step_alpha_remove),
         }
     }
 
@@ -2797,6 +2902,103 @@ impl FreePlotsApp {
         ] {
             if let Some(value) = value
                 && value.is_finite()
+            {
+                *slot = value;
+            }
+        }
+        if let Some(factors) = &preferences.doe_factors
+            && !factors.trim().is_empty()
+        {
+            self.design_factors = factors.clone();
+        }
+        if let Some(value) = preferences.doe_runs
+            && (8..=48).contains(&value)
+        {
+            self.design_runs = value;
+        }
+        if let Some(value) = preferences.doe_replicates
+            && (1..=100).contains(&value)
+        {
+            self.design_replicates = value;
+        }
+        if let Some(value) = preferences.doe_centers
+            && value <= 100
+        {
+            self.design_centers = value;
+        }
+        if let Some(value) = preferences.doe_block_size
+            && value <= 100
+        {
+            self.design_block_size = value;
+        }
+        if let Some(value) = preferences.doe_randomize {
+            self.design_randomize = value;
+        }
+        if let Some(value) = preferences.doe_seed {
+            self.design_seed = value;
+        }
+        if let Some(value) = preferences.taguchi_runs
+            && matches!(value, 8 | 9 | 12 | 16 | 18 | 27)
+        {
+            self.taguchi_runs = value;
+        }
+        if let Some(value) = preferences.taguchi_design_factors
+            && (1..=15).contains(&value)
+        {
+            self.taguchi_design_factors = value;
+        }
+        if let Some(value) = preferences.pca_keep
+            && (1..=10).contains(&value)
+        {
+            self.pca_keep = value;
+        }
+        if let Some(value) = preferences.matrix_bins
+            && (3..=30).contains(&value)
+        {
+            self.matrix_bins = value;
+        }
+        if let Some(code) = &preferences.timeseries_kind
+            && let Some(kind) = TimeSeriesKind::parse(code)
+        {
+            self.timeseries_kind = kind;
+        }
+        if let Some(value) = preferences.timeseries_window
+            && (2..=100).contains(&value)
+        {
+            self.timeseries_window = value;
+        }
+        if let Some(value) = preferences.timeseries_period
+            && (2..=365).contains(&value)
+        {
+            self.timeseries_period = value;
+        }
+        if let Some(code) = &preferences.timeseries_model
+            && let Some(model) = fp_core::timeseries::DecompositionModel::parse(code)
+        {
+            self.timeseries_model = model;
+        }
+        if let Some(value) = preferences.timeseries_season
+            && (1..=365).contains(&value)
+        {
+            self.timeseries_season = value;
+        }
+        if let Some(value) = preferences.timeseries_horizon
+            && (1..=100).contains(&value)
+        {
+            self.timeseries_horizon = value;
+        }
+        if let Some(value) = preferences.step_max_steps
+            && (1..=500).contains(&value)
+        {
+            self.step_max_steps = value;
+        }
+        for (slot, value) in [
+            (&mut self.step_alpha_enter, preferences.step_alpha_enter),
+            (&mut self.step_alpha_remove, preferences.step_alpha_remove),
+        ] {
+            if let Some(value) = value
+                && value.is_finite()
+                && (0.001..=0.5).contains(&value)
             {
                 *slot = value;
             }

@@ -867,7 +867,6 @@ impl FreePlotsApp {
     }
     pub fn open_pca_dialog(&mut self) {
         self.pca_columns = self.selected.clone().unwrap_or_default();
-        self.pca_keep = 2;
         self.show_pca_dialog = true;
     }
     pub fn run_pca_dialog(&mut self) {
@@ -944,7 +943,6 @@ impl FreePlotsApp {
                     .collect::<Vec<_>>()
                     .join(",")
             });
-        self.matrix_bins = 8;
         self.show_matrix_dialog = true;
     }
     pub fn run_matrix_dialog(&mut self) {

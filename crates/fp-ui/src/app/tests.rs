@@ -3502,7 +3502,7 @@ fn a_warning_reaches_the_session_and_the_status() {
 }
 
 #[test]
-fn the_clear_button_resets_the_dialog_options() {
+fn the_clear_button_resets_the_transient_dialog_options() {
     use egui_kittest::{Harness, kittest::Queryable};
 
     let mut app = FreePlotsApp::new();
@@ -3530,8 +3530,9 @@ fn the_clear_button_resets_the_dialog_options() {
     harness.run();
     let app = harness.state();
     assert!(app.dialog_group.is_none());
-    assert_eq!(app.dialog_display, PlotDisplay::Both);
-    assert!(app.dialog_ci);
+    // Presentation choices are preferences now, so Clear keeps them.
+    assert_eq!(app.dialog_display, PlotDisplay::Symbols);
+    assert!(!app.dialog_ci);
     assert!(app.show_probability_plot_dialog);
 }
 
@@ -5726,6 +5727,86 @@ fn the_undo_stack_stays_bounded_under_large_edits() {
         .cell_text(1, 0)
         .unwrap_or_default();
     assert!(text.len() > 100_000, "undo left {} characters", text.len());
+}
+
+#[test]
+fn the_doe_pca_timeseries_and_stepwise_choices_persist() {
+    use fp_core::timeseries::DecompositionModel;
+
+    let dir = std::env::temp_dir().join(format!("fp-design-prefs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.design_factors = "X,Y,Z".to_owned();
+    app.design_runs = 20;
+    app.design_replicates = 3;
+    app.design_centers = 4;
+    app.design_block_size = 2;
+    app.design_randomize = false;
+    app.design_seed = 777;
+    app.taguchi_runs = 16;
+    app.taguchi_design_factors = 5;
+    app.pca_keep = 4;
+    app.matrix_bins = 12;
+    app.timeseries_kind = TimeSeriesKind::ExponentialSmoothing;
+    app.timeseries_window = 5;
+    app.timeseries_period = 6;
+    app.timeseries_model = DecompositionModel::Multiplicative;
+    app.timeseries_season = 6;
+    app.timeseries_horizon = 8;
+    app.step_max_steps = 25;
+    app.step_alpha_enter = 0.05;
+    app.step_alpha_remove = 0.10;
+    app.persist_preferences();
+
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.design_factors, "X,Y,Z");
+    assert_eq!(restored.design_runs, 20);
+    assert_eq!(restored.design_replicates, 3);
+    assert_eq!(restored.design_centers, 4);
+    assert_eq!(restored.design_block_size, 2);
+    assert!(!restored.design_randomize);
+    assert_eq!(restored.design_seed, 777);
+    assert_eq!(restored.taguchi_runs, 16);
+    assert_eq!(restored.taguchi_design_factors, 5);
+    assert_eq!(restored.pca_keep, 4);
+    assert_eq!(restored.matrix_bins, 12);
+    assert_eq!(
+        restored.timeseries_kind,
+        TimeSeriesKind::ExponentialSmoothing
+    );
+    assert_eq!(restored.timeseries_window, 5);
+    assert_eq!(restored.timeseries_period, 6);
+    assert_eq!(
+        restored.timeseries_model,
+        DecompositionModel::Multiplicative
+    );
+    assert_eq!(restored.timeseries_season, 6);
+    assert_eq!(restored.timeseries_horizon, 8);
+    assert_eq!(restored.step_max_steps, 25);
+    assert!((restored.step_alpha_enter - 0.05).abs() < 1e-9);
+    assert!((restored.step_alpha_remove - 0.10).abs() < 1e-9);
+
+    // Opening the dialogs keeps the stored choices instead of resetting them.
+    restored.open_design_dialog();
+    restored.open_stepwise_dialog();
+    restored.open_pca_dialog();
+    restored.open_matrix_dialog();
+    restored.open_taguchi_design_dialog();
+    assert_eq!(restored.design_factors, "X,Y,Z");
+    assert_eq!(restored.design_replicates, 3);
+    assert_eq!(restored.pca_keep, 4);
+    assert_eq!(restored.matrix_bins, 12);
+    assert_eq!(restored.taguchi_runs, 16);
+    assert!((restored.step_alpha_enter - 0.05).abs() < 1e-9);
+
+    // A two-factor factorial still opens Box–Behnken with three factors.
+    restored.design_factors = "A,B".to_owned();
+    restored.open_box_behnken_dialog();
+    assert_eq!(restored.design_factors, "A,B,C");
+    std::fs::remove_dir_all(&dir).ok();
 }
 
 #[test]

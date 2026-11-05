@@ -489,8 +489,7 @@ impl FreePlotsApp {
         self.cap_box_cox = false;
         self.cap_require_stability = false;
         self.chart_column = self.selected.clone().unwrap_or_default();
-        self.chart_kind = ControlChartKind::IndividualsMovingRange;
-        self.chart_subgroup = 5;
+        // The chart family and subgroup size are user preferences now.
         self.chart_subgroup_column.clear();
         self.chart_phase_column.clear();
         // The test set is a user preference now.
@@ -503,32 +502,24 @@ impl FreePlotsApp {
         self.t_null = "0".to_owned();
         self.t_alternative = Alternative::TwoSided;
         self.t_pooled = false;
-        self.t_confidence = 95.0;
         self.test2_first = self.selected.clone().unwrap_or_default();
         self.test2_second = String::new();
         self.test2_null = "0.5".to_owned();
         self.test2_success = "1".to_owned();
         self.test2_method = ProportionMethod::Exact;
         self.test2_alternative = Alternative::TwoSided;
-        self.test2_confidence = 95.0;
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
-        self.reg_confidence = 95.0;
         self.step_response = self.selected.clone().unwrap_or_default();
         self.step_candidates.clear();
         self.step_method = StepMethod::Stepwise;
         self.step_criterion = StepCriterion::PValue;
-        self.step_alpha_enter = 0.15;
-        self.step_alpha_remove = 0.15;
-        self.step_max_steps = 50;
-        self.step_confidence = 95.0;
+        // The stepwise alphas/limit and the confidence are preferences now.
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
-        self.anova_confidence = 95.0;
         self.km_time = self.selected.clone().unwrap_or_default();
         self.km_censor = None;
         self.km_censor_value = "0".to_owned();
-        self.km_confidence = 95.0;
         self.weibull_time = self.selected.clone().unwrap_or_default();
         self.weibull_censor = None;
         self.weibull_censor_value = "0".to_owned();
@@ -557,17 +548,10 @@ impl FreePlotsApp {
         self.scatter_x = self.selected.clone().unwrap_or_default();
         self.scatter_y = String::new();
         self.scatter_fit = true;
-        self.design_factors = "A,B".to_owned();
-        self.design_replicates = 2;
-        self.design_centers = 0;
-        self.design_block_size = 0;
-        self.design_randomize = true;
-        self.design_seed = 2026;
+        // The design options are user preferences now.
         self.describe_column = self.selected.clone().unwrap_or_default();
         self.describe_by = None;
         self.dialog_distribution = self.distribution;
-        self.dialog_display = PlotDisplay::Both;
-        self.dialog_ci = true;
     }
 
     /// A fresh eight-column worksheet tab.

@@ -158,11 +158,7 @@ impl FreePlotsApp {
         }
     }
     pub fn open_design_dialog(&mut self) {
-        self.design_factors = "A,B".to_owned();
-        self.design_replicates = 2;
-        self.design_centers = 0;
-        self.design_randomize = true;
-        self.design_seed = 2026;
+        // The design options are user preferences now.
         self.show_design_dialog = true;
     }
     pub fn run_design_dialog(&mut self) {
@@ -253,10 +249,21 @@ impl FreePlotsApp {
         }
     }
     pub fn open_box_behnken_dialog(&mut self) {
-        self.design_factors = "A,B,C".to_owned();
-        self.design_centers = 3;
-        self.design_randomize = true;
-        self.design_seed = 2026;
+        // The design options are user preferences now, but Box–Behnken still
+        // needs three factors; the stored factorial may have only two.
+        if self
+            .design_factors
+            .split(',')
+            .filter(|name| !name.trim().is_empty())
+            .count()
+            < 3
+        {
+            self.design_factors = "A,B,C".to_owned();
+        }
+        // The design also needs at least one centre point.
+        if self.design_centers == 0 {
+            self.design_centers = 3;
+        }
         self.show_bb_dialog = true;
     }
     pub fn run_box_behnken_dialog(&mut self) {
@@ -335,9 +342,7 @@ impl FreePlotsApp {
         }
     }
     pub fn open_pb_dialog(&mut self) {
-        self.design_runs = 12;
-        self.design_randomize = true;
-        self.design_seed = 2026;
+        // The run count, randomization and seed are user preferences now.
         self.show_pb_dialog = true;
     }
     pub fn run_pb_dialog(&mut self) {
@@ -509,10 +514,7 @@ impl FreePlotsApp {
         }
     }
     pub fn open_taguchi_design_dialog(&mut self) {
-        self.taguchi_runs = 8;
-        self.taguchi_design_factors = 3;
-        self.design_randomize = true;
-        self.design_seed = 2026;
+        // The array, factor count, randomization and seed are preferences now.
         self.show_taguchi_design_dialog = true;
     }
     pub fn run_taguchi_design_dialog(&mut self) {

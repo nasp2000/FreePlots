@@ -48,10 +48,6 @@ impl FreePlotsApp {
         self.step_candidates.clear();
         self.step_method = StepMethod::Stepwise;
         self.step_criterion = StepCriterion::PValue;
-        self.step_alpha_enter = 0.15;
-        self.step_alpha_remove = 0.15;
-        self.step_max_steps = 50;
-        self.step_confidence = 95.0;
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
         self.anova_confidence = 95.0;
@@ -87,11 +83,6 @@ impl FreePlotsApp {
         self.scatter_x = self.selected.clone().unwrap_or_default();
         self.scatter_y = String::new();
         self.scatter_fit = true;
-        self.design_factors = "A,B".to_owned();
-        self.design_replicates = 2;
-        self.design_centers = 0;
-        self.design_randomize = true;
-        self.design_seed = 2026;
         self.show_t_dialog = true;
     }
     pub fn run_t_test_dialog(&mut self) {
@@ -754,10 +745,6 @@ impl FreePlotsApp {
         self.step_candidates.clear();
         self.step_method = StepMethod::Stepwise;
         self.step_criterion = StepCriterion::PValue;
-        self.step_alpha_enter = 0.15;
-        self.step_alpha_remove = 0.15;
-        self.step_max_steps = 50;
-        self.step_confidence = 95.0;
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
         self.anova_confidence = 95.0;
@@ -793,11 +780,6 @@ impl FreePlotsApp {
         self.scatter_x = self.selected.clone().unwrap_or_default();
         self.scatter_y = String::new();
         self.scatter_fit = true;
-        self.design_factors = "A,B".to_owned();
-        self.design_replicates = 2;
-        self.design_centers = 0;
-        self.design_randomize = true;
-        self.design_seed = 2026;
         self.show_test2_dialog = true;
     }
     pub fn run_test2_dialog(&mut self) {
