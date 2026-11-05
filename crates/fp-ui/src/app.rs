@@ -345,6 +345,27 @@ pub struct Preferences {
     /// Conditional-formatting rules of the worksheet, kept between sessions.
     #[serde(default)]
     pub conditional_rules: Vec<ConditionalRule>,
+    /// Last probability-plot choices, kept so the next session starts there.
+    #[serde(default)]
+    pub probability_distribution: Option<String>,
+    /// Last probability-plot display choice.
+    #[serde(default)]
+    pub probability_display: Option<String>,
+    /// Last multi-Y layout.
+    #[serde(default)]
+    pub probability_layout: Option<String>,
+    /// Common X scale across probability panels.
+    #[serde(default)]
+    pub probability_same_x: bool,
+    /// Common Y scale across probability panels.
+    #[serde(default)]
+    pub probability_same_y: bool,
+    /// Last capability distribution.
+    #[serde(default)]
+    pub capability_distribution: Option<String>,
+    /// Last capability confidence level.
+    #[serde(default)]
+    pub capability_confidence: Option<f64>,
 }
 
 impl Default for Preferences {
@@ -359,6 +380,13 @@ impl Default for Preferences {
             tour_seen: false,
             graph_overlay: fp_core::plot::GraphOverlay::default(),
             conditional_rules: Vec::new(),
+            probability_distribution: None,
+            probability_display: None,
+            probability_layout: None,
+            probability_same_x: false,
+            probability_same_y: false,
+            capability_distribution: None,
+            capability_confidence: None,
         }
     }
 }
@@ -2465,6 +2493,13 @@ impl FreePlotsApp {
             tour_seen: self.tour_seen,
             graph_overlay: self.graph_overlay.clone(),
             conditional_rules: self.conditional_rules.clone(),
+            probability_distribution: Some(self.distribution.as_str().to_owned()),
+            probability_display: Some(self.dialog_display.as_str().to_owned()),
+            probability_layout: Some(self.dialog_layout.as_str().to_owned()),
+            probability_same_x: self.dialog_same_x,
+            probability_same_y: self.dialog_same_y,
+            capability_distribution: Some(self.cap_distribution.as_str().to_owned()),
+            capability_confidence: Some(self.cap_confidence),
         }
     }
 
@@ -2485,6 +2520,34 @@ impl FreePlotsApp {
         // A hand-edited file must not make the graph text unreadable.
         self.graph_overlay.font_scale = self.graph_overlay.font_scale.clamp(0.75, 1.5);
         self.conditional_rules = preferences.conditional_rules.clone();
+        if let Some(code) = &preferences.probability_distribution {
+            self.distribution = parse_distribution(code).unwrap_or(self.distribution);
+            self.dialog_distribution = self.distribution;
+        }
+        if let Some(code) = &preferences.probability_display {
+            self.dialog_display = match code.as_str() {
+                "symbols" => fp_core::workflow::PlotDisplay::Symbols,
+                "fit" => fp_core::workflow::PlotDisplay::Fit,
+                _ => fp_core::workflow::PlotDisplay::Both,
+            };
+        }
+        if let Some(code) = &preferences.probability_layout {
+            self.dialog_layout = match code.as_str() {
+                "overlay" => fp_core::workflow::PlotLayout::Overlay,
+                _ => fp_core::workflow::PlotLayout::Separate,
+            };
+        }
+        self.dialog_same_x = preferences.probability_same_x;
+        self.dialog_same_y = preferences.probability_same_y;
+        if let Some(code) = &preferences.capability_distribution {
+            self.cap_distribution = parse_distribution(code).unwrap_or(self.cap_distribution);
+        }
+        if let Some(confidence) = preferences.capability_confidence
+            && confidence.is_finite()
+            && (50.0..=99.99).contains(&confidence)
+        {
+            self.cap_confidence = confidence;
+        }
     }
 
     /// Sets the file that keeps the preferences and loads it if it exists.
@@ -4113,6 +4176,24 @@ fn about_formula(ui: &mut egui::Ui) {
             ui.label(RichText::new(ABOUT_FACTOR).font(big).color(color));
         },
     );
+}
+
+/// Parses a stable distribution code from the settings file.
+fn parse_distribution(code: &str) -> Option<fp_core::workflow::DistributionKind> {
+    use fp_core::workflow::DistributionKind;
+    match code {
+        "normal" => Some(DistributionKind::Normal),
+        "lognormal" => Some(DistributionKind::Lognormal),
+        "weibull" => Some(DistributionKind::Weibull),
+        "exponential" => Some(DistributionKind::Exponential),
+        "logistic" => Some(DistributionKind::Logistic),
+        "loglogistic" => Some(DistributionKind::Loglogistic),
+        "gamma" => Some(DistributionKind::Gamma),
+        "extremevalue" => Some(DistributionKind::ExtremeValue),
+        "weibull3" => Some(DistributionKind::Weibull3),
+        "lognormal3" => Some(DistributionKind::Lognormal3),
+        _ => None,
+    }
 }
 
 fn dialog_window<'a>(title: impl Into<String>) -> DialogWindow<'a> {

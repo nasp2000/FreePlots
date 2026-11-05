@@ -478,16 +478,13 @@ impl FreePlotsApp {
         self.format_align = CellAlign::Left;
         self.dialog_columns = self.selected.clone().into_iter().collect();
         self.dialog_group = None;
-        self.dialog_layout = PlotLayout::Separate;
-        self.dialog_same_x = false;
-        self.dialog_same_y = false;
+        // The probability layout/scales and the capability distribution and
+        // confidence are user preferences now; a new worksheet keeps them.
         self.cap_column = self.selected.clone().unwrap_or_default();
-        self.cap_distribution = DistributionKind::Normal;
         self.cap_lsl.clear();
         self.cap_usl.clear();
         self.cap_target.clear();
         self.cap_subgroup = 1;
-        self.cap_confidence = 95.0;
         self.cap_bootstrap = 0;
         self.cap_box_cox = false;
         self.cap_require_stability = false;

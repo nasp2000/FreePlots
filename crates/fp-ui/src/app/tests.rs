@@ -5938,6 +5938,43 @@ fn a_control_chart_can_use_a_phase_column() {
 }
 
 #[test]
+fn the_analysis_dialog_choices_persist() {
+    use fp_core::workflow::{DistributionKind, PlotDisplay, PlotLayout};
+
+    let dir = std::env::temp_dir().join(format!("fp-analysis-prefs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.distribution = DistributionKind::Weibull;
+    app.dialog_distribution = DistributionKind::Weibull;
+    app.dialog_display = PlotDisplay::Fit;
+    app.dialog_layout = PlotLayout::Overlay;
+    app.dialog_same_x = true;
+    app.dialog_same_y = true;
+    app.cap_distribution = DistributionKind::Gamma;
+    app.cap_confidence = 90.0;
+    app.persist_preferences();
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.distribution, DistributionKind::Weibull);
+    assert_eq!(restored.dialog_display, PlotDisplay::Fit);
+    assert_eq!(restored.dialog_layout, PlotLayout::Overlay);
+    assert!(restored.dialog_same_x);
+    assert!(restored.dialog_same_y);
+    assert_eq!(restored.cap_distribution, DistributionKind::Gamma);
+    assert!((restored.cap_confidence - 90.0).abs() < 1e-6);
+
+    // Opening the probability dialog keeps those choices instead of resetting.
+    restored.set_data(frame(), "weights.csv".to_owned());
+    restored.open_probability_plot_dialog();
+    assert_eq!(restored.dialog_layout, PlotLayout::Overlay);
+    assert!(restored.dialog_same_x);
+    assert_eq!(restored.cap_distribution, DistributionKind::Gamma);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn the_graph_text_choices_apply_and_persist() {
     let dir = std::env::temp_dir().join(format!("fp-graph-text-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("dir");

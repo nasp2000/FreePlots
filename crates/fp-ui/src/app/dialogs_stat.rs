@@ -13,16 +13,13 @@ impl FreePlotsApp {
             self.dialog_columns = vec![column.clone()];
         }
         self.dialog_group = None;
-        self.dialog_layout = PlotLayout::Separate;
-        self.dialog_same_x = false;
-        self.dialog_same_y = false;
+        // The last layout, scales, distribution and confidence are kept in
+        // the preferences, so a new session starts where the user left it.
         self.cap_column = self.selected.clone().unwrap_or_default();
-        self.cap_distribution = DistributionKind::Normal;
         self.cap_lsl.clear();
         self.cap_usl.clear();
         self.cap_target.clear();
         self.cap_subgroup = 1;
-        self.cap_confidence = 95.0;
         self.cap_bootstrap = 0;
         self.cap_box_cox = false;
         self.chart_column = self.selected.clone().unwrap_or_default();
