@@ -545,6 +545,25 @@ pub struct Preferences {
     pub tolerance_free: Option<bool>,
     #[serde(default)]
     pub diagnostic_alpha: Option<f64>,
+    /// Stepwise method and stopping criterion.
+    #[serde(default)]
+    pub step_method: Option<String>,
+    #[serde(default)]
+    pub step_criterion: Option<String>,
+    /// Centre used by the variance-homogeneity test.
+    #[serde(default)]
+    pub variance_center: Option<String>,
+    /// Two-way ANOVA interaction term.
+    #[serde(default)]
+    pub two_way_interaction: Option<bool>,
+    /// Value counted as a success by the proportion tests.
+    #[serde(default)]
+    pub test2_success: Option<String>,
+    /// Reference mean and margin of the equivalence tests.
+    #[serde(default)]
+    pub equivalence_null: Option<String>,
+    #[serde(default)]
+    pub equivalence_margin: Option<String>,
 }
 
 impl Default for Preferences {
@@ -642,6 +661,13 @@ impl Default for Preferences {
             tolerance_proportion: None,
             tolerance_free: None,
             diagnostic_alpha: None,
+            step_method: None,
+            step_criterion: None,
+            variance_center: None,
+            two_way_interaction: None,
+            test2_success: None,
+            equivalence_null: None,
+            equivalence_margin: None,
         }
     }
 }
@@ -2932,6 +2958,20 @@ impl FreePlotsApp {
             tolerance_proportion: Some(self.tolerance_proportion),
             tolerance_free: Some(self.tolerance_free),
             diagnostic_alpha: Some(self.diagnostic_alpha),
+            step_method: Some(
+                match self.step_method {
+                    StepMethod::Forward => "forward",
+                    StepMethod::Backward => "backward",
+                    StepMethod::Stepwise => "stepwise",
+                }
+                .to_owned(),
+            ),
+            step_criterion: Some(self.step_criterion.name().to_owned()),
+            variance_center: Some(self.variance_center.as_str().to_owned()),
+            two_way_interaction: Some(self.two_way_interaction),
+            test2_success: Some(self.test2_success.clone()),
+            equivalence_null: Some(self.equivalence_null.clone()),
+            equivalence_margin: Some(self.equivalence_margin.clone()),
         }
     }
 
@@ -3046,6 +3086,43 @@ impl FreePlotsApp {
                 && value.is_finite()
             {
                 *slot = value;
+            }
+        }
+        if let Some(code) = &preferences.step_method
+            && let Some(method) = fp_core::stepwise::StepMethod::parse(code)
+        {
+            self.step_method = method;
+        }
+        if let Some(code) = &preferences.step_criterion
+            && let Some(criterion) = fp_core::stepwise::StepCriterion::parse(code)
+        {
+            self.step_criterion = criterion;
+        }
+        if let Some(code) = &preferences.variance_center
+            && let Some(center) = fp_core::variance::VarianceCenter::parse(code)
+        {
+            self.variance_center = center;
+        }
+        if let Some(value) = preferences.two_way_interaction {
+            self.two_way_interaction = value;
+        }
+        if let Some(value) = &preferences.test2_success {
+            let trimmed = value.trim();
+            if trimmed == "0" || trimmed == "1" {
+                self.test2_success = trimmed.to_owned();
+            }
+        }
+        for (slot, value) in [
+            (&mut self.equivalence_null, &preferences.equivalence_null),
+            (
+                &mut self.equivalence_margin,
+                &preferences.equivalence_margin,
+            ),
+        ] {
+            if let Some(value) = value
+                && value.trim().parse::<f64>().is_ok_and(f64::is_finite)
+            {
+                *slot = value.clone();
             }
         }
         if let Some(value) = preferences.capability_subgroup

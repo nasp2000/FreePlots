@@ -30,14 +30,11 @@ impl FreePlotsApp {
         self.test2_first = self.selected.clone().unwrap_or_default();
         self.test2_second = String::new();
         self.test2_null = "0.5".to_owned();
-        self.test2_success = "1".to_owned();
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
         // The confidence is a user preference now.
         self.step_response = self.selected.clone().unwrap_or_default();
         self.step_candidates.clear();
-        self.step_method = StepMethod::Stepwise;
-        self.step_criterion = StepCriterion::PValue;
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
         // The confidence is a user preference now.
@@ -525,7 +522,6 @@ impl FreePlotsApp {
             .into_iter()
             .filter(|name| *name != self.reg_response)
             .collect();
-        self.reg_confidence = 95.0;
         self.show_reg_dialog = true;
     }
     pub fn run_regression_dialog(&mut self) {
@@ -664,9 +660,7 @@ impl FreePlotsApp {
             .into_iter()
             .filter(|name| *name != self.step_response)
             .collect();
-        self.step_method = StepMethod::Stepwise;
-        self.step_criterion = StepCriterion::PValue;
-        // The entry/removal alphas and the step limit are preferences now.
+        // The method, criterion, alphas and step limit are preferences now.
         self.show_step_dialog = true;
     }
     pub fn run_stepwise_dialog(&mut self) {
@@ -861,7 +855,6 @@ impl FreePlotsApp {
             .map(|column| column.name().to_owned())
             .find(|name| *name != self.anova_response)
             .unwrap_or_default();
-        self.anova_confidence = 95.0;
         self.show_anova_dialog = true;
     }
     pub fn run_anova_dialog(&mut self) {

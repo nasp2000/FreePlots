@@ -855,7 +855,6 @@ impl FreePlotsApp {
     }
     pub fn open_ecdf_dialog(&mut self) {
         self.ecdf_column = self.selected.clone().unwrap_or_default();
-        self.ecdf_confidence = 95.0;
         self.show_ecdf_dialog = true;
     }
     pub fn run_ecdf_dialog(&mut self) {

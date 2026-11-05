@@ -498,14 +498,12 @@ impl FreePlotsApp {
         self.test2_first = self.selected.clone().unwrap_or_default();
         self.test2_second = String::new();
         self.test2_null = "0.5".to_owned();
-        self.test2_success = "1".to_owned();
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
         self.step_response = self.selected.clone().unwrap_or_default();
         self.step_candidates.clear();
-        self.step_method = StepMethod::Stepwise;
-        self.step_criterion = StepCriterion::PValue;
-        // The stepwise alphas/limit and the confidence are preferences now.
+        // The stepwise method/criterion/alphas/limit and the confidence are
+        // preferences now.
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
         self.km_time = self.selected.clone().unwrap_or_default();

@@ -5730,6 +5730,50 @@ fn the_undo_stack_stays_bounded_under_large_edits() {
 }
 
 #[test]
+fn the_stepwise_and_test_option_choices_persist() {
+    use fp_core::stepwise::{StepCriterion, StepMethod};
+    use fp_core::variance::VarianceCenter;
+
+    let dir = std::env::temp_dir().join(format!("fp-options-prefs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.step_method = StepMethod::Backward;
+    app.step_criterion = StepCriterion::Aic;
+    app.variance_center = VarianceCenter::Median;
+    app.two_way_interaction = true;
+    app.test2_success = "0".to_owned();
+    app.equivalence_null = "2.5".to_owned();
+    app.equivalence_margin = "0.25".to_owned();
+    app.persist_preferences();
+
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.step_method, StepMethod::Backward);
+    assert_eq!(restored.step_criterion, StepCriterion::Aic);
+    assert_eq!(restored.variance_center, VarianceCenter::Median);
+    assert!(restored.two_way_interaction);
+    assert_eq!(restored.test2_success, "0");
+    assert_eq!(restored.equivalence_null, "2.5");
+    assert_eq!(restored.equivalence_margin, "0.25");
+
+    // Opening the dialogs keeps the stored choices.
+    restored.set_data(frame(), "weights.csv".to_owned());
+    restored.open_stepwise_dialog();
+    restored.open_one_way_dialog(OneWayKind::Levene);
+    restored.open_equivalence_dialog(EquivalenceKind::OneSample);
+    restored.open_test2_dialog(Test2Kind::OneProportion);
+    assert_eq!(restored.step_method, StepMethod::Backward);
+    assert_eq!(restored.step_criterion, StepCriterion::Aic);
+    assert_eq!(restored.variance_center, VarianceCenter::Median);
+    assert_eq!(restored.test2_success, "0");
+    assert_eq!(restored.equivalence_null, "2.5");
+    assert_eq!(restored.equivalence_margin, "0.25");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn the_analysis_method_choices_persist() {
     use fp_core::attribute::AttributeChartKind;
     use fp_core::curvefit::CurveModel;

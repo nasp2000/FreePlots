@@ -25,7 +25,6 @@ impl FreePlotsApp {
             .unwrap_or_else(|| numeric[0].clone());
         self.km_censor = None;
         self.km_censor_value = "0".to_owned();
-        self.km_confidence = 95.0;
         self.show_km_dialog = true;
     }
     pub fn run_kaplan_meier_dialog(&mut self) {
