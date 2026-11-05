@@ -514,6 +514,9 @@ impl Desktop {
             other => json!({"ok": false, "error": format!("unknown command {other:?}")}),
         };
         let _ = command.reply.send(reply);
+        // A bridge command may open a dialog or change the plot; draw it now
+        // instead of waiting for the next pointer or keyboard event.
+        ctx.request_repaint();
     }
 }
 

@@ -54,8 +54,9 @@ impl FreePlotsApp {
                     self.open_batch_dialog();
                     ui.close();
                 }
-                if menu_text_item(
+                if menu_icon_item(
                     ui,
+                    ToolIcon::Grid,
                     self.catalog().label("Sample projects…"),
                     None,
                     true,
