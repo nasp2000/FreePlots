@@ -504,6 +504,11 @@ impl FreePlotsApp {
             _ => {}
         }
     }
+    /// Opens the About window (also used by the live automation bridge).
+    pub fn open_about(&mut self) {
+        self.show_about = true;
+    }
+
     pub(super) fn about_window(&mut self, ctx: &egui::Context) {
         if !self.show_about {
             return;

@@ -473,6 +473,10 @@ impl Desktop {
                 let spec = AnalysisSpec::normality_test(column.clone());
                 self.reply_spec(spec, format!("Normality test: {column}"))
             }
+            "about" => {
+                self.app.open_about();
+                json!({"ok": true})
+            }
             "theme" => {
                 let dark = request.get("dark").and_then(Value::as_bool).unwrap_or(true);
                 self.app.set_dark_mode(dark);
