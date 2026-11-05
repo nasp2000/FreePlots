@@ -321,6 +321,10 @@ struct SheetState {
 }
 
 /// User options kept between runs, stored as JSON in the data directory.
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct Preferences {
@@ -394,6 +398,12 @@ pub struct Preferences {
     /// Last one-way ANOVA confidence level (percent).
     #[serde(default)]
     pub anova_confidence: Option<f64>,
+    /// Confidence levels of the remaining analysis dialogs, by key.
+    #[serde(default)]
+    pub analysis_confidences: std::collections::BTreeMap<String, f64>,
+    /// Probability-plot confidence band switch.
+    #[serde(default = "default_true")]
+    pub probability_confidence_band: bool,
 }
 
 impl Default for Preferences {
@@ -425,6 +435,8 @@ impl Default for Preferences {
             control_ewma_limit: None,
             regression_confidence: None,
             anova_confidence: None,
+            analysis_confidences: std::collections::BTreeMap::new(),
+            probability_confidence_band: true,
         }
     }
 }
@@ -2568,6 +2580,23 @@ impl FreePlotsApp {
             control_ewma_limit: Some(self.chart_ewma_limit),
             regression_confidence: Some(self.reg_confidence),
             anova_confidence: Some(self.anova_confidence),
+            analysis_confidences: [
+                ("probability", self.dialog_ci_level),
+                ("t1", self.t_confidence),
+                ("t2", self.test2_confidence),
+                ("ecdf", self.ecdf_confidence),
+                ("interval", self.interval_confidence),
+                ("tolerance", self.tolerance_confidence),
+                ("curve", self.curve_confidence),
+                ("equivalence", self.equivalence_confidence),
+                ("stepwise", self.step_confidence),
+                ("kaplan", self.km_confidence),
+                ("t2chart", self.t2_confidence),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value))
+            .collect(),
+            probability_confidence_band: self.dialog_ci,
         }
     }
 
@@ -2607,6 +2636,12 @@ impl FreePlotsApp {
         }
         self.dialog_same_x = preferences.probability_same_x;
         self.dialog_same_y = preferences.probability_same_y;
+        self.dialog_ci = preferences.probability_confidence_band;
+        if let Some(level) = preferences.analysis_confidences.get("probability")
+            && level.is_finite()
+        {
+            self.dialog_ci_level = *level;
+        }
         if let Some(code) = &preferences.capability_distribution {
             self.cap_distribution = parse_distribution(code).unwrap_or(self.cap_distribution);
         }
@@ -2650,6 +2685,46 @@ impl FreePlotsApp {
             (&mut self.chart_ewma_limit, preferences.control_ewma_limit),
             (&mut self.reg_confidence, preferences.regression_confidence),
             (&mut self.anova_confidence, preferences.anova_confidence),
+            (
+                &mut self.t_confidence,
+                preferences.analysis_confidences.get("t1").copied(),
+            ),
+            (
+                &mut self.test2_confidence,
+                preferences.analysis_confidences.get("t2").copied(),
+            ),
+            (
+                &mut self.ecdf_confidence,
+                preferences.analysis_confidences.get("ecdf").copied(),
+            ),
+            (
+                &mut self.interval_confidence,
+                preferences.analysis_confidences.get("interval").copied(),
+            ),
+            (
+                &mut self.tolerance_confidence,
+                preferences.analysis_confidences.get("tolerance").copied(),
+            ),
+            (
+                &mut self.curve_confidence,
+                preferences.analysis_confidences.get("curve").copied(),
+            ),
+            (
+                &mut self.equivalence_confidence,
+                preferences.analysis_confidences.get("equivalence").copied(),
+            ),
+            (
+                &mut self.step_confidence,
+                preferences.analysis_confidences.get("stepwise").copied(),
+            ),
+            (
+                &mut self.km_confidence,
+                preferences.analysis_confidences.get("kaplan").copied(),
+            ),
+            (
+                &mut self.t2_confidence,
+                preferences.analysis_confidences.get("t2chart").copied(),
+            ),
         ] {
             if let Some(value) = value
                 && value.is_finite()

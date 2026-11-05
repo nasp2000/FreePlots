@@ -5729,6 +5729,47 @@ fn the_undo_stack_stays_bounded_under_large_edits() {
 }
 
 #[test]
+fn the_remaining_confidence_levels_persist() {
+    let dir = std::env::temp_dir().join(format!("fp-conf-prefs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.dialog_ci = false;
+    app.dialog_ci_level = 90.0;
+    app.t_confidence = 98.0;
+    app.test2_confidence = 91.0;
+    app.ecdf_confidence = 92.0;
+    app.interval_confidence = 93.0;
+    app.tolerance_confidence = 94.0;
+    app.curve_confidence = 96.0;
+    app.equivalence_confidence = 97.0;
+    app.step_confidence = 90.5;
+    app.km_confidence = 95.5;
+    app.t2_confidence = 99.0;
+    app.persist_preferences();
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert!(!restored.dialog_ci);
+    for (actual, expected) in [
+        (restored.dialog_ci_level, 90.0),
+        (restored.t_confidence, 98.0),
+        (restored.test2_confidence, 91.0),
+        (restored.ecdf_confidence, 92.0),
+        (restored.interval_confidence, 93.0),
+        (restored.tolerance_confidence, 94.0),
+        (restored.curve_confidence, 96.0),
+        (restored.equivalence_confidence, 97.0),
+        (restored.step_confidence, 90.5),
+        (restored.km_confidence, 95.5),
+        (restored.t2_confidence, 99.0),
+    ] {
+        assert!((actual - expected).abs() < 1e-9, "{actual} != {expected}");
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn the_control_chart_and_regression_choices_persist() {
     use fp_core::spc::{ControlChartKind, TestSet};
 

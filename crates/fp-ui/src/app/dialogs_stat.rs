@@ -33,14 +33,12 @@ impl FreePlotsApp {
         self.t_null = "0".to_owned();
         self.t_alternative = Alternative::TwoSided;
         self.t_pooled = false;
-        self.t_confidence = 95.0;
         self.test2_first = self.selected.clone().unwrap_or_default();
         self.test2_second = String::new();
         self.test2_null = "0.5".to_owned();
         self.test2_success = "1".to_owned();
         self.test2_method = ProportionMethod::Exact;
         self.test2_alternative = Alternative::TwoSided;
-        self.test2_confidence = 95.0;
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
         // The confidence is a user preference now.
@@ -51,14 +49,12 @@ impl FreePlotsApp {
         self.step_alpha_enter = 0.15;
         self.step_alpha_remove = 0.15;
         self.step_max_steps = 50;
-        self.step_confidence = 95.0;
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
         // The confidence is a user preference now.
         self.km_time = self.selected.clone().unwrap_or_default();
         self.km_censor = None;
         self.km_censor_value = "0".to_owned();
-        self.km_confidence = 95.0;
         self.weibull_time = self.selected.clone().unwrap_or_default();
         self.weibull_censor = None;
         self.weibull_censor_value = "0".to_owned();
@@ -394,7 +390,6 @@ impl FreePlotsApp {
         self.curve_x = self.selected.clone().unwrap_or_default();
         self.curve_y = String::new();
         self.curve_model = CurveModel::Polynomial(2);
-        self.curve_confidence = 95.0;
         self.show_curve_dialog = true;
     }
     pub fn run_curve_dialog(&mut self) {
@@ -697,7 +692,6 @@ impl FreePlotsApp {
         self.step_alpha_enter = 0.15;
         self.step_alpha_remove = 0.15;
         self.step_max_steps = 50;
-        self.step_confidence = 95.0;
         self.show_step_dialog = true;
     }
     pub fn run_stepwise_dialog(&mut self) {
