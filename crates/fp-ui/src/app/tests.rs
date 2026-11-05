@@ -5730,6 +5730,110 @@ fn the_undo_stack_stays_bounded_under_large_edits() {
 }
 
 #[test]
+fn the_analysis_method_choices_persist() {
+    use fp_core::attribute::AttributeChartKind;
+    use fp_core::curvefit::CurveModel;
+    use fp_core::hypothesis::Alternative;
+    use fp_core::power::PowerProcedure;
+    use fp_core::proportion::ProportionMethod;
+    use fp_core::variance::VarianceMethod;
+
+    let dir = std::env::temp_dir().join(format!("fp-method-prefs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.cap_subgroup = 4;
+    app.cap_bootstrap = 500;
+    app.cap_box_cox = true;
+    app.cap_require_stability = true;
+    app.t_alternative = Alternative::Less;
+    app.t_pooled = true;
+    app.test2_method = ProportionMethod::Normal;
+    app.test2_variance_method = VarianceMethod::Bonett;
+    app.test2_alternative = Alternative::Greater;
+    app.rank_alternative = Alternative::Less;
+    app.power_procedure = PowerProcedure::TwoSampleT;
+    app.power_alpha = 10.0;
+    app.power_target = 90.0;
+    app.power_alternative = Alternative::Greater;
+    app.power_groups = 4;
+    app.curve_model = CurveModel::Exponential;
+    app.scatter_fit = false;
+    app.rsm_optimize = true;
+    app.rsm_contours = true;
+    app.rsm_steepest_ascent = true;
+    app.doe_main_effects = true;
+    app.kmeans_clusters = 5;
+    app.kmeans_standardise = false;
+    app.kmeans_seed = 42;
+    app.attr_kind = AttributeChartKind::LaneyP;
+    app.attr_size = "250".to_owned();
+    app.t2_subgroup = 7;
+    app.tolerance_proportion = 99.0;
+    app.tolerance_free = true;
+    app.diagnostic_alpha = 1.0;
+    app.persist_preferences();
+
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.cap_subgroup, 4);
+    assert_eq!(restored.cap_bootstrap, 500);
+    assert!(restored.cap_box_cox);
+    assert!(restored.cap_require_stability);
+    assert_eq!(restored.t_alternative, Alternative::Less);
+    assert!(restored.t_pooled);
+    assert_eq!(restored.test2_method, ProportionMethod::Normal);
+    assert_eq!(restored.test2_variance_method, VarianceMethod::Bonett);
+    assert_eq!(restored.test2_alternative, Alternative::Greater);
+    assert_eq!(restored.rank_alternative, Alternative::Less);
+    assert_eq!(restored.power_procedure, PowerProcedure::TwoSampleT);
+    assert!((restored.power_alpha - 10.0).abs() < 1e-9);
+    assert!((restored.power_target - 90.0).abs() < 1e-9);
+    assert_eq!(restored.power_alternative, Alternative::Greater);
+    assert_eq!(restored.power_groups, 4);
+    assert_eq!(restored.curve_model, CurveModel::Exponential);
+    assert!(!restored.scatter_fit);
+    assert!(restored.rsm_optimize);
+    assert!(restored.rsm_contours);
+    assert!(restored.rsm_steepest_ascent);
+    assert!(restored.doe_main_effects);
+    assert_eq!(restored.kmeans_clusters, 5);
+    assert!(!restored.kmeans_standardise);
+    assert_eq!(restored.kmeans_seed, 42);
+    assert_eq!(restored.attr_kind, AttributeChartKind::LaneyP);
+    assert_eq!(restored.attr_size, "250");
+    assert_eq!(restored.t2_subgroup, 7);
+    assert!((restored.tolerance_proportion - 99.0).abs() < 1e-9);
+    assert!(restored.tolerance_free);
+    assert!((restored.diagnostic_alpha - 1.0).abs() < 1e-9);
+
+    // Opening the dialogs keeps the stored method choices.
+    restored.set_data(frame(), "weights.csv".to_owned());
+    restored.open_probability_plot_dialog();
+    restored.open_t_test_dialog(TTestKind::OneSample);
+    restored.open_test2_dialog(Test2Kind::TwoProportions);
+    restored.open_power_dialog();
+    restored.open_curve_dialog();
+    restored.open_kmeans_dialog();
+    restored.open_t2_dialog();
+    restored.open_tolerance_dialog();
+    assert!(restored.cap_box_cox);
+    assert!(restored.cap_require_stability);
+    assert_eq!(restored.t_alternative, Alternative::Less);
+    assert!(restored.t_pooled);
+    assert_eq!(restored.test2_variance_method, VarianceMethod::Bonett);
+    assert_eq!(restored.power_procedure, PowerProcedure::TwoSampleT);
+    assert!((restored.power_target - 90.0).abs() < 1e-9);
+    assert_eq!(restored.curve_model, CurveModel::Exponential);
+    assert_eq!(restored.kmeans_clusters, 5);
+    assert_eq!(restored.attr_kind, AttributeChartKind::LaneyP);
+    assert_eq!(restored.t2_subgroup, 7);
+    assert!((restored.tolerance_proportion - 99.0).abs() < 1e-9);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn the_doe_pca_timeseries_and_stepwise_choices_persist() {
     use fp_core::timeseries::DecompositionModel;
 

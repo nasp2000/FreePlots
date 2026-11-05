@@ -480,6 +480,71 @@ pub struct Preferences {
     pub step_alpha_enter: Option<f64>,
     #[serde(default)]
     pub step_alpha_remove: Option<f64>,
+    /// Capability-study options.
+    #[serde(default)]
+    pub capability_subgroup: Option<usize>,
+    #[serde(default)]
+    pub capability_bootstrap: Option<usize>,
+    #[serde(default)]
+    pub capability_box_cox: Option<bool>,
+    #[serde(default)]
+    pub capability_require_stability: Option<bool>,
+    /// Hypothesis-test options.
+    #[serde(default)]
+    pub t_alternative: Option<String>,
+    #[serde(default)]
+    pub t_pooled: Option<bool>,
+    #[serde(default)]
+    pub test2_method: Option<String>,
+    #[serde(default)]
+    pub test2_variance_method: Option<String>,
+    #[serde(default)]
+    pub test2_alternative: Option<String>,
+    #[serde(default)]
+    pub rank_alternative: Option<String>,
+    /// Power and sample-size options.
+    #[serde(default)]
+    pub power_procedure: Option<String>,
+    #[serde(default)]
+    pub power_alpha: Option<f64>,
+    #[serde(default)]
+    pub power_target: Option<f64>,
+    #[serde(default)]
+    pub power_alternative: Option<String>,
+    #[serde(default)]
+    pub power_groups: Option<usize>,
+    /// Curve-fit, scatter and response-surface options.
+    #[serde(default)]
+    pub curve_model: Option<String>,
+    #[serde(default)]
+    pub scatter_fit: Option<bool>,
+    #[serde(default)]
+    pub rsm_optimize: Option<bool>,
+    #[serde(default)]
+    pub rsm_contours: Option<bool>,
+    #[serde(default)]
+    pub rsm_steepest_ascent: Option<bool>,
+    #[serde(default)]
+    pub doe_main_effects: Option<bool>,
+    /// Cluster, attribute-chart and quality options.
+    #[serde(default)]
+    pub kmeans_clusters: Option<usize>,
+    #[serde(default)]
+    pub kmeans_standardise: Option<bool>,
+    #[serde(default)]
+    pub kmeans_seed: Option<u64>,
+    #[serde(default)]
+    pub attribute_kind: Option<String>,
+    #[serde(default)]
+    pub attribute_size: Option<String>,
+    #[serde(default)]
+    pub t2_subgroup: Option<usize>,
+    #[serde(default)]
+    pub tolerance_proportion: Option<f64>,
+    #[serde(default)]
+    pub tolerance_free: Option<bool>,
+    #[serde(default)]
+    pub diagnostic_alpha: Option<f64>,
 }
 
 impl Default for Preferences {
@@ -547,6 +612,36 @@ impl Default for Preferences {
             step_max_steps: None,
             step_alpha_enter: None,
             step_alpha_remove: None,
+            capability_subgroup: None,
+            capability_bootstrap: None,
+            capability_box_cox: None,
+            capability_require_stability: None,
+            t_alternative: None,
+            t_pooled: None,
+            test2_method: None,
+            test2_variance_method: None,
+            test2_alternative: None,
+            rank_alternative: None,
+            power_procedure: None,
+            power_alpha: None,
+            power_target: None,
+            power_alternative: None,
+            power_groups: None,
+            curve_model: None,
+            scatter_fit: None,
+            rsm_optimize: None,
+            rsm_contours: None,
+            rsm_steepest_ascent: None,
+            doe_main_effects: None,
+            kmeans_clusters: None,
+            kmeans_standardise: None,
+            kmeans_seed: None,
+            attribute_kind: None,
+            attribute_size: None,
+            t2_subgroup: None,
+            tolerance_proportion: None,
+            tolerance_free: None,
+            diagnostic_alpha: None,
         }
     }
 }
@@ -2790,6 +2885,53 @@ impl FreePlotsApp {
             step_max_steps: Some(self.step_max_steps),
             step_alpha_enter: Some(self.step_alpha_enter),
             step_alpha_remove: Some(self.step_alpha_remove),
+            capability_subgroup: Some(self.cap_subgroup),
+            capability_bootstrap: Some(self.cap_bootstrap),
+            capability_box_cox: Some(self.cap_box_cox),
+            capability_require_stability: Some(self.cap_require_stability),
+            t_alternative: Some(self.t_alternative.as_str().to_owned()),
+            t_pooled: Some(self.t_pooled),
+            test2_method: Some(self.test2_method.as_str().to_owned()),
+            test2_variance_method: Some(self.test2_variance_method.as_str().to_owned()),
+            test2_alternative: Some(self.test2_alternative.as_str().to_owned()),
+            rank_alternative: Some(self.rank_alternative.as_str().to_owned()),
+            power_procedure: Some(self.power_procedure.as_str().to_owned()),
+            power_alpha: Some(self.power_alpha),
+            power_target: Some(self.power_target),
+            power_alternative: Some(self.power_alternative.as_str().to_owned()),
+            power_groups: Some(self.power_groups),
+            curve_model: Some(match self.curve_model {
+                CurveModel::Polynomial(degree) => format!("polynomial-{degree}"),
+                CurveModel::Exponential => "exponential".to_owned(),
+                CurveModel::Power => "power".to_owned(),
+                CurveModel::Logistic => "logistic".to_owned(),
+            }),
+            scatter_fit: Some(self.scatter_fit),
+            rsm_optimize: Some(self.rsm_optimize),
+            rsm_contours: Some(self.rsm_contours),
+            rsm_steepest_ascent: Some(self.rsm_steepest_ascent),
+            doe_main_effects: Some(self.doe_main_effects),
+            kmeans_clusters: Some(self.kmeans_clusters),
+            kmeans_standardise: Some(self.kmeans_standardise),
+            kmeans_seed: Some(self.kmeans_seed),
+            attribute_kind: Some(
+                match self.attr_kind {
+                    AttributeChartKind::P => "p",
+                    AttributeChartKind::Np => "np",
+                    AttributeChartKind::C => "c",
+                    AttributeChartKind::U => "u",
+                    AttributeChartKind::LaneyP => "laney-p",
+                    AttributeChartKind::LaneyNp => "laney-np",
+                    AttributeChartKind::LaneyC => "laney-c",
+                    AttributeChartKind::LaneyU => "laney-u",
+                }
+                .to_owned(),
+            ),
+            attribute_size: Some(self.attr_size.clone()),
+            t2_subgroup: Some(self.t2_subgroup),
+            tolerance_proportion: Some(self.tolerance_proportion),
+            tolerance_free: Some(self.tolerance_free),
+            diagnostic_alpha: Some(self.diagnostic_alpha),
         }
     }
 
@@ -2905,6 +3047,137 @@ impl FreePlotsApp {
             {
                 *slot = value;
             }
+        }
+        if let Some(value) = preferences.capability_subgroup
+            && (1..=100).contains(&value)
+        {
+            self.cap_subgroup = value;
+        }
+        if let Some(value) = preferences.capability_bootstrap
+            && value <= 2000
+        {
+            self.cap_bootstrap = value;
+        }
+        if let Some(value) = preferences.capability_box_cox {
+            self.cap_box_cox = value;
+        }
+        if let Some(value) = preferences.capability_require_stability {
+            self.cap_require_stability = value;
+        }
+        if let Some(code) = &preferences.t_alternative
+            && let Some(alternative) = fp_core::hypothesis::Alternative::parse(code)
+        {
+            self.t_alternative = alternative;
+        }
+        if let Some(value) = preferences.t_pooled {
+            self.t_pooled = value;
+        }
+        if let Some(code) = &preferences.test2_method
+            && let Some(method) = fp_core::proportion::ProportionMethod::parse(code)
+        {
+            self.test2_method = method;
+        }
+        if let Some(code) = &preferences.test2_variance_method
+            && let Some(method) = fp_core::variance::VarianceMethod::parse(code)
+        {
+            self.test2_variance_method = method;
+        }
+        if let Some(code) = &preferences.test2_alternative
+            && let Some(alternative) = fp_core::hypothesis::Alternative::parse(code)
+        {
+            self.test2_alternative = alternative;
+        }
+        if let Some(code) = &preferences.rank_alternative
+            && let Some(alternative) = fp_core::hypothesis::Alternative::parse(code)
+        {
+            self.rank_alternative = alternative;
+        }
+        if let Some(code) = &preferences.power_procedure
+            && let Some(procedure) = fp_core::power::PowerProcedure::parse(code)
+        {
+            self.power_procedure = procedure;
+        }
+        for (slot, value, low, high) in [
+            (&mut self.power_alpha, preferences.power_alpha, 0.1, 20.0),
+            (
+                &mut self.diagnostic_alpha,
+                preferences.diagnostic_alpha,
+                0.1,
+                50.0,
+            ),
+            (
+                &mut self.tolerance_proportion,
+                preferences.tolerance_proportion,
+                50.0,
+                99.9,
+            ),
+        ] {
+            if let Some(value) = value
+                && value.is_finite()
+                && (low..=high).contains(&value)
+            {
+                *slot = value;
+            }
+        }
+        if let Some(value) = preferences.power_target
+            && value.is_finite()
+            && (50.0..=99.9).contains(&value)
+        {
+            self.power_target = value;
+        }
+        if let Some(code) = &preferences.power_alternative
+            && let Some(alternative) = fp_core::hypothesis::Alternative::parse(code)
+        {
+            self.power_alternative = alternative;
+        }
+        if let Some(value) = preferences.power_groups
+            && (2..=20).contains(&value)
+        {
+            self.power_groups = value;
+        }
+        if let Some(code) = &preferences.curve_model
+            && let Some(model) = fp_core::curvefit::CurveModel::parse(code)
+        {
+            self.curve_model = model;
+        }
+        for (slot, value) in [
+            (&mut self.scatter_fit, preferences.scatter_fit),
+            (&mut self.rsm_optimize, preferences.rsm_optimize),
+            (&mut self.rsm_contours, preferences.rsm_contours),
+            (
+                &mut self.rsm_steepest_ascent,
+                preferences.rsm_steepest_ascent,
+            ),
+            (&mut self.doe_main_effects, preferences.doe_main_effects),
+            (&mut self.kmeans_standardise, preferences.kmeans_standardise),
+            (&mut self.tolerance_free, preferences.tolerance_free),
+        ] {
+            if let Some(value) = value {
+                *slot = value;
+            }
+        }
+        if let Some(value) = preferences.kmeans_clusters
+            && (2..=20).contains(&value)
+        {
+            self.kmeans_clusters = value;
+        }
+        if let Some(value) = preferences.kmeans_seed {
+            self.kmeans_seed = value;
+        }
+        if let Some(code) = &preferences.attribute_kind
+            && let Some(kind) = AttributeChartKind::parse(code)
+        {
+            self.attr_kind = kind;
+        }
+        if let Some(value) = &preferences.attribute_size
+            && !value.trim().is_empty()
+        {
+            self.attr_size = value.clone();
+        }
+        if let Some(value) = preferences.t2_subgroup
+            && (2..=25).contains(&value)
+        {
+            self.t2_subgroup = value;
         }
         if let Some(factors) = &preferences.doe_factors
             && !factors.trim().is_empty()

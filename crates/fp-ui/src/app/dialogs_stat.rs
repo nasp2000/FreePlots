@@ -19,26 +19,18 @@ impl FreePlotsApp {
         self.cap_lsl.clear();
         self.cap_usl.clear();
         self.cap_target.clear();
-        self.cap_subgroup = 1;
-        self.cap_bootstrap = 0;
-        self.cap_box_cox = false;
+        // The capability options are user preferences now.
         self.chart_column = self.selected.clone().unwrap_or_default();
         self.chart_subgroup_column.clear();
         self.attr_column = self.selected.clone().unwrap_or_default();
-        self.attr_kind = AttributeChartKind::P;
         self.attr_sizes = None;
-        self.attr_size = "100".to_owned();
         self.t_first = self.selected.clone().unwrap_or_default();
         self.t_second = String::new();
         self.t_null = "0".to_owned();
-        self.t_alternative = Alternative::TwoSided;
-        self.t_pooled = false;
         self.test2_first = self.selected.clone().unwrap_or_default();
         self.test2_second = String::new();
         self.test2_null = "0.5".to_owned();
         self.test2_success = "1".to_owned();
-        self.test2_method = ProportionMethod::Exact;
-        self.test2_alternative = Alternative::TwoSided;
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
         // The confidence is a user preference now.
@@ -46,9 +38,6 @@ impl FreePlotsApp {
         self.step_candidates.clear();
         self.step_method = StepMethod::Stepwise;
         self.step_criterion = StepCriterion::PValue;
-        self.step_alpha_enter = 0.15;
-        self.step_alpha_remove = 0.15;
-        self.step_max_steps = 50;
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
         // The confidence is a user preference now.
@@ -74,15 +63,10 @@ impl FreePlotsApp {
         self.doe_response = self.selected.clone().unwrap_or_default();
         self.doe_factors.clear();
         self.doe_block.clear();
-        self.doe_main_effects = false;
         self.rsm_response = self.selected.clone().unwrap_or_default();
         self.rsm_factors.clear();
-        self.rsm_optimize = false;
-        self.rsm_contours = false;
-        self.rsm_steepest_ascent = false;
         self.scatter_x = self.selected.clone().unwrap_or_default();
         self.scatter_y = String::new();
-        self.scatter_fit = true;
         self.describe_column = self.selected.clone().unwrap_or_default();
         self.describe_by = None;
         self.dialog_distribution = self.distribution;
@@ -383,7 +367,6 @@ impl FreePlotsApp {
     pub fn open_curve_dialog(&mut self) {
         self.curve_x = self.selected.clone().unwrap_or_default();
         self.curve_y = String::new();
-        self.curve_model = CurveModel::Polynomial(2);
         self.show_curve_dialog = true;
     }
     pub fn run_curve_dialog(&mut self) {

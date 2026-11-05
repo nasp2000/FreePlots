@@ -679,9 +679,7 @@ impl FreePlotsApp {
             return;
         }
         self.attr_column = self.selected.clone().unwrap_or_default();
-        self.attr_kind = AttributeChartKind::P;
         self.attr_sizes = None;
-        self.attr_size = "100".to_owned();
         self.show_attr_dialog = true;
     }
     pub fn open_g_chart_dialog(&mut self) {
@@ -789,9 +787,6 @@ impl FreePlotsApp {
     }
     pub fn open_tolerance_dialog(&mut self) {
         self.tolerance_column = self.selected.clone().unwrap_or_default();
-        self.tolerance_proportion = 95.0;
-        self.tolerance_confidence = 95.0;
-        self.tolerance_free = false;
         self.show_tolerance_dialog = true;
     }
     pub(super) fn tolerance_dialog(&mut self, ctx: &egui::Context) {

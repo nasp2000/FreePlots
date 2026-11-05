@@ -484,30 +484,21 @@ impl FreePlotsApp {
         self.cap_lsl.clear();
         self.cap_usl.clear();
         self.cap_target.clear();
-        self.cap_subgroup = 1;
-        self.cap_bootstrap = 0;
-        self.cap_box_cox = false;
-        self.cap_require_stability = false;
+        // The capability options are user preferences now.
         self.chart_column = self.selected.clone().unwrap_or_default();
         // The chart family and subgroup size are user preferences now.
         self.chart_subgroup_column.clear();
         self.chart_phase_column.clear();
         // The test set is a user preference now.
         self.attr_column = self.selected.clone().unwrap_or_default();
-        self.attr_kind = AttributeChartKind::P;
         self.attr_sizes = None;
-        self.attr_size = "100".to_owned();
         self.t_first = self.selected.clone().unwrap_or_default();
         self.t_second = String::new();
         self.t_null = "0".to_owned();
-        self.t_alternative = Alternative::TwoSided;
-        self.t_pooled = false;
         self.test2_first = self.selected.clone().unwrap_or_default();
         self.test2_second = String::new();
         self.test2_null = "0.5".to_owned();
         self.test2_success = "1".to_owned();
-        self.test2_method = ProportionMethod::Exact;
-        self.test2_alternative = Alternative::TwoSided;
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
         self.step_response = self.selected.clone().unwrap_or_default();
@@ -539,15 +530,10 @@ impl FreePlotsApp {
         self.doe_response = self.selected.clone().unwrap_or_default();
         self.doe_factors.clear();
         self.doe_block.clear();
-        self.doe_main_effects = false;
         self.rsm_response = self.selected.clone().unwrap_or_default();
         self.rsm_factors.clear();
-        self.rsm_optimize = false;
-        self.rsm_contours = false;
-        self.rsm_steepest_ascent = false;
         self.scatter_x = self.selected.clone().unwrap_or_default();
         self.scatter_y = String::new();
-        self.scatter_fit = true;
         // The design options are user preferences now.
         self.describe_column = self.selected.clone().unwrap_or_default();
         self.describe_by = None;

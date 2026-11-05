@@ -31,30 +31,22 @@ impl FreePlotsApp {
             .cloned()
             .unwrap_or_default();
         self.t_null = "0".to_owned();
-        self.t_alternative = Alternative::TwoSided;
-        self.t_pooled = false;
-        self.t_confidence = 95.0;
+        // The alternative, pooling and confidence are preferences now.
         self.test2_first = self.selected.clone().unwrap_or_default();
         self.test2_second = String::new();
         self.test2_null = "0.5".to_owned();
         self.test2_success = "1".to_owned();
-        self.test2_method = ProportionMethod::Exact;
-        self.test2_alternative = Alternative::TwoSided;
-        self.test2_confidence = 95.0;
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
-        self.reg_confidence = 95.0;
         self.step_response = self.selected.clone().unwrap_or_default();
         self.step_candidates.clear();
         self.step_method = StepMethod::Stepwise;
         self.step_criterion = StepCriterion::PValue;
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
-        self.anova_confidence = 95.0;
         self.km_time = self.selected.clone().unwrap_or_default();
         self.km_censor = None;
         self.km_censor_value = "0".to_owned();
-        self.km_confidence = 95.0;
         self.weibull_time = self.selected.clone().unwrap_or_default();
         self.weibull_censor = None;
         self.weibull_censor_value = "0".to_owned();
@@ -74,15 +66,10 @@ impl FreePlotsApp {
         self.doe_response = self.selected.clone().unwrap_or_default();
         self.doe_factors.clear();
         self.doe_block.clear();
-        self.doe_main_effects = false;
         self.rsm_response = self.selected.clone().unwrap_or_default();
         self.rsm_factors.clear();
-        self.rsm_optimize = false;
-        self.rsm_contours = false;
-        self.rsm_steepest_ascent = false;
         self.scatter_x = self.selected.clone().unwrap_or_default();
         self.scatter_y = String::new();
-        self.scatter_fit = true;
         self.show_t_dialog = true;
     }
     pub fn run_t_test_dialog(&mut self) {
@@ -735,23 +722,17 @@ impl FreePlotsApp {
             _ => String::new(),
         };
         self.test2_success = "1".to_owned();
-        self.test2_method = ProportionMethod::Exact;
-        self.test2_alternative = Alternative::TwoSided;
-        self.test2_confidence = 95.0;
         self.reg_response = self.selected.clone().unwrap_or_default();
         self.reg_predictors.clear();
-        self.reg_confidence = 95.0;
         self.step_response = self.selected.clone().unwrap_or_default();
         self.step_candidates.clear();
         self.step_method = StepMethod::Stepwise;
         self.step_criterion = StepCriterion::PValue;
         self.anova_response = self.selected.clone().unwrap_or_default();
         self.anova_factor = String::new();
-        self.anova_confidence = 95.0;
         self.km_time = self.selected.clone().unwrap_or_default();
         self.km_censor = None;
         self.km_censor_value = "0".to_owned();
-        self.km_confidence = 95.0;
         self.weibull_time = self.selected.clone().unwrap_or_default();
         self.weibull_censor = None;
         self.weibull_censor_value = "0".to_owned();
@@ -771,15 +752,10 @@ impl FreePlotsApp {
         self.doe_response = self.selected.clone().unwrap_or_default();
         self.doe_factors.clear();
         self.doe_block.clear();
-        self.doe_main_effects = false;
         self.rsm_response = self.selected.clone().unwrap_or_default();
         self.rsm_factors.clear();
-        self.rsm_optimize = false;
-        self.rsm_contours = false;
-        self.rsm_steepest_ascent = false;
         self.scatter_x = self.selected.clone().unwrap_or_default();
         self.scatter_y = String::new();
-        self.scatter_fit = true;
         self.show_test2_dialog = true;
     }
     pub fn run_test2_dialog(&mut self) {
@@ -1035,14 +1011,10 @@ impl FreePlotsApp {
         }
     }
     pub fn open_power_dialog(&mut self) {
-        self.power_procedure = PowerProcedure::OneSampleT;
+        // The procedure, alpha, target, alternative and groups are preferences.
         self.power_effect = "0.5".to_owned();
         self.power_null = "0.5".to_owned();
         self.power_n = "0".to_owned();
-        self.power_alpha = 5.0;
-        self.power_target = 80.0;
-        self.power_alternative = Alternative::TwoSided;
-        self.power_groups = 2;
         self.show_power_dialog = true;
     }
     pub fn run_power_dialog(&mut self) {

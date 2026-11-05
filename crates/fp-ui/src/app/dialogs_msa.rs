@@ -177,7 +177,6 @@ impl FreePlotsApp {
         self.diagnostic_column = self.selected.clone().unwrap_or_default();
         self.diagnostic_expected = String::new();
         self.diagnostic_parameters = 0;
-        self.diagnostic_alpha = 5.0;
         self.show_diagnostic_dialog = true;
     }
     pub fn run_diagnostic_dialog(&mut self) {
@@ -736,8 +735,6 @@ impl FreePlotsApp {
     }
     pub fn open_t2_dialog(&mut self) {
         self.t2_columns = self.selected.clone().unwrap_or_default();
-        self.t2_subgroup = 3;
-        self.t2_confidence = 95.0;
         self.show_t2_dialog = true;
     }
     pub fn run_t2_dialog(&mut self) {
@@ -802,9 +799,6 @@ impl FreePlotsApp {
     }
     pub fn open_kmeans_dialog(&mut self) {
         self.kmeans_columns = self.selected.clone().unwrap_or_default();
-        self.kmeans_clusters = 3;
-        self.kmeans_standardise = true;
-        self.kmeans_seed = 2026;
         self.show_kmeans_dialog = true;
     }
     pub fn run_kmeans_dialog(&mut self) {
