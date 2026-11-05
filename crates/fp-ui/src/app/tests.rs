@@ -6156,6 +6156,59 @@ fn the_preferences_round_trip_through_the_settings_file() {
 }
 
 #[test]
+fn out_of_range_preferences_keep_safe_defaults() {
+    use fp_core::attribute::AttributeChartKind;
+    use fp_core::hypothesis::Alternative;
+    use fp_core::workflow::DistributionKind;
+
+    let dir = std::env::temp_dir().join(format!("fp-invalid-prefs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let invalid = Preferences {
+        zoom: 99.0,
+        probability_distribution: Some("nonsense".to_owned()),
+        capability_confidence: Some(10.0),
+        control_chart_subgroup: Some(0),
+        control_chart_tests: Some("9".to_owned()),
+        doe_runs: Some(999),
+        pca_keep: Some(0),
+        matrix_bins: Some(1000),
+        timeseries_kind: Some("nope".to_owned()),
+        sampling_sample: Some(0),
+        step_alpha_enter: Some(5.0),
+        tolerance_proportion: Some(10.0),
+        attribute_kind: Some("nope".to_owned()),
+        t_alternative: Some("nope".to_owned()),
+        power_groups: Some(1),
+        ..Preferences::default()
+    };
+    let text = serde_json::to_string(&invalid).expect("json");
+    // Unknown keys are ignored instead of failing the whole file.
+    let text = format!("{}{}", &text[..text.len() - 1], ",\"unknown_field\":42}");
+    std::fs::write(&path, text).expect("write");
+
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    assert!((app.zoom - 2.5).abs() < 1e-9, "zoom is clamped");
+    assert_eq!(app.distribution, DistributionKind::Normal);
+    assert!((app.cap_confidence - 95.0).abs() < 1e-9);
+    assert_eq!(app.chart_subgroup, 5);
+    assert!(app.chart_tests.is_enabled(1));
+    assert!(!app.chart_tests.is_enabled(2));
+    assert_eq!(app.design_runs, 12);
+    assert_eq!(app.pca_keep, 2);
+    assert_eq!(app.matrix_bins, 8);
+    assert_eq!(app.timeseries_kind, TimeSeriesKind::MovingAverage);
+    assert_eq!(app.sampling_sample, 20);
+    assert!((app.step_alpha_enter - 0.15).abs() < 1e-9);
+    assert!((app.tolerance_proportion - 95.0).abs() < 1e-9);
+    assert_eq!(app.attr_kind, AttributeChartKind::P);
+    assert_eq!(app.t_alternative, Alternative::TwoSided);
+    assert_eq!(app.power_groups, 2);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn conditional_rules_match_values_and_text() {
     use crate::app::{ConditionalRule, ConditionalStyle, ConditionalTest};
 

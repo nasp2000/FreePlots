@@ -533,6 +533,80 @@ impl UiCatalog {
             // Help.
             "User Guide" => "Guia do utilizador",
             "About" => "Acerca",
+            // Labels used by the dialogs and the graph editor.
+            "1 Proportion…" => "1 Proporção…",
+            "1 Variance…" => "1 Variância…",
+            "2 Proportions…" => "2 Proporções…",
+            "2 Variances…" => "2 Variâncias…",
+            "2-Level Factorial" => "Fatorial de 2 níveis",
+            "2-Level Factorial…" => "Fatorial de 2 níveis…",
+            "Add Date Column" => "Adicionar coluna de data",
+            "Add Days" => "Adicionar dias",
+            "Add Days…" => "Adicionar dias…",
+            "Add Numeric Column" => "Adicionar coluna numérica",
+            "Add Row" => "Adicionar linha",
+            "Add Text Column" => "Adicionar coluna de texto",
+            "Attribute Control Chart" => "Carta de controlo para atributos",
+            "Bartlett Test…" => "Teste de Bartlett…",
+            "Boxplot" => "Diagrama de caixa",
+            "Browse…" => "Procurar…",
+            "CSV Options" => "Opções CSV",
+            "Cancel" => "Cancelar",
+            "Chi-Square Goodness-of-Fit…" => "Ajustamento do qui-quadrado…",
+            "Choose Worksheet" => "Escolher folha",
+            "Clear Session" => "Limpar sessão",
+            "Column:" => "Coluna:",
+            "Create 2-Level Design" => "Criar plano de 2 níveis",
+            "Create 2-Level Design…" => "Criar plano de 2 níveis…",
+            "Date Difference" => "Diferença de datas",
+            "Date Difference…" => "Diferença de datas…",
+            "Date Format" => "Formato de data",
+            "Delete" => "Eliminar",
+            "Delete Row" => "Eliminar linha",
+            "Descriptive Statistics by Column" => "Estatísticas descritivas por coluna",
+            "Display Descriptive Statistics" => "Mostrar estatísticas descritivas",
+            "Display Descriptive Statistics by…" => "Mostrar estatísticas descritivas por…",
+            "EWMA…" => "EWMA…",
+            "Exponential (censored)…" => "Exponencial (censurada)…",
+            "Exponential Reliability" => "Fiabilidade exponencial",
+            "Find and Replace" => "Localizar e substituir",
+            "Format Cells" => "Formatar células",
+            "Format Cells…" => "Formatar células…",
+            "Gage Type 1" => "Gage Tipo 1",
+            "Gage Type 1…" => "Gage Tipo 1…",
+            "Generate" => "Gerar",
+            "Grubbs Test…" => "Teste de Grubbs…",
+            "Histogram" => "Histograma",
+            "Insert Row Above" => "Inserir linha acima",
+            "I–MR…" => "I–MR…",
+            "Kaplan–Meier" => "Kaplan–Meier",
+            "Kaplan–Meier…" => "Kaplan–Meier…",
+            "Levene Test…" => "Teste de Levene…",
+            "Lognormal (censored)…" => "Lognormal (censurada)…",
+            "Lognormal Reliability" => "Fiabilidade lognormal",
+            "No notes yet." => "Ainda sem notas.",
+            "OK" => "OK",
+            "One-Way…" => "Um fator…",
+            "Open" => "Abrir",
+            "Regression…" => "Regressão…",
+            "Rename" => "Renomear",
+            "Rename Column" => "Renomear coluna",
+            "Response Optimizer" => "Otimizador de respostas",
+            "Response Optimizer…" => "Otimizador de respostas…",
+            "Response Surface" => "Superfície de resposta",
+            "Response Surface…" => "Superfície de resposta…",
+            "Run" => "Executar",
+            "Save" => "Guardar",
+            "Scatterplot" => "Diagrama de dispersão",
+            "Scatterplot…" => "Diagrama de dispersão…",
+            "Select First Numeric Column" => "Selecionar a primeira coluna numérica",
+            "Sign Test…" => "Teste de sinais…",
+            "Step-Stress ALT" => "ALT com tensão por degraus",
+            "Step-Stress ALT…" => "ALT com tensão por degraus…",
+            "Weibull (censored)…" => "Weibull (censurada)…",
+            "Weibull Reliability" => "Fiabilidade Weibull",
+            "X̄–R…" => "X̄–R…",
+            "X̄–S…" => "X̄–S…",
             _ => text,
         }
     }
@@ -555,5 +629,105 @@ mod tests {
         assert_eq!(catalog.label("Basic Statistics"), "Estatística básica");
         // An unknown string is left untouched.
         assert_eq!(catalog.label("Something else"), "Something else");
+    }
+
+    /// Labels whose English and Portuguese spellings are the same.
+    const SAME_IN_BOTH: &[&str] = &[
+        "ANOVA",
+        "EWMA…",
+        "Editor",
+        "Friedman…",
+        "Gage R&R",
+        "Gage R&R…",
+        "I–MR…",
+        "Kaplan–Meier",
+        "Kaplan–Meier…",
+        "Kruskal-Wallis…",
+        "Mann-Whitney…",
+        "OK",
+        "Português",
+        "Tour",
+        "X̄–R…",
+        "X̄–S…",
+        "Zoom",
+    ];
+
+    fn source_files(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("source directory") {
+            let path = entry.expect("source entry").path();
+            if path.is_dir() {
+                source_files(&path, files);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                files.push(path);
+            }
+        }
+    }
+
+    fn labels_in(text: &str, labels: &mut Vec<String>) {
+        let mut rest = text;
+        while let Some(position) = rest.find(".label(") {
+            let before = rest[..position].trim_end();
+            if !(before.ends_with("catalog()") || before.ends_with("catalog")) {
+                rest = &rest[position + ".label(".len()..];
+                continue;
+            }
+            let after = &rest[position + ".label(".len()..];
+            let trimmed = after.trim_start();
+            if let Some(body) = trimmed.strip_prefix('"') {
+                let mut value = String::new();
+                let mut chars = body.chars();
+                while let Some(character) = chars.next() {
+                    match character {
+                        '"' => break,
+                        '\\' => {
+                            if let Some(escaped) = chars.next() {
+                                // A backslash-newline continues the string and
+                                // drops the following indentation.
+                                if escaped.is_whitespace() {
+                                    while chars.clone().next().is_some_and(char::is_whitespace) {
+                                        chars.next();
+                                    }
+                                } else {
+                                    value.push(escaped);
+                                }
+                            }
+                        }
+                        _ => value.push(character),
+                    }
+                }
+                labels.push(value);
+            }
+            rest = &rest[position + ".label(".len()..];
+        }
+    }
+
+    #[test]
+    fn every_interface_label_has_a_portuguese_entry() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut files = Vec::new();
+        source_files(&root, &mut files);
+        let catalog = UiCatalog::new(Lang::Portuguese);
+        let mut missing = Vec::new();
+        for path in files {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("");
+            if name == "catalog.rs" || path.ends_with("app/tests.rs") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).expect("source file");
+            let mut labels = Vec::new();
+            labels_in(&text, &mut labels);
+            for label in labels {
+                if SAME_IN_BOTH.contains(&label.as_str()) {
+                    continue;
+                }
+                if catalog.label(&label) == label {
+                    missing.push(format!("{}: {label}", path.display()));
+                }
+            }
+        }
+        assert!(missing.is_empty(), "missing translations: {missing:#?}");
     }
 }

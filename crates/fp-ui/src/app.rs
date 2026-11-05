@@ -4843,7 +4843,9 @@ impl<'a> DialogWindow<'a> {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .button("Clear")
-                            .on_hover_text("Reset the options of this dialog")
+                            .on_hover_text(
+                                "Reset the transient options; saved preferences are kept",
+                            )
                             .clicked()
                         {
                             ctx.data_mut(|data| {
