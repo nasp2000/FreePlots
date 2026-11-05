@@ -1472,10 +1472,13 @@ impl FreePlotsApp {
                     let label = ui.help_label(catalog.label("Folder:"));
                     ui.add(
                         egui::TextEdit::singleline(&mut self.batch_folder)
-                            .desired_width(340.0)
+                            .desired_width(300.0)
                             .hint_text(catalog.label("Folder with .csv files")),
                     )
                     .labelled_by(label.id);
+                    if ui.help_button(catalog.label("Browse…")).clicked() {
+                        self.request_folder_browse(catalog.label("Choose the folder with the CSV files"));
+                    }
                 });
                 ui.horizontal(|ui| {
                     let label = ui.help_label(catalog.label("Column:"));

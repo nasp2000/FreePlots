@@ -566,6 +566,24 @@ pub fn browse_file(title: &str, filters: &[String], save: bool) -> Option<PathBu
     }
 }
 
+/// Shows a native folder browser and returns the chosen folder.
+///
+/// `None` means "cancelled" or "no native dialog on this platform"; the caller
+/// keeps the typed path.
+#[cfg(feature = "desktop")]
+pub fn browse_folder(title: &str) -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    let chosen = windows::browse_folder(title);
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let chosen = unix::browse_folder(title);
+    #[cfg(not(any(target_os = "windows", all(unix, not(target_os = "macos")))))]
+    let chosen = {
+        let _ = title;
+        None
+    };
+    chosen
+}
+
 /// Windows implementation of the native file browser.
 ///
 /// The common dialog of `comdlg32.dll` is called directly, so the portable
@@ -796,6 +814,62 @@ mod windows {
             Some(PathBuf::from(text))
         }
     }
+
+    const BIF_RETURNONLYFSDIRS: Dword = 0x0000_0001;
+    const MAX_PATH: usize = 260;
+
+    #[repr(C)]
+    struct BrowseInfoW {
+        hwnd_owner: *mut c_void,
+        pidl_root: *mut c_void,
+        psz_display_name: *mut u16,
+        lpsz_title: *const u16,
+        ul_flags: Dword,
+        lpfn: *mut c_void,
+        l_param: isize,
+        i_image: i32,
+    }
+
+    #[link(name = "shell32")]
+    unsafe extern "system" {
+        fn SHBrowseForFolderW(info: *mut BrowseInfoW) -> *mut c_void;
+        fn SHGetPathFromIDListW(pidl: *const c_void, path: *mut u16) -> i32;
+    }
+
+    #[link(name = "ole32")]
+    unsafe extern "system" {
+        fn CoTaskMemFree(pointer: *mut c_void);
+    }
+
+    pub fn browse_folder(title: &str) -> Option<PathBuf> {
+        let title = wide(title);
+        let mut info = BrowseInfoW {
+            hwnd_owner: std::ptr::null_mut(),
+            pidl_root: std::ptr::null_mut(),
+            psz_display_name: std::ptr::null_mut(),
+            lpsz_title: title.as_ptr(),
+            ul_flags: BIF_RETURNONLYFSDIRS,
+            lpfn: std::ptr::null_mut(),
+            l_param: 0,
+            i_image: 0,
+        };
+        let pidl = unsafe { SHBrowseForFolderW(&mut info) };
+        if pidl.is_null() {
+            return None;
+        }
+        let mut buffer = vec![0u16; MAX_PATH];
+        let ok = unsafe { SHGetPathFromIDListW(pidl, buffer.as_mut_ptr()) };
+        unsafe { CoTaskMemFree(pidl) };
+        if ok == 0 {
+            return None;
+        }
+        let text: String = buffer
+            .iter()
+            .take_while(|unit| **unit != 0)
+            .map(|unit| char::from_u32(u32::from(*unit)).unwrap_or_default())
+            .collect();
+        (!text.is_empty()).then(|| PathBuf::from(text))
+    }
 }
 
 /// Unix implementation of the file browser.
@@ -863,6 +937,35 @@ mod unix {
         } else {
             Some(PathBuf::from(text))
         }
+    }
+
+    fn zenity_folder(title: &str) -> Option<PathBuf> {
+        let output = Command::new("zenity")
+            .args(["--file-selection", "--directory"])
+            .arg(format!("--title={title}"))
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        (!text.is_empty()).then(|| PathBuf::from(text))
+    }
+
+    fn kdialog_folder(title: &str) -> Option<PathBuf> {
+        let output = Command::new("kdialog")
+            .args(["--getexistingdirectory", title])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        (!text.is_empty()).then(|| PathBuf::from(text))
+    }
+
+    pub fn browse_folder(title: &str) -> Option<PathBuf> {
+        zenity_folder(title).or_else(|| kdialog_folder(title))
     }
 
     pub fn browse_file(title: &str, filters: &[String], save: bool) -> Option<PathBuf> {

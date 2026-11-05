@@ -98,6 +98,16 @@ pub struct BrowseRequest {
     pub save: bool,
 }
 
+/// A request to show a native folder browser.
+///
+/// The desktop runner opens the dialog and hands the chosen folder back with
+/// [`FreePlotsApp::set_browsed_folder`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FolderRequest {
+    /// Title of the native dialog.
+    pub title: String,
+}
+
 /// A request to write the worksheet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SaveRequest {
@@ -1339,6 +1349,7 @@ pub struct FreePlotsApp {
     save_request: Option<SaveRequest>,
     batch_request: Option<BatchRequest>,
     browse_request: Option<BrowseRequest>,
+    folder_request: Option<FolderRequest>,
     show_batch_dialog: bool,
     show_samples_dialog: bool,
     batch_folder: String,
@@ -2043,6 +2054,23 @@ impl FreePlotsApp {
     /// The path typed in the save dialog.
     pub fn save_path(&self) -> &str {
         &self.save_path
+    }
+
+    /// Asks the desktop runner for a native folder browser.
+    pub fn request_folder_browse(&mut self, title: impl Into<String>) {
+        self.folder_request = Some(FolderRequest {
+            title: title.into(),
+        });
+    }
+
+    /// Takes a pending "show a folder browser" request.
+    pub fn take_folder_request(&mut self) -> Option<FolderRequest> {
+        self.folder_request.take()
+    }
+
+    /// Fills the batch folder with the folder chosen in the browser.
+    pub fn set_browsed_folder(&mut self, path: String) {
+        self.batch_folder = path;
     }
 
     /// Takes a pending "show a file browser" request.

@@ -27,6 +27,8 @@ struct Desktop {
     pending_shot: Option<(Sender<Value>, PathBuf, bool)>,
     /// Pending file browser, running on its own thread.
     browse: Option<Receiver<BrowseResult>>,
+    /// Pending folder browser, running on its own thread.
+    folder_browse: Option<Receiver<Option<PathBuf>>>,
     /// The black caption is applied once, after the native window exists.
     dark_caption: bool,
 }
@@ -71,6 +73,24 @@ impl eframe::App for Desktop {
             std::thread::spawn(move || {
                 let path = crate::platform::browse_file(&request.title, &request.filters, save);
                 let _ = sender.send((save, path));
+            });
+        }
+        // A finished folder browser fills the batch-folder field.
+        if let Some(receiver) = &self.folder_browse
+            && let Ok(path) = receiver.try_recv()
+        {
+            self.folder_browse = None;
+            if let Some(path) = path {
+                self.app
+                    .set_browsed_folder(path.to_string_lossy().into_owned());
+            }
+        }
+        if let Some(request) = self.app.take_folder_request() {
+            let (sender, receiver) = channel();
+            self.folder_browse = Some(receiver);
+            std::thread::spawn(move || {
+                let path = crate::platform::browse_folder(&request.title);
+                let _ = sender.send(path);
             });
         }
 
@@ -669,6 +689,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
                 bridge,
                 pending_shot: None,
                 browse: None,
+                folder_browse: None,
                 dark_caption: false,
             }))
         }),

@@ -6193,6 +6193,18 @@ fn the_control_chart_and_regression_choices_persist() {
 }
 
 #[test]
+fn the_batch_folder_can_be_chosen_with_the_native_browser() {
+    let mut app = FreePlotsApp::new();
+    app.open_batch_dialog();
+    app.request_folder_browse("Choose the folder with the CSV files");
+    let request = app.take_folder_request().expect("folder request");
+    assert_eq!(request.title, "Choose the folder with the CSV files");
+    app.set_browsed_folder("/tmp/opencode/csvs".to_owned());
+    assert_eq!(app.batch_folder, "/tmp/opencode/csvs");
+    assert!(app.take_folder_request().is_none());
+}
+
+#[test]
 fn the_batch_dialog_requests_a_folder_and_builds_the_summary() {
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());

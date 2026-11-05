@@ -162,6 +162,7 @@ impl UiCatalog {
             "Batch descriptive statistics" => "Estatísticas descritivas em lote",
             "Folder:" => "Pasta:",
             "Folder with .csv files" => "Pasta com ficheiros .csv",
+            "Choose the folder with the CSV files" => "Escolher a pasta com os ficheiros CSV",
             "Every .csv in the folder is summarised in one Session table; unreadable files are listed with the reason." => {
                 "Cada .csv da pasta é resumido numa tabela da sessão; os ficheiros ilegíveis aparecem com o motivo."
             }
@@ -534,6 +535,7 @@ impl UiCatalog {
             "User Guide" => "Guia do utilizador",
             "About" => "Acerca",
             "Sample projects…" => "Projectos de exemplo…",
+            "Samples" => "Exemplos",
             "Each sample opens a worksheet and runs the analysis, ready to explore." => {
                 "Cada exemplo abre uma folha e executa a análise, pronta a explorar."
             }

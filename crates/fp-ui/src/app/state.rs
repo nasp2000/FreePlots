@@ -451,6 +451,7 @@ impl FreePlotsApp {
             save_request: None,
             batch_request: None,
             browse_request: None,
+            folder_request: None,
             show_batch_dialog: false,
             show_samples_dialog: false,
             batch_folder: String::new(),

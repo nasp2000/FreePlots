@@ -115,30 +115,75 @@ impl FreePlotsApp {
         dialog_window(catalog.label("Sample projects"))
             .without_clear()
             .open(&mut open)
+            .collapsible(false)
             .resizable(false)
-            .default_width(760.0)
+            .default_size([760.0, 560.0])
             .show(ctx, |ui| {
                 ui.small(catalog.label(
                     "Each sample opens a worksheet and runs the analysis, ready to explore.",
                 ));
-                let mut category = "";
-                for (label, group, description) in SAMPLE_PROJECTS {
-                    if *group != category {
-                        ui.add_space(8.0);
-                        ui.strong(catalog.label(group));
-                        category = group;
-                    }
-                    ui.horizontal_wrapped(|ui| {
-                        if ui
-                            .help_button(catalog.label(label))
-                            .on_hover_text(catalog.label(description))
-                            .clicked()
-                        {
-                            chosen = Some(label);
+                ui.add_space(4.0);
+                egui::ScrollArea::vertical()
+                    .max_height(430.0)
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        let mut categories: Vec<&'static str> = Vec::new();
+                        for (_, group, _) in SAMPLE_PROJECTS {
+                            if !categories.contains(group) {
+                                categories.push(group);
+                            }
+                        }
+                        for group in categories {
+                            ui.add_space(8.0);
+                            let badge = match group {
+                                "Capability" => "Cp",
+                                "Measurement systems" => "MSA",
+                                "Design of experiments" => "DOE",
+                                "Control charts" => "SPC",
+                                "Graphs" => "Plot",
+                                "Quality tools" => "QA",
+                                "Regression" => "R2",
+                                "Reliability" => "MTBF",
+                                "Time series" => "TS",
+                                _ => "",
+                            };
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    RichText::new(badge)
+                                        .strong()
+                                        .monospace()
+                                        .color(Color32::from_rgb(32, 112, 148)),
+                                );
+                                ui.strong(catalog.label(group));
+                            });
+                            egui::Grid::new(format!("samples-{group}"))
+                                .num_columns(2)
+                                .spacing([10.0, 6.0])
+                                .show(ui, |ui| {
+                                    let items: Vec<_> = SAMPLE_PROJECTS
+                                        .iter()
+                                        .filter(|(_, group2, _)| *group2 == group)
+                                        .collect();
+                                    for (index, (label, _, description)) in items.iter().enumerate()
+                                    {
+                                        if ui
+                                            .add_sized(
+                                                [330.0, 26.0],
+                                                egui::Button::new(catalog.label(label)),
+                                            )
+                                            .on_hover_text(catalog.label(description))
+                                            .clicked()
+                                        {
+                                            chosen = Some(label);
+                                        }
+                                        if index % 2 == 1 {
+                                            ui.end_row();
+                                        }
+                                    }
+                                });
                         }
                     });
-                }
-                ui.add_space(8.0);
+                ui.add_space(6.0);
                 ui.separator();
                 ui.horizontal(|ui| {
                     if ui.help_button(catalog.label("Close")).clicked() {

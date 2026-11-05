@@ -219,6 +219,13 @@ impl FreePlotsApp {
             if tool_icon(ui, ToolIcon::Clear, "Clear Session", true).clicked() {
                 self.session.clear();
             }
+            let samples = self.catalog().label("Samples");
+            if tool_icon(ui, ToolIcon::Grid, samples, true)
+                .on_hover_text("Open a sample worksheet with its analysis ready")
+                .clicked()
+            {
+                self.open_samples_dialog();
+            }
             ui.separator();
             let column_label = ui.help_label("Column:");
             let names: Vec<String> = self
