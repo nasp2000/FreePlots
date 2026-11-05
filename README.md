@@ -94,7 +94,7 @@ All interface and analysis options are saved in `settings.json` inside `FreePlot
 
 ## Quality
 
-The engine is covered by native tests for typical, boundary and invalid input, independent oracles (scipy, numpy, statsmodels, lifelines), captured reference outputs and golden plot files. The UI is tested headlessly with the real widgets, and the portable binaries are built for Windows and Linux on every change.
+The engine is covered by native tests for typical, boundary and invalid input, independent oracles (scipy, numpy, statsmodels, lifelines), captured outputs and golden plot files. The UI is tested headlessly with the real widgets, and the portable binaries are built for Windows and Linux on every change.
 
 ## Contributing
 
