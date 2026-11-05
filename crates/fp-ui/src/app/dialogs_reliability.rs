@@ -518,9 +518,6 @@ impl FreePlotsApp {
             .unwrap_or_default();
         self.alt_mode.clear();
         self.alt_horizon.clear();
-        self.alt_use_stress = 300.0;
-        self.alt_life = fp_core::alt::LifeModel::Weibull;
-        self.alt_acceleration = fp_core::alt::AccelerationModel::Arrhenius;
         self.show_alt_dialog = true;
     }
     pub fn run_alt_dialog(&mut self) {

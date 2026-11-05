@@ -404,6 +404,38 @@ pub struct Preferences {
     /// Probability-plot confidence band switch.
     #[serde(default = "default_true")]
     pub probability_confidence_band: bool,
+    /// Gage R&R design (`crossed` or `nested`).
+    #[serde(default)]
+    pub gage_design: Option<String>,
+    /// ALT life and acceleration models, and the use stress.
+    #[serde(default)]
+    pub alt_life: Option<String>,
+    #[serde(default)]
+    pub alt_acceleration: Option<String>,
+    #[serde(default)]
+    pub alt_use_stress: Option<f64>,
+    /// Step-stress life and acceleration models, and the use stress.
+    #[serde(default)]
+    pub step_life: Option<String>,
+    #[serde(default)]
+    pub step_acceleration: Option<String>,
+    #[serde(default)]
+    pub step_use_stress: Option<f64>,
+    /// Acceptance-sampling plan and risk parameters.
+    #[serde(default)]
+    pub sampling_sample: Option<usize>,
+    #[serde(default)]
+    pub sampling_accept: Option<usize>,
+    #[serde(default)]
+    pub sampling_lot: Option<usize>,
+    #[serde(default)]
+    pub sampling_aql: Option<f64>,
+    #[serde(default)]
+    pub sampling_ltpd: Option<f64>,
+    #[serde(default)]
+    pub sampling_alpha: Option<f64>,
+    #[serde(default)]
+    pub sampling_beta: Option<f64>,
 }
 
 impl Default for Preferences {
@@ -437,6 +469,20 @@ impl Default for Preferences {
             anova_confidence: None,
             analysis_confidences: std::collections::BTreeMap::new(),
             probability_confidence_band: true,
+            gage_design: None,
+            alt_life: None,
+            alt_acceleration: None,
+            alt_use_stress: None,
+            step_life: None,
+            step_acceleration: None,
+            step_use_stress: None,
+            sampling_sample: None,
+            sampling_accept: None,
+            sampling_lot: None,
+            sampling_aql: None,
+            sampling_ltpd: None,
+            sampling_alpha: None,
+            sampling_beta: None,
         }
     }
 }
@@ -2597,6 +2643,48 @@ impl FreePlotsApp {
             .map(|(key, value)| (key.to_owned(), value))
             .collect(),
             probability_confidence_band: self.dialog_ci,
+            gage_design: Some(self.gage_design.name().to_owned()),
+            alt_life: Some(
+                match self.alt_life {
+                    fp_core::alt::LifeModel::Weibull => "weibull",
+                    fp_core::alt::LifeModel::Lognormal => "lognormal",
+                    fp_core::alt::LifeModel::Exponential => "exponential",
+                }
+                .to_owned(),
+            ),
+            alt_acceleration: Some(
+                match self.alt_acceleration {
+                    fp_core::alt::AccelerationModel::Arrhenius => "arrhenius",
+                    fp_core::alt::AccelerationModel::InversePower => "inverse-power",
+                    fp_core::alt::AccelerationModel::Eyring => "eyring",
+                }
+                .to_owned(),
+            ),
+            alt_use_stress: Some(self.alt_use_stress),
+            step_life: Some(
+                match self.ss_life {
+                    fp_core::alt::LifeModel::Weibull => "weibull",
+                    fp_core::alt::LifeModel::Lognormal => "lognormal",
+                    fp_core::alt::LifeModel::Exponential => "exponential",
+                }
+                .to_owned(),
+            ),
+            step_acceleration: Some(
+                match self.ss_acceleration {
+                    fp_core::alt::AccelerationModel::Arrhenius => "arrhenius",
+                    fp_core::alt::AccelerationModel::InversePower => "inverse-power",
+                    fp_core::alt::AccelerationModel::Eyring => "eyring",
+                }
+                .to_owned(),
+            ),
+            step_use_stress: Some(self.ss_use_stress),
+            sampling_sample: Some(self.sampling_sample),
+            sampling_accept: Some(self.sampling_accept),
+            sampling_lot: Some(self.sampling_lot),
+            sampling_aql: Some(self.sampling_aql),
+            sampling_ltpd: Some(self.sampling_ltpd),
+            sampling_alpha: Some(self.sampling_alpha),
+            sampling_beta: Some(self.sampling_beta),
         }
     }
 
@@ -2650,6 +2738,68 @@ impl FreePlotsApp {
             && (50.0..=99.99).contains(&confidence)
         {
             self.cap_confidence = confidence;
+        }
+        if let Some(code) = &preferences.gage_design
+            && let Some(design) = fp_core::gage::GageDesign::parse(code)
+        {
+            self.gage_design = design;
+        }
+        if let Some(code) = &preferences.alt_life
+            && let Some(model) = fp_core::alt::LifeModel::parse(code)
+        {
+            self.alt_life = model;
+        }
+        if let Some(code) = &preferences.alt_acceleration
+            && let Some(model) = fp_core::alt::AccelerationModel::parse(code)
+        {
+            self.alt_acceleration = model;
+        }
+        if let Some(code) = &preferences.step_life
+            && let Some(model) = fp_core::alt::LifeModel::parse(code)
+        {
+            self.ss_life = model;
+        }
+        if let Some(code) = &preferences.step_acceleration
+            && let Some(model) = fp_core::alt::AccelerationModel::parse(code)
+        {
+            self.ss_acceleration = model;
+        }
+        if let Some(value) = preferences.alt_use_stress
+            && value.is_finite()
+        {
+            self.alt_use_stress = value;
+        }
+        if let Some(value) = preferences.step_use_stress
+            && value.is_finite()
+        {
+            self.ss_use_stress = value;
+        }
+        if let Some(value) = preferences.sampling_sample
+            && (1..=5000).contains(&value)
+        {
+            self.sampling_sample = value;
+        }
+        if let Some(value) = preferences.sampling_accept
+            && value <= 500
+        {
+            self.sampling_accept = value;
+        }
+        if let Some(value) = preferences.sampling_lot
+            && value <= 10_000_000
+        {
+            self.sampling_lot = value;
+        }
+        for (slot, value) in [
+            (&mut self.sampling_aql, preferences.sampling_aql),
+            (&mut self.sampling_ltpd, preferences.sampling_ltpd),
+            (&mut self.sampling_alpha, preferences.sampling_alpha),
+            (&mut self.sampling_beta, preferences.sampling_beta),
+        ] {
+            if let Some(value) = value
+                && value.is_finite()
+            {
+                *slot = value;
+            }
         }
         if let Some(code) = &preferences.control_chart_kind
             && let Some(kind) = fp_core::spc::ControlChartKind::parse(code)

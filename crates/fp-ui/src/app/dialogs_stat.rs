@@ -67,7 +67,6 @@ impl FreePlotsApp {
         self.gage_measurement = self.selected.clone().unwrap_or_default();
         self.gage_part = String::new();
         self.gage_operator = String::new();
-        self.gage_design = GageDesign::Crossed;
         self.type1_measurement = self.selected.clone().unwrap_or_default();
         self.type1_reference = "0".to_owned();
         self.type1_lsl.clear();

@@ -5729,6 +5729,50 @@ fn the_undo_stack_stays_bounded_under_large_edits() {
 }
 
 #[test]
+fn the_gage_reliability_and_sampling_choices_persist() {
+    use fp_core::alt::{AccelerationModel, LifeModel};
+    use fp_core::gage::GageDesign;
+
+    let dir = std::env::temp_dir().join(format!("fp-domain-prefs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("settings.json");
+    let mut app = FreePlotsApp::new();
+    app.set_preferences_path(path.clone());
+    app.gage_design = GageDesign::Nested;
+    app.alt_life = LifeModel::Lognormal;
+    app.alt_acceleration = AccelerationModel::InversePower;
+    app.alt_use_stress = 350.0;
+    app.ss_life = LifeModel::Exponential;
+    app.ss_acceleration = AccelerationModel::Eyring;
+    app.ss_use_stress = 320.0;
+    app.sampling_sample = 80;
+    app.sampling_accept = 2;
+    app.sampling_lot = 5000;
+    app.sampling_aql = 1.5;
+    app.sampling_ltpd = 4.0;
+    app.sampling_alpha = 5.0;
+    app.sampling_beta = 10.0;
+    app.persist_preferences();
+    let mut restored = FreePlotsApp::new();
+    restored.set_preferences_path(path.clone());
+    assert_eq!(restored.gage_design, GageDesign::Nested);
+    assert_eq!(restored.alt_life, LifeModel::Lognormal);
+    assert_eq!(restored.alt_acceleration, AccelerationModel::InversePower);
+    assert!((restored.alt_use_stress - 350.0).abs() < 1e-9);
+    assert_eq!(restored.ss_life, LifeModel::Exponential);
+    assert_eq!(restored.ss_acceleration, AccelerationModel::Eyring);
+    assert!((restored.ss_use_stress - 320.0).abs() < 1e-9);
+    assert_eq!(restored.sampling_sample, 80);
+    assert_eq!(restored.sampling_accept, 2);
+    assert_eq!(restored.sampling_lot, 5000);
+    assert!((restored.sampling_aql - 1.5).abs() < 1e-9);
+    assert!((restored.sampling_ltpd - 4.0).abs() < 1e-9);
+    assert!((restored.sampling_alpha - 5.0).abs() < 1e-9);
+    assert!((restored.sampling_beta - 10.0).abs() < 1e-9);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn the_remaining_confidence_levels_persist() {
     let dir = std::env::temp_dir().join(format!("fp-conf-prefs-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("dir");

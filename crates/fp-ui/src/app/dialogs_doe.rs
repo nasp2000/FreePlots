@@ -939,9 +939,6 @@ impl FreePlotsApp {
             .cloned()
             .unwrap_or_default();
         self.ss_event = String::new();
-        self.ss_use_stress = 300.0;
-        self.ss_life = fp_core::alt::LifeModel::Weibull;
-        self.ss_acceleration = fp_core::alt::AccelerationModel::Arrhenius;
         self.show_step_stress_dialog = true;
     }
     pub fn run_step_stress_dialog(&mut self) {
