@@ -2893,7 +2893,7 @@ fn style_graph_text(svg: &mut String, overlay: &GraphOverlay) {
     for (index, base) in BASES.iter().enumerate() {
         *svg = svg.replace(
             &format!("__FP_TEXT_{index}__"),
-            &format!("font-size=\"{}\"", overlay.text_size(*base)),
+            &format!("{}", overlay.text_size(*base)),
         );
     }
 }
@@ -3758,6 +3758,10 @@ mod tests {
             "the 16 pt title becomes 20 pt"
         );
         assert!(svg.contains("font-size=\"15\""), "12 pt becomes 15 pt");
+        assert!(
+            !svg.contains("font-size=\"font-size="),
+            "scaled font sizes must not duplicate the attribute"
+        );
 
         // The serif family and the default size.
         overlay.font_family = GraphFontFamily::Serif;
