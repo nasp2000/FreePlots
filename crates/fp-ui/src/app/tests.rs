@@ -7157,7 +7157,11 @@ fn the_graph_context_menu_changes_are_visible() {
     app.percentile_values = "50".to_owned();
     app.add_percentile_lines();
     assert!(app.error.is_none(), "{:?}", app.error);
-    assert_ne!(svg(&app), baseline, "percentile line did not change the SVG");
+    assert_ne!(
+        svg(&app),
+        baseline,
+        "percentile line did not change the SVG"
+    );
     app.graph_overlay.reference_lines.clear();
 
     app.apply_graph_action(&ctx, GraphAction::AxisScale);
