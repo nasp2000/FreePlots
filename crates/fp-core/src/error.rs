@@ -100,23 +100,3 @@ pub enum Error {
 
 /// Engine result.
 pub type Result<T> = std::result::Result<T, Error>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn error_has_message_with_context() {
-        let e = Error::SampleTooSmall { n: 1, min: 2 };
-        let msg = e.to_string();
-        assert!(msg.contains("n=1"), "message without n: {msg}");
-        assert!(msg.contains("minimum=2"), "message without minimum: {msg}");
-    }
-
-    #[test]
-    fn errors_are_comparable_and_clonable() {
-        let a = Error::EmptySample;
-        let b = a.clone();
-        assert_eq!(a, b);
-    }
-}

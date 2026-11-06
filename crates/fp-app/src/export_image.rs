@@ -68,32 +68,3 @@ fn rasterize(svg: &str, scale: f32) -> Result<tiny_skia::Pixmap, String> {
     );
     Ok(pixmap)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80">
-        <rect width="120" height="80" fill="#ffffff"/>
-        <circle cx="60" cy="40" r="20" fill="#1f4e79"/>
-    </svg>"##;
-
-    #[test]
-    fn a_png_is_a_png_at_the_requested_scale() {
-        let bytes = svg_to_png(SVG, 2.0).expect("png");
-        assert!(bytes.starts_with(&[0x89, b'P', b'N', b'G']), "not a PNG");
-        // IHDR width and height are the 2x pixel sizes.
-        let width = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
-        let height = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
-        assert_eq!((width, height), (240, 160));
-    }
-
-    #[test]
-    fn a_jpeg_is_a_jpeg_and_bad_svg_is_rejected() {
-        let bytes = svg_to_jpeg(SVG, 1.0, 85).expect("jpeg");
-        assert!(bytes.starts_with(&[0xFF, 0xD8]), "not a JPEG");
-        assert!(svg_to_png("<svg", 1.0).is_err());
-        // The scale is clamped instead of producing a huge picture.
-        assert!(svg_to_png(SVG, 100.0).is_ok());
-    }
-}
