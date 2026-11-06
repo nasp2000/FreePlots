@@ -2279,6 +2279,9 @@ impl FreePlotsApp {
             self.graph_overlay.annotations.clear();
             self.graph_overlay.x_range = None;
             self.graph_overlay.y_range = None;
+            // Automatic label snapshot from the previous graph must not be
+            // restored by "Reset graph edits" on this one.
+            self.graph_auto = None;
             self.graph_overlay_title = Some(next.title.clone());
         }
         self.show_plot = plot.is_some();
