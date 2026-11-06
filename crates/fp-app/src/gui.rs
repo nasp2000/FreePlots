@@ -597,17 +597,33 @@ fn inject_click(raw_input: &mut egui::RawInput, request: &Value, button: egui::P
 /// * `[file.csv]` — load a worksheet at startup;
 /// * `--distribution <normal|lognormal|weibull|exponential|logistic|loglogistic|gamma|extremevalue>`
 ///   — default analysis family;
-/// * `--plot` — run the default probability plot immediately (demos/tests).
+/// * `--plot` — run the default probability plot immediately (demos/tests);
+/// * `--renderer <glow|wgpu>` — force a rendering backend. By default Windows
+///   uses `wgpu` (D3D12/Vulkan) and other platforms use `glow`; the environment
+///   variable `FREEPLOTS_RENDERER` overrides the default.
 pub fn run(args: &[String]) -> Result<(), String> {
     let mut path: Option<PathBuf> = None;
     let mut plot = false;
     let mut distribution: Option<DistributionKind> = None;
     let mut bridge_address: Option<String> = None;
     let mut bridge_token: Option<String> = None;
+    let mut renderer: Option<eframe::Renderer> = None;
     let mut it = args.iter().skip(1);
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "--plot" => plot = true,
+            "--renderer" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--renderer requires glow or wgpu".to_owned())?;
+                renderer = Some(match raw.as_str() {
+                    "glow" => eframe::Renderer::Glow,
+                    "wgpu" => eframe::Renderer::Wgpu,
+                    other => {
+                        return Err(format!("invalid --renderer: {other} (use glow or wgpu)"));
+                    }
+                });
+            }
             "--bridge" => {
                 bridge_address = Some(
                     it.next()
@@ -674,7 +690,28 @@ pub fn run(args: &[String]) -> Result<(), String> {
         }
     }
 
+    let renderer = renderer
+        .or_else(|| {
+            std::env::var("FREEPLOTS_RENDERER")
+                .ok()
+                .map(|raw| match raw.as_str() {
+                    "glow" => Ok(eframe::Renderer::Glow),
+                    "wgpu" => Ok(eframe::Renderer::Wgpu),
+                    other => Err(format!(
+                        "invalid FREEPLOTS_RENDERER: {other} (use glow or wgpu)"
+                    )),
+                })
+        })
+        .transpose()?
+        .unwrap_or_else(|| {
+            if cfg!(windows) {
+                eframe::Renderer::Wgpu
+            } else {
+                eframe::Renderer::Glow
+            }
+        });
     let options = eframe::NativeOptions {
+        renderer,
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1200.0, 760.0])
             .with_min_inner_size([760.0, 520.0])

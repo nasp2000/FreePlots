@@ -47,10 +47,12 @@ licence texts follow the package list.
   accesskit_winit 0.32.2 - Apache-2.0 - The AccessKit contributors
   adler2 2.0.1 - MIT - Jonas Schievink <jonasschievink@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>
   ahash 0.8.12 - MIT - Tom Kaitchuck <Tom.Kaitchuck@gmail.com>
+  allocator-api2 0.2.21 - MIT - Zakarum <zaq.dev@icloud.com>
   arboard 3.7.0 - MIT - Copyright (c) 2022 The Arboard contributors
   arrayref 0.3.9 - BSD-2-Clause - David Roundy <roundyd@physics.oregonstate.edu>
   arrayvec 0.7.8 - MIT - bluss
   as-raw-xcb-connection 1.0.1 - MIT - Copyright 2019 as-raw-xcb-connection Contributers
+  ash 0.38.0+1.3.281 - MIT - Maik Klein <maikklein@googlemail.com>, Benjamin Saunders <ben.e.saunders@gmail.com>, Marijn Suijten <marijn@traverseresearch.nl>
   async-broadcast 0.7.2 - MIT - Stjepan Glavina <stjepang@gmail.com>, Yoshua Wuyts <yoshuawuyts@gmail.com>, Zeeshan Ali Khan <zeeshanak@gnome.org>
   async-channel 2.5.0 - MIT - Stjepan Glavina <stjepang@gmail.com>
   async-executor 1.14.1 - MIT - Stjepan Glavina <stjepang@gmail.com>, John Nunley <dev@notgull.net>
@@ -64,6 +66,8 @@ licence texts follow the package list.
   atspi-common 0.13.0 - MIT - Copyright (c) 2022 Tait Hoyem <tait@tait.tech>
   atspi-proxies 0.13.0 - MIT - Copyright (c) 2022 Tait Hoyem <tait@tait.tech>
   base64 0.22.1 - MIT - Marshall Pierce <marshall@mpierce.org>
+  bit-set 0.10.0 - MIT - Alexis Beingessner <a.beingessner@gmail.com>
+  bit-vec 0.9.1 - MIT - Alexis Beingessner <a.beingessner@gmail.com>
   bitflags 1.3.2 - MIT - The Rust Project Developers
   bitflags 2.13.2 - MIT - The Rust Project Developers
   blocking 1.7.0 - MIT - the blocking contributors
@@ -75,6 +79,7 @@ licence texts follow the package list.
   calloop-wayland-source 0.4.1 - MIT - Kirill Chibisov <contact@kchibisov.com>
   cfg-if 1.0.5 - MIT - Alex Crichton <alex@alexcrichton.com>
   clipboard-win 5.4.3 - BSL-1.0 - Douman <douman@gmx.se>
+  codespan-reporting 0.13.1 - Apache-2.0 - Brendan Zabarauskas <bjzaba@yahoo.com.au>
   color 0.3.3 - MIT - the color contributors
   color_quant 1.1.0 - MIT - nwin <nwin@users.noreply.github.com>
   concurrent-queue 2.5.0 - MIT - Stjepan Glavina <stjepang@gmail.com>, Taiki Endo <te316e89@gmail.com>, John Nunley <dev@notgull.net>
@@ -91,6 +96,7 @@ licence texts follow the package list.
   ecolor 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>, Andreas Reich <reichandreas@gmx.de>
   eframe 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
   egui 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  egui-wgpu 0.36.2 - MIT - Nils Hasenbanck <nils@hasenbanck.de>, embotech <opensource@embotech.com>, Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
   egui-winit 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
   egui_extras 0.36.2 - MIT - Dominik Rössler <dominik@freshx.de>, Emil Ernerfeldt <emil.ernerfeldt@gmail.com>, René Rössler <rene@freshx.de>
   egui_glow 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
@@ -101,6 +107,7 @@ licence texts follow the package list.
   enum-map 2.7.3 - MIT - Kamila Borowska <kamila@borowska.pw>
   enumflags2 0.7.12 - MIT - maik klein <maikklein@googlemail.com>, Maja Kądziołka <maya@compilercrim.es>
   epaint 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  equivalent 1.0.3 - MIT - Copyright (c) 2016--2023
   errno 0.3.14 - MIT - Chris Wong <lambda.fairy@gmail.com>, Dan Gohman <dev@sunfishcode.online>
   error-code 3.4.0 - BSL-1.0 - Douman <douman@gmx.se>
   euclid 0.22.14 - MIT - The Servo Project Developers
@@ -129,7 +136,9 @@ licence texts follow the package list.
   glutin_egl_sys 0.7.1 - Apache-2.0 - Kirill Chibisov <contact@kchibisov.com>
   glutin_glx_sys 0.6.1 - Apache-2.0 - Kirill Chibisov <contact@kchibisov.com>
   glutin_wgl_sys 0.6.1 - Apache-2.0 - Kirill Chibisov <contact@kchibisov.com>
+  gpu-allocator 0.28.0 - MIT - Traverse Research <opensource@traverseresearch.nl>
   guillotiere 0.7.0 - MIT - Nicolas Silva <nical@fastmail.com>
+  half 2.7.1 - MIT - Kathryn Long <squeeself@gmail.com>
   harfrust 0.12.0 - MIT - Copyright (c) HarfBuzz developers; Copyright (c) 2020 Yevhenii Reizner
   hashbrown 0.16.1 - MIT - Amanieu d'Antras <amanieu@gmail.com>
   hashbrown 0.17.1 - MIT - Copyright (c) 2016 Amanieu d'Antras
@@ -137,9 +146,11 @@ licence texts follow the package list.
   image 0.25.6 - MIT - The image-rs Developers
   image-webp 0.2.4 - MIT - the image-webp contributors
   imagesize 0.13.0 - MIT - Maid Dog <maiddogsrl@gmail.com>
+  indexmap 2.14.2 - MIT - Copyright (c) 2016--2017
   itertools 0.15.0 - MIT - bluss
   itoa 1.0.18 - MIT - David Tolnay <dtolnay@gmail.com>
   jpeg-encoder 0.6.1 - MIT AND IJG - Volker Ströbel <volkerstroebel@mysurdity.de>
+  khronos-egl 6.0.0 - MIT - Timothée Haudebourg <author@haudebourg.net>, Sean Kerr <sean@metatomic.io>
   kittest 0.4.0 - MIT - Lucas Meurer, rerun.io <opensource@rerun.io>
   kurbo 0.11.3 - MIT - Raph Levien <raph.levien@gmail.com>
   kurbo 0.13.1 - MIT - Copyright (c) 2018 Raph Levien
@@ -155,9 +166,12 @@ licence texts follow the package list.
   memmap2 0.9.11 - MIT - Dan Burkert <dan@danburkert.com>, Yevhenii Reizner <razrfalcon@gmail.com>, The Contributors
   miniz_oxide 0.8.9 - MIT - Frommi <daniil.liferenko@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>, Rich Geldreich richgel99@gmail.com
   miniz_oxide 0.9.1 - MIT - Frommi <daniil.liferenko@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>, Rich Geldreich richgel99@gmail.com
+  naga 30.0.1 - MIT - gfx-rs developers
+  naga-types 30.0.1 - MIT - gfx-rs developers
   nohash-hasher 0.2.0 - MIT - Parity Technologies <admin@parity.io>
   num-traits 0.2.19 - MIT - The Rust Project Developers
   once_cell 1.21.4 - MIT - Aleksey Kladov <aleksey.kladov@gmail.com>
+  ordered-float 5.5.1 - MIT - Jonathan Reem <jonathan.reem@gmail.com>, Matt Brubeck <mbrubeck@limpet.net>
   ordered-stream 0.2.0 - MIT - Daniel De Graaf <code@danieldg.net>, Zeeshan Ali Khan <zeeshanak@gnome.org>
   parking 2.2.1 - MIT - Stjepan Glavina <stjepang@gmail.com>, The Rust Project Developers
   parking_lot 0.12.5 - MIT - Amanieu d'Antras <amanieu@gmail.com>
@@ -171,16 +185,22 @@ licence texts follow the package list.
   piper 0.2.5 - MIT - Stjepan Glavina <stjepang@gmail.com>, John Nunley <dev@notgull.net>
   png 0.17.16 - MIT - The image-rs Developers
   polling 3.11.0 - MIT - Stjepan Glavina <stjepang@gmail.com>, John Nunley <dev@notgull.net>
+  pollster 1.0.1 - MIT - Joshua Barretto <joshua@jsbarretto.com>
   polycool 0.4.0 - MIT - Copyright (c) 2018 Raph Levien
+  presser 0.3.1 - MIT - Embark <opensource@embark-studios.com>, Gray Olson <gray@grayolson.com
   proc-macro2 1.0.107 - MIT - David Tolnay <dtolnay@gmail.com>, Alex Crichton <alex@alexcrichton.com>
   profiling 1.0.18 - MIT - Philip Degarmo <aclysma@gmail.com>
   quick-error 2.0.1 - MIT - Paul Colomiets <paul@colomiets.name>, Colin Kiegel <kiegel@gmx.de>
   quote 1.0.47 - MIT - David Tolnay <dtolnay@gmail.com>
+  range-alloc 0.1.5 - MIT - the gfx-rs Developers
   raw-window-handle 0.6.2 - MIT - Osspial <osspial@gmail.com>
   read-fonts 0.41.0 - MIT - Copyright 2019 Fontations Developers
+  renderdoc-sys 1.1.0 - MIT - Eyal Kalderon <ebkalderon@gmail.com>
   resvg 0.45.1 - MIT - Copyright 2017 the Resvg Authors
   rgb 0.8.53 - MIT - Kornel Lesiński <kornel@geekhood.net>, James Forster <james.forsterer@gmail.com>
   roxmltree 0.20.0 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
+  rustc-hash 1.1.0 - MIT - The Rust Project Developers
+  rustc-hash 2.1.3 - MIT - The Rust Project Developers
   rustix 0.38.44 - MIT - Dan Gohman <dev@sunfishcode.online>, Jakub Konka <kubkon@jakubkonka.com>
   rustix 1.1.5 - MIT - Dan Gohman <dev@sunfishcode.online>, Jakub Konka <kubkon@jakubkonka.com>
   rustybuzz 0.20.1 - MIT - Caleb Maclennan <caleb@alerque.com>, Laurenz Stampfl <laurenz.stampfl@gmail.com>, Yevhenii Reizner <razrfalcon@gmail.com>, خالد حسني (Khaled Hosny) <khaled@aliftype.com>
@@ -204,6 +224,7 @@ licence texts follow the package list.
   smithay-client-toolkit 0.20.0 - MIT - Elinor Berger <elinor@safaradeg.net>, i509VCB <mail@i509.me>, Ashley Wulber <ashley@system76.com>
   smithay-clipboard 0.7.3 - MIT - Kirill Chibisov <contact@kchibisov.com>, Elinor Berger <elinor@safaradeg.net>
   smol_str 0.2.2 - MIT - Aleksey Kladov <aleksey.kladov@gmail.com>
+  spirv 0.4.0+sdk-1.4.341.0 - Apache-2.0 - Lei Zhang <antiagainst@gmail.com>
   static_assertions 1.1.0 - MIT - Nikolai Vazquez
   strict-num 0.1.1 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
   svgtypes 0.15.3 - MIT - Copyright (c) 2018 Yevhenii Reizner
@@ -219,6 +240,7 @@ licence texts follow the package list.
   tracing 0.1.44 - MIT - Eliza Weisman <eliza@buoyant.io>, Tokio Contributors <team@tokio.rs>
   tracing-core 0.1.36 - MIT - Tokio Contributors <team@tokio.rs>
   ttf-parser 0.25.1 - MIT - Caleb Maclennan <caleb@alerque.com>, Laurenz Stampfl <laurenz.stampfl@gmail.com>, Yevhenii Reizner <razrfalcon@gmail.com>, خالد حسني (Khaled Hosny) <khaled@aliftype.com>
+  type-map 0.5.1 - MIT - Jacob Brown <kardeiz@gmail.com>
   unicode-bidi 0.3.18 - MIT - The Servo Project Developers
   unicode-bidi-mirroring 0.4.0 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
   unicode-ccc 0.4.0 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
@@ -228,6 +250,7 @@ licence texts follow the package list.
   unicode-script 0.5.9 - MIT - Manish Goregaokar <manishsmail@gmail.com>
   unicode-segmentation 1.13.3 - MIT - kwantam <kwantam@gmail.com>, Manish Goregaokar <manishsmail@gmail.com>
   unicode-vo 0.1.0 - MIT - Evgeniy Reizner <razrfalcon@gmail.com>
+  unicode-width 0.2.2 - MIT - kwantam <kwantam@gmail.com>, Manish Goregaokar <manishsmail@gmail.com>
   usvg 0.45.1 - MIT - Copyright 2017 the Resvg Authors
   uuid 1.28.0 - MIT - Ashley Mannix<ashleymannix@live.com.au>, Dylan DPC<dylan.dpc@gmail.com>, Hunar Roop Kahlon<hunar.roop@gmail.com>
   vello_common 0.1.0 - MIT - Copyright 2020 the Vello Authors
@@ -244,6 +267,12 @@ licence texts follow the package list.
   wayland-sys 0.31.11 - MIT - Elinor Berger <elinor@safaradeg.net>
   web-time 1.1.0 - MIT - Copyright 2023 dAxpeDDa
   weezl 0.1.12 - MIT - The image-rs Developers
+  wgpu 30.0.1 - MIT - gfx-rs developers
+  wgpu-core 30.0.1 - MIT - gfx-rs developers
+  wgpu-core-deps-windows-linux-android 30.0.1 - MIT - gfx-rs developers
+  wgpu-hal 30.0.1 - MIT - gfx-rs developers
+  wgpu-naga-bridge 30.0.1 - MIT - gfx-rs developers
+  wgpu-types 30.0.1 - MIT - gfx-rs developers
   windows 0.62.2 - MIT - Copyright (c) Microsoft Corporation.
   windows-collections 0.3.2 - MIT - Copyright (c) Microsoft Corporation.
   windows-core 0.62.2 - MIT - Copyright (c) Microsoft Corporation.

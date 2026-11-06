@@ -175,6 +175,24 @@
       "comment": "roles=desktop; platforms=all"
     },
     {
+      "SPDXID": "SPDXRef-Package-allocator-api2-0.2.21",
+      "name": "allocator-api2",
+      "versionInfo": "0.2.21",
+      "downloadLocation": "https://crates.io/api/v1/crates/allocator-api2/0.2.21/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Zakarum <zaq.dev@icloud.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/allocator-api2@0.2.21"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-arboard-3.7.0",
       "name": "arboard",
       "versionInfo": "3.7.0",
@@ -245,6 +263,24 @@
         }
       ],
       "comment": "roles=desktop; platforms=Linux"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-ash-0.38.0-1.3.281",
+      "name": "ash",
+      "versionInfo": "0.38.0+1.3.281",
+      "downloadLocation": "https://crates.io/api/v1/crates/ash/0.38.0+1.3.281/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Maik Klein <maikklein@googlemail.com>, Benjamin Saunders <ben.e.saunders@gmail.com>, Marijn Suijten <marijn@traverseresearch.nl>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/ash@0.38.0+1.3.281"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
     },
     {
       "SPDXID": "SPDXRef-Package-async-broadcast-0.7.2",
@@ -535,6 +571,24 @@
       "comment": "roles=desktop; platforms=all"
     },
     {
+      "SPDXID": "SPDXRef-Package-bit-set-0.10.0",
+      "name": "bit-set",
+      "versionInfo": "0.10.0",
+      "downloadLocation": "https://crates.io/api/v1/crates/bit-set/0.10.0/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "Alexis Beingessner <a.beingessner@gmail.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/bit-set@0.10.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-bit-set-0.8.0",
       "name": "bit-set",
       "versionInfo": "0.8.0",
@@ -569,6 +623,24 @@
         }
       ],
       "comment": "roles=development; platforms=host"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-bit-vec-0.9.1",
+      "name": "bit-vec",
+      "versionInfo": "0.9.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/bit-vec/0.9.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "Alexis Beingessner <a.beingessner@gmail.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/bit-vec@0.9.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
     },
     {
       "SPDXID": "SPDXRef-Package-bitflags-1.3.2",
@@ -785,6 +857,24 @@
         }
       ],
       "comment": "roles=desktop; platforms=Windows"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-codespan-reporting-0.13.1",
+      "name": "codespan-reporting",
+      "versionInfo": "0.13.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/codespan-reporting/0.13.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Brendan Zabarauskas <bjzaba@yahoo.com.au>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/codespan-reporting@0.13.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
     },
     {
       "SPDXID": "SPDXRef-Package-color-0.3.3",
@@ -1093,6 +1183,24 @@
       "comment": "roles=desktop; platforms=all"
     },
     {
+      "SPDXID": "SPDXRef-Package-egui-wgpu-0.36.2",
+      "name": "egui-wgpu",
+      "versionInfo": "0.36.2",
+      "downloadLocation": "https://crates.io/api/v1/crates/egui-wgpu/0.36.2/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Nils Hasenbanck <nils@hasenbanck.de>, embotech <opensource@embotech.com>, Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/egui-wgpu@0.36.2"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-egui-winit-0.36.2",
       "name": "egui-winit",
       "versionInfo": "0.36.2",
@@ -1324,7 +1432,7 @@
           "referenceLocator": "pkg:cargo/equivalent@1.0.3"
         }
       ],
-      "comment": "roles=build; platforms=all"
+      "comment": "roles=desktop; platforms=all"
     },
     {
       "SPDXID": "SPDXRef-Package-errno-0.3.14",
@@ -1885,6 +1993,24 @@
       "comment": "roles=desktop; platforms=Windows"
     },
     {
+      "SPDXID": "SPDXRef-Package-gpu-allocator-0.28.0",
+      "name": "gpu-allocator",
+      "versionInfo": "0.28.0",
+      "downloadLocation": "https://crates.io/api/v1/crates/gpu-allocator/0.28.0/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Traverse Research <opensource@traverseresearch.nl>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/gpu-allocator@0.28.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-guillotiere-0.7.0",
       "name": "guillotiere",
       "versionInfo": "0.7.0",
@@ -1898,6 +2024,24 @@
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
           "referenceLocator": "pkg:cargo/guillotiere@0.7.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-half-2.7.1",
+      "name": "half",
+      "versionInfo": "2.7.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/half/2.7.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Kathryn Long <squeeself@gmail.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/half@2.7.1"
         }
       ],
       "comment": "roles=desktop; platforms=all"
@@ -2044,7 +2188,7 @@
           "referenceLocator": "pkg:cargo/indexmap@2.14.2"
         }
       ],
-      "comment": "roles=build; platforms=all"
+      "comment": "roles=desktop; platforms=all"
     },
     {
       "SPDXID": "SPDXRef-Package-itertools-0.15.0",
@@ -2119,6 +2263,24 @@
       "comment": "roles=build; platforms=host"
     },
     {
+      "SPDXID": "SPDXRef-Package-khronos-egl-6.0.0",
+      "name": "khronos-egl",
+      "versionInfo": "6.0.0",
+      "downloadLocation": "https://crates.io/api/v1/crates/khronos-egl/6.0.0/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Timoth\u00e9e Haudebourg <author@haudebourg.net>, Sean Kerr <sean@metatomic.io>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/khronos-egl@6.0.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-kittest-0.4.0",
       "name": "kittest",
       "versionInfo": "0.4.0",
@@ -2188,7 +2350,7 @@
           "referenceLocator": "pkg:cargo/libc@0.2.191"
         }
       ],
-      "comment": "roles=desktop; platforms=Linux"
+      "comment": "roles=desktop; platforms=all"
     },
     {
       "SPDXID": "SPDXRef-Package-libloading-0.8.9",
@@ -2407,6 +2569,42 @@
       "comment": "roles=desktop; platforms=all"
     },
     {
+      "SPDXID": "SPDXRef-Package-naga-30.0.1",
+      "name": "naga",
+      "versionInfo": "30.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/naga/30.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "gfx-rs developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/naga@30.0.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-naga-types-30.0.1",
+      "name": "naga-types",
+      "versionInfo": "30.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/naga-types/30.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "gfx-rs developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/naga-types@30.0.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-nohash-hasher-0.2.0",
       "name": "nohash-hasher",
       "versionInfo": "0.2.0",
@@ -2456,6 +2654,24 @@
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
           "referenceLocator": "pkg:cargo/once_cell@1.21.4"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-ordered-float-5.5.1",
+      "name": "ordered-float",
+      "versionInfo": "5.5.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/ordered-float/5.5.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Jonathan Reem <jonathan.reem@gmail.com>, Matt Brubeck <mbrubeck@limpet.net>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/ordered-float@5.5.1"
         }
       ],
       "comment": "roles=desktop; platforms=all"
@@ -2731,6 +2947,24 @@
       "comment": "roles=desktop; platforms=Linux"
     },
     {
+      "SPDXID": "SPDXRef-Package-pollster-1.0.1",
+      "name": "pollster",
+      "versionInfo": "1.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/pollster/1.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "Joshua Barretto <joshua@jsbarretto.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/pollster@1.0.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-polycool-0.4.0",
       "name": "polycool",
       "versionInfo": "0.4.0",
@@ -2765,6 +2999,24 @@
         }
       ],
       "comment": "roles=development; platforms=host"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-presser-0.3.1",
+      "name": "presser",
+      "versionInfo": "0.3.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/presser/0.3.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Embark <opensource@embark-studios.com>, Gray Olson <gray@grayolson.com",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/presser@0.3.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
     },
     {
       "SPDXID": "SPDXRef-Package-proc-macro-crate-3.5.0",
@@ -3019,6 +3271,24 @@
       "comment": "roles=development; platforms=host"
     },
     {
+      "SPDXID": "SPDXRef-Package-range-alloc-0.1.5",
+      "name": "range-alloc",
+      "versionInfo": "0.1.5",
+      "downloadLocation": "https://crates.io/api/v1/crates/range-alloc/0.1.5/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "the gfx-rs Developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/range-alloc@0.1.5"
+        }
+      ],
+      "comment": "roles=desktop; platforms=Windows"
+    },
+    {
       "SPDXID": "SPDXRef-Package-raw-window-handle-0.6.2",
       "name": "raw-window-handle",
       "versionInfo": "0.6.2",
@@ -3091,6 +3361,24 @@
       "comment": "roles=development; platforms=host"
     },
     {
+      "SPDXID": "SPDXRef-Package-renderdoc-sys-1.1.0",
+      "name": "renderdoc-sys",
+      "versionInfo": "1.1.0",
+      "downloadLocation": "https://crates.io/api/v1/crates/renderdoc-sys/1.1.0/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Eyal Kalderon <ebkalderon@gmail.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/renderdoc-sys@1.1.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-resvg-0.45.1",
       "name": "resvg",
       "versionInfo": "0.45.1",
@@ -3140,6 +3428,42 @@
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
           "referenceLocator": "pkg:cargo/roxmltree@0.20.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-rustc-hash-1.1.0",
+      "name": "rustc-hash",
+      "versionInfo": "1.1.0",
+      "downloadLocation": "https://crates.io/api/v1/crates/rustc-hash/1.1.0/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "The Rust Project Developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/rustc-hash@1.1.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-rustc-hash-2.1.3",
+      "name": "rustc-hash",
+      "versionInfo": "2.1.3",
+      "downloadLocation": "https://crates.io/api/v1/crates/rustc-hash/2.1.3/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "The Rust Project Developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/rustc-hash@2.1.3"
         }
       ],
       "comment": "roles=desktop; platforms=all"
@@ -3613,6 +3937,24 @@
       "comment": "roles=desktop; platforms=all"
     },
     {
+      "SPDXID": "SPDXRef-Package-spirv-0.4.0-sdk-1.4.341.0",
+      "name": "spirv",
+      "versionInfo": "0.4.0+sdk-1.4.341.0",
+      "downloadLocation": "https://crates.io/api/v1/crates/spirv/0.4.0+sdk-1.4.341.0/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Lei Zhang <antiagainst@gmail.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/spirv@0.4.0+sdk-1.4.341.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-static-assertions-1.1.0",
       "name": "static_assertions",
       "versionInfo": "1.1.0",
@@ -3991,6 +4333,24 @@
       "comment": "roles=desktop; platforms=all"
     },
     {
+      "SPDXID": "SPDXRef-Package-type-map-0.5.1",
+      "name": "type-map",
+      "versionInfo": "0.5.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/type-map/0.5.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "Jacob Brown <kardeiz@gmail.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/type-map@0.5.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-unarray-0.1.4",
       "name": "unarray",
       "versionInfo": "0.1.4",
@@ -4166,6 +4526,24 @@
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
           "referenceLocator": "pkg:cargo/unicode-vo@0.1.0"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-unicode-width-0.2.2",
+      "name": "unicode-width",
+      "versionInfo": "0.2.2",
+      "downloadLocation": "https://crates.io/api/v1/crates/unicode-width/0.2.2/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "kwantam <kwantam@gmail.com>, Manish Goregaokar <manishsmail@gmail.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/unicode-width@0.2.2"
         }
       ],
       "comment": "roles=desktop; platforms=all"
@@ -4580,6 +4958,114 @@
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
           "referenceLocator": "pkg:cargo/weezl@0.1.12"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-wgpu-30.0.1",
+      "name": "wgpu",
+      "versionInfo": "30.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/wgpu/30.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "gfx-rs developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wgpu@30.0.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-wgpu-core-30.0.1",
+      "name": "wgpu-core",
+      "versionInfo": "30.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/wgpu-core/30.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "gfx-rs developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wgpu-core@30.0.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-wgpu-core-deps-windows-linux-android-30.0.1",
+      "name": "wgpu-core-deps-windows-linux-android",
+      "versionInfo": "30.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/wgpu-core-deps-windows-linux-android/30.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "gfx-rs developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wgpu-core-deps-windows-linux-android@30.0.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-wgpu-hal-30.0.1",
+      "name": "wgpu-hal",
+      "versionInfo": "30.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/wgpu-hal/30.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "gfx-rs developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wgpu-hal@30.0.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-wgpu-naga-bridge-30.0.1",
+      "name": "wgpu-naga-bridge",
+      "versionInfo": "30.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/wgpu-naga-bridge/30.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "gfx-rs developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wgpu-naga-bridge@30.0.1"
+        }
+      ],
+      "comment": "roles=desktop; platforms=all"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-wgpu-types-30.0.1",
+      "name": "wgpu-types",
+      "versionInfo": "30.0.1",
+      "downloadLocation": "https://crates.io/api/v1/crates/wgpu-types/30.0.1/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "gfx-rs developers",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wgpu-types@30.0.1"
         }
       ],
       "comment": "roles=desktop; platforms=all"
@@ -5215,6 +5701,24 @@
       "comment": "roles=desktop; platforms=all"
     },
     {
+      "SPDXID": "SPDXRef-Package-zerocopy-derive-0.8.63",
+      "name": "zerocopy-derive",
+      "versionInfo": "0.8.63",
+      "downloadLocation": "https://crates.io/api/v1/crates/zerocopy-derive/0.8.63/download",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "copyrightText": "Copyright 2023 The Fuchsia Authors",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/zerocopy-derive@0.8.63"
+        }
+      ],
+      "comment": "roles=build; platforms=all"
+    },
+    {
       "SPDXID": "SPDXRef-Package-zune-core-0.4.12",
       "name": "zune-core",
       "versionInfo": "0.4.12",
@@ -5354,6 +5858,11 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-allocator-api2-0.2.21"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-arboard-3.7.0"
     },
     {
@@ -5370,6 +5879,11 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-as-raw-xcb-connection-1.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-ash-0.38.0-1.3.281"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -5454,12 +5968,22 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-bit-set-0.10.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-bit-set-0.8.0"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-bit-vec-0.8.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-bit-vec-0.9.1"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -5520,6 +6044,11 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-clipboard-win-5.4.3"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-codespan-reporting-0.13.1"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -5605,6 +6134,11 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-egui-0.36.2"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-egui-wgpu-0.36.2"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -5829,7 +6363,17 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-gpu-allocator-0.28.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-guillotiere-0.7.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-half-2.7.1"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -5890,6 +6434,11 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-js-sys-0.3.106"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-khronos-egl-6.0.0"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -5974,6 +6523,16 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-naga-30.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-naga-types-30.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-nohash-hasher-0.2.0"
     },
     {
@@ -5985,6 +6544,11 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-once-cell-1.21.4"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-ordered-float-5.5.1"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -6064,12 +6628,22 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-pollster-1.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-polycool-0.4.0"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-ppv-lite86-0.2.21"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-presser-0.3.1"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -6144,6 +6718,11 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-range-alloc-0.1.5"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-raw-window-handle-0.6.2"
     },
     {
@@ -6164,6 +6743,11 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-renderdoc-sys-1.1.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-resvg-0.45.1"
     },
     {
@@ -6175,6 +6759,16 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-roxmltree-0.20.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-rustc-hash-1.1.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-rustc-hash-2.1.3"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -6309,6 +6903,11 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-spirv-0.4.0-sdk-1.4.341.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-static-assertions-1.1.0"
     },
     {
@@ -6414,6 +7013,11 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-type-map-0.5.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-unarray-0.1.4"
     },
     {
@@ -6460,6 +7064,11 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-unicode-vo-0.1.0"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-unicode-width-0.2.2"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -6575,6 +7184,36 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-weezl-0.1.12"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-wgpu-30.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-wgpu-core-30.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-wgpu-core-deps-windows-linux-android-30.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-wgpu-hal-30.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-wgpu-naga-bridge-30.0.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-wgpu-types-30.0.1"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
@@ -6750,6 +7389,11 @@
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
       "relatedSpdxElement": "SPDXRef-Package-zerocopy-0.8.63"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-zerocopy-derive-0.8.63"
     },
     {
       "spdxElementId": "SPDXRef-DOCUMENT",

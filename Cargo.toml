@@ -28,9 +28,10 @@ csv = "=1.4.0"
 egui = { version = "=0.36.2", default-features = false }
 egui_extras = { version = "=0.36.2", default-features = false }
 egui_kittest = "=0.36.2"
-# No bundled default fonts (the UI ships the DejaVu family), no wgpu: the glow
-# (OpenGL) backend runs on decade-old integrated GPUs.
-eframe = { version = "=0.36.2", default-features = false, features = ["glow", "x11", "accesskit"] }
+# No bundled default fonts (the UI ships the DejaVu family). Windows defaults
+# to wgpu because some OpenGL drivers open a blank window; glow remains the
+# fallback and the default on Linux.
+eframe = { version = "=0.36.2", default-features = false, features = ["glow", "wgpu", "x11", "accesskit"] }
 
 # Development only.
 proptest = "=1.9.0"

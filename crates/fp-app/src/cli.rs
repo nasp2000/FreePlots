@@ -127,7 +127,7 @@ Usage:
   FreePlots help
 
 Desktop and integration:
-  FreePlots --gui [file.csv]          open the desktop window
+  FreePlots --gui [file.csv] [--renderer <glow|wgpu>]  open the desktop window
   FreePlots --bridge <host:port> [--token <secret>]   live automation bridge
   FreePlots --mcp                                     MCP server over stdin/stdout
   FreePlots --mcp-http <host:port> [--token <secret>] MCP server over HTTP

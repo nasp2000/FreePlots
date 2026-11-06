@@ -19,8 +19,8 @@ development-only packages.
 | Role | Packages |
 |---|---:|
 | Runtime (always linked into the CLI) | 10 |
-| Desktop (linked when the window feature is on) | 229 |
-| Build time (proc-macros and helpers; never linked) | 35 |
+| Desktop (linked when the window feature is on) | 258 |
+| Build time (proc-macros and helpers; never linked) | 34 |
 | Development only (never shipped) | 20 |
 
 ## Runtime (always linked into the CLI)
@@ -51,10 +51,12 @@ development-only packages.
 | `accesskit_winit` | 0.32.2 | Apache-2.0 |  | all |
 | `adler2` | 2.0.1 | MIT | 0BSD OR MIT OR Apache-2.0 | all |
 | `ahash` | 0.8.12 | MIT | MIT OR Apache-2.0 | all |
+| `allocator-api2` | 0.2.21 | MIT | MIT OR Apache-2.0 | all |
 | `arboard` | 3.7.0 | MIT | MIT OR Apache-2.0 | all |
 | `arrayref` | 0.3.9 | BSD-2-Clause |  | all |
 | `arrayvec` | 0.7.8 | MIT | MIT OR Apache-2.0 | all |
 | `as-raw-xcb-connection` | 1.0.1 | MIT | MIT OR Apache-2.0 | Linux |
+| `ash` | 0.38.0+1.3.281 | MIT | MIT OR Apache-2.0 | all |
 | `async-broadcast` | 0.7.2 | MIT | MIT OR Apache-2.0 | Linux |
 | `async-channel` | 2.5.0 | MIT | Apache-2.0 OR MIT | Linux |
 | `async-executor` | 1.14.1 | MIT | Apache-2.0 OR MIT | Linux |
@@ -68,6 +70,8 @@ development-only packages.
 | `atspi-common` | 0.13.0 | MIT | Apache-2.0 OR MIT | Linux |
 | `atspi-proxies` | 0.13.0 | MIT | Apache-2.0 OR MIT | Linux |
 | `base64` | 0.22.1 | MIT | MIT OR Apache-2.0 | all |
+| `bit-set` | 0.10.0 | MIT | Apache-2.0 OR MIT | all |
+| `bit-vec` | 0.9.1 | MIT | Apache-2.0 OR MIT | all |
 | `bitflags` | 1.3.2 | MIT | MIT OR Apache-2.0 | all |
 | `bitflags` | 2.13.2 | MIT | MIT OR Apache-2.0 | all |
 | `blocking` | 1.7.0 | MIT | Apache-2.0 OR MIT | Linux |
@@ -79,6 +83,7 @@ development-only packages.
 | `calloop-wayland-source` | 0.4.1 | MIT |  | Linux |
 | `cfg-if` | 1.0.5 | MIT | MIT OR Apache-2.0 | all |
 | `clipboard-win` | 5.4.3 | BSL-1.0 |  | Windows |
+| `codespan-reporting` | 0.13.1 | Apache-2.0 |  | all |
 | `color` | 0.3.3 | MIT | Apache-2.0 OR MIT | all |
 | `color_quant` | 1.1.0 | MIT |  | all |
 | `concurrent-queue` | 2.5.0 | MIT | Apache-2.0 OR MIT | Linux |
@@ -93,6 +98,7 @@ development-only packages.
 | `ecolor` | 0.36.2 | MIT | MIT OR Apache-2.0 | all |
 | `eframe` | 0.36.2 | MIT | MIT OR Apache-2.0 | all |
 | `egui` | 0.36.2 | MIT | MIT OR Apache-2.0 | all |
+| `egui-wgpu` | 0.36.2 | MIT | MIT OR Apache-2.0 | all |
 | `egui-winit` | 0.36.2 | MIT | MIT OR Apache-2.0 | all |
 | `egui_extras` | 0.36.2 | MIT | MIT OR Apache-2.0 | all |
 | `egui_glow` | 0.36.2 | MIT | MIT OR Apache-2.0 | all |
@@ -103,6 +109,7 @@ development-only packages.
 | `enum-map` | 2.7.3 | MIT | MIT OR Apache-2.0 | all |
 | `enumflags2` | 0.7.12 | MIT | MIT OR Apache-2.0 | Linux |
 | `epaint` | 0.36.2 | MIT | MIT OR Apache-2.0 | all |
+| `equivalent` | 1.0.3 | MIT | Apache-2.0 OR MIT | all |
 | `errno` | 0.3.14 | MIT | MIT OR Apache-2.0 | Linux |
 | `error-code` | 3.4.0 | BSL-1.0 |  | Windows |
 | `euclid` | 0.22.14 | MIT | MIT OR Apache-2.0 | all |
@@ -131,7 +138,9 @@ development-only packages.
 | `glutin_egl_sys` | 0.7.1 | Apache-2.0 |  | all |
 | `glutin_glx_sys` | 0.6.1 | Apache-2.0 |  | Linux |
 | `glutin_wgl_sys` | 0.6.1 | Apache-2.0 |  | Windows |
+| `gpu-allocator` | 0.28.0 | MIT | MIT OR Apache-2.0 | all |
 | `guillotiere` | 0.7.0 | MIT | MIT OR Apache-2.0 | all |
+| `half` | 2.7.1 | MIT | MIT OR Apache-2.0 | all |
 | `harfrust` | 0.12.0 | MIT |  | all |
 | `hashbrown` | 0.16.1 | MIT | MIT OR Apache-2.0 | all |
 | `hashbrown` | 0.17.1 | MIT | MIT OR Apache-2.0 | all |
@@ -139,12 +148,14 @@ development-only packages.
 | `image` | 0.25.6 | MIT | MIT OR Apache-2.0 | all |
 | `image-webp` | 0.2.4 | MIT | MIT OR Apache-2.0 | all |
 | `imagesize` | 0.13.0 | MIT |  | all |
+| `indexmap` | 2.14.2 | MIT | Apache-2.0 OR MIT | all |
 | `itertools` | 0.15.0 | MIT | MIT OR Apache-2.0 | all |
 | `jpeg-encoder` | 0.6.1 | MIT AND IJG | (MIT OR Apache-2.0) AND IJG | all |
+| `khronos-egl` | 6.0.0 | MIT | MIT OR Apache-2.0 | all |
 | `kittest` | 0.4.0 | MIT | MIT OR Apache-2.0 | all |
 | `kurbo` | 0.11.3 | MIT | Apache-2.0 OR MIT | all |
 | `kurbo` | 0.13.1 | MIT | Apache-2.0 OR MIT | all |
-| `libc` | 0.2.191 | MIT | MIT OR Apache-2.0 | Linux |
+| `libc` | 0.2.191 | MIT | MIT OR Apache-2.0 | all |
 | `libloading` | 0.8.9 | ISC |  | all |
 | `linebender_resource_handle` | 0.1.1 | MIT | Apache-2.0 OR MIT | all |
 | `linux-raw-sys` | 0.12.1 | MIT | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | Linux |
@@ -154,9 +165,12 @@ development-only packages.
 | `memmap2` | 0.9.11 | MIT | MIT OR Apache-2.0 | all |
 | `miniz_oxide` | 0.8.9 | MIT | MIT OR Zlib OR Apache-2.0 | all |
 | `miniz_oxide` | 0.9.1 | MIT | MIT OR Zlib OR Apache-2.0 | all |
+| `naga` | 30.0.1 | MIT | MIT OR Apache-2.0 | all |
+| `naga-types` | 30.0.1 | MIT | MIT OR Apache-2.0 | all |
 | `nohash-hasher` | 0.2.0 | MIT | Apache-2.0 OR MIT | all |
 | `num-traits` | 0.2.19 | MIT | MIT OR Apache-2.0 | all |
 | `once_cell` | 1.21.4 | MIT | MIT OR Apache-2.0 | all |
+| `ordered-float` | 5.5.1 | MIT |  | all |
 | `ordered-stream` | 0.2.0 | MIT | MIT OR Apache-2.0 | Linux |
 | `parking` | 2.2.1 | MIT | Apache-2.0 OR MIT | Linux |
 | `parking_lot` | 0.12.5 | MIT | MIT OR Apache-2.0 | all |
@@ -170,16 +184,22 @@ development-only packages.
 | `piper` | 0.2.5 | MIT | MIT OR Apache-2.0 | Linux |
 | `png` | 0.17.16 | MIT | MIT OR Apache-2.0 | all |
 | `polling` | 3.11.0 | MIT | Apache-2.0 OR MIT | Linux |
+| `pollster` | 1.0.1 | MIT | Apache-2.0 OR MIT | all |
 | `polycool` | 0.4.0 | MIT | MIT OR Apache-2.0 | all |
+| `presser` | 0.3.1 | MIT | MIT OR Apache-2.0 | all |
 | `proc-macro2` | 1.0.107 | MIT | MIT OR Apache-2.0 | all |
 | `profiling` | 1.0.18 | MIT | MIT OR Apache-2.0 | all |
 | `quick-error` | 2.0.1 | MIT | MIT OR Apache-2.0 | all |
 | `quote` | 1.0.47 | MIT | MIT OR Apache-2.0 | all |
+| `range-alloc` | 0.1.5 | MIT | MIT OR Apache-2.0 | Windows |
 | `raw-window-handle` | 0.6.2 | MIT | MIT OR Apache-2.0 OR Zlib | all |
 | `read-fonts` | 0.41.0 | MIT | MIT OR Apache-2.0 | all |
+| `renderdoc-sys` | 1.1.0 | MIT | MIT OR Apache-2.0 | all |
 | `resvg` | 0.45.1 | MIT | Apache-2.0 OR MIT | all |
 | `rgb` | 0.8.53 | MIT |  | all |
 | `roxmltree` | 0.20.0 | MIT | MIT OR Apache-2.0 | all |
+| `rustc-hash` | 1.1.0 | MIT | Apache-2.0 OR MIT | all |
+| `rustc-hash` | 2.1.3 | MIT | Apache-2.0 OR MIT | all |
 | `rustix` | 0.38.44 | MIT | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | Linux |
 | `rustix` | 1.1.5 | MIT | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | Linux |
 | `rustybuzz` | 0.20.1 | MIT |  | all |
@@ -199,6 +219,7 @@ development-only packages.
 | `smithay-client-toolkit` | 0.20.0 | MIT |  | Linux |
 | `smithay-clipboard` | 0.7.3 | MIT |  | Linux |
 | `smol_str` | 0.2.2 | MIT | MIT OR Apache-2.0 | all |
+| `spirv` | 0.4.0+sdk-1.4.341.0 | Apache-2.0 |  | all |
 | `static_assertions` | 1.1.0 | MIT | MIT OR Apache-2.0 | all |
 | `strict-num` | 0.1.1 | MIT |  | all |
 | `svgtypes` | 0.15.3 | MIT | Apache-2.0 OR MIT | all |
@@ -213,6 +234,7 @@ development-only packages.
 | `tracing` | 0.1.44 | MIT |  | all |
 | `tracing-core` | 0.1.36 | MIT |  | all |
 | `ttf-parser` | 0.25.1 | MIT | MIT OR Apache-2.0 | all |
+| `type-map` | 0.5.1 | MIT | MIT OR Apache-2.0 | all |
 | `unicode-bidi` | 0.3.18 | MIT | MIT OR Apache-2.0 | all |
 | `unicode-bidi-mirroring` | 0.4.0 | MIT | MIT OR Apache-2.0 | all |
 | `unicode-ccc` | 0.4.0 | MIT | MIT OR Apache-2.0 | all |
@@ -222,6 +244,7 @@ development-only packages.
 | `unicode-script` | 0.5.9 | MIT | MIT OR Apache-2.0 | all |
 | `unicode-segmentation` | 1.13.3 | MIT | MIT OR Apache-2.0 | all |
 | `unicode-vo` | 0.1.0 | MIT | MIT OR Apache-2.0 | all |
+| `unicode-width` | 0.2.2 | MIT | MIT OR Apache-2.0 | all |
 | `usvg` | 0.45.1 | MIT | Apache-2.0 OR MIT | all |
 | `uuid` | 1.28.0 | MIT | Apache-2.0 OR MIT | all |
 | `vello_common` | 0.1.0 | MIT | Apache-2.0 OR MIT | all |
@@ -238,6 +261,12 @@ development-only packages.
 | `wayland-sys` | 0.31.11 | MIT |  | Linux |
 | `web-time` | 1.1.0 | MIT | MIT OR Apache-2.0 | all |
 | `weezl` | 0.1.12 | MIT | MIT OR Apache-2.0 | all |
+| `wgpu` | 30.0.1 | MIT | MIT OR Apache-2.0 | all |
+| `wgpu-core` | 30.0.1 | MIT | MIT OR Apache-2.0 | all |
+| `wgpu-core-deps-windows-linux-android` | 30.0.1 | MIT | MIT OR Apache-2.0 | all |
+| `wgpu-hal` | 30.0.1 | MIT | MIT OR Apache-2.0 | all |
+| `wgpu-naga-bridge` | 30.0.1 | MIT | MIT OR Apache-2.0 | all |
+| `wgpu-types` | 30.0.1 | MIT | MIT OR Apache-2.0 | all |
 | `windows` | 0.62.2 | MIT | MIT OR Apache-2.0 | Windows |
 | `windows-collections` | 0.3.2 | MIT | MIT OR Apache-2.0 | Windows |
 | `windows-core` | 0.62.2 | MIT | MIT OR Apache-2.0 | Windows |
@@ -283,9 +312,7 @@ development-only packages.
 | `document-features` | 0.2.12 | MIT | MIT OR Apache-2.0 | all |
 | `enum-map-derive` | 0.17.0 | MIT | MIT OR Apache-2.0 | all |
 | `enumflags2_derive` | 0.7.12 | MIT | MIT OR Apache-2.0 | all |
-| `equivalent` | 1.0.3 | MIT | Apache-2.0 OR MIT | all |
 | `futures-macro` | 0.3.34 | MIT | MIT OR Apache-2.0 | all |
-| `indexmap` | 2.14.2 | MIT | Apache-2.0 OR MIT | all |
 | `js-sys` | 0.3.106 | MIT | MIT OR Apache-2.0 | host |
 | `litrs` | 1.0.1 | MIT | MIT OR Apache-2.0 | all |
 | `phf_generator` | 0.13.1 | MIT |  | all |
@@ -310,6 +337,7 @@ development-only packages.
 | `winresource` | 0.1.34 | MIT |  | host |
 | `zbus-lockstep-macros` | 0.5.2 | MIT |  | all |
 | `zbus_macros` | 5.19.0 | MIT |  | all |
+| `zerocopy-derive` | 0.8.63 | MIT | BSD-2-Clause OR Apache-2.0 OR MIT | all |
 | `zvariant_derive` | 5.15.1 | MIT |  | all |
 
 ## Development only (never shipped)
