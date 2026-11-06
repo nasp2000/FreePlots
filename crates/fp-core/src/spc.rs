@@ -1791,13 +1791,10 @@ fn run_tests(
 }
 
 fn push_signal(signals: &mut Vec<Signal>, signal: Signal) {
-    if !signals.iter().any(|existing| {
-        existing.test == signal.test
-            && existing.chart == signal.chart
-            && existing.index == signal.index
-    }) {
-        signals.push(signal);
-    }
+    // Every test visits each index at most once, so a duplicate scan here
+    // would make a signal-heavy chart O(n²). Append directly; the tests keep
+    // the per-test/per-index contract.
+    signals.push(signal);
 }
 
 fn report(column: &str, chart: &ControlChart) -> AnalysisResult {
