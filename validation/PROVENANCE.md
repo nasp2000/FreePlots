@@ -5,9 +5,9 @@ FreePlots come from. It is part of the public repository so that the evidence
 behind the README can be checked from a clean checkout.
 
 FreePlots is independent. It is not affiliated with, endorsed by, sponsored by
-or approved by any commercial statistical software vendor. No proprietary
-source code, documentation, icons, data files or output from another product is
-included in this repository or used as a validation source.
+or approved by any commercial statistical software vendor. No third-party
+proprietary source code, documentation, icons or data files are included in this
+repository.
 
 ## Validation layers
 
@@ -83,14 +83,14 @@ cargo test --workspace --locked
 python3 scripts/licence-inventory.py --check
 ```
 
-Everything runs from a clean checkout. No private capture pack, licensed output
-or external service is required.
+Everything runs from a clean checkout. No private data or external service is
+required.
 
 ## What this document does not claim
 
 - It is not a legal opinion and not a certification by any standards body.
 - It does not claim that every analysis has an independent oracle. The coverage
   table in `validation/RESULTS.md` marks the areas that are still open.
-- It does not claim equivalence with any commercial product. Statistical
+- It does not claim equivalence with any other implementation. Statistical
   formulas, file formats and user-interface conventions are not proprietary to
   one implementation.

@@ -99,7 +99,7 @@ The engine is covered by native tests for typical, boundary and invalid input, p
 - [validation/PROVENANCE.md](validation/PROVENANCE.md): the datasets, oracle versions, tolerances and regression fixtures.
 - [validation/RESULTS.md](validation/RESULTS.md): the validation coverage table, including the areas that are still open.
 
-FreePlots does not publish or rely on comparisons with proprietary software. Validation uses published statistical formulas, synthetic datasets, closed-form checks and independent open-source implementations; the regression fixtures are FreePlots output frozen by this project.
+Validation uses published statistical formulas, synthetic datasets, closed-form checks and independent open-source implementations; the regression fixtures are FreePlots output frozen by this project.
 
 ## Contributing
 

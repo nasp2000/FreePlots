@@ -1,8 +1,8 @@
 # Validation coverage
 
 This page summarises the independent checks behind FreePlots. Every row is
-reproducible from the public repository; no proprietary software or external
-service is required. See `PROVENANCE.md` for the method and the oracle versions.
+reproducible from the public repository; no external service is required. See
+`PROVENANCE.md` for the method and the oracle versions.
 
 ## Independent oracles
 
@@ -35,7 +35,7 @@ equivalence with one.
 
 | Area | Why it remains open |
 |---|---|
-| Some graph-only conventions (exact tick sets, axis padding, band shape) | They are design choices checked against the documented rules and golden plots, not against a proprietary implementation |
+| Some graph-only conventions (exact tick sets, axis padding, band shape) | They are design choices checked against the documented rules and golden plots |
 | Analyses without an independent oracle yet | Listed in `docs/parity.md` with their current status; they are covered by closed-form tests and input validation, not by an oracle |
 | Very large data sets | Performance is measured separately (1M rows in the capability and control-chart paths); it is not a numerical-accuracy claim |
 
