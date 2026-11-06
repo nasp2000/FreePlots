@@ -21,8 +21,8 @@
 //! acceleration factor against the highest stress of the study.
 //!
 //! The documented behaviour has accelerated life testing; its models and
-//! conventions were not documented, so the numbers are not claimed as reference
-//! parity — see `the project notes`.
+//! conventions were not documented, so the numbers are not claimed as documented
+//! behaviour — see `the project notes`.
 
 use crate::data::{Column, DataFrame};
 use crate::error::{Error, Result};

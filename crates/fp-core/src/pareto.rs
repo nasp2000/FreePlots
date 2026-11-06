@@ -10,8 +10,8 @@
 //! reach 80 % of the total, the classical Pareto rule.
 //!
 //! The documented behaviour has a Pareto chart; its ordering and labelling
-//! conventions were not documented, so the numbers are not claimed as reference
-//! parity — see `the project notes`.
+//! conventions were not documented, so the numbers are not claimed as documented
+//! behaviour — see `the project notes`.
 
 use std::collections::BTreeMap;
 

@@ -235,7 +235,7 @@ fn the_semantic_tools_match_the_cli_for_the_same_dataset() {
     // One dataset, two front doors: the MCP script drives the worksheet and
     // reads the Session report, the CLI prints its own report. The numbers
     // must agree.
-    let dir = std::env::temp_dir().join(format!("fp-mcp-parity-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("fp-mcp-check-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("dir");
     let csv = dir.join("weights.csv");
     std::fs::write(

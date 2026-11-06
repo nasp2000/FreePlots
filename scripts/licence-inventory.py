@@ -107,7 +107,8 @@ def run_cargo(args: list[str]) -> str:
         [cargo, *args],
         cwd=ROOT,
         text=True,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         check=False,
     )
     if result.returncode != 0:

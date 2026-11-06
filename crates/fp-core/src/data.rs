@@ -1565,7 +1565,7 @@ mod tests {
 
     #[test]
     fn quartiles_match_the_documented_descriptive_statistics() {
-        // n = 20 dataset of the parity kit: the documented behaviour prints
+        // n = 20 dataset of the synthetic sample set: the documented behaviour prints
         // Q1 = 19.4198 and Q3 = 21.7969.
         let values = [
             20.62715749,
