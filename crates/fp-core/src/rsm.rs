@@ -1315,8 +1315,8 @@ fn report(
     }
     result.warnings = standard_warnings(regression.n, model.excluded, 0);
     result.warnings.push(
-        "response-surface conventions and diagnostics have not been verified against captured \
-         captured output"
+        "response-surface conventions and diagnostics have not been verified against documented \
+         documented output"
             .to_owned(),
     );
     result

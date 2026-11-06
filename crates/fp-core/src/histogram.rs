@@ -150,7 +150,7 @@ fn report(column_name: &str, model: &Histogram) -> AnalysisResult {
     ];
     result.warnings = standard_warnings(model.n, model.excluded, 0);
     result.warnings.push(
-        "histogram bin selection and normal-overlay conventions have not been verified against captured output"
+        "histogram bin selection and normal-overlay conventions have not been verified against documented output"
             .to_owned(),
     );
     result

@@ -12,9 +12,9 @@
 //! of squares and their ratio, and a scatter plot of the first two variables
 //! coloured by cluster.
 //!
-//! The comparison run clusters; its initialisation and distance conventions
-//! were not captured, so the numbers are not claimed as reference parity — see
-//! `docs/parity.md`.
+//! The documented behaviour clusters; its initialisation and distance conventions
+//! were not documented, so the numbers are not claimed as documented behaviour — see
+//! `the project notes`.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
@@ -465,7 +465,7 @@ pub fn analyze(
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the initialisation, distance and standardisation conventions are standard choices and \
-         have not been verified against captured output"
+         have not been verified against documented output"
             .to_owned(),
     );
     if let Some(empty) = model.sizes.iter().position(|size| *size == 0) {

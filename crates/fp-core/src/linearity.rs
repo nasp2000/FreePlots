@@ -10,8 +10,8 @@
 //!
 //! The process variation is the `6·s` spread of the reference values of the
 //! study, which is the standard convention for a linearity study; the exact
-//! convention of the captured run was not captured, so the report says so
-//! — see `docs/parity.md`.
+//! convention of the documented behaviour was not documented, so the report says so
+//! — see `the project notes`.
 
 use std::collections::BTreeMap;
 
@@ -434,7 +434,7 @@ pub fn analyze(df: &DataFrame, measurement: &str, reference: &str) -> Result<Ana
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(format!(
         "the largest part bias is {worst:.6}; the linearity convention (6·s of the references) is \
-         a standard choice and has not been verified against captured output"
+         a standard choice and has not been verified against documented output"
     ));
 
     Ok(AnalysisOutput {

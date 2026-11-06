@@ -10,9 +10,9 @@
 //!   proportion under the true proportion;
 //! * the **correlation test** uses Fisher's `atanh` transformation.
 //!
-//! The comparison run has a power-and-sample-size dialog; its defaults
-//! were not captured, so the numbers are not claimed as reference parity —
-//! see `docs/parity.md`.
+//! The documented behaviour has a power-and-sample-size dialog; its defaults
+//! were not documented, so the numbers are not claimed as documented behaviour —
+//! see `the project notes`.
 
 use crate::error::{Error, Result};
 use crate::hypothesis::Alternative;
@@ -739,7 +739,7 @@ pub fn power_report(
     }));
     notes.push((
         "Reference parity".to_owned(),
-        "the captured run's power dialog defaults were not captured; the numbers follow the \
+        "the documented behaviour's power dialog defaults were not documented; the numbers follow the \
          formulas stated above"
             .to_owned(),
     ));

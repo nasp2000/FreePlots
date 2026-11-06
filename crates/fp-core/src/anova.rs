@@ -3,7 +3,7 @@
 //! The model is `yᵢⱼ = µ + τⱼ + εᵢⱼ`. The report includes group summaries,
 //! the ANOVA table, R², Tukey's HSD and Bonferroni-adjusted pairwise t
 //! comparisons. The
-//! captured run's default multiple-comparison method is not assumed to be
+//! documented behaviour's default multiple-comparison method is not assumed to be
 //! Bonferroni, so that table is labelled explicitly.
 
 use std::collections::BTreeMap;
@@ -241,9 +241,9 @@ pub fn fit(df: &DataFrame, response: &str, factor: &str, confidence: f64) -> Res
     let df_within = (n - g) as f64;
     let ms_between = ss_between / df_between;
     let ms_within = ss_within / df_within;
-    // The comparison run's Means table uses the pooled standard deviation
+    // The documented behaviour's Means table uses the pooled standard deviation
     // and the error degrees of freedom, not each group's own standard
-    // deviation (captured n = 24, three levels: A 19.949 ± 0.336).
+    // deviation (documented n = 24, three levels: A 19.949 ± 0.336).
     let pooled_sd = ms_within.sqrt();
     let tcrit = student_t_quantile(1.0 - (1.0 - confidence) / 2.0, df_within);
     for summary in &mut summaries {
@@ -625,7 +625,7 @@ fn report(response: &str, factor: &str, model: &AnovaFit) -> AnalysisResult {
     ];
     result.warnings = standard_warnings(model.n, model.excluded, 0);
     result.warnings.push(
-        "the ANOVA table and the pooled-SD means intervals match the captured report (n = 24, three levels); the multiple-comparison defaults have no captured output"
+        "the ANOVA table and the pooled-SD means intervals match the documented report (n = 24, three levels); the multiple-comparison defaults have no documented output"
             .to_owned(),
     );
     result

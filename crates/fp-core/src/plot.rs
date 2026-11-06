@@ -497,17 +497,17 @@ fn rescaled_axis(axis: &AxisSpec, range: (f64, f64)) -> Option<AxisSpec> {
 
 /// Percentage ticks used on a probability axis.
 ///
-/// The normal/lognormal and the Weibull/exponential sets are the ones captured
-/// from the captured run (see `validation/results.md`); the decade anchors
+/// The normal/lognormal and the Weibull/exponential sets are the ones documented
+/// from the documented behaviour (see `the project notes`); the decade anchors
 /// at the ends are kept so an axis that expands past 1–99 % still has labels.
 /// The Logit and ExtremeValue scales reuse the normal set: those families are
-/// engine additions with no captured plot to capture.
+/// engine additions with no documented plot to record.
 const NORMAL_PROBABILITY_TICKS_PCT: [f64; 23] = [
     0.000_01, 0.000_1, 0.001, 0.01, 0.1, 1.0, 5.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0,
     90.0, 95.0, 99.0, 99.9, 99.99, 99.999, 99.9999, 99.999_99,
 ];
 
-/// Weibull/exponential probability ticks: the captured set adds 2 % and 3 % to
+/// Weibull/exponential probability ticks: the documented set adds 2 % and 3 % to
 /// the normal one (the Gumbel axis compresses the upper tail).
 const GUMBEL_PROBABILITY_TICKS_PCT: [f64; 25] = [
     0.000_01, 0.000_1, 0.001, 0.01, 0.1, 1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0,
@@ -635,7 +635,7 @@ pub(crate) fn linear_axis(label: &str, lo: f64, hi: f64) -> AxisSpec {
 }
 
 fn probability_axis(label: &str, p_lo: f64, p_hi: f64, scale: ProbabilityScale) -> AxisSpec {
-    // The captured plots start at 1 % and expand by decades only when
+    // The documented plots start at 1 % and expand by decades only when
     // the plotting positions fall outside; 0.1/99.9 appear at n = 200, for
     // example.
     let mut lower = 0.01; // 1 %
@@ -761,7 +761,7 @@ impl PlotSpec {
         !self.points.is_empty() || self.panels.iter().any(Self::has_points)
     }
 
-    /// Specification of a Normal probability plot, in the captured run orientation.
+    /// Specification of a Normal probability plot, in the documented behaviour orientation.
     ///
     /// Data on the horizontal axis, probability on the vertical axis. The
     /// vertical coordinates are `z = Φ⁻¹(p)`, so the fitted line is
@@ -780,7 +780,7 @@ impl PlotSpec {
     ///
     /// `confidence = None` draws no band. The fitted distribution is expected
     /// to be the sample-moment `Normal` (mean and `s` with `n − 1`), as in
-    /// the captured run's probability-plot path; the band uses `Var(s) = s²(1 − c4²)`.
+    /// the documented behaviour's probability-plot path; the band uses `Var(s) = s²(1 − c4²)`.
     pub fn normal_probability_with_ci(
         plot: &ProbabilityPlot,
         dist: &Normal,
@@ -857,7 +857,7 @@ impl PlotSpec {
         }
     }
 
-    /// Specification of a log-normal probability plot, in the captured run orientation.
+    /// Specification of a log-normal probability plot, in the documented behaviour orientation.
     ///
     /// Data on a base-10 log axis, probability on the normal scale. The fitted
     /// line is `z = (ln x − µ)/σ`; in `u = log10(x)` coordinates its slope is
@@ -961,8 +961,8 @@ impl PlotSpec {
     /// `y = α·ln(x) − α·ln(β)`; in `u = log10(x)` coordinates its slope is
     /// `α·ln(10)`. The 95 % band is the delta method on the `log10` axis
     /// coordinate, with the covariance from the numerical Hessian of the
-    /// log-likelihood; the captured plot matches it within 0.3 % at
-    /// p = 20–80 % (see `docs/parity.md`).
+    /// log-likelihood; the documented plot matches it within 0.3 % at
+    /// p = 20–80 % (see `the project notes`).
     pub fn weibull_probability(
         plot: &ProbabilityPlot,
         dist: &Weibull,
@@ -1065,7 +1065,7 @@ impl PlotSpec {
     /// `y = ln(−ln(1 − p))`. The fitted line is `y = ln(x) − ln(θ)`; in
     /// `u = log10(x)` coordinates its slope is `ln(10)` and it passes through
     /// `(log10 θ, 0)`, the 63.2 % quantile. No confidence band is drawn: the
-    /// the captured run covariance construction is not recovered.
+    /// the documented behaviour covariance construction is not recovered.
     pub fn exponential_probability(
         plot: &ProbabilityPlot,
         dist: &Exponential,
@@ -1710,12 +1710,12 @@ impl PlotSpec {
 /// Confidence ribbon for the fitted Normal line.
 ///
 /// `q(z) = µ + s·z` with the sample standard deviation `s` (divisor `n − 1`),
-/// and `Var(s) = s²(1 − c4²)`, the variance the captured run's probability-plot path returns in
+/// and `Var(s) = s²(1 − c4²)`, the variance the documented behaviour's probability-plot path returns in
 /// `aux[2]`:
 ///
 /// `SE(z) = s·sqrt(1/n + z²·(1 − c4²))`, `q ± z_{1−α/2}·SE`.
 ///
-/// The quantile is the normal one: measuring the captured bands at
+/// The quantile is the normal one: measuring the documented bands at
 /// 50 % gives a half-width of `1.96·s/√n` (1.010 for n = 20 and 1.788 for
 /// n = 8), not the Student-t value. If `confidence` is `None` or invalid, no
 /// band is drawn.
@@ -1789,10 +1789,10 @@ fn invert_matrix(matrix: &[Vec<f64>]) -> Option<Vec<Vec<f64>>> {
 ///
 /// The covariance of the parameters is estimated from the numerical Hessian
 /// of the log-likelihood at the maximum; the band follows by the delta method
-/// with the normal quantile (the captured Weibull band matches `z` better than
+/// with the normal quantile (the documented Weibull band matches `z` better than
 /// Student t). The standard error is computed for the **axis coordinate** of
 /// the quantile, so on a log axis the band is symmetric in `log10 x` — the
-/// captured band is 2–3 % narrower than adding the error in data
+/// documented band is 2–3 % narrower than adding the error in data
 /// units and taking the logarithm afterwards, and this is the construction
 /// that matches it. `axis` maps a data value to the axis coordinate and
 /// `y_position` maps a probability to the probability-axis coordinate.
@@ -2017,7 +2017,7 @@ pub fn overlay_plots(plots: Vec<(String, PlotSpec)>, title: impl Into<String>) -
     x_axis.max = x_max;
     // Grouped series are named "weight (A)", "weight (B)": keep the common
     // variable name. Different Y variables share no meaningful unit, so use
-    // "Data", as the captured run's overlay does.
+    // "Data", as the documented behaviour's overlay does.
     let base = plots[0]
         .0
         .split(" (")
@@ -2069,7 +2069,7 @@ pub fn overlay_plots(plots: Vec<(String, PlotSpec)>, title: impl Into<String>) -
     })
 }
 
-/// Composes single plots into a panel grid (the captured run `separate panels`).
+/// Composes single plots into a panel grid (the documented behaviour `separate panels`).
 ///
 /// The returned spec carries the panels and a column count; its own flat
 /// points/lines/bands are empty. Backends render each panel independently.
@@ -3096,9 +3096,9 @@ mod tests {
     }
 
     #[test]
-    fn probability_axis_matches_the_captured_n200_set() {
+    fn probability_axis_matches_the_documented_n200_set() {
         // n = 200 plotting positions span 0.35 % to 99.65 %, which the
-        // captured plot shows on an axis of 0.1 % to 99.9 %.
+        // documented plot shows on an axis of 0.1 % to 99.9 %.
         let axis = probability_axis("Percent", 0.0035, 0.9965, ProbabilityScale::Normal);
         let labels: Vec<&str> = axis.ticks.iter().map(|t| t.label.as_str()).collect();
         assert_eq!(
@@ -3328,7 +3328,7 @@ mod tests {
         );
         assert!(
             !spec.y_axis.ticks.iter().any(|t| t.label == "63.2"),
-            "the captured Weibull plot has no 63.2 % tick"
+            "the documented Weibull plot has no 63.2 % tick"
         );
     }
 

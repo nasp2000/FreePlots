@@ -15,8 +15,8 @@
 //! error with the row number, so a bad formula never fills a column with
 //! silent garbage.
 //!
-//! The comparison run has a worksheet calculator; its syntax was not
-//! captured, so the grammar here is our own — see `docs/parity.md`.
+//! The documented behaviour has a worksheet calculator; its syntax was not
+//! documented, so the grammar here is our own — see `the project notes`.
 
 use crate::data::{Column, DataFrame};
 use crate::error::{Error, Result};

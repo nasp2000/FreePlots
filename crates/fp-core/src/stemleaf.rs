@@ -9,9 +9,9 @@
 //! report states the unit and shows the stem, its leaves and the number of
 //! observations on the stem.
 //!
-//! The comparison run has a stem-and-leaf display; its unit and rounding
-//! rules were not captured, so the numbers are not claimed as reference parity
-//! — see `docs/parity.md`.
+//! The documented behaviour has a stem-and-leaf display; its unit and rounding
+//! rules were not documented, so the numbers are not claimed as documented behaviour
+//! — see `the project notes`.
 
 use std::collections::BTreeMap;
 
@@ -170,7 +170,7 @@ pub fn analyze(df: &DataFrame, column_name: &str) -> Result<AnalysisOutput> {
     result.warnings = standard_warnings(result.n, result.excluded, sample.ties());
     result.warnings.push(
         "the leaf unit and the rounding are standard choices and have not been verified against \
-         captured output"
+         documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {

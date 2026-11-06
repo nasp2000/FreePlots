@@ -9,8 +9,8 @@
 //! The stacking offset is a small horizontal displacement around the column
 //! centre; it carries no meaning beyond separating the dots.
 //!
-//! The comparison run has a dotplot; its stacking rule was not captured, so
-//! the layout is our own — see `docs/parity.md`.
+//! The documented behaviour has a dotplot; its stacking rule was not documented, so
+//! the layout is our own — see `the project notes`.
 
 use std::collections::BTreeMap;
 
@@ -296,7 +296,7 @@ pub fn analyze(df: &DataFrame, column_name: &str, factor: Option<&str>) -> Resul
     ];
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
-        "the stacking rule is our own and has not been verified against captured output".to_owned(),
+        "the stacking rule is our own and has not been verified against documented output".to_owned(),
     );
     Ok(AnalysisOutput {
         results: vec![result],

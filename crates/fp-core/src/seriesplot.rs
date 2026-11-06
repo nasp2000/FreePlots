@@ -5,8 +5,8 @@
 //! any model is fitted. The report adds the Mann–Kendall trend test with the
 //! Theil–Sen slope, which quantifies what the eye sees.
 //!
-//! The comparison run has a time-series plot; its axis and marker defaults
-//! were not captured, so the layout is our own — see `docs/parity.md`.
+//! The documented behaviour has a time-series plot; its axis and marker defaults
+//! were not documented, so the layout is our own — see `the project notes`.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
@@ -175,7 +175,7 @@ pub fn analyze(df: &DataFrame, column_name: &str, time: Option<&str>) -> Result<
     ];
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
-        "the plotting defaults are our own and have not been verified against captured \
+        "the plotting defaults are our own and have not been verified against documented \
          output"
             .to_owned(),
     );

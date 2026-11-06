@@ -2,7 +2,7 @@
 //!
 //! A run chart plots observations in row order around the sample median. The
 //! report adds the runs-about-the-median test and the runs-up-and-down test.
-//! The exact test set and tie convention used by the captured run have
+//! The exact test set and tie convention used by the documented behaviour have
 //! not been verified, so every report says so explicitly.
 
 use crate::data::{DataFrame, MissingPolicy, Sample};
@@ -364,7 +364,7 @@ fn report(column_name: &str, chart: &RunChart) -> AnalysisResult {
     ];
     result.warnings = standard_warnings(chart.n(), chart.excluded, chart.ties);
     result.warnings.push(
-        "run-chart test selection and tie conventions have not been verified against captured output"
+        "run-chart test selection and tie conventions have not been verified against documented output"
             .to_owned(),
     );
     result

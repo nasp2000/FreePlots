@@ -279,7 +279,7 @@ fn report(x_column: &str, y_column: &str, model: &ScatterFit) -> AnalysisResult 
     ];
     result.warnings = standard_warnings(result.n, model.excluded, 0);
     result.warnings.push(
-        "scatterplot/correlation conventions have not been verified against captured output"
+        "scatterplot/correlation conventions have not been verified against documented output"
             .to_owned(),
     );
     result

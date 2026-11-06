@@ -10,9 +10,9 @@
 //! with `ν = n − 1`, which reproduces the published tables (n = 10 and
 //! n = 30 give 3.379 and 2.549 for 95 %/95 %).
 //!
-//! The comparison run has a tolerance-interval dialog; its conventions
-//! were not captured, so the numbers are not claimed as reference parity —
-//! see `docs/parity.md`.
+//! The documented behaviour has a tolerance-interval dialog; its conventions
+//! were not documented, so the numbers are not claimed as documented behaviour —
+//! see `the project notes`.
 
 use crate::data::{DataFrame, MissingPolicy, Sample};
 use crate::error::{Error, Result};
@@ -298,7 +298,7 @@ pub fn analyze(
     result.warnings = standard_warnings(result.n, result.excluded, sample.ties());
     result.warnings.push(
         "the tolerance-interval conventions are standard choices; they have not been verified \
-         against captured output"
+         against documented output"
             .to_owned(),
     );
     Ok(result)

@@ -29,9 +29,9 @@
 //! factor is the one with the largest ratio, and an analysis of variance of the
 //! response gives the significance of each factor.
 //!
-//! The comparison run has Taguchi designs; its array list and pooling rules
-//! were not captured, so the numbers are not claimed as reference parity — see
-//! `docs/parity.md`.
+//! The documented behaviour has Taguchi designs; its array list and pooling rules
+//! were not documented, so the numbers are not claimed as documented behaviour — see
+//! `the project notes`.
 
 use crate::data::{Column, DataFrame};
 use crate::error::{Error, Result};
@@ -1044,7 +1044,7 @@ pub fn analyze(
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the array construction and the ranking rule are standard choices and have not been \
-         verified against captured output"
+         verified against documented output"
             .to_owned(),
     );
     if model.quality == Quality::Nominal {

@@ -12,9 +12,9 @@
 //! sign of each one is fixed so that its largest loading is positive — without
 //! that rule the sign of a component would depend on rounding.
 //!
-//! The comparison run has a principal-components analysis; its extraction
-//! and sign conventions were not captured, so the numbers are not claimed as
-//! reference parity — see `docs/parity.md`.
+//! The documented behaviour has a principal-components analysis; its extraction
+//! and sign conventions were not documented, so the numbers are not claimed as
+//! documented behaviour — see `the project notes`.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
@@ -436,7 +436,7 @@ pub fn analyze(df: &DataFrame, columns: &[String], keep: usize) -> Result<Analys
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the extraction (correlation matrix) and sign conventions are standard choices and have \
-         not been verified against captured output"
+         not been verified against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {

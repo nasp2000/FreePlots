@@ -188,7 +188,7 @@ pub fn analyze(
     ];
     result.warnings = standard_warnings(model.n, result.excluded, 0);
     result.warnings.push(
-        "Type 1 Gage conventions and acceptance thresholds have not been verified against captured output"
+        "Type 1 Gage conventions and acceptance thresholds have not been verified against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {

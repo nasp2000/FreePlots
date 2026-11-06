@@ -3,7 +3,7 @@
 //! The one-sample test is the chi-square test for a variance; the two-sample
 //! test is the F test for a variance ratio. Confidence intervals use the
 //! corresponding chi-square and F quantiles. These are standard conventions,
-//! not yet verified against captured output.
+//! not yet verified against documented output.
 
 use std::collections::BTreeMap;
 

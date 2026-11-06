@@ -9,9 +9,9 @@
 //! The report also gives the **vital few**: the number of categories needed to
 //! reach 80 % of the total, the classical Pareto rule.
 //!
-//! The comparison run has a Pareto chart; its ordering and labelling
-//! conventions were not captured, so the numbers are not claimed as reference
-//! parity — see `docs/parity.md`.
+//! The documented behaviour has a Pareto chart; its ordering and labelling
+//! conventions were not documented, so the numbers are not claimed as reference
+//! parity — see `the project notes`.
 
 use std::collections::BTreeMap;
 
@@ -398,7 +398,7 @@ fn build(model: Pareto, column_name: &str, weight: Option<&str>) -> Result<Analy
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the ordering and the 80% rule are standard choices and have not been verified against \
-         captured output"
+         documented output"
             .to_owned(),
     );
     let mut chart = plot(&model);

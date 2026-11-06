@@ -17,9 +17,9 @@
 //!   minimises the sum of the squared one-step errors, and the report
 //!   forecasts the requested number of periods.
 //!
-//! The comparison run has a time-series family; its conventions (centring
-//! rule, seasonal normalisation, optimiser) were not captured, so the numbers
-//! are not claimed as reference parity — see `docs/parity.md`.
+//! The documented behaviour has a time-series family; its conventions (centring
+//! rule, seasonal normalisation, optimiser) were not documented, so the numbers
+//! are not claimed as documented behaviour — see `the project notes`.
 
 use crate::data::{DataFrame, MissingPolicy};
 use crate::error::{Error, Result};
@@ -824,7 +824,7 @@ pub fn analyze(
     result.warnings = standard_warnings(result.n, result.excluded, sample.ties());
     result.warnings.push(
         "the time-series conventions (centring, seasonal normalisation, smoothing grid) are \
-         standard choices and have not been verified against captured output"
+         standard choices and have not been verified against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {

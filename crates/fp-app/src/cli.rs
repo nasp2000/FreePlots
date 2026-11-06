@@ -4990,7 +4990,7 @@ fn sign_test(args: &[String]) -> Result<(), String> {
     let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
     let column = column.ok_or_else(|| "missing --column <name>".to_owned())?;
     let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
-    // The captured run tests the median against 0 by default.
+    // The documented behaviour tests the median against 0 by default.
     let median = median.unwrap_or(0.0);
     let spec = AnalysisSpec::sign_test(column, median);
     let out = run_local(&df, &spec).map_err(|e| e.to_string())?;

@@ -5,9 +5,9 @@
 //! they are linear, and the report gives the goodness of fit on the original
 //! scale as well — the R² of a log-scale fit is not the R² of the data.
 //!
-//! The comparison run has a curve-fit dialog; its model list and defaults
-//! were not captured, so this is an addition of this engine rather than a
-//! recovered behaviour — see `docs/parity.md`.
+//! The documented behaviour has a curve-fit dialog; its model list and defaults
+//! were not documented, so this is an addition of this engine rather than a
+//! recovered behaviour — see `the project notes`.
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
@@ -517,7 +517,7 @@ pub fn report(x_column: &str, y_column: &str, fit: &CurveFit) -> AnalysisResult 
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the curve-fit conventions are standard choices; they have not been verified against \
-         captured output"
+         documented output"
             .to_owned(),
     );
     result

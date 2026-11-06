@@ -534,7 +534,7 @@ fn report(measurement: &str, model: &GageRr) -> AnalysisResult {
     ];
     result.warnings.push(
         "Gage R&R conventions, interaction pooling and acceptance thresholds have not been \
-         verified against captured output"
+         verified against documented output"
             .to_owned(),
     );
     result
@@ -955,7 +955,7 @@ fn report_nested(measurement: &str, model: &NestedGageRr) -> AnalysisResult {
     ];
     result.warnings.push(
         "nested Gage R&R conventions and acceptance thresholds have not been verified against \
-         captured output"
+         documented output"
             .to_owned(),
     );
     result

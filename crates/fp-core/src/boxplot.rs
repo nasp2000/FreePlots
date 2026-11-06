@@ -223,7 +223,7 @@ fn report(column_name: &str, by: Option<&str>, model: &Boxplot) -> AnalysisResul
     ];
     result.warnings = standard_warnings(result.n, model.excluded, 0);
     result.warnings.push(
-        "boxplot quartile and fence conventions have not been verified against captured output"
+        "boxplot quartile and fence conventions have not been verified against documented output"
             .to_owned(),
     );
     result

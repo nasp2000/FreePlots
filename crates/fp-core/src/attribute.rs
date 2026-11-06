@@ -806,8 +806,8 @@ fn report(defects_column: &str, chart: &AttributeChart) -> AnalysisResult {
     result.notes.extend(chart.notes.clone());
     result.warnings = chart.warnings.clone();
     result.warnings.push(
-        "attribute-chart defaults and exact test set have not been verified against captured \
-         captured output"
+        "attribute-chart defaults and exact test set have not been verified against documented \
+         documented output"
             .to_owned(),
     );
     result

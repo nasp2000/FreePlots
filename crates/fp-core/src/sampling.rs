@@ -13,9 +13,9 @@
 //! pair `(AQL, LTPD)` with the producer and consumer risks: the smallest sample
 //! that gives `Pa(AQL) ≥ 1 − α` and `Pa(LTPD) ≤ β`.
 //!
-//! The comparison run has acceptance sampling; its lot-size and rounding
-//! conventions were not captured, so the numbers are not claimed as reference
-//! parity — see `docs/parity.md`.
+//! The documented behaviour has acceptance sampling; its lot-size and rounding
+//! conventions were not documented, so the numbers are not claimed as reference
+//! parity — see `the project notes`.
 
 use crate::error::{Error, Result};
 use crate::plot::{PlotSpec, Point, Segment, linear_axis};
@@ -348,7 +348,7 @@ pub fn analyze(
     result.warnings = standard_warnings(result.n, 0, 0);
     result.warnings.push(
         "the lot-size and rounding conventions are standard choices and have not been verified \
-         against captured output"
+         against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {
@@ -401,7 +401,7 @@ pub fn analyze_plan(
         ),
     ];
     // Average outgoing quality and average total inspection need the lot size;
-    // the captured run used 1000 and prints both at the AQL and the LTPD.
+    // the documented behaviour used 1000 and prints both at the AQL and the LTPD.
     if let Some(lot) = lot.filter(|lot| *lot > plan.sample) {
         let n = plan.sample as f64;
         let big_n = lot as f64;
@@ -515,8 +515,8 @@ mod tests {
     }
 
     #[test]
-    fn the_plan_matches_the_captured_aoq_and_ati() {
-        // Captured: AQL 1%, LTPD 5%, risks 5%/10%, lot 1000 -> n = 132, c = 3,
+    fn the_plan_matches_the_documented_aoq_and_ati() {
+        // Documented: AQL 1%, LTPD 5%, risks 5%/10%, lot 1000 -> n = 132, c = 3,
         // AOQ 0.830% / 0.431%, ATI 170.4 / 913.9, AOQL 1.278% at 2.220%.
         let output = analyze_plan(0.01, 0.05, 0.05, 0.10, Some(1000)).expect("plan");
         let text = output.results[0].to_session_text();

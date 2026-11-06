@@ -271,7 +271,7 @@ pub fn fit_with(
     let df_first = (a - 1) as f64;
     let df_second = (b - 1) as f64;
     let df_interaction = df_first * df_second;
-    // The captured command fits main effects only: the interaction's degrees
+    // The documented command fits main effects only: the interaction's degrees
     // of freedom go to the error and SS_error = SS_total - SS_A - SS_B.
     let (df_error, ss_error) = if interaction {
         ((a * b * (n - 1)) as f64, ss_error)
@@ -335,7 +335,7 @@ pub fn report(response: &str, first: &str, second: &str, model: &TwoWayFit) -> A
         if model.interaction {
             "Balanced two-way ANOVA with the interaction".to_owned()
         } else {
-            "Balanced two-way ANOVA, main effects only (the captured convention)".to_owned()
+            "Balanced two-way ANOVA, main effects only (the documented convention)".to_owned()
         },
     );
     result.n = model.n;
@@ -450,7 +450,7 @@ pub fn report(response: &str, first: &str, second: &str, model: &TwoWayFit) -> A
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the two-way conventions are standard choices; they have not been verified against \
-         captured output"
+         documented output"
             .to_owned(),
     );
     result

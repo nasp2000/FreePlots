@@ -18,9 +18,9 @@
 //! which keeps the simultaneous false-alarm rate at `α`; the lower limit is
 //! zero, because `T²` cannot be negative.
 //!
-//! The comparison run has a multivariate control chart; its limits and
-//! subgroup conventions were not captured, so the numbers are not claimed as
-//! reference parity — see `docs/parity.md`.
+//! The documented behaviour has a multivariate control chart; its limits and
+//! subgroup conventions were not documented, so the numbers are not claimed as
+//! documented behaviour — see `the project notes`.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
@@ -382,7 +382,7 @@ pub fn analyze(
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the Phase I limits and the subgroup convention are standard choices and have not been \
-         verified against captured output"
+         verified against documented output"
             .to_owned(),
     );
     if !model.out_of_control.is_empty() {

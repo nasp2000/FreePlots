@@ -12,8 +12,8 @@
 //! `(1 − 2α)` interval, which is inside the margin exactly when the test
 //! rejects.
 //!
-//! The comparison run has no equivalence-test path, so this is an
-//! addition of this engine; see `docs/parity.md`.
+//! The documented behaviour has no equivalence-test path, so this is an
+//! addition of this engine; see `the project notes`.
 
 use crate::data::{Column, ColumnData, DataFrame, MissingPolicy, Sample};
 use crate::error::{Error, Result};

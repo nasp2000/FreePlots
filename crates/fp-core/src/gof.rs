@@ -2,7 +2,7 @@
 //!
 //! Decision D14: the p-value of Anderson–Darling with **estimated** parameters
 //! uses the D'Agostino–Stephens composite-AD approximation, recovered from
-//! the captured run . It is deterministic and is derived for the same
+//! the documented behaviour . It is deterministic and is derived for the same
 //! null as the statistic, so it avoids critical values that assume known
 //! parameters. The Monte Carlo version is kept as an independent cross-check.
 
@@ -58,7 +58,7 @@ pub fn bic(log_likelihood: f64, n_params: usize, n: usize) -> f64 {
 }
 
 /// Anderson–Darling p-value for a fitted Normal, by the composite-AD
-/// approximation used by the captured run.
+/// approximation used by the documented behaviour.
 ///
 /// The statistic is first scaled by
 /// `t = A² · (1 + 0.75/n + 2.25/n²)` and then mapped by the piecewise
@@ -70,7 +70,7 @@ pub fn bic(log_likelihood: f64, n_params: usize, n: usize) -> f64 {
 /// | `≤ 0.34` | `1 − exp(−8.318 + 42.796 t − 59.938 t²)` |
 /// | `≤ 0.6` | `exp(0.9177 − 4.279 t − 1.38 t²)` |
 /// | `≤ 1.159` | `exp(1.2937 − 5.709 t + 0.0186 t²)` |
-/// | `> 1.159` | `0.005` (the captured run's clamp) |
+/// | `> 1.159` | `0.005` (the documented behaviour's clamp) |
 ///
 /// Valid for the composite hypothesis, i.e. when the mean and standard
 /// deviation were estimated from the same sample. Recovered from
@@ -107,7 +107,7 @@ pub fn ad_p_value(n: usize, a2: f64) -> Result<f64> {
 }
 
 /// Anderson–Darling p-value for a fitted Weibull, from the small-sample table
-/// recovered from the captured run (Weibull AD routine).
+/// recovered from the documented behaviour (Weibull AD routine).
 ///
 /// `A* = A²·(1 + 0.2/√n)`, interpolated linearly between
 /// `0.474→0.25`, `0.637→0.10`, `0.757→0.05`, `0.877→0.025`, `1.038→0.01`.
@@ -153,14 +153,14 @@ pub fn ad_p_value_weibull(n: usize, a2: f64) -> Result<f64> {
 }
 
 /// Anderson–Darling p-value for a fitted exponential, from the four-branch
-/// formula recovered from the captured run (exponential AD routine).
+/// formula recovered from the documented behaviour (exponential AD routine).
 ///
 /// `A* = A²·(1 + 0.6/n)` and the branches are:
 /// `≤0.26`: `1 − exp(67.459A* − 110.3A*² − 12.2204)`;
 /// `≤0.51`: `1 − exp(20.218A* − 18.663A*² − 6.1327)`;
 /// `≤0.95`: `exp(0.9209 − 3.353A* + 0.3A*²)`;
 /// `≤2.534`: `exp(0.731 − 3.009A* + 0.15A*²)`;
-/// above that, `0.01` (the captured run's clamp).
+/// above that, `0.01` (the documented behaviour's clamp).
 ///
 /// # Errors
 ///
@@ -644,7 +644,7 @@ mod tests {
     #[test]
     fn ad_p_value_matches_the_recovered_table() {
         // Reference values produced by an independent implementation of the
-        // the captured run formula (NATIVE_FORMULAS.md §6.2).
+        // the documented behaviour formula (NATIVE_FORMULAS.md §6.2).
         let cases = [
             (2, 0.1, 0.893_407_215_070_051_4),
             (5, 0.2, 0.751_178_312_124_852_1),

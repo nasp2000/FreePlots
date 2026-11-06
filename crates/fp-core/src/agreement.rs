@@ -15,9 +15,9 @@
 //! `Pₑ` the agreement expected from the margins. A kappa of one means perfect
 //! agreement, zero the agreement expected by chance.
 //!
-//! The comparison run has an attribute agreement analysis; its repetition
-//! and between-appraiser rules were not captured, so the numbers are not
-//! claimed as reference parity — see `docs/parity.md`.
+//! The documented behaviour has an attribute agreement analysis; its repetition
+//! and between-appraiser rules were not documented, so the numbers are not
+//! claimed as documented behaviour — see `the project notes`.
 
 use std::collections::BTreeMap;
 
@@ -349,7 +349,7 @@ pub fn analyze(
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the repetition and modal-rating rules are standard choices and have not been verified \
-         against captured output"
+         against documented output"
             .to_owned(),
     );
 

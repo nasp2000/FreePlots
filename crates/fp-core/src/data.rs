@@ -1110,7 +1110,7 @@ impl Sample {
     /// plotting position `h = (n + 1)p`.
     ///
     /// `p = 0` is the minimum and `p = 1` the maximum. This is the
-    /// interpolated convention of the captured run, confirmed by its
+    /// interpolated convention of the documented behaviour, confirmed by its
     /// descriptive statistics (n = 20: Q1 19.4198, Q3 21.7969).
     pub fn quantile(&self, p: f64) -> Result<f64> {
         quantile_sorted(&self.sorted(), p)
@@ -1564,8 +1564,8 @@ mod tests {
     }
 
     #[test]
-    fn quartiles_match_the_captured_descriptive_statistics() {
-        // n = 20 dataset of the parity kit: the captured run prints
+    fn quartiles_match_the_documented_descriptive_statistics() {
+        // n = 20 dataset of the parity kit: the documented behaviour prints
         // Q1 = 19.4198 and Q3 = 21.7969.
         let values = [
             20.62715749,

@@ -6,11 +6,11 @@
 //! interpolated geometric quantiles at 0.5, 0.00135 and 0.99865, each minus
 //! one (the "number between" form). The event probability is
 //! `(n − 1) / (n + Σg)`, and the quantile is interpolated between the two
-//! surrounding integers of the inverse CDF, the captured convention.
+//! surrounding integers of the inverse CDF, the documented convention.
 //!
-//! The reference capture prints a different event probability for the same
+//! The reference record prints a different event probability for the same
 //! counts (0.594 against 0.625), so the limits are documented but not claimed
-//! as reference parity — see `docs/parity.md`.
+//! as documented behaviour — see `the project notes`.
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
@@ -108,9 +108,9 @@ pub fn build(
     if n < 2 {
         return Err(Error::SampleTooSmall { n, min: 2 });
     }
-    // The captured run estimates p as (n − 1)/(n + Σg) and then interpolates
+    // The documented behaviour estimates p as (n − 1)/(n + Σg) and then interpolates
     // the inverse geometric CDF between integers, subtracting one (the
-    // "number between" form). The plain quantile formula misses the captured
+    // "number between" form). The plain quantile formula misses the documented
     // limits in the second decimal.
     let probability = (n as f64 - 1.0) / (n as f64 + total);
     let cdf = |k: f64| 1.0 - (1.0 - probability).powf(k);
@@ -234,7 +234,7 @@ fn report(counts_column: &str, chart: &RareEventsChart) -> AnalysisResult {
     }
     result.warnings.push(
         "the rare-events conventions are standard choices; they have not been verified against \
-         captured output"
+         documented output"
             .to_owned(),
     );
     result

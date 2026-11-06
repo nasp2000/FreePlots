@@ -15,9 +15,9 @@
 //! predictors are dummy coded with the first level as the reference, so a
 //! coefficient is the change of the log-odds against that reference level.
 //!
-//! The comparison run has a binary logistic regression; its convergence
-//! and grouping conventions were not captured, so the numbers are not claimed
-//! as reference parity — see `docs/parity.md`.
+//! The documented behaviour has a binary logistic regression; its convergence
+//! and grouping conventions were not documented, so the numbers are not claimed
+//! as documented behaviour — see `the project notes`.
 
 use std::collections::BTreeSet;
 
@@ -664,7 +664,7 @@ pub fn analyze(df: &DataFrame, response: &str, predictors: &[String]) -> Result<
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the fit, convergence and grouping conventions are standard choices and have not been \
-         verified against captured output"
+         verified against documented output"
             .to_owned(),
     );
     if !model.converged {
@@ -754,7 +754,7 @@ mod tests {
         assert!(model.coefficients[1] > 0.0, "{:?}", model.coefficients);
         assert!(model.coefficients[2] > model.coefficients[1]);
         assert!(model.odds_ratios[1] > 1.0 && model.odds_ratios[2] > 1.0);
-        // The captured run level has the lowest fitted probability.
+        // The documented behaviour level has the lowest fitted probability.
         let mean = |level: usize| {
             let slice = &model.predicted[level * 10..level * 10 + 10];
             slice.iter().sum::<f64>() / 10.0

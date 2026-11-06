@@ -771,8 +771,8 @@ fn report(response: &str, factors: &[String], model: &FactorialFit) -> AnalysisR
     ];
     result.warnings = standard_warnings(model.regression.n, model.excluded, 0);
     result.warnings.push(
-        "factorial effect conventions and inference have not been verified against captured \
-         captured output"
+        "factorial effect conventions and inference have not been verified against documented \
+         documented output"
             .to_owned(),
     );
     result
@@ -1276,7 +1276,7 @@ pub fn analyze_main_effects(
         ),
     ];
     result.warnings.push(
-        "fractional-factorial alias structure and main-effect conventions have not been verified against captured output"
+        "fractional-factorial alias structure and main-effect conventions have not been verified against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {

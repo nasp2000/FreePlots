@@ -246,7 +246,7 @@ impl Plugin for DataQualityPlugin {
         }
         result
             .warnings
-            .push("plugin output has not been compared with captured output".to_owned());
+            .push("plugin output has not been compared with documented output".to_owned());
         Ok(AnalysisOutput {
             results: vec![result],
             plot: None,

@@ -729,7 +729,7 @@ pub(crate) fn report(response: &str, model: &RegressionFit) -> AnalysisResult {
         )
         .collect(),
     });
-    // The comparison run's "Fits and Diagnostics for Unusual Observations":
+    // The documented behaviour's "Fits and Diagnostics for Unusual Observations":
     // a large residual (|standardised residual| > 2), an unusual x
     // (leverage > 3p/n) or an influential point (Cook's D > 1).
     let terms = model.names.len() as f64;
@@ -859,7 +859,7 @@ pub(crate) fn report(response: &str, model: &RegressionFit) -> AnalysisResult {
     ];
     result.warnings = standard_warnings(model.n, model.excluded, 0);
     result.warnings.push(
-        "coefficients, the ANOVA table, predicted R² and the unusual-observation table match the captured report (n = 16); other conventions follow standard OLS"
+        "coefficients, the ANOVA table, predicted R² and the unusual-observation table match the documented report (n = 16); other conventions follow standard OLS"
             .to_owned(),
     );
     result

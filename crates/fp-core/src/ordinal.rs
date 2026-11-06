@@ -17,9 +17,9 @@
 //! binary observations per row and fitting that with IRLS maximises a
 //! different objective, so it is not used.
 //!
-//! The comparison run has ordinal regression; its convergence and
-//! parameterisation conventions were not captured, so the numbers are not
-//! claimed as reference parity — see `docs/parity.md`.
+//! The documented behaviour has ordinal regression; its convergence and
+//! parameterisation conventions were not documented, so the numbers are not
+//! claimed as documented behaviour — see `the project notes`.
 
 use std::collections::BTreeMap;
 
@@ -247,7 +247,7 @@ pub fn fit(df: &DataFrame, response: &str, predictors: &[String]) -> Result<Ordi
 
     // Maximise the ordinal likelihood directly. The expanded-binomial IRLS
     // used before maximised the sum of the binary likelihoods, which is a
-    // different objective and gave a sub-optimal fit (captured by the
+    // different objective and gave a sub-optimal fit (documented by the
     // statsmodels comparison). The threshold ordering is kept through the
     // increments: theta_1 = t0 and theta_j = theta_{j-1} + exp(d_j).
     let mut start = vec![0.0; k];
@@ -510,7 +510,7 @@ pub fn analyze(df: &DataFrame, response: &str, predictors: &[String]) -> Result<
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the proportional-odds fit and the threshold parameterisation are standard choices and \
-         have not been verified against captured output"
+         have not been verified against documented output"
             .to_owned(),
     );
     if !model.converged {

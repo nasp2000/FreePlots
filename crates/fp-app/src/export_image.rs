@@ -2,7 +2,7 @@
 //!
 //! The SVG produced by the engine is rendered with `resvg`, so the picture is
 //! exactly the one the user sees in the window (same ticks, text, notes and
-//! annotations) and no screen capture is involved. The bundled DejaVu faces are
+//! annotations) and no screen record is involved. The bundled DejaVu faces are
 //! registered with the renderer, so text does not depend on the fonts installed
 //! on the machine.
 

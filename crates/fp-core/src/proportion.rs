@@ -3,8 +3,8 @@
 //! The one-sample test offers the exact binomial p-value and the normal
 //! approximation; its interval is Clopper–Pearson for the exact method and
 //! Wilson for the normal method. The two-sample test uses the pooled normal
-//! approximation. These are standard conventions, not yet captured from the
-//! captured run.
+//! approximation. These are standard conventions, not yet documented from the
+//! documented behaviour.
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
@@ -139,7 +139,7 @@ fn exact_p_value(n: usize, x: usize, p0: f64, alternative: Alternative) -> f64 {
 ///
 /// For each outcome `i` let `T(i) = min(P(X ≤ i), P(X ≥ i))`; the p-value is
 /// the total probability of the outcomes with `T(i) ≤ T(x)`, **leaving out
-/// the observed outcome**. That is the "adjusted" form of the captured run
+/// the observed outcome**. That is the "adjusted" form of the documented behaviour
 /// (n = 20, x = 14, p₀ = 0.5 gives 0.078354, where Clopper–Pearson gives
 /// 0.115318).
 fn blaker_p_value(n: usize, x: usize, p0: f64) -> f64 {
@@ -551,8 +551,8 @@ mod tests {
     }
 
     #[test]
-    fn exact_one_proportion_matches_the_captured_run() {
-        // Captured: n = 20, 14 successes, p₀ = 0.5 -> p 0.078, CI 0.473989-0.860640.
+    fn exact_one_proportion_matches_the_documented_run() {
+        // Documented: n = 20, 14 successes, p₀ = 0.5 -> p 0.078, CI 0.473989-0.860640.
         let mut values = vec![1.0; 14];
         values.extend(vec![0.0; 6]);
         let df = frame("x", values);

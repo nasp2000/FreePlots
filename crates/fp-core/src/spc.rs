@@ -89,7 +89,7 @@ pub struct Limits {
 
 /// Tests for special causes and their sensitivities.
 ///
-/// The defaults are the documented ones of the captured run's `DEFTEST`
+/// The defaults are the documented ones of the documented behaviour's `DEFTEST`
 /// subcommand. Test 1 (a point outside a control limit) is fixed at three
 /// sigma because that is where the limits are drawn; the other seven accept
 /// the documented ranges.
@@ -115,7 +115,7 @@ const SENSITIVITY_RANGE: [(u8, u8); 8] = [
 ];
 
 impl Default for TestSet {
-    /// The comparison run's default: only Test 1 (a point outside a
+    /// The documented behaviour's default: only Test 1 (a point outside a
     /// control limit). The other tests are opt-in through `TEST`.
     fn default() -> Self {
         Self::standard()
@@ -123,7 +123,7 @@ impl Default for TestSet {
 }
 
 impl TestSet {
-    /// Only Test 1, the captured run's default for a new chart.
+    /// Only Test 1, the documented behaviour's default for a new chart.
     #[must_use]
     pub const fn standard() -> Self {
         Self {
@@ -784,7 +784,7 @@ pub fn variable_subgroup_chart(
         };
         let df = (n - 1) as f64;
         degrees += df;
-        // The captured run averages the per-subgroup estimates weighted by
+        // The documented behaviour averages the per-subgroup estimates weighted by
         // their degrees of freedom; it does not pool the variances (which
         // would give a larger within sigma for these unequal subgroups).
         pooled += df * sigma;
@@ -1612,8 +1612,8 @@ fn run_tests(
             }
         }
     }
-    // Test 3: K points steadily increasing or decreasing. The captured run
-    // counts K *changes*, so the window holds K + 1 points (captured: a
+    // Test 3: K points steadily increasing or decreasing. The documented behaviour
+    // counts K *changes*, so the window holds K + 1 points (documented: a
     // 12-point run with K = 6 flags points 7–12).
     if tests.is_enabled(3) {
         let k = run(3);
@@ -1638,7 +1638,7 @@ fn run_tests(
         }
     }
     // Test 4: K points alternating up and down. As with Test 3, K counts the
-    // changes, so the window holds K + 1 points (captured: K = 14 flags from
+    // changes, so the window holds K + 1 points (documented: K = 14 flags from
     // point 15 of a 24-point alternating run).
     if tests.is_enabled(4) {
         let k = run(4);
@@ -2017,8 +2017,8 @@ fn report(column: &str, chart: &ControlChart) -> AnalysisResult {
     result.notes.extend(chart.notes.clone());
     result.warnings = chart.warnings.clone();
     result.warnings.push(
-        "the default test set is Test 1 only, as the captured charts; tests 1, 2, 5, 6 and 8 \
-         and their per-point marking match the captured tables, as do 3 and 4 (which count K \
+        "the default test set is Test 1 only, as the documented charts; tests 1, 2, 5, 6 and 8 \
+         and their per-point marking match the documented tables, as do 3 and 4 (which count K \
          changes) and 7"
             .to_owned(),
     );
@@ -2346,7 +2346,7 @@ mod tests {
     }
 
     #[test]
-    fn unequal_subgroups_match_the_captured_chart() {
+    fn unequal_subgroups_match_the_documented_chart() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../validation/parity19/datasets/unequal.csv"
@@ -2370,7 +2370,7 @@ mod tests {
             .expect("chart");
         assert!((chart.sigma - 0.148851).abs() < 1e-5, "{}", chart.sigma);
         assert!((chart.location_limits.center - 9.979272).abs() < 1e-5);
-        // The third subgroup has n = 3; the captured chart shows these limits.
+        // The third subgroup has n = 3; the documented chart shows these limits.
         let third = chart.location_steps[2];
         assert!((third.lcl - 9.7214).abs() < 5e-4, "{}", third.lcl);
         assert!((third.ucl - 10.2371).abs() < 5e-4, "{}", third.ucl);
@@ -2580,7 +2580,7 @@ mod tests {
     #[test]
     fn xbar_r_dispersion_lower_limit_uses_d3_not_the_sigma_multiplier() {
         // Regression: the range chart used `d3` (0.864 at n = 5) as the lower
-        // limit factor, so LCL came out as 0.86·R̄ instead of 0. The captured
+        // limit factor, so LCL came out as 0.86·R̄ instead of 0. The documented
         // reference chart prints LCL = 0 for n = 5.
         let values: Vec<f64> = (0..21)
             .map(|index| 10.0 + index as f64 * 0.3 + (index % 3) as f64 * 0.05)

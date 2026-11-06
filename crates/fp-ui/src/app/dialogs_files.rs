@@ -434,7 +434,7 @@ impl FreePlotsApp {
                 ui.label(
                     RichText::new(self.catalog().label(
                         "Ctrl and Shift combinations use the keyboard layout in use; the grid \
-                         never captures keys while a text field has focus.",
+                         never records keys while a text field has focus.",
                     ))
                     .small()
                     .color(ui.visuals().text_color()),

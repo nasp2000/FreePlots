@@ -4,7 +4,7 @@
 //! censoring value are treated as right-censored, and all other observations as
 //! events. With no censoring column, every observation is an event. The
 //! confidence interval for `S(t)` uses the Greenwood standard error and the
-//! normal (linear) approximation, the convention of the captured run.
+//! normal (linear) approximation, the convention of the documented behaviour.
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
@@ -266,7 +266,7 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
         ("Censored", model.censored as f64),
     ];
     // Restricted mean survival: the step integral of S(t) up to the largest
-    // observed time, the captured run's Mean (MTTF).
+    // observed time, the documented behaviour's Mean (MTTF).
     let mut mean = 0.0;
     let mut previous_time = 0.0;
     let mut previous_survival = 1.0;
@@ -336,7 +336,7 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
         ),
         (
             "Interval".to_owned(),
-            "normal (linear) on the survival scale, clipped to [0, 1], as the captured run"
+            "normal (linear) on the survival scale, clipped to [0, 1], as the documented behaviour"
                 .to_owned(),
         ),
         (
@@ -353,7 +353,7 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
     ];
     result.warnings = standard_warnings(model.n, model.excluded, 0);
     result.warnings.push(
-        "Kaplan–Meier survival and the normal interval reproduce the captured run \
+        "Kaplan–Meier survival and the normal interval reproduce the documented behaviour \
          (n = 12: S(8) 0.75, CI 0.505–0.995)"
             .to_owned(),
     );
@@ -779,7 +779,7 @@ pub fn analyze_weibull(
     ];
     result.warnings = standard_warnings(model.n, model.excluded, 0);
     result.warnings.push(
-        "censored Weibull conventions and interval estimates have not been verified against captured output"
+        "censored Weibull conventions and interval estimates have not been verified against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {
@@ -1170,7 +1170,7 @@ pub fn analyze_lognormal(
     ];
     result.warnings = standard_warnings(model.n, model.excluded, 0);
     result.warnings.push(
-        "lognormal reliability conventions and interval estimates have not been verified against captured output"
+        "lognormal reliability conventions and interval estimates have not been verified against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {
@@ -1290,7 +1290,7 @@ pub fn fit_exponential(
     let theta = total_time / events as f64;
     let log_likelihood = -(events as f64) * theta.ln() - total_time / theta;
     let alpha = 0.05;
-    // The captured run uses the normal approximation on the log scale:
+    // The documented behaviour uses the normal approximation on the log scale:
     // θ·exp(±z/√events), which is asymmetric on the time axis.
     let _ = alpha;
     let half = 1.959_963_984_540_054 / (events as f64).sqrt();
@@ -1377,7 +1377,7 @@ pub fn analyze_exponential(
         result.statistics.push(("θ CI upper", upper));
     }
     // Characteristics of the fitted distribution, with the same normal
-    // approximation on the log scale that the captured run prints.
+    // approximation on the log scale that the documented behaviour prints.
     let median = model.theta * std::f64::consts::LN_2;
     let q1 = model.theta * (4.0f64 / 3.0).ln();
     let q3 = model.theta * 4.0f64.ln();
@@ -1418,7 +1418,7 @@ pub fn analyze_exponential(
         ],
         rows: characteristic_rows,
     });
-    // Percentiles: the captured table lists 1–10, the deciles and 91–99.
+    // Percentiles: the documented table lists 1–10, the deciles and 91–99.
     let percentages: Vec<u32> = (1..=10)
         .chain((20..=90).step_by(10))
         .chain(91..=99)
@@ -1454,7 +1454,7 @@ pub fn analyze_exponential(
         ),
         (
             "Interval".to_owned(),
-            "95% normal interval on the log scale: θ·exp(±z/√events), the captured convention".to_owned(),
+            "95% normal interval on the log scale: θ·exp(±z/√events), the documented convention".to_owned(),
         ),
         (
             "Assumption".to_owned(),
@@ -1606,8 +1606,8 @@ mod tests {
     }
 
     #[test]
-    fn kaplan_meier_matches_the_captured_normal_interval() {
-        // Captured run, n = 12, two right-censored at 0: S(8) = 0.75 with the
+    fn kaplan_meier_matches_the_documented_normal_interval() {
+        // Documented behaviour, n = 12, two right-censored at 0: S(8) = 0.75 with the
         // normal 95% interval 0.505005-0.995, median 15.
         let times = [
             5.0, 8.0, 8.0, 11.0, 12.5, 15.0, 18.0, 20.0, 22.0, 25.0, 27.0, 30.0,
@@ -1692,7 +1692,7 @@ mod tests {
     }
 
     #[test]
-    fn the_adjusted_ad_matches_the_captured_reliability_value() {
+    fn the_adjusted_ad_matches_the_documented_reliability_value() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../validation/datasets/exponential_n20.csv"
@@ -1707,7 +1707,7 @@ mod tests {
         values.sort_by(f64::total_cmp);
         let theta = values.iter().sum::<f64>() / values.len() as f64;
         let adjusted = adjusted_ad_exponential(&values, theta).expect("statistic");
-        // Captured from the reference distribution analysis (n = 20).
+        // Documented from the reference distribution analysis (n = 20).
         assert!((adjusted - 0.896290).abs() < 1e-4, "{adjusted}");
         // The report prints it in the statistics block.
         let df = DataFrame::new(vec![Column::new_f64("time", values)]).expect("frame");

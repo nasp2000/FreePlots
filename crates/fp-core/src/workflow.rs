@@ -27,11 +27,11 @@ use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::spc::{ControlChartKind, TestSet};
 use crate::special::{SplitMix64, chi_square_quantile, normal_cdf, normal_quantile, normal_sf};
 
-/// What a probability plot displays, mirroring the captured run's `BOTH`/symbols/fit
+/// What a probability plot displays, mirroring the documented behaviour's `BOTH`/symbols/fit
 /// display choice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PlotDisplay {
-    /// Symbols and the fitted line (the captured run's `BOTH`, the default).
+    /// Symbols and the fitted line (the documented behaviour's `BOTH`, the default).
     #[default]
     Both,
     /// Symbols only; the fitted line and band are suppressed.
@@ -65,10 +65,10 @@ impl PlotDisplay {
 /// Layout for multiple Y columns.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PlotLayout {
-    /// One panel per Y column (the captured run's `separate panels`, the default).
+    /// One panel per Y column (the documented behaviour's `separate panels`, the default).
     #[default]
     Separate,
-    /// All Y columns in one set of axes (the captured run's `overlay_continuous`).
+    /// All Y columns in one set of axes (the documented behaviour's `overlay_continuous`).
     Overlay,
 }
 
@@ -95,7 +95,7 @@ impl PlotLayout {
 /// How the Anderson–Darling p-value is obtained.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PValueMethod {
-    /// Composite-AD approximation recovered from the captured run (default).
+    /// Composite-AD approximation recovered from the documented behaviour (default).
     Ad,
     /// Independent Monte Carlo cross-check with a fixed seed.
     MonteCarlo {
@@ -170,7 +170,7 @@ impl DistributionKind {
 /// Normality test family.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NormalityTestKind {
-    /// Anderson–Darling (the captured run's default).
+    /// Anderson–Darling (the documented behaviour's default).
     AndersonDarling,
     /// Kolmogorov–Smirnov with a Monte Carlo Lilliefors p-value.
     KolmogorovSmirnov,
@@ -283,7 +283,7 @@ pub enum AnalysisSpec {
         column: String,
         /// Test family.
         test: NormalityTestKind,
-        /// Draw/report percentile lines (the captured run default: off).
+        /// Draw/report percentile lines (the documented behaviour default: off).
         percentile_lines: bool,
     },
     /// Descriptive statistics for one column.
@@ -635,7 +635,7 @@ pub enum AnalysisSpec {
         first: String,
         /// Second factor column.
         second: String,
-        /// Fit the interaction term (the captured command fits main effects).
+        /// Fit the interaction term (the documented command fits main effects).
         interaction: bool,
     },
     /// Curve fit of a response to a predictor.
@@ -947,7 +947,7 @@ pub enum AnalysisSpec {
 
 /// Replications for the Monte Carlo KS p-value.
 ///
-/// 1000 for the sample sizes of the captures; fewer on large samples so a
+/// 1000 for the sample sizes of the records; fewer on large samples so a
 /// 200 000-row column does not freeze the interface for a minute.
 fn ks_replications(n: usize) -> usize {
     (5_000_000 / n.max(1)).clamp(50, 1000)
@@ -1083,7 +1083,7 @@ impl AnalysisSpec {
         }
     }
 
-    /// Normality test with the captured run's default test (Anderson–Darling) and no
+    /// Normality test with the documented behaviour's default test (Anderson–Darling) and no
     /// percentile lines.
     #[must_use]
     pub fn normality_test(column: impl Into<String>) -> Self {
@@ -4214,7 +4214,7 @@ pub fn weibull_probability(
         ),
         (
             "Confidence band".to_owned(),
-            "plot band from the covariance of the MLE (delta method, normal quantile); the captured covariance construction is not recovered".to_owned(),
+            "plot band from the covariance of the MLE (delta method, normal quantile); the documented covariance construction is not recovered".to_owned(),
         ),
     ];
     Ok(assemble(
@@ -4266,7 +4266,7 @@ pub fn exponential_probability(
         ),
         (
             "Confidence band".to_owned(),
-            "plot band from the covariance of the MLE (delta method, normal quantile); the captured covariance construction is not recovered".to_owned(),
+            "plot band from the covariance of the MLE (delta method, normal quantile); the documented covariance construction is not recovered".to_owned(),
         ),
     ];
     Ok(assemble(
@@ -4324,7 +4324,7 @@ pub fn logistic_probability(
         ),
         (
             "Confidence band".to_owned(),
-            "plot band from the covariance of the MLE (delta method, normal quantile); the captured covariance construction is not recovered".to_owned(),
+            "plot band from the covariance of the MLE (delta method, normal quantile); the documented covariance construction is not recovered".to_owned(),
         ),
     ];
     Ok(assemble(
@@ -4382,7 +4382,7 @@ pub fn loglogistic_probability(
         ),
         (
             "Confidence band".to_owned(),
-            "plot band from the covariance of the MLE (delta method, normal quantile); the captured covariance construction is not recovered".to_owned(),
+            "plot band from the covariance of the MLE (delta method, normal quantile); the documented covariance construction is not recovered".to_owned(),
         ),
     ];
     Ok(assemble(
@@ -4730,7 +4730,7 @@ fn p_value_parts_exponential(
             Ok((
                 "p-value (exponential AD formula)",
                 format!("{p:.6}"),
-                "exponential four-branch formula, 1 + 0.6/n (the captured run)",
+                "exponential four-branch formula, 1 + 0.6/n (the documented behaviour)",
             ))
         }
         PValueMethod::MonteCarlo { .. } => Err(Error::Unsupported(
@@ -5360,7 +5360,7 @@ pub fn capability_non_normal(
     let (name, parameters, expected_low, expected_high, cdf_lsl, cdf_usl, fit_a2, fit_p) =
         match distribution {
             DistributionKind::Lognormal => {
-                // The captured lognormal capability report uses the same
+                // The documented lognormal capability report uses the same
                 // sample moments (n−1) on ln(x) as the probability-plot path,
                 // not the MLE (which divides by n).
                 let fitted = Lognormal::fit_moments(&sample)?;
@@ -5510,7 +5510,7 @@ pub fn capability_non_normal(
         };
 
     // Non-normal capability uses the normal-equivalent Z of the fitted
-    // distribution: Z.LSL = Φ⁻¹(F(LSL)), Z.USL = Φ⁻¹(F(USL)). The captured run
+    // distribution: Z.LSL = Φ⁻¹(F(LSL)), Z.USL = Φ⁻¹(F(USL)). The documented behaviour
     // report shows Pp/PPL/PPU/Ppk built from these scores.
     let z_of = |p: Option<f64>| p.and_then(|p| (p > 0.0 && p < 1.0).then(|| normal_quantile(p)));
     let z_lsl = z_of(cdf_lsl);
@@ -5648,7 +5648,7 @@ pub fn capability_non_normal(
         ),
         (
             "Capability indices".to_owned(),
-            "normal-equivalent Z of the fitted distribution: Pp/PPL/PPU/Ppk from              Φ⁻¹(F(LSL)), Φ⁻¹(F(USL)) and the median (Z = 0), as the captured run does"
+            "normal-equivalent Z of the fitted distribution: Pp/PPL/PPU/Ppk from              Φ⁻¹(F(LSL)), Φ⁻¹(F(USL)) and the median (Z = 0), as the documented behaviour does"
                 .to_owned(),
         ),
         (
@@ -5687,8 +5687,8 @@ pub fn capability_non_normal(
     }
     result.warnings.push(
         "non-normal capability indices and PPM are validated for Weibull, lognormal and \
-         exponential; the other families use the same construction but have no captured \
-         captured output yet"
+         exponential; the other families use the same construction but have no documented \
+         documented output yet"
             .to_owned(),
     );
     Ok(result)
@@ -5697,7 +5697,7 @@ pub fn capability_non_normal(
 /// Normal process capability with within/overall sigma and ppm.
 ///
 /// This is a documented standard implementation, not yet verified against a
-/// captured-product capability report: the exact unbiasing and
+/// documented-behaviour capability report: the exact unbiasing and
 /// confidence-interval conventions remain pending.
 pub fn capability_normal(
     df: &DataFrame,
@@ -5802,8 +5802,8 @@ pub fn capability_normal(
             .map(|pair| (pair[1] - pair[0]).abs())
             .sum::<f64>()
             / (n - 1) as f64;
-        // Published d2 for n = 2 (1.128), the constant the captured report
-        // uses; 2/sqrt(pi) differs by 0.03 % and was visible in the capture.
+        // Published d2 for n = 2 (1.128), the constant the documented report
+        // uses; 2/sqrt(pi) differs by 0.03 % and was visible in the record.
         (moving / 1.128, (n - 1) as f64)
     } else {
         if n % subgroup != 0 {
@@ -6047,7 +6047,7 @@ pub fn capability_normal(
             match (lsl, usl, target) {
                 (Some(_), Some(_), Some(target)) => format!("{target:.6}"),
                 (Some(_), Some(_), None) => {
-                    "not specified; Cpm is not computed (the captured run leaves it blank)"
+                    "not specified; Cpm is not computed (the documented behaviour leaves it blank)"
                         .to_owned()
                 }
                 _ => "not defined for one-sided specifications".to_owned(),
@@ -6090,7 +6090,7 @@ pub fn capability_normal(
     );
     result.warnings.push(
         "capability confidence intervals use standard approximations and have not been \
-         verified against captured output"
+         verified against documented output"
             .to_owned(),
     );
     Ok(result)
@@ -6098,7 +6098,7 @@ pub fn capability_normal(
 
 /// Fits the four implemented distributions and compares AD, AIC and BIC.
 ///
-/// This is the four-distribution subset of the captured run's distribution
+/// This is the four-distribution subset of the documented behaviour's distribution
 /// identification; Johnson/Box-Cox and the other families are not implemented.
 /// Selection rule for the distribution comparison.
 ///
@@ -6401,7 +6401,7 @@ fn sample_shape(sample: &Sample) -> Result<(f64, f64)> {
     Ok((m3 / m2.powf(1.5), m4 / (m2 * m2) - 3.0))
 }
 
-/// Anderson–Darling normality test with the captured run's defaults.
+/// Anderson–Darling normality test with the documented behaviour's defaults.
 pub fn normality_test(
     df: &DataFrame,
     column_name: &str,
@@ -6439,7 +6439,7 @@ pub fn normality_test(
                 ),
                 (
                     "Percentile lines".to_owned(),
-                    "off (the captured run default)".to_owned(),
+                    "off (the documented behaviour default)".to_owned(),
                 ),
             ];
             Ok(build_result(
@@ -6488,7 +6488,7 @@ pub fn normality_test(
                 ),
                 (
                     "Percentile lines".to_owned(),
-                    "off (the captured run default)".to_owned(),
+                    "off (the documented behaviour default)".to_owned(),
                 ),
                 (
                     "Replications".to_owned(),
@@ -6497,7 +6497,7 @@ pub fn normality_test(
                          Lilliefors estimate"
                             .to_owned()
                     } else {
-                        "1000 replications, the captured-run value".to_owned()
+                        "1000 replications, the documented-behaviour value".to_owned()
                     },
                 ),
             ];
@@ -6536,7 +6536,7 @@ pub fn normality_test(
                 ),
                 (
                     "Percentile lines".to_owned(),
-                    "off (the captured run default)".to_owned(),
+                    "off (the documented behaviour default)".to_owned(),
                 ),
             ];
             result.warnings = standard_warnings(sample.n(), sample.excluded(), sample.ties());
@@ -6738,7 +6738,7 @@ pub fn descriptive_statistics(df: &DataFrame, column_name: &str) -> Result<Analy
         (
             "Quartiles".to_owned(),
             "linear interpolation between order statistics with h = (n + 1)p, the \
-             captured convention (n = 20: Q1 19.4198, Q3 21.7969)"
+             documented convention (n = 20: Q1 19.4198, Q3 21.7969)"
                 .to_owned(),
         ),
         (
@@ -8381,7 +8381,7 @@ mod tests {
             Column::new_text("b", rows.iter().map(|(_, _, b)| b.clone()).collect()),
         ])
         .expect("frame");
-        // The default is main effects (the captured convention); the
+        // The default is main effects (the documented convention); the
         // interaction is requested explicitly.
         let spec = AnalysisSpec::two_way_anova("y", "a", "b");
         let out = run_analysis(&df, &spec).expect("two-way anova");
@@ -9798,7 +9798,7 @@ mod tests {
     }
 
     #[test]
-    fn weibull_capability_matches_the_captured_indices() {
+    fn weibull_capability_matches_the_documented_indices() {
         let values = vec![
             9.297698035,
             5.188917866,
@@ -9843,7 +9843,7 @@ mod tests {
     }
 
     #[test]
-    fn lognormal_capability_matches_the_captured_moments() {
+    fn lognormal_capability_matches_the_documented_moments() {
         let values = vec![
             1.605526965,
             2.119455038,

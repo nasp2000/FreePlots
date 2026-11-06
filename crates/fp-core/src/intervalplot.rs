@@ -6,8 +6,8 @@
 //! for reference. The level means and their intervals come from the Student-t
 //! interval of each group (`s/√n` with `n − 1` degrees of freedom).
 //!
-//! The comparison run has an interval plot; its defaults were not captured,
-//! so the numbers are not claimed as reference parity — see `docs/parity.md`.
+//! The documented behaviour has an interval plot; its defaults were not documented,
+//! so the numbers are not claimed as documented behaviour — see `the project notes`.
 
 use crate::anova;
 use crate::data::DataFrame;
@@ -183,7 +183,7 @@ pub fn analyze(
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the interval convention is the standard Student-t interval and has not been verified \
-         against captured output"
+         against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {

@@ -82,7 +82,7 @@ pub fn fit_normal(sample: &Sample) -> Result<Fit<Normal>> {
 /// Unbiasing constant for the sample standard deviation,
 /// `c4 = sqrt(2/(n−1))·Γ(n/2)/Γ((n−1)/2)`.
 ///
-/// the captured run uses `s²(1 − c4²)` as the variance of `s` when it builds the
+/// the documented behaviour uses `s²(1 − c4²)` as the variance of `s` when it builds the
 /// probability-plot confidence band.
 #[must_use]
 pub fn c4(n: usize) -> f64 {

@@ -11,9 +11,9 @@
 //! intercept-only model, McFadden's pseudo-R², AIC, the Pearson dispersion
 //! (overdispersion when it is well above one) and the fitted counts.
 //!
-//! The comparison run has a Poisson regression; its convergence and
-//! dispersion conventions were not captured, so the numbers are not claimed as
-//! reference parity — see `docs/parity.md`.
+//! The documented behaviour has a Poisson regression; its convergence and
+//! dispersion conventions were not documented, so the numbers are not claimed as
+//! documented behaviour — see `the project notes`.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
@@ -488,7 +488,7 @@ pub fn analyze(df: &DataFrame, response: &str, predictors: &[String]) -> Result<
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the fit and convergence conventions are standard choices and have not been verified \
-         against captured output"
+         against documented output"
             .to_owned(),
     );
     if model.dispersion.is_finite() && model.dispersion > 2.0 {

@@ -434,7 +434,7 @@ impl UiCatalog {
             "Context menu of the cell, header or tab" => {
                 "Menu da célula, do cabeçalho ou do separador"
             }
-            "Ctrl and Shift combinations use the keyboard layout in use; the grid never captures keys while a text field has focus." => {
+            "Ctrl and Shift combinations use the keyboard layout in use; the grid never records keys while a text field has focus." => {
                 "As combinações com Ctrl e Shift seguem o layout do teclado em uso; a grelha nunca capta teclas enquanto um campo de texto tem o foco."
             }
             // Window.

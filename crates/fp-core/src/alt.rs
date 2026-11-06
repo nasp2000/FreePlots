@@ -20,9 +20,9 @@
 //! characteristic life and the B10 life to a **use stress**, with the
 //! acceleration factor against the highest stress of the study.
 //!
-//! The comparison run has accelerated life testing; its models and
-//! conventions were not captured, so the numbers are not claimed as reference
-//! parity — see `docs/parity.md`.
+//! The documented behaviour has accelerated life testing; its models and
+//! conventions were not documented, so the numbers are not claimed as reference
+//! parity — see `the project notes`.
 
 use crate::data::{Column, DataFrame};
 use crate::error::{Error, Result};
@@ -731,7 +731,7 @@ pub fn analyze_with(
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the Arrhenius/Weibull fit and the Wald standard errors are standard choices and have not \
-         been verified against captured output"
+         been verified against documented output"
             .to_owned(),
     );
     if !model.converged {
@@ -1078,7 +1078,7 @@ pub fn analyze_competing(
     ];
     result.warnings = standard_warnings(result.n, 0, 0);
     result.warnings.push(
-        "the competing-risks conventions are standard choices and have not been verified against          captured output"
+        "the competing-risks conventions are standard choices and have not been verified against          documented output"
             .to_owned(),
     );
     let panels: Vec<PlotSpec> = fit.models.iter().map(|model| plot(model, time)).collect();
@@ -1527,7 +1527,7 @@ pub fn step_stress_analyze(
     ];
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
-        "the step-stress cumulative-exposure conventions are standard choices and have not been          verified against captured output"
+        "the step-stress cumulative-exposure conventions are standard choices and have not been          verified against documented output"
             .to_owned(),
     );
     let plot = step_stress_plot(&fit, stress);

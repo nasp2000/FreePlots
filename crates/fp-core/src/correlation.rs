@@ -258,8 +258,8 @@ pub fn correlate(df: &DataFrame, columns: &[String]) -> Result<AnalysisResult> {
     ];
     result.warnings = standard_warnings(result.n, 0, 0);
     result.warnings.push(
-        "Pearson correlations match the captured matrix (n = 16); Spearman and Kendall are \
-         standard choices with no captured output"
+        "Pearson correlations match the documented matrix (n = 16); Spearman and Kendall are \
+         standard choices with no documented output"
             .to_owned(),
     );
     Ok(result)

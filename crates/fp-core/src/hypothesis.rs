@@ -2,8 +2,8 @@
 //!
 //! The calculations use the sample standard deviation with divisor `n − 1`
 //! and the Student t distribution. The p-value and interval follow the chosen
-//! alternative; the conventions are standard but have not been captured from
-//! the captured run.
+//! alternative; the conventions are standard but have not been documented from
+//! the documented behaviour.
 
 use crate::data::{Column, ColumnData, DataFrame, MissingPolicy, Sample};
 use crate::error::{Error, Result};

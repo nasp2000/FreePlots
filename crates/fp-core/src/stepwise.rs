@@ -627,7 +627,7 @@ pub fn analyze(
     ));
     result.warnings = standard_warnings(fit.n, fit.excluded, 0);
     result.warnings.push(
-        "stepwise selection follows standard forward/backward conventions and has not been verified against captured output"
+        "stepwise selection follows standard forward/backward conventions and has not been verified against documented output"
             .to_owned(),
     );
     Ok(AnalysisOutput {

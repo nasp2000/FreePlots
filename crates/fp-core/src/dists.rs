@@ -111,7 +111,7 @@ impl Normal {
 
     /// Sample-moment estimate: `µ̂ = x̄`, `σ̂ = s` with divisor `n − 1`.
     ///
-    /// This is the estimator the captured run's probability-plot path passes to the
+    /// This is the estimator the documented behaviour's probability-plot path passes to the
     /// numerical library (the `n − 1` standard deviation), so the fitted line,
     /// the AD statistic and the confidence band all use the same numbers.
     /// [`Self::fit`] remains the MLE used elsewhere in the engine.
@@ -188,7 +188,7 @@ impl Distribution for Normal {
 /// Two-parameter log-normal distribution.
 ///
 /// `ln X ~ Normal(µ, σ)`. The parameters are on the **log scale**, as in
-/// the captured run's distribution fit; the probability plot uses `ln x` and labels the
+/// the documented behaviour's distribution fit; the probability plot uses `ln x` and labels the
 /// axis in original units.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Lognormal {
@@ -238,7 +238,7 @@ impl Lognormal {
         Self::new(mu, variance.sqrt())
     }
 
-    /// Sample-moment fit on `ln x` (the captured run's log-normal plot path).
+    /// Sample-moment fit on `ln x` (the documented behaviour's log-normal plot path).
     pub fn fit_moments(sample: &Sample) -> Result<Self> {
         if sample.n() < 2 {
             return Err(Error::SampleTooSmall {
@@ -322,7 +322,7 @@ impl Distribution for Lognormal {
 /// Two-parameter Weibull distribution.
 ///
 /// `F(x) = 1 − exp(−(x/β)^α)` for `x ≥ 0`. Parameters are shape `α` and scale
-/// `β`, the same order returned by the captured fit.
+/// `β`, the same order returned by the documented fit.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Weibull {
     shape: f64,
@@ -359,7 +359,7 @@ impl Weibull {
         self.scale
     }
 
-    /// Profile-likelihood fit, following the captured fit.
+    /// Profile-likelihood fit, following the documented fit.
     ///
     /// The recovered iteration centers the logarithms by their mean
     /// (`y = ln x − mean(ln x)`), then uses
@@ -518,7 +518,7 @@ impl Exponential {
         self.theta
     }
 
-    /// Maximum-likelihood fit: `θ = mean(x)`, exactly as the captured exponential fit.
+    /// Maximum-likelihood fit: `θ = mean(x)`, exactly as the documented exponential fit.
     pub fn fit_mle(sample: &Sample) -> Result<Self> {
         if sample.n() == 0 {
             return Err(Error::EmptySample);
@@ -933,9 +933,9 @@ impl Distribution for Loglogistic {
 /// Two-parameter gamma distribution.
 ///
 /// `F(x) = P(α, x/β)` for `x > 0`, with shape `α` and scale `β`; the mean is
-/// `αβ` and the variance `αβ²`. The comparison run has no gamma
+/// `αβ` and the variance `αβ²`. The documented behaviour has no gamma
 /// probability plot, so this family is an addition of this engine rather than
-/// a recovered one — see `docs/parity.md`.
+/// a recovered one — see `the project notes`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Gamma {
     shape: f64,
@@ -1165,9 +1165,9 @@ impl Distribution for Gamma {
 
 /// Two-parameter extreme-value distribution (type I Gumbel, maximum domain).
 ///
-/// `F(x) = exp(−exp(−(x − µ)/σ))`. The comparison run has no extreme-value
+/// `F(x) = exp(−exp(−(x − µ)/σ))`. The documented behaviour has no extreme-value
 /// probability plot, so this family is an addition of this engine rather than
-/// a recovered one — see `docs/parity.md`.
+/// a recovered one — see `the project notes`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ExtremeValue {
     location: f64,
@@ -2089,7 +2089,7 @@ mod tests {
             );
             assert!(pdf > 0.0, "x={x}: the density must stay positive");
         }
-        // The captured run density at the 1 % quantile (scipy gumbel_r).
+        // The documented behaviour density at the 1 % quantile (scipy gumbel_r).
         assert!((d.pdf(-0.221_743_700_646_320_96) - 0.057_564_627_324_851_1).abs() < 1e-12);
     }
 

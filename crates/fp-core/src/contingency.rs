@@ -5,9 +5,9 @@
 //! `Eᵢⱼ = rowᵢ·colⱼ/n`, and the degrees of freedom are
 //! `(rows − 1)·(cols − 1)`. Cramér's V is reported as the effect size.
 //!
-//! The comparison run has a cross-tabulation and a chi-square test of
-//! independence; the conventions were not captured from it, so the numbers
-//! are not claimed as reference parity — see `docs/parity.md`.
+//! The documented behaviour has a cross-tabulation and a chi-square test of
+//! independence; the conventions were not documented from it, so the numbers
+//! are not claimed as documented behaviour — see `the project notes`.
 
 use std::collections::BTreeMap;
 
@@ -327,7 +327,7 @@ pub fn report(row_column: &str, column_name: &str, model: &Contingency) -> Analy
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the cross-tabulation conventions are standard choices; they have not been verified \
-         against captured output"
+         against documented output"
             .to_owned(),
     );
     result

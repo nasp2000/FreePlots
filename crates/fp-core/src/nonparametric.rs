@@ -4,9 +4,9 @@
 //! All three work on the ranks of the observations, so they need no normal
 //! assumption; the p-values use the normal approximation (with a continuity
 //! correction and a tie correction) or the chi-square distribution. The
-//! captured run offers the same tests, but the conventions were not
-//! captured from it, so the numbers are not claimed as reference parity —
-//! see `docs/parity.md`.
+//! documented behaviour offers the same tests, but the conventions were not
+//! documented from it, so the numbers are not claimed as documented behaviour —
+//! see `the project notes`.
 
 use std::collections::BTreeMap;
 
@@ -972,7 +972,7 @@ pub fn wilcoxon_signed_rank_columns(
         ("p-value", result.p_value),
         ("Median difference", result.median_difference),
     ];
-    // The captured interval uses the Walsh averages: the endpoints are the
+    // The documented interval uses the Walsh averages: the endpoints are the
     // d-th and (M − d)-th of the n(n+1)/2 pairwise averages, with
     // d = ceil(M/2 − 0.5 − z·√(n(n+1)(2n+1)/24)) and the achieved confidence
     // from the normal approximation with a continuity correction.
@@ -1181,8 +1181,8 @@ mod tests {
     }
 
     #[test]
-    fn mann_whitney_matches_the_captured_shift_interval() {
-        // Captured: 12 vs 12, W 101.50, shift -1.175, CI (-1.95, -0.40),
+    fn mann_whitney_matches_the_documented_shift_interval() {
+        // Documented: 12 vs 12, W 101.50, shift -1.175, CI (-1.95, -0.40),
         // achieved confidence 95.36 %.
         let first = [
             10.1, 10.3, 10.5, 10.7, 10.9, 11.1, 11.3, 11.5, 11.7, 11.9, 12.1, 12.3,

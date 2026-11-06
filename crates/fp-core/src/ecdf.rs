@@ -13,9 +13,9 @@
 //! `[0, 1]`, and the report also gives the quartiles and the KS distance of the
 //! sample (the largest jump of the step).
 //!
-//! The comparison run has an empirical CDF plot; its band convention was not
-//! captured, so the numbers are not claimed as reference parity — see
-//! `docs/parity.md`.
+//! The documented behaviour has an empirical CDF plot; its band convention was not
+//! documented, so the numbers are not claimed as documented behaviour — see
+//! `the project notes`.
 
 use crate::data::{DataFrame, MissingPolicy};
 use crate::error::{Error, Result};
@@ -241,7 +241,7 @@ pub fn analyze(df: &DataFrame, column_name: &str, confidence: f64) -> Result<Ana
     result.warnings = standard_warnings(result.n, result.excluded, sample.ties());
     result.warnings.push(
         "the band is the asymptotic DKW width; the exact finite-sample bound is slightly wider \
-         and the captured convention was not captured"
+         and the documented convention was not documented"
             .to_owned(),
     );
     Ok(AnalysisOutput {

@@ -9,8 +9,8 @@
 //! each variable and whether the pairs move together, before any model is
 //! fitted. Rows must be complete in every variable (listwise deletion).
 //!
-//! The comparison run has a matrix plot; its bin and panel conventions were
-//! not captured, so the layout is our own — see `docs/parity.md`.
+//! The documented behaviour has a matrix plot; its bin and panel conventions were
+//! not documented, so the layout is our own — see `the project notes`.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
@@ -276,7 +276,7 @@ pub fn analyze(df: &DataFrame, columns: &[String], bins: usize) -> Result<Analys
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the panel layout and the bin rule are our own and have not been verified against \
-         captured output"
+         documented output"
             .to_owned(),
     );
 
