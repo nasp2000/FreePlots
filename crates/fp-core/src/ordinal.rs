@@ -247,9 +247,9 @@ pub fn fit(df: &DataFrame, response: &str, predictors: &[String]) -> Result<Ordi
 
     // Maximise the ordinal likelihood directly. The expanded-binomial IRLS
     // used before maximised the sum of the binary likelihoods, which is a
-    // different objective and gave a sub-optimal fit (documented by the
-    // statsmodels comparison). The threshold ordering is kept through the
-    // increments: theta_1 = t0 and theta_j = theta_{j-1} + exp(d_j).
+    // different objective and gave a sub-optimal fit. The threshold ordering
+    // is kept through the increments:
+    // theta_1 = t0 and theta_j = theta_{j-1} + exp(d_j).
     let mut start = vec![0.0; k];
     start[0] = beta[0];
     for cut in 1..cuts {
