@@ -10,6 +10,8 @@ use fp_core::plot::{
 pub enum GraphAction {
     Labels,
     Text,
+    LargerText,
+    SmallerText,
     Annotation,
     Notes,
     DataLabels,
@@ -387,6 +389,18 @@ impl FreePlotsApp {
         self.status = "Note added to the graph".to_owned();
     }
 
+    /// Increases or decreases every graph text by `delta` points.
+    pub fn change_graph_text_size(&mut self, delta: f32) {
+        if self.plot.is_none() {
+            self.set_error("No graph to edit");
+            return;
+        }
+        let current = self.graph_overlay.text_size(12.0);
+        let next = (current + delta).clamp(9.0, 18.0);
+        self.graph_overlay.font_scale = next / 12.0;
+        self.status = format!("Graph text {next:.0} pt");
+    }
+
     /// Applies the typeface and size to every text drawn on the graph.
     pub fn apply_graph_text(&mut self) {
         self.preview_graph_text();
@@ -500,6 +514,8 @@ impl FreePlotsApp {
         match action {
             GraphAction::Labels => "Title, subtitle, axis labels and footer",
             GraphAction::Text => "Typeface and size of every text on the graph",
+            GraphAction::LargerText => "Increase every graph text by 1 point",
+            GraphAction::SmallerText => "Decrease every graph text by 1 point",
             GraphAction::DataDisplay => "Show or hide symbols, lines and bars",
             GraphAction::Annotation => "Place a free note inside the plot",
             GraphAction::Notes => "Duplicate, rotate, delete or reorder notes",
@@ -566,6 +582,8 @@ impl FreePlotsApp {
         match action {
             GraphAction::Labels => self.open_graph_labels(),
             GraphAction::Text => self.open_graph_text(),
+            GraphAction::LargerText => self.change_graph_text_size(1.0),
+            GraphAction::SmallerText => self.change_graph_text_size(-1.0),
             GraphAction::Annotation => self.open_graph_annotation(),
             GraphAction::Notes => self.show_notes = true,
             GraphAction::DataLabels => self.open_data_labels(),

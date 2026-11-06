@@ -6992,6 +6992,11 @@ fn every_graph_context_menu_action_is_audited() {
     app.apply_graph_action(&ctx, GraphAction::Text);
     assert!(app.show_graph_text);
     app.show_graph_text = false;
+    let text_size = app.graph_overlay.text_size(12.0);
+    app.apply_graph_action(&ctx, GraphAction::LargerText);
+    assert!(app.graph_overlay.text_size(12.0) > text_size);
+    app.apply_graph_action(&ctx, GraphAction::SmallerText);
+    assert!((app.graph_overlay.text_size(12.0) - text_size).abs() < 1e-6);
     app.apply_graph_action(&ctx, GraphAction::DataDisplay);
     assert!(app.show_data_display);
     app.show_data_display = false;
@@ -7136,6 +7141,16 @@ fn the_graph_context_menu_changes_are_visible() {
     app.apply_graph_text();
     assert_ne!(svg(&app), cpk_baseline, "graph text did not change the SVG");
     app.apply_graph_action(&ctx, GraphAction::Reset);
+    assert_eq!(svg(&app), cpk_baseline);
+
+    // The context menu can also step the font size up and down directly.
+    app.apply_graph_action(&ctx, GraphAction::LargerText);
+    assert_ne!(
+        svg(&app),
+        cpk_baseline,
+        "larger text did not change the SVG"
+    );
+    app.apply_graph_action(&ctx, GraphAction::SmallerText);
     assert_eq!(svg(&app), cpk_baseline);
 
     // The capability histogram has bars, not points: labels and percentiles

@@ -815,6 +815,8 @@ impl FreePlotsApp {
                         for (label, action) in [
                             ("Graph options…", GraphAction::Labels),
                             ("Graph text…", GraphAction::Text),
+                            ("Larger text", GraphAction::LargerText),
+                            ("Smaller text", GraphAction::SmallerText),
                             ("Data display…", GraphAction::DataDisplay),
                             ("Add note…", GraphAction::Annotation),
                             ("Notes…", GraphAction::Notes),
@@ -961,6 +963,26 @@ impl FreePlotsApp {
                             .clicked()
                         {
                             graph_action = Some(GraphAction::Text);
+                            ui.close();
+                        }
+                        if ui
+                            .button(catalog.label("Larger text"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::LargerText)),
+                            )
+                            .clicked()
+                        {
+                            graph_action = Some(GraphAction::LargerText);
+                            ui.close();
+                        }
+                        if ui
+                            .button(catalog.label("Smaller text"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::SmallerText)),
+                            )
+                            .clicked()
+                        {
+                            graph_action = Some(GraphAction::SmallerText);
                             ui.close();
                         }
                         if ui
