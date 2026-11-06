@@ -111,4 +111,4 @@ python3 scripts/licence-inventory.py
 python3 scripts/licence-inventory.py --check
 ```
 
-`deny.toml` blocks GPL/AGPL and unknown sources, and CI runs `cargo deny check licenses advisories` plus the inventory check on every change. `crates/fp-ui/assets/LICENSE-DejaVu.txt` covers the three bundled DejaVu faces; the Debian packaging files mentioned by the font's upstream copyright file are not part of FreePlots and are not redistributed.
+`deny.toml` blocks GPL/AGPL and unknown sources, and CI runs `cargo deny check licenses advisories` plus the inventory check on every change. `crates/fp-ui/assets/LICENSE-DejaVu.txt` covers the three bundled DejaVu faces.
