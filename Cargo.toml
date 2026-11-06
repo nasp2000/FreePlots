@@ -23,10 +23,12 @@ csv = "=1.4.0"
 
 # UI: version pinned by D17 (egui/eframe =0.36.2). `fp-ui` uses only the pure
 # egui/egui_extras crates; the native window is an opt-in feature of fp-app.
-egui = "=0.36.2"
-egui_extras = "=0.36.2"
+# The interface supplies its own DejaVu family, so egui's default font data
+# (OFL/Ubuntu-font licensed) is not compiled in.
+egui = { version = "=0.36.2", default-features = false }
+egui_extras = { version = "=0.36.2", default-features = false }
 egui_kittest = "=0.36.2"
-# No bundled default fonts (the UI ships DejaVu Sans), no wgpu: the glow
+# No bundled default fonts (the UI ships the DejaVu family), no wgpu: the glow
 # (OpenGL) backend runs on decade-old integrated GPUs.
 eframe = { version = "=0.36.2", default-features = false, features = ["glow", "x11", "accesskit"] }
 

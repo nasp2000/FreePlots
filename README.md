@@ -12,7 +12,7 @@ Statistical desktop application in Rust: an editable worksheet, a Session report
 - **Offline by design.** Every analysis runs on your machine; the program never calls the network.
 - **Portable.** One executable, no installer and no administrator rights.
 - **Transparent.** Every report states the method, the sample size, the exclusions and the warnings.
-- **Auditable.** The engine is a separate Rust crate with native tests, independent oracles and captured outputs.
+- **Auditable.** The engine is a separate Rust crate with native tests, independent oracles and captured outputs; the evidence and its limits are documented in [validation/PROVENANCE.md](validation/PROVENANCE.md).
 - **Familiar.** A worksheet, a Session window, classic menus and graphs in their own windows, the way industrial statistics has always been done.
 
 ## What is inside
@@ -92,14 +92,34 @@ Run `FreePlots` with no arguments to see the full command list, or use the GUI f
 
 All interface and analysis options are saved in `settings.json` inside `FreePlots-data`, next to the executable (or in the user data directory when that folder is read-only): language, theme, zoom, window layout, graph style, last analysis choices, sample settings and conditional formatting. Nothing is sent anywhere.
 
-## Quality
+## Quality and provenance
 
-The engine is covered by native tests for typical, boundary and invalid input, independent oracles (scipy, numpy, statsmodels, lifelines), captured outputs and golden plot files. The UI is tested headlessly with the real widgets, and the portable binaries are built for Windows and Linux on every change.
+The engine is covered by native tests for typical, boundary and invalid input, independent oracles (SciPy, NumPy, statsmodels, scikit-learn, lifelines), captured outputs and golden plot files. The UI is tested headlessly with the real widgets, and the portable binaries are built for Windows and Linux on every change.
+
+- [validation/PROVENANCE.md](validation/PROVENANCE.md): where the datasets, oracle versions, capture method and tolerances come from.
+- [validation/RESULTS.md](validation/RESULTS.md): the public result summary, including the areas that are still open.
+- `validation/compare.py --selftest`: the comparator can be checked without any private capture.
+
+The captured-reference output itself is not redistributed: it is the output of a licensed commercial program and stays in a private pack. Only the fixed datasets, the FreePlots side, the comparator and the result summary are public.
 
 ## Contributing
 
 Bug reports, data sets that break an analysis, translations and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change, and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-## License
+## License and third-party notices
 
-MIT. FreePlots is an independent project, not affiliated with or endorsed by any commercial statistical software vendor. Third-party notices are in `crates/fp-ui/assets/THIRD-PARTY-NOTICES.txt`.
+FreePlots itself is MIT licensed. It is an independent project, not affiliated with, endorsed by, sponsored by or approved by any commercial statistical software vendor. Names and marks of other products belong to their owners.
+
+- [THIRD-PARTY.md](THIRD-PARTY.md): complete inventory of the locked dependencies, separated into runtime, desktop, build-time and development-only packages, with the licence branch used for each.
+- [licenses/DEPENDENCIES.csv](licenses/DEPENDENCIES.csv): the same inventory as data, including authors and repositories.
+- [licenses/sbom.spdx.json](licenses/sbom.spdx.json): SPDX 2.3 SBOM generated from `Cargo.lock`.
+- [crates/fp-ui/assets/THIRD-PARTY-NOTICES.txt](crates/fp-ui/assets/THIRD-PARTY-NOTICES.txt): the notice shipped next to the executable and shown in Help → Third-party licences.
+
+The inventory is generated, not hand-maintained:
+
+```bash
+python3 scripts/licence-inventory.py
+python3 scripts/licence-inventory.py --check
+```
+
+`deny.toml` blocks GPL/AGPL and unknown sources, and CI runs `cargo deny check licenses advisories` plus the inventory check on every change. `crates/fp-ui/assets/LICENSE-DejaVu.txt` covers the three bundled DejaVu faces; the Debian packaging files mentioned by the font's upstream copyright file are not part of FreePlots and are not redistributed.

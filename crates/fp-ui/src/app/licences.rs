@@ -3,7 +3,7 @@
 use super::*;
 
 /// Every notice that must accompany a copy of the binary: the project's MIT
-/// licence, the dependency summary and the DejaVu Sans font licence.
+/// licence, the dependency summary and the DejaVu font licence.
 pub const THIRD_PARTY_NOTICES: &str = include_str!("../../assets/THIRD-PARTY-NOTICES.txt");
 
 impl FreePlotsApp {
