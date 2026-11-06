@@ -498,6 +498,13 @@ impl Desktop {
                     Err(error) => json!({"ok": false, "error": error}),
                 }
             }
+            "plot_svg" => match self.app.plot() {
+                Some(plot) => json!({
+                    "ok": true,
+                    "svg": fp_core::plot::render_svg_with(plot, self.app.graph_overlay()),
+                }),
+                None => json!({"ok": false, "error": "no graph to export"}),
+            },
             "screenshot" => {
                 let path = request.get("path").and_then(Value::as_str).map_or_else(
                     || std::env::temp_dir().join("freeplots-bridge.png"),
