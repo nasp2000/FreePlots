@@ -1,10 +1,8 @@
-//! Regression tests against the captured Session fixtures in `validation/freplots`.
+//! Regression tests against the reviewed Session fixtures in `validation/freplots`.
 //!
-//! These fixtures are FreePlots outputs, not captured-product output.
-//! They freeze the current numerical/report/plot behaviour so that later changes
-//! are explicit. Reference-product captures can be added under
-//! `validation/captured-output` and compared separately with
-//! `validation/compare.py`.
+//! These fixtures are FreePlots outputs. They freeze the current
+//! numerical/report/plot behaviour so that later changes are explicit. The
+//! public validation method is described in `validation/PROVENANCE.md`.
 //!
 //! Each validation has three independent tests:
 //! 1. the full Session text matches the captured file;
