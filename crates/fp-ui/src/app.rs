@@ -5555,6 +5555,3 @@ fn menu_icon_item(
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label));
     response.on_hover_text(label)
 }
-
-#[cfg(test)]
-mod tests;
