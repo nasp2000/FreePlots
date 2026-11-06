@@ -840,13 +840,23 @@ impl FreePlotsApp {
                             {
                                 continue;
                             }
-                            if ui.button(catalog.label(label)).clicked() {
+                            if ui
+                                .button(catalog.label(label))
+                                .on_hover_text(catalog.label(Self::graph_action_help(action)))
+                                .clicked()
+                            {
                                 action_tx.send(action).ok();
                                 ui.close();
                             }
                         }
                         ui.separator();
-                        if ui.button(catalog.label("Reset graph edits")).clicked() {
+                        if ui
+                            .button(catalog.label("Reset graph edits"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Reset)),
+                            )
+                            .clicked()
+                        {
                             action_tx.send(GraphAction::Reset).ok();
                             ui.close();
                         }
@@ -933,87 +943,200 @@ impl FreePlotsApp {
                     }
                     response.context_menu(|ui| {
                         let catalog = self.catalog();
-                        if ui.button(catalog.label("Graph options…")).clicked() {
+                        if ui
+                            .button(catalog.label("Graph options…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Labels)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Labels);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Graph text…")).clicked() {
+                        if ui
+                            .button(catalog.label("Graph text…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Text)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Text);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Data display…")).clicked() {
+                        if ui
+                            .button(catalog.label("Data display…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::DataDisplay)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::DataDisplay);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Add note…")).clicked() {
+                        if ui
+                            .button(catalog.label("Add note…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Annotation)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Annotation);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Notes…")).clicked() {
+                        if ui
+                            .button(catalog.label("Notes…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Notes)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Notes);
                             ui.close();
                         }
                         if spec.has_points()
-                            && ui.button(catalog.label("Add data labels…")).clicked()
+                            && ui
+                                .button(catalog.label("Add data labels…"))
+                                .on_hover_text(
+                                    catalog.label(Self::graph_action_help(GraphAction::DataLabels)),
+                                )
+                                .clicked()
                         {
                             graph_action = Some(GraphAction::DataLabels);
                             ui.close();
                         }
                         if spec.has_points()
-                            && ui.button(catalog.label("Add percentile lines…")).clicked()
+                            && ui
+                                .button(catalog.label("Add percentile lines…"))
+                                .on_hover_text(
+                                    catalog
+                                        .label(Self::graph_action_help(GraphAction::Percentiles)),
+                                )
+                                .clicked()
                         {
                             graph_action = Some(GraphAction::Percentiles);
                             ui.close();
                         }
                         if !spec.panels.is_empty()
-                            && ui.button(catalog.label("Panel layout…")).clicked()
+                            && ui
+                                .button(catalog.label("Panel layout…"))
+                                .on_hover_text(
+                                    catalog
+                                        .label(Self::graph_action_help(GraphAction::PanelLayout)),
+                                )
+                                .clicked()
                         {
                             graph_action = Some(GraphAction::PanelLayout);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Axis scale…")).clicked() {
+                        if ui
+                            .button(catalog.label("Axis scale…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::AxisScale)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::AxisScale);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Toggle gridlines")).clicked() {
+                        if ui
+                            .button(catalog.label("Toggle gridlines"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::GridToggle)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::GridToggle);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Toggle report data")).clicked() {
+                        if ui
+                            .button(catalog.label("Toggle report data"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::ReportToggle)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::ReportToggle);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Add reference lines…")).clicked() {
+                        if ui
+                            .button(catalog.label("Add reference lines…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Reference)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Reference);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Save graph…")).clicked() {
+                        if ui
+                            .button(catalog.label("Save graph…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Save)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Save);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Save as PNG…")).clicked() {
+                        if ui
+                            .button(catalog.label("Save as PNG…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::SavePng)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::SavePng);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Save as JPEG…")).clicked() {
+                        if ui
+                            .button(catalog.label("Save as JPEG…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::SaveJpeg)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::SaveJpeg);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Print graph…")).clicked() {
+                        if ui
+                            .button(catalog.label("Print graph…"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Print)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Print);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Copy graph as SVG")).clicked() {
+                        if ui
+                            .button(catalog.label("Copy graph as SVG"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Copy)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Copy);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Clear marks")).clicked() {
+                        if ui
+                            .button(catalog.label("Clear marks"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::ClearMarks)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::ClearMarks);
                             ui.close();
                         }
                         ui.weak(catalog.label("Brush points: Ctrl+click a point"));
                         ui.separator();
-                        if ui.button(catalog.label("Reset graph edits")).clicked() {
+                        if ui
+                            .button(catalog.label("Reset graph edits"))
+                            .on_hover_text(
+                                catalog.label(Self::graph_action_help(GraphAction::Reset)),
+                            )
+                            .clicked()
+                        {
                             graph_action = Some(GraphAction::Reset);
                             ui.close();
                         }

@@ -389,28 +389,14 @@ impl FreePlotsApp {
 
     /// Applies the typeface and size to every text drawn on the graph.
     pub fn apply_graph_text(&mut self) {
-        self.graph_overlay.font_family = self.graph_text_family;
-        let size = if self.graph_text_size.is_finite() {
-            self.graph_text_size.clamp(9.0, 18.0)
-        } else {
-            12.0
-        };
-        self.graph_overlay.font_scale = size / 12.0;
+        self.preview_graph_text();
         self.show_graph_text = false;
         self.status = "Graph text updated".to_owned();
     }
 
     /// Applies the label editor.
     pub fn apply_graph_labels(&mut self) {
-        if let Some(plot) = &mut self.plot {
-            plot.title = self.graph_label_title.trim().to_owned();
-            plot.x_axis.label = self.graph_label_x.trim().to_owned();
-            plot.y_axis.label = self.graph_label_y.trim().to_owned();
-        }
-        let subtitle = self.graph_label_subtitle.trim();
-        self.graph_overlay.subtitle = (!subtitle.is_empty()).then(|| subtitle.to_owned());
-        let footer = self.graph_label_footer.trim();
-        self.graph_overlay.footer = (!footer.is_empty()).then(|| footer.to_owned());
+        self.preview_graph_labels();
         self.show_graph_labels = false;
         self.status = "Graph options updated".to_owned();
     }
@@ -507,6 +493,72 @@ impl FreePlotsApp {
             plot.y_axis.label = y;
         }
         self.status = "Graph edits reset".to_owned();
+    }
+
+    /// Short explanation shown under a context-menu item.
+    pub(super) fn graph_action_help(action: GraphAction) -> &'static str {
+        match action {
+            GraphAction::Labels => "Title, subtitle, axis labels and footer",
+            GraphAction::Text => "Typeface and size of every text on the graph",
+            GraphAction::DataDisplay => "Show or hide symbols, lines and bars",
+            GraphAction::Annotation => "Place a free note inside the plot",
+            GraphAction::Notes => "Duplicate, rotate, delete or reorder notes",
+            GraphAction::DataLabels => "Label each point with its value or number",
+            GraphAction::Reference => "Vertical or horizontal line with a label",
+            GraphAction::Percentiles => "Lines at chosen percentiles of the points",
+            GraphAction::PanelLayout => "Columns used by a multi-panel graph",
+            GraphAction::AxisScale => "Automatic or manual X and Y limits",
+            GraphAction::GridToggle => "Show or hide the grid",
+            GraphAction::ReportToggle => "Show or hide the statistics block",
+            GraphAction::Save => "Save the graph as SVG",
+            GraphAction::SavePng => "Save a PNG image",
+            GraphAction::SaveJpeg => "Save a JPEG image",
+            GraphAction::Print => "Write a one-page PDF",
+            GraphAction::Copy => "Copy the SVG to the clipboard",
+            GraphAction::ClearMarks => "Remove the Ctrl+click marks",
+            GraphAction::Reset => "Restore the automatic labels and remove the edits",
+        }
+    }
+
+    /// Applies the graph labels while the dialog is open (live preview).
+    fn preview_graph_labels(&mut self) {
+        if let Some(plot) = &mut self.plot {
+            plot.title = self.graph_label_title.trim().to_owned();
+            plot.x_axis.label = self.graph_label_x.trim().to_owned();
+            plot.y_axis.label = self.graph_label_y.trim().to_owned();
+        }
+        let subtitle = self.graph_label_subtitle.trim();
+        self.graph_overlay.subtitle = (!subtitle.is_empty()).then(|| subtitle.to_owned());
+        let footer = self.graph_label_footer.trim();
+        self.graph_overlay.footer = (!footer.is_empty()).then(|| footer.to_owned());
+    }
+
+    /// Applies the typeface and size while the dialog is open (live preview).
+    fn preview_graph_text(&mut self) {
+        self.graph_overlay.font_family = self.graph_text_family;
+        let size = if self.graph_text_size.is_finite() {
+            self.graph_text_size.clamp(9.0, 18.0)
+        } else {
+            12.0
+        };
+        self.graph_overlay.font_scale = size / 12.0;
+    }
+
+    /// Applies whatever manual limits are valid while the dialog is open.
+    fn preview_axis_scale(&mut self) {
+        let x = Self::parse_range(&self.axis_x_min, &self.axis_x_max, "x");
+        let y = Self::parse_range(&self.axis_y_min, &self.axis_y_max, "y");
+        if let (Ok(x), Ok(y)) = (x, y) {
+            self.graph_overlay.x_range = x;
+            self.graph_overlay.y_range = y;
+        }
+    }
+
+    /// Applies the panel columns while the dialog is open.
+    fn preview_panel_layout(&mut self) {
+        if let Some(plot) = &mut self.plot {
+            plot.panel_columns = self.panel_columns_draft.clamp(1, 6);
+        }
     }
 
     /// Runs an action chosen from the graph menu or its context menu.
@@ -609,6 +661,9 @@ impl FreePlotsApp {
         if apply {
             self.apply_graph_labels();
         } else {
+            if open {
+                self.preview_graph_labels();
+            }
             self.show_graph_labels = open && self.show_graph_labels;
         }
     }
@@ -799,6 +854,9 @@ impl FreePlotsApp {
         } else if remove {
             self.apply_data_labels(true);
         } else {
+            if open {
+                self.graph_overlay.data_labels = Some(self.data_label_mode);
+            }
             self.show_data_labels = open && self.show_data_labels;
         }
     }
@@ -891,6 +949,9 @@ impl FreePlotsApp {
         if apply {
             self.apply_panel_layout();
         } else {
+            if open {
+                self.preview_panel_layout();
+            }
             self.show_panel_layout = open && self.show_panel_layout;
         }
     }
@@ -945,6 +1006,9 @@ impl FreePlotsApp {
         } else if automatic {
             self.apply_axis_scale(true);
         } else {
+            if open {
+                self.preview_axis_scale();
+            }
             self.show_axis_scale = open && self.show_axis_scale;
         }
     }
@@ -991,6 +1055,13 @@ impl FreePlotsApp {
                 });
                 ui.horizontal(|ui| {
                     let label = ui.help_label(catalog.label("Text size:"));
+                    if ui
+                        .help_button(catalog.label("A−"))
+                        .on_hover_text(catalog.label("Smaller text"))
+                        .clicked()
+                    {
+                        self.graph_text_size = (self.graph_text_size - 1.0).max(9.0);
+                    }
                     ui.add(
                         egui::DragValue::new(&mut self.graph_text_size)
                             .range(9.0..=18.0)
@@ -999,6 +1070,13 @@ impl FreePlotsApp {
                     )
                     .labelled_by(label.id)
                     .hover_from(&label);
+                    if ui
+                        .help_button(catalog.label("A+"))
+                        .on_hover_text(catalog.label("Larger text"))
+                        .clicked()
+                    {
+                        self.graph_text_size = (self.graph_text_size + 1.0).min(18.0);
+                    }
                 });
                 ui.small(catalog.label(
                     "The size and typeface apply to every text drawn on the graph; the settings are kept for the next session.",
@@ -1022,6 +1100,9 @@ impl FreePlotsApp {
         } else if apply {
             self.apply_graph_text();
         } else {
+            if open {
+                self.preview_graph_text();
+            }
             self.show_graph_text = open && self.show_graph_text;
         }
     }

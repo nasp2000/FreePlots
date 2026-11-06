@@ -534,6 +534,47 @@ impl UiCatalog {
             // Help.
             "User Guide" => "Guia do utilizador",
             "About" => "Acerca",
+            "Title, subtitle, axis labels and footer" => {
+                "Título, subtítulo, rótulos dos eixos e rodapé"
+            }
+            "Typeface and size of every text on the graph" => {
+                "Tipo de letra e tamanho de todos os textos do gráfico"
+            }
+            "Show or hide symbols, lines and bars" => {
+                "Mostrar ou ocultar símbolos, linhas e barras"
+            }
+            "Place a free note inside the plot" => {
+                "Colocar uma nota livre dentro da área do gráfico"
+            }
+            "Duplicate, rotate, delete or reorder notes" => {
+                "Duplicar, rodar, eliminar ou reordenar notas"
+            }
+            "Label each point with its value or number" => {
+                "Rotular cada ponto com o valor ou o número"
+            }
+            "Vertical or horizontal line with a label" => "Linha vertical ou horizontal com rótulo",
+            "Lines at chosen percentiles of the points" => {
+                "Linhas nos percentis escolhidos dos pontos"
+            }
+            "Columns used by a multi-panel graph" => {
+                "Colunas usadas por um gráfico com vários painéis"
+            }
+            "Automatic or manual X and Y limits" => "Limites X e Y automáticos ou manuais",
+            "Show or hide the grid" => "Mostrar ou ocultar a grelha",
+            "Show or hide the statistics block" => "Mostrar ou ocultar o bloco de estatísticas",
+            "Save the graph as SVG" => "Guardar o gráfico em SVG",
+            "Save a PNG image" => "Guardar uma imagem PNG",
+            "Save a JPEG image" => "Guardar uma imagem JPEG",
+            "Write a one-page PDF" => "Escrever um PDF de uma página",
+            "Copy the SVG to the clipboard" => "Copiar o SVG para a área de transferência",
+            "Remove the Ctrl+click marks" => "Remover as marcas de Ctrl+clique",
+            "Restore the automatic labels and remove the edits" => {
+                "Repor os rótulos automáticos e remover as edições"
+            }
+            "A−" => "A−",
+            "A+" => "A+",
+            "Smaller text" => "Texto mais pequeno",
+            "Larger text" => "Texto maior",
             "Sample projects…" => "Projectos de exemplo…",
             "Samples" => "Exemplos",
             "Each sample opens a worksheet and runs the analysis, ready to explore." => {
@@ -703,6 +744,8 @@ mod tests {
 
     /// Labels whose English and Portuguese spellings are the same.
     const SAME_IN_BOTH: &[&str] = &[
+        "A+",
+        "A−",
         "ANOVA",
         "EWMA…",
         "Editor",

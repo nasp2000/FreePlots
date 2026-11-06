@@ -7117,12 +7117,6 @@ fn the_graph_context_menu_changes_are_visible() {
     app.apply_graph_action(&ctx, GraphAction::ReportToggle);
     assert_eq!(svg(&app), cpk_baseline);
 
-    // The capability bars are the "bands" of this graph.
-    app.graph_overlay.show_bands = false;
-    assert_ne!(svg(&app), cpk_baseline, "bands did not change the SVG");
-    app.graph_overlay.show_bands = true;
-    assert_eq!(svg(&app), cpk_baseline);
-
     // The label editor changes the title, subtitle and axis labels.
     app.apply_graph_action(&ctx, GraphAction::Labels);
     app.graph_label_subtitle = "audit".to_owned();
@@ -7247,6 +7241,14 @@ fn the_graph_context_menu_changes_are_visible() {
     );
     app.plot.as_mut().expect("plot").panel_columns = columns;
     app.show_panel_layout = false;
+
+    // A probability plot carries a confidence band; hiding it changes the SVG.
+    app.load_sample("Two probability plots");
+    let band_baseline = svg(&app);
+    app.graph_overlay.show_bands = false;
+    assert_ne!(svg(&app), band_baseline, "bands did not change the SVG");
+    app.graph_overlay.show_bands = true;
+    assert_eq!(svg(&app), band_baseline);
 }
 
 #[test]
