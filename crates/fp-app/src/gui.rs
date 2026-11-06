@@ -690,26 +690,22 @@ pub fn run(args: &[String]) -> Result<(), String> {
         }
     }
 
-    let renderer = renderer
-        .or_else(|| {
-            std::env::var("FREEPLOTS_RENDERER")
-                .ok()
-                .map(|raw| match raw.as_str() {
-                    "glow" => Ok(eframe::Renderer::Glow),
-                    "wgpu" => Ok(eframe::Renderer::Wgpu),
-                    other => Err(format!(
+    let renderer = match renderer {
+        Some(renderer) => renderer,
+        None => match std::env::var("FREEPLOTS_RENDERER") {
+            Ok(raw) => match raw.as_str() {
+                "glow" => eframe::Renderer::Glow,
+                "wgpu" => eframe::Renderer::Wgpu,
+                other => {
+                    return Err(format!(
                         "invalid FREEPLOTS_RENDERER: {other} (use glow or wgpu)"
-                    )),
-                })
-        })
-        .transpose()?
-        .unwrap_or_else(|| {
-            if cfg!(windows) {
-                eframe::Renderer::Wgpu
-            } else {
-                eframe::Renderer::Glow
-            }
-        });
+                    ));
+                }
+            },
+            Err(_) if cfg!(windows) => eframe::Renderer::Wgpu,
+            Err(_) => eframe::Renderer::Glow,
+        },
+    };
     let options = eframe::NativeOptions {
         renderer,
         viewport: egui::ViewportBuilder::default()
