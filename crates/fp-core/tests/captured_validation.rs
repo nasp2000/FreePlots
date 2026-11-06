@@ -516,6 +516,96 @@ mod text_analyses {
     }
 
     #[test]
+    fn tukey_and_fisher_match_the_captured_tables() {
+        let capture = match std::fs::read_to_string(
+            root().join("validation/captured-output/parity19/tukey_fisher.txt"),
+        ) {
+            Ok(text) => text,
+            Err(_) => return,
+        };
+        assert!(capture.contains("Tukey Pairwise Comparisons"));
+        assert!(capture.contains("Fisher Pairwise Comparisons"));
+        let df = dataset("oneway");
+        let model = fp_core::anova::fit(&df, "response", "factor", 0.95).expect("one-way ANOVA");
+        let pair = |a: &str, b: &str| {
+            model
+                .pairwise
+                .iter()
+                .find(|pair| {
+                    (pair.first == a && pair.second == b) || (pair.first == b && pair.second == a)
+                })
+                .unwrap_or_else(|| panic!("missing pair {a}-{b}"))
+        };
+        let check = |a: &str,
+                     b: &str,
+                     difference: f64,
+                     tukey: (f64, f64),
+                     p_tukey: f64,
+                     lsd: (f64, f64),
+                     p_lsd: f64| {
+            let pair = pair(a, b);
+            assert!(
+                (pair.difference.abs() - difference).abs() < 0.002,
+                "{a}-{b} difference {} vs {difference}",
+                pair.difference
+            );
+            let mut bounds = [pair.tukey_lower.abs(), pair.tukey_upper.abs()];
+            bounds.sort_by(f64::total_cmp);
+            let mut expected = [tukey.0, tukey.1];
+            expected.sort_by(f64::total_cmp);
+            assert!(
+                (bounds[0] - expected[0]).abs() < 0.002 && (bounds[1] - expected[1]).abs() < 0.002,
+                "{a}-{b} Tukey CI {bounds:?} vs {expected:?}"
+            );
+            assert!(
+                (pair.p_tukey - p_tukey).abs() < 0.001,
+                "{a}-{b} Tukey p {} vs {p_tukey}",
+                pair.p_tukey
+            );
+            let mut bounds = [pair.lsd_lower.abs(), pair.lsd_upper.abs()];
+            bounds.sort_by(f64::total_cmp);
+            let mut expected = [lsd.0, lsd.1];
+            expected.sort_by(f64::total_cmp);
+            assert!(
+                (bounds[0] - expected[0]).abs() < 0.002 && (bounds[1] - expected[1]).abs() < 0.002,
+                "{a}-{b} LSD CI {bounds:?} vs {expected:?}"
+            );
+            assert!(
+                (pair.p_raw - p_lsd).abs() < 0.001,
+                "{a}-{b} LSD p {} vs {p_lsd}",
+                pair.p_raw
+            );
+        };
+        check(
+            "A",
+            "B",
+            0.747,
+            (0.172, 1.321),
+            0.010,
+            (0.272, 1.222),
+            0.004,
+        );
+        check(
+            "A",
+            "C",
+            1.549,
+            (0.974, 2.124),
+            0.000,
+            (1.074, 2.024),
+            0.000,
+        );
+        check(
+            "B",
+            "C",
+            0.802,
+            (0.228, 1.377),
+            0.006,
+            (0.328, 1.277),
+            0.002,
+        );
+    }
+
+    #[test]
     fn one_way_anova_matches_the_captured_report() {
         let text = report(
             &dataset("oneway"),
