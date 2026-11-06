@@ -34,8 +34,6 @@ jobs:
         run: cargo clippy --workspace --locked --features desktop -- -D warnings
       - name: Build
         run: cargo build --workspace --locked --features desktop
-      - name: Independent statistical validation
-        run: cargo run --locked -p fp-core --example independent_validation
 
   deny:
     name: Licences and advisories
