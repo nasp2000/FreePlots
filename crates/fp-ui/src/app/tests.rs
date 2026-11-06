@@ -7109,7 +7109,11 @@ fn the_graph_context_menu_changes_are_visible() {
     assert_eq!(svg(&app), cpk_baseline);
 
     app.apply_graph_action(&ctx, GraphAction::ReportToggle);
-    assert_ne!(svg(&app), cpk_baseline, "report data did not change the SVG");
+    assert_ne!(
+        svg(&app),
+        cpk_baseline,
+        "report data did not change the SVG"
+    );
     app.apply_graph_action(&ctx, GraphAction::ReportToggle);
     assert_eq!(svg(&app), cpk_baseline);
 
@@ -7117,7 +7121,11 @@ fn the_graph_context_menu_changes_are_visible() {
     app.apply_graph_action(&ctx, GraphAction::Labels);
     app.graph_label_subtitle = "audit".to_owned();
     app.apply_graph_labels();
-    assert_ne!(svg(&app), cpk_baseline, "graph labels did not change the SVG");
+    assert_ne!(
+        svg(&app),
+        cpk_baseline,
+        "graph labels did not change the SVG"
+    );
     app.apply_graph_action(&ctx, GraphAction::Reset);
     assert_eq!(svg(&app), cpk_baseline);
 
@@ -7158,7 +7166,11 @@ fn the_graph_context_menu_changes_are_visible() {
         text: "audit".to_owned(),
         ..Annotation::default()
     });
-    assert_ne!(svg(&app), scatter_baseline, "annotation did not change the SVG");
+    assert_ne!(
+        svg(&app),
+        scatter_baseline,
+        "annotation did not change the SVG"
+    );
     app.graph_overlay.annotations.clear();
 
     let plot = app.plot().expect("plot");
@@ -7203,7 +7215,11 @@ fn the_graph_context_menu_changes_are_visible() {
 
     // Hiding symbols/lines/bands removes ink from the drawing.
     app.graph_overlay.show_symbols = false;
-    assert_ne!(svg(&app), scatter_baseline, "symbols did not change the SVG");
+    assert_ne!(
+        svg(&app),
+        scatter_baseline,
+        "symbols did not change the SVG"
+    );
     app.graph_overlay.show_symbols = true;
     app.graph_overlay.show_lines = false;
     assert_ne!(svg(&app), scatter_baseline, "lines did not change the SVG");

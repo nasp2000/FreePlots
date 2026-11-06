@@ -835,10 +835,8 @@ impl FreePlotsApp {
                             if action == GraphAction::PanelLayout && plot.panels.is_empty() {
                                 continue;
                             }
-                            if matches!(
-                                action,
-                                GraphAction::DataLabels | GraphAction::Percentiles
-                            ) && !plot.has_points()
+                            if matches!(action, GraphAction::DataLabels | GraphAction::Percentiles)
+                                && !plot.has_points()
                             {
                                 continue;
                             }
