@@ -281,7 +281,12 @@ pub fn apply_dark_caption() {
 
 #[cfg(all(feature = "desktop", target_os = "windows"))]
 pub fn prepare_console(args: &[String]) {
-    if args.is_empty() || args.first().map(String::as_str) == Some("--gui") {
+    if args.is_empty()
+        || matches!(
+            args.first().map(String::as_str),
+            Some("--gui" | "--bridge" | "--renderer")
+        )
+    {
         return;
     }
     windows::attach_console();

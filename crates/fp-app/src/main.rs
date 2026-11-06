@@ -72,9 +72,10 @@ fn main() -> std::process::ExitCode {
     if args.is_empty()
         || args.first().map(String::as_str) == Some("--gui")
         || args.first().map(String::as_str) == Some("--bridge")
+        || args.first().map(String::as_str) == Some("--renderer")
     {
         let mut gui_args = args.clone();
-        if gui_args.first().map(String::as_str) == Some("--bridge") {
+        if gui_args.first().map(String::as_str) != Some("--gui") {
             gui_args.insert(0, "--gui".to_owned());
         }
         return match gui::run(&gui_args) {
