@@ -2648,6 +2648,30 @@ mod tests {
     }
 
     #[test]
+    fn a_signal_heavy_chart_collects_signals_in_linear_time() {
+        // A slow wave puts a signal at most points; before the linear push this
+        // took O(n²) and 50k points needed several seconds.
+        let values: Vec<f64> = (0..50_000)
+            .map(|index| 20.0 + 3.0 * (index as f64 * 0.01).sin())
+            .collect();
+        let start = std::time::Instant::now();
+        let signals = run_tests(
+            &values,
+            &rule_limits(),
+            SignalChart::Location,
+            1,
+            Some(1.0),
+            TestSet::all(),
+        );
+        let elapsed = start.elapsed();
+        assert!(!signals.is_empty());
+        assert!(
+            elapsed < std::time::Duration::from_secs(5),
+            "50k signal-heavy points took {elapsed:?}"
+        );
+    }
+
+    #[test]
     fn test_five_needs_two_of_three_beyond_two_sigma() {
         // Two of three points beyond 2σ on the same side signal on the third
         // point of the window.
