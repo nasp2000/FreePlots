@@ -94,8 +94,12 @@ impl FreePlotsApp {
 
     /// Opens the data-label editor with the current choice.
     pub fn open_data_labels(&mut self) {
-        if self.plot.is_none() {
+        let Some(plot) = &self.plot else {
             self.set_error("No graph to edit");
+            return;
+        };
+        if !plot.has_points() {
+            self.set_error("This graph has no points to label");
             return;
         }
         self.data_label_mode = self.graph_overlay.data_labels.unwrap_or_default();
@@ -115,8 +119,12 @@ impl FreePlotsApp {
 
     /// Opens the percentile-lines dialog.
     pub fn open_percentiles(&mut self) {
-        if self.plot.is_none() {
+        let Some(plot) = &self.plot else {
             self.set_error("No graph to edit");
+            return;
+        };
+        if !plot.has_points() {
+            self.set_error("This graph has no points to take percentiles from");
             return;
         }
         self.percentile_axis = ReferenceAxis::Horizontal;

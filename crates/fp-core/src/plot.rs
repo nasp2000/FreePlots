@@ -754,6 +754,13 @@ pub fn log10_axis(label: impl Into<String>, min_value: f64, max_value: f64) -> A
 }
 
 impl PlotSpec {
+    /// `true` when the plot or any of its panels has points that data labels
+    /// and percentile lines can use.
+    #[must_use]
+    pub fn has_points(&self) -> bool {
+        !self.points.is_empty() || self.panels.iter().any(Self::has_points)
+    }
+
     /// Specification of a Normal probability plot, in the captured run orientation.
     ///
     /// Data on the horizontal axis, probability on the vertical axis. The

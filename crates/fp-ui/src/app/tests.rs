@@ -7001,6 +7001,7 @@ fn every_graph_context_menu_action_is_audited() {
     app.apply_graph_action(&ctx, GraphAction::Notes);
     assert!(app.show_notes);
     app.show_notes = false;
+    app.load_sample("Scatter with fit");
     app.apply_graph_action(&ctx, GraphAction::DataLabels);
     assert!(app.show_data_labels);
     app.show_data_labels = false;
@@ -7098,48 +7099,66 @@ fn the_graph_context_menu_changes_are_visible() {
     app.load_sample("Filling line capability");
     let ctx = egui::Context::default();
     let svg = |app: &FreePlotsApp| render_svg_with(app.plot().expect("plot"), app.graph_overlay());
-    let baseline = svg(&app);
+    let cpk_baseline = svg(&app);
 
     // Gridlines and the report block are drawn by the overlay, so each
     // toggle must change the SVG and restore it exactly.
     app.apply_graph_action(&ctx, GraphAction::GridToggle);
-    assert_ne!(svg(&app), baseline, "gridlines did not change the SVG");
+    assert_ne!(svg(&app), cpk_baseline, "gridlines did not change the SVG");
     app.apply_graph_action(&ctx, GraphAction::GridToggle);
-    assert_eq!(svg(&app), baseline);
+    assert_eq!(svg(&app), cpk_baseline);
 
     app.apply_graph_action(&ctx, GraphAction::ReportToggle);
-    assert_ne!(svg(&app), baseline, "report data did not change the SVG");
+    assert_ne!(svg(&app), cpk_baseline, "report data did not change the SVG");
     app.apply_graph_action(&ctx, GraphAction::ReportToggle);
-    assert_eq!(svg(&app), baseline);
+    assert_eq!(svg(&app), cpk_baseline);
 
     // The label editor changes the title, subtitle and axis labels.
     app.apply_graph_action(&ctx, GraphAction::Labels);
     app.graph_label_subtitle = "audit".to_owned();
     app.apply_graph_labels();
-    assert_ne!(svg(&app), baseline, "graph labels did not change the SVG");
+    assert_ne!(svg(&app), cpk_baseline, "graph labels did not change the SVG");
     app.apply_graph_action(&ctx, GraphAction::Reset);
-    assert_eq!(svg(&app), baseline);
+    assert_eq!(svg(&app), cpk_baseline);
 
     // The graph-text editor changes the typeface and the size.
     app.apply_graph_action(&ctx, GraphAction::Text);
     app.graph_text_family = GraphFontFamily::Mono;
     app.graph_text_size = 16.0;
     app.apply_graph_text();
-    assert_ne!(svg(&app), baseline, "graph text did not change the SVG");
+    assert_ne!(svg(&app), cpk_baseline, "graph text did not change the SVG");
     app.apply_graph_action(&ctx, GraphAction::Reset);
-    assert_eq!(svg(&app), baseline);
+    assert_eq!(svg(&app), cpk_baseline);
+
+    // The capability histogram has bars, not points: labels and percentiles
+    // are not applicable and the menu hides them, while a scatter has points.
+    assert!(!app.plot().expect("plot").has_points());
+    app.apply_graph_action(&ctx, GraphAction::DataLabels);
+    assert!(app.error.is_some());
+    app.error = None;
+    app.apply_graph_action(&ctx, GraphAction::Percentiles);
+    assert!(app.error.is_some());
+    app.error = None;
+
+    app.load_sample("Scatter with fit");
+    assert!(app.plot().expect("plot").has_points());
+    let scatter_baseline = svg(&app);
 
     // Data labels, annotations, reference lines, percentiles and a manual
-    // axis range each add visible ink.
+    // axis range each add visible ink on a plot with points.
     app.graph_overlay.data_labels = Some(DataLabelMode::YValue);
-    assert_ne!(svg(&app), baseline, "data labels did not change the SVG");
+    assert_ne!(
+        svg(&app),
+        scatter_baseline,
+        "data labels did not change the SVG"
+    );
     app.graph_overlay.data_labels = None;
 
     app.graph_overlay.annotations.push(Annotation {
         text: "audit".to_owned(),
         ..Annotation::default()
     });
-    assert_ne!(svg(&app), baseline, "annotation did not change the SVG");
+    assert_ne!(svg(&app), scatter_baseline, "annotation did not change the SVG");
     app.graph_overlay.annotations.clear();
 
     let plot = app.plot().expect("plot");
@@ -7150,7 +7169,11 @@ fn the_graph_context_menu_changes_are_visible() {
         value: (x_min + x_max) / 2.0,
         label: Some("ref".to_owned()),
     });
-    assert_ne!(svg(&app), baseline, "reference line did not change the SVG");
+    assert_ne!(
+        svg(&app),
+        scatter_baseline,
+        "reference line did not change the SVG"
+    );
     app.graph_overlay.reference_lines.clear();
 
     app.open_percentiles();
@@ -7159,7 +7182,7 @@ fn the_graph_context_menu_changes_are_visible() {
     assert!(app.error.is_none(), "{:?}", app.error);
     assert_ne!(
         svg(&app),
-        baseline,
+        scatter_baseline,
         "percentile line did not change the SVG"
     );
     app.graph_overlay.reference_lines.clear();
@@ -7170,21 +7193,25 @@ fn the_graph_context_menu_changes_are_visible() {
     app.axis_y_min = format!("{}", y_min + (y_max - y_min) * 0.25);
     app.axis_y_max = format!("{}", y_min + (y_max - y_min) * 0.75);
     app.apply_axis_scale(false);
-    assert_ne!(svg(&app), baseline, "axis range did not change the SVG");
+    assert_ne!(
+        svg(&app),
+        scatter_baseline,
+        "axis range did not change the SVG"
+    );
     app.apply_graph_action(&ctx, GraphAction::Reset);
-    assert_eq!(svg(&app), baseline);
+    assert_eq!(svg(&app), scatter_baseline);
 
     // Hiding symbols/lines/bands removes ink from the drawing.
     app.graph_overlay.show_symbols = false;
-    assert_ne!(svg(&app), baseline, "symbols did not change the SVG");
+    assert_ne!(svg(&app), scatter_baseline, "symbols did not change the SVG");
     app.graph_overlay.show_symbols = true;
     app.graph_overlay.show_lines = false;
-    assert_ne!(svg(&app), baseline, "lines did not change the SVG");
+    assert_ne!(svg(&app), scatter_baseline, "lines did not change the SVG");
     app.graph_overlay.show_lines = true;
     app.graph_overlay.show_bands = false;
-    assert_ne!(svg(&app), baseline, "bands did not change the SVG");
+    assert_ne!(svg(&app), scatter_baseline, "bands did not change the SVG");
     app.graph_overlay.show_bands = true;
-    assert_eq!(svg(&app), baseline);
+    assert_eq!(svg(&app), scatter_baseline);
 
     // The panel editor changes the column count of a multi-panel plot.
     app.load_sample("Three probability plots");

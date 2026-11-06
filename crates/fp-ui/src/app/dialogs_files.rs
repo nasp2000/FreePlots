@@ -835,6 +835,13 @@ impl FreePlotsApp {
                             if action == GraphAction::PanelLayout && plot.panels.is_empty() {
                                 continue;
                             }
+                            if matches!(
+                                action,
+                                GraphAction::DataLabels | GraphAction::Percentiles
+                            ) && !plot.has_points()
+                            {
+                                continue;
+                            }
                             if ui.button(catalog.label(label)).clicked() {
                                 action_tx.send(action).ok();
                                 ui.close();
@@ -948,11 +955,15 @@ impl FreePlotsApp {
                             graph_action = Some(GraphAction::Notes);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Add data labels…")).clicked() {
+                        if spec.has_points()
+                            && ui.button(catalog.label("Add data labels…")).clicked()
+                        {
                             graph_action = Some(GraphAction::DataLabels);
                             ui.close();
                         }
-                        if ui.button(catalog.label("Add percentile lines…")).clicked() {
+                        if spec.has_points()
+                            && ui.button(catalog.label("Add percentile lines…")).clicked()
+                        {
                             graph_action = Some(GraphAction::Percentiles);
                             ui.close();
                         }
