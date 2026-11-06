@@ -51,10 +51,23 @@ fn no_comparison_product_names() {
         .to_path_buf();
     let terms = banned();
     let mut paths = Vec::new();
-    for directory in ["crates", "validation", "docs", "scripts", "licenses", ".github"] {
+    for directory in [
+        "crates",
+        "validation",
+        "docs",
+        "scripts",
+        "licenses",
+        ".github",
+    ] {
         files(&root.join(directory), &mut paths);
     }
-    for file in ["report.md", "README.md", "PLAN.md", "AGENTS.md", "THIRD-PARTY.md"] {
+    for file in [
+        "report.md",
+        "README.md",
+        "PLAN.md",
+        "AGENTS.md",
+        "THIRD-PARTY.md",
+    ] {
         let path = root.join(file);
         if path.exists() {
             paths.push(path);
