@@ -1,67 +1,47 @@
-# Validation results
+# Validation coverage
 
-Public summary of the captured-run comparisons. The raw Session text and graph
-exports stay in the private capture pack; this page records only the dataset,
-the analysis, the outcome and the tolerance. See `PROVENANCE.md` for the method.
+This page summarises the independent checks behind FreePlots. Every row is
+reproducible from the public repository; no proprietary software or external
+service is required. See `PROVENANCE.md` for the method and the oracle versions.
 
-## Comparison session
+## Independent oracles
 
-- Capture session: 2026-10-25, external commercial statistical package on a
-  dedicated Windows workstation, English interface.
-- Datasets: fixed synthetic CSVs in `datasets/`.
-- Comparator: `python3 validation/compare.py`.
-- Tolerances: numbers `5e-4` absolute or relative; Anderson–Darling and p-values
-  `1.5e-3` absolute; `n` exact.
-
-## Closed by the capture
-
-| Dataset / analysis | Result | Public fixtures |
+| Area | Oracle / reference | Status |
 |---|---|---|
-| `normal_n8`, `normal_n20`, `normal_n30`, `normal_n200` — probability plot, Normal | Pass | FreePlots Session text in `freplots/` |
-| `lognormal_n30` — probability plot, Lognormal | Pass | `freplots/lognormal_n30.txt` |
-| `weibull_n20` — probability plot, Weibull | Pass | `freplots/weibull_n20.txt` |
-| `exponential_n20` — probability plot, Exponential | Pass | `freplots/exponential_n20.txt` |
-| `normal_n20` — normality test, Anderson–Darling | Pass | `freplots/normality_n20.txt` |
-| `twosample` — two-sample t (Welch) | Pass | `freplots/twosample.txt` |
-| `oneway` — one-way ANOVA, including the Tukey HSD and Fisher LSD tables | Pass | `freplots/oneway.txt`; regression test `captured_validation.rs` |
-| `regress` — ordinary least squares | Pass | `freplots/regress.txt` |
-| `correlation` — Pearson matrix | Pass | `freplots/correlation.txt` |
-| `normal_n20` — probability plot, Logistic | Pass | `freplots/logistic_n20.txt` |
-| `normal_n20` — capability (LSL 15, USL 25) | Pass | `freplots/dcapa_n20.txt` |
-| `normal_n20` — I–MR, X̄–R and X̄–S limits | Pass | `freplots/` |
-| `normal_n20` — CUSUM default plan | Pass | `freplots/cusum_n20.txt` |
-| `normal_n20` — distribution identification | Pass for the fitted table | `freplots/` |
+| Probability distributions and fits | SciPy 1.18.1; published likelihood formulas | Covered by `tools/gen_distributions.py`, `gen_fits.py` |
+| Descriptive statistics, quartiles, Boxplot | NumPy 2.5.4; R-7 definition | Covered by `tools/gen_charts.py` |
+| t tests, proportions, variances, equivalence | SciPy 1.18.1; closed-form formulas | Covered by `tools/gen_tests.py`, `gen_inference.py` |
+| Non-parametric tests | SciPy 1.18.1 | Covered by `tools/gen_nonparametric.py` |
+| One-way and two-way ANOVA, Tukey/Fisher | SciPy 1.18.1; hand-built sums of squares | Covered by `tools/gen_anova.py` |
+| Regression and stepwise selection | statsmodels 0.15.0; hand-built OLS | Covered by `tools/gen_regression.py`, `gen_stepwise.py` |
+| Logistic, ordinal and Poisson regression | statsmodels 0.15.0 | Covered by `tools/gen_ordinal.py`, `gen_regression.py` |
+| PCA and k-means | NumPy 2.5.4; scikit-learn 1.9.1 | Covered by `tools/gen_pca.py`, `gen_kmeans.py` |
+| Reliability and accelerated life | SciPy 1.18.1; lifelines 0.30.3 | Covered by `tools/gen_reliability.py`, `gen_alt.py`, `gen_kaplan_meier.py` |
+| Time series and decomposition | statsmodels 0.15.0 | Covered by `tools/gen_timeseries.py` |
+| DOE, RSM, Taguchi, Plackett–Burman | hand-built OLS; orthogonal-array definitions | Covered by `tools/gen_doe.py`, `gen_rsm.py` |
+| Capability and control charts | published constants and closed-form limits; NumPy for arithmetic | Covered by `tools/gen_control*.py`, `gen_subgroups.py`, `gen_laney.py` |
+| MSA (Gage R&R, linearity, agreement, Type 1) | hand-built ANOVA/t tests and kappa | Covered by `tools/gen_gage.py`, `gen_msa.py`, `gen_agreement.py` |
+| Plot structure, axes and panels | deterministic SVG/golden checks | Covered by `crates/fp-core/tests/golden.rs` |
+| Licence inventory and SBOM | `Cargo.lock` plus crate metadata | Covered by `scripts/licence-inventory.py --check` |
 
-The graph checks (ticks, range, band edges, fitted line) were performed on the
-exported plots. The ticks and bands that were verified are recorded in the local
-parity notes; that file also marks the cases that remain provisional.
+## Regression fixtures
 
-## Captured, compared manually
+The `validation/freplots/` files are FreePlots reports frozen by this project.
+They are used to detect unintended changes in wording, tables and plot
+structure. They are not another program's output and do not establish
+equivalence with one.
 
-These areas had a captured Session and were checked number by number because
-their labels differ from the probability-plot comparator. They are not
-automatic regressions yet.
+## Open coverage
 
-| Area | Result |
+| Area | Why it remains open |
 |---|---|
-| Lognormal, Weibull and exponential non-normal capability | Parameters, expected/observed PPM and Pp/PPL/PPU/Ppk agree; expected-PPM confidence intervals were not captured |
-| Loglogistic probability plot | Agrees after the parameterisation is translated (FreePlots prints scale/shape; the capture prints the log location and reciprocal scale) |
-| Logistic 95 % band | Agrees at p = 5 % and p = 10 % |
-| Weibull 95 % band | Agrees within 0.3 % on the log10 axis |
-| Test 1–8 control-chart signals | Limits and per-point signals agree on the captured samples |
-| Grouped descriptive statistics, G chart, acceptance sampling, run chart, proportion tests, sign test, non-parametrics, two-way ANOVA, Kaplan–Meier, interval plot, Taguchi L18, Plackett–Burman, partial correlation, data manipulation | Captured in the 19-area kit; each row is compared manually and recorded in the local capture log |
-
-## Open
-
-| Area | Why it is open |
-|---|---|
-| Expected-PPM confidence interval | The capture command opened a modal dialog and the capture host stopped responding; a new capture session is needed |
-| Some graph-only conventions (exact tick set for Weibull/exponential, axis padding) | The text capture cannot prove them; they are checked visually and remain provisional |
-| Areas with no captured run at all | Listed with their status in `docs/parity.md`; they are covered by independent oracles or closed-form tests, not by a captured comparison |
+| Some graph-only conventions (exact tick sets, axis padding, band shape) | They are design choices checked against the documented rules and golden plots, not against a proprietary implementation |
+| Analyses without an independent oracle yet | Listed in `docs/parity.md` with their current status; they are covered by closed-form tests and input validation, not by an oracle |
+| Very large data sets | Performance is measured separately (1M rows in the capability and control-chart paths); it is not a numerical-accuracy claim |
 
 ## Interpretation
 
-A row is marked pass only when the Session numbers are inside the tolerances and
-the graph checklist is complete. Matching a formula or a common convention is
-not, by itself, a captured comparison. The absence of a captured row is not
-evidence of a defect; it is an explicit gap in coverage.
+A row is marked covered only when the numerical test or the documented plot
+check exists and runs in CI. Matching a formula or a common convention is not,
+by itself, a claim of equivalence with another program. The absence of a check
+is an explicit coverage gap, not evidence of a defect.

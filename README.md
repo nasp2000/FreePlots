@@ -1,6 +1,6 @@
 # FreePlots
 
-**FreePlots is a classic statistics and analysis application built entirely by AI with a single commitment: to be free and accessible to everyone.**
+**FreePlots is a classic statistics and analysis application built entirely by AI with a single commitment: to be open, free and accessible to everyone.**
 
 Statistical desktop application in Rust: an editable worksheet, a Session report and the classic analyses (descriptive statistics, capability, control charts, MSA, hypothesis tests, ANOVA, regression, DOE, reliability).
 
@@ -12,7 +12,7 @@ Statistical desktop application in Rust: an editable worksheet, a Session report
 - **Offline by design.** Every analysis runs on your machine; the program never calls the network.
 - **Portable.** One executable, no installer and no administrator rights.
 - **Transparent.** Every report states the method, the sample size, the exclusions and the warnings.
-- **Auditable.** The engine is a separate Rust crate with native tests, independent oracles and captured outputs; the evidence and its limits are documented in [validation/PROVENANCE.md](validation/PROVENANCE.md).
+- **Auditable.** The engine is a separate Rust crate with native tests, published formulas, independent open-source oracles and synthetic datasets; the evidence and its limits are documented in [validation/PROVENANCE.md](validation/PROVENANCE.md).
 - **Familiar.** A worksheet, a Session window, classic menus and graphs in their own windows, the way industrial statistics has always been done.
 
 ## What is inside
@@ -94,13 +94,12 @@ All interface and analysis options are saved in `settings.json` inside `FreePlot
 
 ## Quality and provenance
 
-The engine is covered by native tests for typical, boundary and invalid input, independent oracles (SciPy, NumPy, statsmodels, scikit-learn, lifelines), captured outputs and golden plot files. The UI is tested headlessly with the real widgets, and the portable binaries are built for Windows and Linux on every change.
+The engine is covered by native tests for typical, boundary and invalid input, published formulas, independent open-source oracles (SciPy, NumPy, statsmodels, scikit-learn, lifelines), synthetic datasets and golden plot files. The UI is tested headlessly with the real widgets, and the portable binaries are built for Windows and Linux on every change.
 
-- [validation/PROVENANCE.md](validation/PROVENANCE.md): where the datasets, oracle versions, capture method and tolerances come from.
-- [validation/RESULTS.md](validation/RESULTS.md): the public result summary, including the areas that are still open.
-- `validation/compare.py --selftest`: the comparator can be checked without any private capture.
+- [validation/PROVENANCE.md](validation/PROVENANCE.md): the datasets, oracle versions, tolerances and regression fixtures.
+- [validation/RESULTS.md](validation/RESULTS.md): the validation coverage table, including the areas that are still open.
 
-The captured-reference output itself is not redistributed: it is the output of a licensed commercial program and stays in a private pack. Only the fixed datasets, the FreePlots side, the comparator and the result summary are public.
+FreePlots does not publish or rely on comparisons with proprietary software. Validation uses published statistical formulas, synthetic datasets, closed-form checks and independent open-source implementations; the regression fixtures are FreePlots output frozen by this project.
 
 ## Contributing
 
