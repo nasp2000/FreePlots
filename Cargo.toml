@@ -32,7 +32,7 @@ egui_kittest = "=0.36.2"
 # (OpenGL) backend runs on decade-old integrated GPUs.
 eframe = { version = "=0.36.2", default-features = false, features = ["glow", "x11", "accesskit"] }
 
-# Apenas testes.
+# Development only.
 proptest = "=1.9.0"
 
 [profile.release]

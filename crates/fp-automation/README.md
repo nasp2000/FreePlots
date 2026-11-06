@@ -1,7 +1,7 @@
 # fp-automation
 
-Semantic automation of the real FreePlots interface, used by the native UI
-tests and by `fp-mcp`.
+Semantic automation of the real FreePlots interface, used by the automation
+tools and by `fp-mcp`.
 
 ```rust
 use fp_automation::Automation;

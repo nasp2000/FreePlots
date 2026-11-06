@@ -272,6 +272,48 @@ def registry_package(key: tuple[str, str]) -> dict | None:
     return None
 
 
+def copyright_notice(name: str, version: str, authors: str) -> str:
+    """Best available copyright line for a package.
+
+    Cargo.toml often omits authors, while the crate's LICENSE/COPYING file still
+    carries the required notice.  Read the first copyright lines from the
+    registry cache; fall back to the declared authors and then to the crate name.
+    """
+    if authors:
+        return authors
+    registries = Path.home() / ".cargo" / "registry" / "src"
+    if registries.exists():
+        for registry in registries.iterdir():
+            directory = registry / f"{name}-{version}"
+            if not directory.is_dir():
+                continue
+            candidates = sorted(
+                path
+                for path in directory.iterdir()
+                if path.is_file()
+                and path.name.upper().startswith(("LICENSE", "COPYING", "NOTICE"))
+            )
+            for path in candidates:
+                try:
+                    text = path.read_text(errors="replace")
+                except OSError:
+                    continue
+                lines = text.splitlines()
+                found: list[str] = []
+                for index, line in enumerate(lines):
+                    stripped = line.strip()
+                    if re.match(r"^(?:Copyright|COPYRIGHT|copyright|©)\s*(?:\(c\)|\(C\)|©)?\s*(?:\d{4}|[A-Z])", stripped):
+                        found.append(stripped)
+                        if (
+                            index + 1 < len(lines)
+                            and "all rights reserved" in lines[index + 1].lower()
+                        ):
+                            found.append(lines[index + 1].strip())
+                if found:
+                    return "; ".join(dict.fromkeys(found))[:400]
+    return f"the {name} contributors"
+
+
 def package_index(platforms: list[str]) -> dict[tuple[str, str], dict]:
     index: dict[tuple[str, str], dict] = {}
     for platform in sorted(set(platforms) | set(EXTRA_INDEX_PLATFORMS)):
@@ -339,6 +381,9 @@ def collect(platforms: list[str]) -> dict[tuple[str, str], dict]:
             "declared": declared,
             "used": used,
             "authors": ", ".join(package.get("authors") or []),
+            "copyright": copyright_notice(
+                key[0], key[1], ", ".join(package.get("authors") or [])
+            ),
             "repository": package.get("repository")
             or package.get("homepage")
             or package.get("source")
@@ -481,14 +526,17 @@ def render_notice(rows: dict[tuple[str, str], dict], platforms: list[str]) -> st
         "",
         "Third-party dependencies",
         "------------------------",
-        "This binary links the permissive packages below. The full inventory,",
+        "This binary links the permissive packages below. The author line is the",
+        "copyright attribution declared by each package. The full inventory,",
         "including build-time and development-only packages, is in THIRD-PARTY.md",
         "and DEPENDENCIES.csv, shipped beside this file with every release. The",
         "licence texts follow the package list.",
         "",
     ]
     for row in shipped:
-        lines.append(f"  {row['name']} {row['version']} - {row['used']}")
+        lines.append(
+            f"  {row['name']} {row['version']} - {row['used']} - {row['copyright']}"
+        )
     lines += [
         "",
         "Bundled fonts",
@@ -528,6 +576,7 @@ def render_csv(rows: dict[tuple[str, str], dict], platforms: list[str]) -> str:
             "declared_license",
             "license_used",
             "authors",
+            "copyright",
             "repository",
             "source",
         ]
@@ -542,6 +591,7 @@ def render_csv(rows: dict[tuple[str, str], dict], platforms: list[str]) -> str:
                 row["declared"],
                 row["used"],
                 row["authors"],
+                row["copyright"],
                 row["repository"],
                 row["source"],
             ]
@@ -584,7 +634,7 @@ def render_sbom(
                 "filesAnalyzed": False,
                 "licenseConcluded": row["used"],
                 "licenseDeclared": row["declared"],
-                "copyrightText": row["authors"] or "NOASSERTION",
+                "copyrightText": row["copyright"],
                 "externalRefs": [
                     {
                         "referenceCategory": "PACKAGE-MANAGER",

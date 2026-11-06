@@ -182,7 +182,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2022 The Arboard contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -236,7 +236,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2019 as-raw-xcb-connection Contributers",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -470,7 +470,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2022 Tait Hoyem <tait@tait.tech>",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -488,7 +488,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2022 Tait Hoyem <tait@tait.tech>",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -614,7 +614,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the blocking contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -668,7 +668,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Unlicense OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2015 Andrew Gallant",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -794,7 +794,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the color contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -884,7 +884,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2019 The Crossbeam Project Developers",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1028,7 +1028,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0 AND MIT",
       "licenseDeclared": "Apache-2.0 AND MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2018 Jorge Aparicio; Copyright \u00a9 2005-2020 Rich Felker, et al.; Copyright \u00a9 1993,2004 Sun Microsystems or; Copyright \u00a9 2003-2011 David Schultz or; Copyright \u00a9 2003-2009 Steven G. Kargl or; Copyright \u00a9 2003-2009 Bruce D. Evans or; Copyright \u00a9 2008 Stephen L. Moshier or; Copyright \u00a9 2017-2018 Arm Limited",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1172,7 +1172,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2015",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1316,7 +1316,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016--2023",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1550,7 +1550,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2019 Fontations Developers",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1568,7 +1568,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2021 Riey",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1604,7 +1604,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1622,7 +1622,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1658,7 +1658,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1676,7 +1676,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1694,7 +1694,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1910,7 +1910,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) HarfBuzz developers; Copyright (c) 2020 Yevhenii Reizner",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -1946,7 +1946,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016 Amanieu d'Antras",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2000,7 +2000,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the image-webp contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2036,7 +2036,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016--2017",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2162,7 +2162,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2018 Raph Levien",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2180,7 +2180,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) The Rust Project Developers",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2234,7 +2234,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the linebender_resource_handle contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2540,7 +2540,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2018 Raph Levien",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2666,7 +2666,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the pin-project-lite contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2738,7 +2738,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2018 Raph Levien",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2882,7 +2882,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2016 Johann Tuffe",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2918,7 +2918,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the r-efi contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -2936,7 +2936,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the r-efi contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3044,7 +3044,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2019 Fontations Developers",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3098,7 +3098,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2017 the Resvg Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3386,7 +3386,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright Individual contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3440,7 +3440,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2018 Reizner Evgeniy",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3476,7 +3476,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2019 Fontations Developers",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3656,7 +3656,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) 2018 Yevhenii Reizner",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3854,7 +3854,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright Individual contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3872,7 +3872,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright Individual contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3890,7 +3890,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright Individual contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3908,7 +3908,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright Individual contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -3998,7 +3998,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the unarray contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4178,7 +4178,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2017 the Resvg Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4214,7 +4214,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2020 the Vello Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4232,7 +4232,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2020 the Vello Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4286,7 +4286,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the wasip2 contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4556,7 +4556,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2023 dAxpeDDa",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4592,7 +4592,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4610,7 +4610,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4628,7 +4628,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4646,7 +4646,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4664,7 +4664,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4682,7 +4682,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4700,7 +4700,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4718,7 +4718,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4736,7 +4736,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4754,7 +4754,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4790,7 +4790,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4826,7 +4826,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright (c) Microsoft Corporation.",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -4898,7 +4898,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the winnow contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -5204,7 +5204,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "BSD-2-Clause OR Apache-2.0 OR MIT",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "Copyright 2023 The Fuchsia Authors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -5222,7 +5222,7 @@
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT OR Apache-2.0 OR Zlib",
-      "copyrightText": "NOASSERTION",
+      "copyrightText": "the zune-core contributors",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
