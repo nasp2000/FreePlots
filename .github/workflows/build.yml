@@ -40,10 +40,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check
           arguments: --all-features
+      - name: Fetch every locked crate
+        run: cargo fetch --locked
+      - name: Committed licence inventory is current
+        run: python3 scripts/licence-inventory.py --check
 
   windows:
     name: Windows x86_64 portable
@@ -59,10 +66,24 @@ jobs:
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: cargo build --release --locked -p fp-app --features desktop
+      - name: Licence inventory and SBOM for this build
+        shell: bash
+        run: |
+          if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+          "$PY" scripts/licence-inventory.py \
+            --platform x86_64-pc-windows-msvc \
+            --artifact FreePlots-windows-x86_64 \
+            --output-dir licences-out \
+            --third-party licences-out/THIRD-PARTY.md \
+            --notice licences-out/LICENSES.txt \
+            --created "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p dist
+          cp target/release/FreePlots.exe dist/
+          cp licences-out/LICENSES.txt licences-out/THIRD-PARTY.md licences-out/DEPENDENCIES.csv licences-out/sbom.spdx.json dist/
       - uses: actions/upload-artifact@v4
         with:
           name: FreePlots-windows-x86_64
-          path: target/release/FreePlots.exe
+          path: dist
           if-no-files-found: error
 
   linux-arm:
@@ -87,8 +108,20 @@ jobs:
         run: |
           strip target/release/FreePlots
           ./target/release/FreePlots --version
+      - name: Licence inventory and SBOM for this build
+        run: |
+          python3 scripts/licence-inventory.py \
+            --platform aarch64-unknown-linux-gnu \
+            --artifact FreePlots-linux-aarch64 \
+            --output-dir licences-out \
+            --third-party licences-out/THIRD-PARTY.md \
+            --notice licences-out/LICENSES.txt \
+            --created "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p dist
+          cp target/release/FreePlots dist/
+          cp licences-out/LICENSES.txt licences-out/THIRD-PARTY.md licences-out/DEPENDENCIES.csv licences-out/sbom.spdx.json dist/
       - uses: actions/upload-artifact@v4
         with:
           name: FreePlots-linux-aarch64
-          path: target/release/FreePlots
+          path: dist
           if-no-files-found: error
