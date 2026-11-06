@@ -12,7 +12,6 @@ Statistical desktop application in Rust: an editable worksheet, a Session report
 - **Offline by design.** Every analysis runs on your machine; the program never calls the network.
 - **Portable.** One executable, no installer and no administrator rights.
 - **Transparent.** Every report states the method, the sample size, the exclusions and the warnings.
-- **Auditable.** The engine is a separate Rust crate with native tests, published formulas, independent open-source oracles and synthetic datasets; the evidence and its limits are documented in [validation/PROVENANCE.md](validation/PROVENANCE.md).
 - **Familiar.** A worksheet, a Session window, classic menus and graphs in their own windows, the way industrial statistics has always been done.
 
 ## What is inside
@@ -58,7 +57,7 @@ cargo build --release -p fp-app --features desktop
 ./target/release/FreePlots
 ```
 
-The desktop feature needs the usual X11/OpenGL development packages on Linux. The engine, the CLI and the headless UI tests build without them.
+The desktop feature needs the usual X11/OpenGL development packages on Linux. The engine, the CLI and the headless UI layer build without them.
 
 ### First steps
 1. Open a CSV (`File > Open CSV...`) or press **Samples** and pick an example.
@@ -91,15 +90,6 @@ Run `FreePlots` with no arguments to see the full command list, or use the GUI f
 ## Settings and data
 
 All interface and analysis options are saved in `settings.json` inside `FreePlots-data`, next to the executable (or in the user data directory when that folder is read-only): language, theme, zoom, window layout, graph style, last analysis choices, sample settings and conditional formatting. Nothing is sent anywhere.
-
-## Quality and provenance
-
-The engine is covered by native tests for typical, boundary and invalid input, published formulas, independent open-source oracles (SciPy, NumPy, statsmodels, scikit-learn, lifelines), synthetic datasets and golden plot files. The UI is tested headlessly with the real widgets, and the portable binaries are built for Windows and Linux on every change.
-
-- [validation/PROVENANCE.md](validation/PROVENANCE.md): the datasets, oracle versions, tolerances and regression fixtures.
-- [validation/RESULTS.md](validation/RESULTS.md): the validation coverage table, including the areas that are still open.
-
-Validation uses published statistical formulas, synthetic datasets, closed-form checks and independent open-source implementations; the regression fixtures are FreePlots output frozen by this project.
 
 ## Contributing
 
