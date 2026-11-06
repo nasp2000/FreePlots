@@ -738,9 +738,9 @@ pub fn power_report(
         _ => String::new(),
     }));
     notes.push((
-        "Reference parity".to_owned(),
-        "the documented behaviour's power dialog defaults were not documented; the numbers follow the \
-         formulas stated above"
+        "Conventions".to_owned(),
+        "the power dialog defaults are documented conventions; the numbers follow the formulas \
+         stated above"
             .to_owned(),
     ));
     report.notes = notes;
