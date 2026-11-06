@@ -8970,10 +8970,7 @@ mod tests {
 
     #[test]
     fn distribution_comparison_skips_a_family_that_does_not_converge() {
-        let path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../validation/datasets/normal_n20.csv"
-        );
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/normal_n20.csv");
         let text = std::fs::read_to_string(path).expect("dataset");
         let values: Vec<f64> = text
             .lines()

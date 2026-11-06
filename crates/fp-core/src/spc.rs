@@ -2347,10 +2347,7 @@ mod tests {
 
     #[test]
     fn unequal_subgroups_match_the_documented_chart() {
-        let path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../validation/parity19/datasets/unequal.csv"
-        );
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/unequal.csv");
         let text = std::fs::read_to_string(path).expect("dataset");
         let mut groups: std::collections::BTreeMap<String, Vec<f64>> = Default::default();
         for line in text.lines().skip(1) {

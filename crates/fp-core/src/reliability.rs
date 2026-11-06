@@ -1695,7 +1695,7 @@ mod tests {
     fn the_adjusted_ad_matches_the_documented_reliability_value() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../validation/datasets/exponential_n20.csv"
+            "/../../testdata/exponential_n20.csv"
         );
         let text = std::fs::read_to_string(path).expect("dataset");
         let mut values: Vec<f64> = text
