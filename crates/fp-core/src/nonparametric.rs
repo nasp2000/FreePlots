@@ -1118,3 +1118,241 @@ pub fn kruskal_wallis_columns(
     analysis.warnings = standard_warnings(analysis.n, analysis.excluded, 0);
     Ok(analysis)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn sample(values: Vec<f64>) -> Sample {
+        Sample::new(values, MissingPolicy::Drop).expect("sample")
+    }
+
+    #[test]
+    fn the_sign_test_matches_the_binomial_tails() {
+        // Six above and one below: the two-sided p-value is 2·P(X ≤ 1) with n = 7.
+        let values = sample(vec![11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 9.0]);
+        let result = sign_test(&values, 10.0).expect("test");
+        assert_eq!(result.n, 7);
+        assert_eq!(result.above, 6);
+        assert_eq!(result.below, 1);
+        assert_eq!(result.ties, 0);
+        assert_eq!(result.statistic, 1);
+        // P(X ≤ 1) = 8/128, and the other tail is the same.
+        assert!(
+            (result.p_value - 16.0 / 128.0).abs() < 1e-12,
+            "{}",
+            result.p_value
+        );
+        // A value on the median carries no sign.
+        let values = sample(vec![10.0, 11.0, 12.0]);
+        let result = sign_test(&values, 10.0).expect("test");
+        assert_eq!(result.ties, 1);
+        assert_eq!(result.n, 2);
+        // Both remaining observations are above: 2·P(X ≤ 0) = 0.5.
+        assert!((result.p_value - 0.5).abs() < 1e-12, "{}", result.p_value);
+        // A constant sample has no signs at all.
+        let values = sample(vec![5.0, 5.0]);
+        assert!(matches!(
+            sign_test(&values, 5.0),
+            Err(Error::ConstantSample)
+        ));
+    }
+
+    #[test]
+    fn the_sign_test_report_is_built() {
+        let df = DataFrame::new(vec![Column::new_f64(
+            "x",
+            vec![8.0, 9.0, 11.0, 12.0, 13.0, 14.0, 15.0],
+        )])
+        .expect("frame");
+        let report = sign_test_columns(&df, "x", 10.0).expect("report");
+        let text = report.to_session_text();
+        assert!(text.contains("Sign Test"), "{text}");
+        assert!(text.contains("p-value"), "{text}");
+    }
+
+    #[test]
+    fn mid_ranks_average_the_ties() {
+        let ranks = mid_ranks(&[1.0, 2.0, 2.0, 5.0]);
+        assert_eq!(ranks, vec![1.0, 2.5, 2.5, 4.0]);
+        let single = mid_ranks(&[7.0]);
+        assert_eq!(single, vec![1.0]);
+    }
+
+    #[test]
+    fn mann_whitney_matches_the_documented_shift_interval() {
+        // Documented: 12 vs 12, W 101.50, shift -1.175, CI (-1.95, -0.40),
+        // achieved confidence 95.36 %.
+        let first = [
+            10.1, 10.3, 10.5, 10.7, 10.9, 11.1, 11.3, 11.5, 11.7, 11.9, 12.1, 12.3,
+        ];
+        let second = [
+            11.0, 11.25, 11.5, 11.75, 12.0, 12.25, 12.5, 12.75, 13.0, 13.25, 13.5, 13.75,
+        ];
+        let df = DataFrame::new(vec![
+            Column::new_f64("a", first.to_vec()),
+            Column::new_f64("b", second.to_vec()),
+        ])
+        .expect("frame");
+        let result = mann_whitney_columns(&df, "a", "b", Alternative::TwoSided).expect("test");
+        let value = |name: &str| {
+            result
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+                .unwrap_or_else(|| panic!("{name} missing"))
+        };
+        assert!((value("Rank sum 1") - 101.5).abs() < 1e-9);
+        assert!((value("Hodges-Lehmann shift") - (-1.175)).abs() < 1e-9);
+        assert!((value("Shift CI lower") - (-1.95)).abs() < 1e-9);
+        assert!((value("Shift CI upper") - (-0.40)).abs() < 1e-9);
+        assert!((value("Achieved confidence") - 95.51).abs() < 0.05);
+    }
+
+    #[test]
+    fn mann_whitney_detects_a_separated_sample() {
+        let first = sample(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let second = sample(vec![11.0, 12.0, 13.0, 14.0, 15.0, 16.0]);
+        let result = mann_whitney(&first, &second, Alternative::TwoSided).expect("test");
+        assert_eq!(result.u1, 0.0);
+        assert!(result.p_value < 0.01, "p {}", result.p_value);
+        assert!(result.z < 0.0);
+    }
+
+    #[test]
+    fn mann_whitney_accepts_identical_samples() {
+        let first = sample(vec![1.0, 2.0, 3.0, 4.0]);
+        let second = sample(vec![1.0, 2.0, 3.0, 4.0]);
+        let result = mann_whitney(&first, &second, Alternative::TwoSided).expect("test");
+        assert!((result.u1 - 8.0).abs() < 1e-12, "U1 {}", result.u1);
+        assert!(result.p_value > 0.5, "p {}", result.p_value);
+        assert!((result.hodges_lehmann - 0.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn mann_whitney_hodges_lehmann_is_the_median_difference() {
+        let first = sample(vec![1.0, 2.0, 3.0]);
+        let second = sample(vec![2.0, 4.0, 6.0]);
+        let result = mann_whitney(&first, &second, Alternative::TwoSided).expect("test");
+        // Differences: -1, -3, -5, 0, -2, -4 → median -2.
+        assert!(
+            (result.hodges_lehmann + 2.0).abs() < 1e-12,
+            "{}",
+            result.hodges_lehmann
+        );
+    }
+
+    #[test]
+    fn wilcoxon_signed_rank_detects_a_consistent_shift() {
+        let differences = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let result = wilcoxon_signed_rank(&differences, Alternative::TwoSided).expect("test");
+        assert_eq!(result.w_plus, 21.0);
+        assert_eq!(result.w_minus, 0.0);
+        assert!(result.p_value < 0.05, "p {}", result.p_value);
+        assert!((result.median_difference - 3.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn wilcoxon_signed_rank_drops_zero_differences() {
+        let differences = vec![0.0, 1.0, -1.0, 2.0, -2.0];
+        let result = wilcoxon_signed_rank(&differences, Alternative::TwoSided).expect("test");
+        assert_eq!(result.n, 4);
+        // |1| and |2| are ties: the mid-ranks are 1.5 and 3.5.
+        assert!((result.w_plus - 5.0).abs() < 1e-12, "W+ {}", result.w_plus);
+        assert!(
+            (result.w_minus - 5.0).abs() < 1e-12,
+            "W− {}",
+            result.w_minus
+        );
+    }
+
+    #[test]
+    fn kruskal_wallis_detects_different_groups() {
+        let mut groups = BTreeMap::new();
+        groups.insert("a".to_owned(), vec![1.0, 2.0, 3.0, 4.0]);
+        groups.insert("b".to_owned(), vec![20.0, 21.0, 22.0, 23.0]);
+        let result = kruskal_wallis(&groups).expect("test");
+        assert_eq!(result.groups, 2);
+        assert!(result.h > 3.0, "H {}", result.h);
+        assert!(result.p_value < 0.05, "p {}", result.p_value);
+    }
+
+    #[test]
+    fn kruskal_wallis_needs_two_groups() {
+        let mut groups = BTreeMap::new();
+        groups.insert("a".to_owned(), vec![1.0, 2.0, 3.0]);
+        assert!(matches!(
+            kruskal_wallis(&groups),
+            Err(Error::Unsupported { .. })
+        ));
+    }
+
+    #[test]
+    fn friedman_detects_different_groups() {
+        let first = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let second = vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+        let third = vec![20.0, 21.0, 22.0, 23.0, 24.0, 25.0];
+        let result = friedman(&[first, second, third]).expect("friedman");
+        assert_eq!(result.groups, 3);
+        assert_eq!(result.blocks, 6);
+        assert!(result.q > 3.0, "q {}", result.q);
+        assert!(result.p_value < 0.05, "p {}", result.p_value);
+    }
+
+    #[test]
+    fn friedman_of_identical_groups_is_not_significant() {
+        let first = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let second = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let result = friedman(&[first.clone(), second.clone()]).expect("friedman");
+        assert!(result.q < 1e-12, "q {}", result.q);
+        assert!(result.p_value > 0.5, "p {}", result.p_value);
+    }
+
+    #[test]
+    fn moods_median_detects_different_groups() {
+        let mut groups = BTreeMap::new();
+        groups.insert("a".to_owned(), vec![1.0, 2.0, 3.0, 4.0]);
+        groups.insert("b".to_owned(), vec![20.0, 21.0, 22.0, 23.0]);
+        let result = moods_median(&groups).expect("mood");
+        assert_eq!(result.groups, 2);
+        assert!(result.statistic > 3.0, "statistic {}", result.statistic);
+        assert!(result.p_value < 0.05, "p {}", result.p_value);
+    }
+
+    #[test]
+    fn column_level_tests_build_the_report() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("a", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+            Column::new_f64("b", vec![10.0, 11.0, 12.0, 13.0, 14.0]),
+            Column::new_text(
+                "g",
+                vec![
+                    "x".to_owned(),
+                    "x".to_owned(),
+                    "y".to_owned(),
+                    "y".to_owned(),
+                    "x".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+
+        let text = mann_whitney_columns(&df, "a", "b", Alternative::TwoSided)
+            .expect("mwu")
+            .to_session_text();
+        assert!(text.contains("Mann-Whitney Test"), "{text}");
+        assert!(text.contains("p-value"), "{text}");
+
+        let text = wilcoxon_signed_rank_columns(&df, "a", "b", Alternative::TwoSided)
+            .expect("wilcoxon")
+            .to_session_text();
+        assert!(text.contains("Wilcoxon Signed-Rank Test"), "{text}");
+
+        let text = kruskal_wallis_columns(&df, "a", "g")
+            .expect("kruskal")
+            .to_session_text();
+        assert!(text.contains("Kruskal-Wallis Test"), "{text}");
+    }
+}

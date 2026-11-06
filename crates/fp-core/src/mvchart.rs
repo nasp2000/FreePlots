@@ -403,3 +403,132 @@ pub fn analyze(
         plot: Some(plot(&model)),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+    use crate::special::f_quantile as fq;
+
+    /// Ten subgroups of three observations on two variables around a centre;
+    /// the last subgroup is shifted far away.
+    fn frame(shift: f64) -> DataFrame {
+        let mut a = Vec::new();
+        let mut b = Vec::new();
+        // Within-subgroup offsets that are not collinear, so the covariance is
+        // invertible.
+        let offsets = [(-0.1, 0.05), (0.0, -0.1), (0.1, 0.02)];
+        for group in 0..10 {
+            for (offset_a, offset_b) in offsets {
+                let jump = if group == 9 { shift } else { 0.0 };
+                a.push(10.0 + offset_a + jump);
+                b.push(20.0 + offset_b + jump);
+            }
+        }
+        DataFrame::new(vec![Column::new_f64("a", a), Column::new_f64("b", b)]).expect("frame")
+    }
+
+    #[test]
+    fn the_limits_follow_the_f_distribution() {
+        let model = fit(&frame(0.0), &["a".to_owned(), "b".to_owned()], 3, 0.95).expect("fit");
+        assert_eq!(model.groups, 10);
+        assert_eq!(model.subgroup, 3);
+        let p = 2.0;
+        let groups = 10.0;
+        let subgroup = 3.0;
+        let df = groups * subgroup - groups - p + 1.0;
+        let expected = p * (groups - 1.0) * (subgroup - 1.0) / df * fq(0.95, p, df);
+        assert!((model.ucl - expected).abs() < 1e-9, "{}", model.ucl);
+        assert!((model.mean[0] - 10.0).abs() < 1e-9);
+        // The second variable's offsets average −0.03/3 = −0.01.
+        assert!((model.mean[1] - 19.99).abs() < 1e-9, "{}", model.mean[1]);
+        // Stable data: every subgroup sits inside the limits.
+        assert!(model.out_of_control.is_empty(), "{:?}", model.values);
+        assert!(model.values.iter().all(|value| *value < model.ucl));
+    }
+
+    #[test]
+    fn a_shifted_subgroup_leaves_the_chart() {
+        let model = fit(&frame(5.0), &["a".to_owned(), "b".to_owned()], 3, 0.95).expect("fit");
+        // The shifted subgroup is flagged and carries the largest statistic.
+        assert!(
+            model.out_of_control.contains(&10),
+            "{:?}",
+            model.out_of_control
+        );
+        assert!(model.values[9] > model.ucl);
+        let largest = model
+            .values
+            .iter()
+            .enumerate()
+            .max_by(|left, right| left.1.total_cmp(right.1))
+            .map(|(index, _)| index)
+            .unwrap_or(0);
+        assert_eq!(largest, 9, "{:?}", model.values);
+    }
+
+    #[test]
+    fn invalid_configurations_are_rejected() {
+        let df = frame(0.0);
+        let columns = ["a".to_owned(), "b".to_owned()];
+        assert!(matches!(
+            fit(&df, &columns, 1, 0.95),
+            Err(Error::InvalidParameter { .. })
+        ));
+        assert!(matches!(
+            fit(&df, &["a".to_owned()], 3, 0.95),
+            Err(Error::Unsupported(_))
+        ));
+        assert!(matches!(
+            fit(&df, &columns, 3, 0.3),
+            Err(Error::InvalidParameter { .. })
+        ));
+    }
+
+    #[test]
+    fn the_report_and_the_chart_are_built() {
+        let out =
+            analyze(&frame(0.0), &["a".to_owned(), "b".to_owned()], 3, 0.95).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Hotelling T"), "{text}");
+        assert!(text.contains("UCL"), "{text}");
+        assert!(text.contains("Cov"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.points.len(), 10);
+    }
+
+    #[test]
+    fn a_missing_row_does_not_shift_the_columns() {
+        let rows: Vec<(f64, f64)> = (0..12)
+            .map(|index| {
+                let wiggle = if index % 2 == 0 { 0.4 } else { -0.4 };
+                (
+                    10.0 + index as f64 * 0.1,
+                    20.0 + index as f64 * 0.2 + wiggle,
+                )
+            })
+            .collect();
+        let mut with_missing = rows.clone();
+        with_missing.insert(0, (f64::NAN, 999.0));
+        let frame_of = |rows: &[(f64, f64)]| {
+            DataFrame::new(vec![
+                Column::new_f64("x", rows.iter().map(|row| row.0).collect()),
+                Column::new_f64("y", rows.iter().map(|row| row.1).collect()),
+            ])
+            .expect("frame")
+        };
+        let columns = vec!["x".to_owned(), "y".to_owned()];
+        let a = fit(&frame_of(&with_missing), &columns, 3, 0.95).expect("chart");
+        let b = fit(&frame_of(&rows), &columns, 3, 0.95).expect("chart");
+        assert_eq!(a.groups, 4);
+        assert!((a.mean[0] - b.mean[0]).abs() < 1e-9);
+        for (left, right) in a.values.iter().zip(&b.values) {
+            assert!(
+                (left - right).abs() < 1e-9,
+                "{:?} vs {:?}",
+                a.values,
+                b.values
+            );
+        }
+    }
+}

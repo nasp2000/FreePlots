@@ -264,3 +264,51 @@ pub fn capability_plot(
     plot.title = format!("Capability Histogram — {column_name}");
     Ok(plot)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn frame() -> DataFrame {
+        DataFrame::new(vec![Column::new_f64(
+            "x",
+            vec![1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 5.0],
+        )])
+        .unwrap()
+    }
+
+    #[test]
+    fn histogram_counts_sum_to_n() {
+        let model = fit(&frame(), "x", Some(5)).expect("fit");
+        assert_eq!(model.counts.len(), 5);
+        assert_eq!(model.counts.iter().sum::<usize>(), model.n);
+    }
+
+    #[test]
+    fn automatic_bins_are_within_the_limit() {
+        let model = fit(&frame(), "x", None).expect("fit");
+        assert!((5..=50).contains(&model.counts.len()));
+    }
+
+    #[test]
+    fn constant_data_is_rejected() {
+        let df = DataFrame::new(vec![Column::new_f64("x", vec![1.0, 1.0])]).unwrap();
+        assert!(matches!(fit(&df, "x", None), Err(Error::ConstantSample)));
+    }
+
+    #[test]
+    fn capability_histogram_adds_specification_lines() {
+        let plot = capability_plot(&frame(), "x", Some(1.0), Some(5.0), true).expect("plot");
+        assert!(plot.title.contains("Capability Histogram"));
+        assert!(plot.lines.len() >= 2);
+    }
+
+    #[test]
+    fn report_and_plot_are_built() {
+        let out = analyze(&frame(), "x", Some(5)).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Histogram"), "{text}");
+        assert!(!out.plot.expect("plot").lines.is_empty());
+    }
+}

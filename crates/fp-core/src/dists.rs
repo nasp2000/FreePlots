@@ -1802,3 +1802,421 @@ impl Distribution for Weibull3 {
         Self::new(threshold, shape, scale).ok()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::MissingPolicy;
+
+    fn normal_std() -> Normal {
+        Normal::new(0.0, 1.0).unwrap()
+    }
+
+    #[test]
+    fn lognormal_fit_uses_log_scale_moments() {
+        let values = vec![1.0, 2.0, 4.0, 8.0];
+        let s = Sample::new(values.clone(), MissingPolicy::Drop).unwrap();
+        let d = Lognormal::fit_moments(&s).unwrap();
+        let logs: Vec<f64> = values.iter().map(|x| x.ln()).collect();
+        let ls = Sample::new(logs, MissingPolicy::Drop).unwrap();
+        assert!((d.mu() - ls.mean().unwrap()).abs() < 1e-12);
+        assert!((d.sigma() - ls.sd().unwrap()).abs() < 1e-12);
+        assert!((d.cdf(d.quantile(0.5)) - 0.5).abs() < 1e-12);
+        assert!((d.quantile(0.5) - d.mu().exp()).abs() < 1e-12);
+    }
+
+    #[test]
+    fn logistic_fit_recovers_a_synthetic_sample() {
+        let n = 80;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| {
+                let p = (i as f64 - 0.5) / n as f64;
+                2.0 + 0.7 * (p / (1.0 - p)).ln()
+            })
+            .collect();
+        let s = Sample::new(values, MissingPolicy::Drop).unwrap();
+        let d = Logistic::fit_mle(&s).unwrap();
+        assert!((d.mu() - 2.0).abs() < 0.05, "mu {}", d.mu());
+        assert!((d.sigma() - 0.7).abs() < 0.02, "sigma {}", d.sigma());
+        assert!((d.cdf(d.quantile(0.5)) - 0.5).abs() < 1e-12);
+        assert!((d.quantile(0.5) - d.mu()).abs() < 1e-12);
+    }
+
+    #[test]
+    fn loglogistic_fit_recovers_a_synthetic_sample() {
+        let n = 80;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| {
+                let p = (i as f64 - 0.5) / n as f64;
+                10.0 * (p / (1.0 - p)).powf(0.5)
+            })
+            .collect();
+        let s = Sample::new(values, MissingPolicy::Drop).unwrap();
+        let d = Loglogistic::fit_mle(&s).unwrap();
+        assert!((d.scale() - 10.0).abs() < 0.3, "scale {}", d.scale());
+        assert!((d.shape() - 2.0).abs() < 0.06, "shape {}", d.shape());
+        assert!((d.cdf(d.quantile(0.5)) - 0.5).abs() < 1e-12);
+        assert!((d.quantile(0.5) - d.scale()).abs() < 1e-12);
+    }
+
+    #[test]
+    fn loglogistic_rejects_non_positive_values() {
+        let s = Sample::new(vec![1.0, 0.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert!(matches!(
+            Loglogistic::fit_mle(&s),
+            Err(Error::NonPositive { .. })
+        ));
+    }
+
+    #[test]
+    fn weibull_fit_recovers_a_synthetic_sample() {
+        let n = 60;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| {
+                let p = (i as f64 - 0.5) / n as f64;
+                10.0 * (-(1.0 - p).ln()).powf(0.5)
+            })
+            .collect();
+        let s = Sample::new(values, MissingPolicy::Drop).unwrap();
+        let d = Weibull::fit_mle(&s).unwrap();
+        assert!((d.shape() - 2.0).abs() < 0.05, "shape {}", d.shape());
+        assert!((d.scale() - 10.0).abs() < 0.2, "scale {}", d.scale());
+        assert!((d.cdf(d.quantile(0.5)) - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn gamma_fit_recovers_a_synthetic_sample() {
+        let truth = Gamma::new(2.5, 3.0).unwrap();
+        let n = 2000;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| {
+                let p = (i as f64 - 0.5) / n as f64;
+                truth.quantile(p)
+            })
+            .collect();
+        let s = Sample::new(values, MissingPolicy::Drop).unwrap();
+        let d = Gamma::fit_mle(&s).unwrap();
+        assert!((d.shape() - 2.5).abs() < 0.02, "shape {}", d.shape());
+        assert!((d.scale() - 3.0).abs() < 0.06, "scale {}", d.scale());
+        assert!((d.mean() - 7.5).abs() < 0.05, "mean {}", d.mean());
+    }
+
+    #[test]
+    fn gamma_quantile_inverts_the_cdf() {
+        for (shape, scale) in [(0.5, 1.0), (1.0, 2.0), (3.0, 0.5), (12.0, 4.0)] {
+            let d = Gamma::new(shape, scale).unwrap();
+            for p in [1e-5, 0.01, 0.1, 0.5, 0.9, 0.99, 0.9999] {
+                let x = d.quantile(p);
+                assert!(x > 0.0, "shape={shape}, p={p}, x={x}");
+                let back = d.cdf(x);
+                assert!(
+                    (back - p).abs() < 1e-9 * p.max(1e-3),
+                    "shape={shape}, p={p}, x={x}, F={back}"
+                );
+            }
+            assert_eq!(d.quantile(0.0), 0.0);
+            assert!(d.quantile(1.0).is_infinite());
+        }
+    }
+
+    #[test]
+    fn gamma_survival_is_the_upper_tail() {
+        let d = Gamma::new(2.0, 3.0).unwrap();
+        for x in [0.5, 3.0, 9.0, 40.0] {
+            let (cdf, sf) = (d.cdf(x), d.sf(x));
+            assert!((cdf + sf - 1.0).abs() < 1e-12, "x={x}");
+            // Density matches the derivative of the CDF by finite difference.
+            let h = 1e-4 * x;
+            let numeric = (d.cdf(x + h) - d.cdf(x - h)) / (2.0 * h);
+            assert!(
+                (numeric - d.pdf(x)).abs() < 1e-5 * d.pdf(x).max(1e-6),
+                "x={x}, numeric={numeric}, pdf={}",
+                d.pdf(x)
+            );
+        }
+    }
+
+    #[test]
+    fn gamma_rejects_non_positive_values() {
+        let s = Sample::new(vec![1.0, -1.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert!(matches!(Gamma::fit_mle(&s), Err(Error::NonPositive { .. })));
+        assert!(matches!(
+            Gamma::new(0.0, 1.0),
+            Err(Error::InvalidParameter { .. })
+        ));
+    }
+
+    #[test]
+    fn three_parameter_weibull_finds_the_threshold() {
+        let truth = Weibull3::new(5.0, 2.0, 10.0).unwrap();
+        let n = 200;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| {
+                let p = (i as f64 - 0.5) / n as f64;
+                truth.quantile(p)
+            })
+            .collect();
+        let s = Sample::new(values, MissingPolicy::Drop).unwrap();
+        let d = Weibull3::fit_mle(&s).expect("fit");
+        assert!(
+            (d.threshold() - 5.0).abs() < 0.6,
+            "threshold {}",
+            d.threshold()
+        );
+        assert!((d.shape() - 2.0).abs() < 0.15, "shape {}", d.shape());
+        assert!((d.scale() - 10.0).abs() < 0.8, "scale {}", d.scale());
+        assert!((d.cdf(d.quantile(0.5)) - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn three_parameter_lognormal_finds_the_threshold() {
+        let truth = Lognormal3::new(5.0, 2.0, 0.4).unwrap();
+        let n = 300;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| {
+                let p = (i as f64 - 0.5) / n as f64;
+                truth.quantile(p)
+            })
+            .collect();
+        let s = Sample::new(values, MissingPolicy::Drop).unwrap();
+        let d = Lognormal3::fit_mle(&s).expect("fit");
+        assert!(
+            (d.threshold() - 5.0).abs() < 0.6,
+            "threshold {}",
+            d.threshold()
+        );
+        assert!((d.mu() - 2.0).abs() < 0.05, "mu {}", d.mu());
+        assert!((d.sigma() - 0.4).abs() < 0.03, "sigma {}", d.sigma());
+        assert!((d.cdf(d.quantile(0.5)) - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn three_parameter_lognormal_rejects_non_positive_values() {
+        let s = Sample::new(vec![1.0, -1.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert!(matches!(
+            Lognormal3::fit_mle(&s),
+            Err(Error::NonPositive { .. })
+        ));
+    }
+
+    #[test]
+    fn three_parameter_weibull_rejects_non_positive_values() {
+        let s = Sample::new(vec![1.0, -1.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert!(matches!(
+            Weibull3::fit_mle(&s),
+            Err(Error::NonPositive { .. })
+        ));
+    }
+
+    #[test]
+    fn extreme_value_fit_recovers_a_synthetic_sample() {
+        let truth = ExtremeValue::new(3.0, 1.5).unwrap();
+        let n = 500;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| {
+                let p = (i as f64 - 0.5) / n as f64;
+                truth.quantile(p)
+            })
+            .collect();
+        let s = Sample::new(values, MissingPolicy::Drop).unwrap();
+        let d = ExtremeValue::fit_mle(&s).unwrap();
+        assert!(
+            (d.location() - 3.0).abs() < 0.1,
+            "location {}",
+            d.location()
+        );
+        assert!((d.scale() - 1.5).abs() < 0.1, "scale {}", d.scale());
+        assert!((d.cdf(d.quantile(0.5)) - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn extreme_value_score_equations_hold_at_the_fit() {
+        let values: Vec<f64> = (1..=120)
+            .map(|i| {
+                let p = (i as f64 - 0.5) / 120.0;
+                ExtremeValue::new(1.0, 2.0).unwrap().quantile(p)
+            })
+            .collect();
+        let s = Sample::new(values, MissingPolicy::Drop).unwrap();
+        let d = ExtremeValue::fit_mle(&s).unwrap();
+        let n = s.n() as f64;
+        let t_mean = s
+            .values()
+            .iter()
+            .map(|&x| (-(x - d.location()) / d.scale()).exp())
+            .sum::<f64>()
+            / n;
+        assert!((t_mean - 1.0).abs() < 1e-6, "mean(t) = {t_mean}");
+        let weighted = s
+            .values()
+            .iter()
+            .map(|&x| {
+                let t = (-(x - d.location()) / d.scale()).exp();
+                x * t
+            })
+            .sum::<f64>()
+            / n;
+        let implied = s.mean().unwrap() - weighted;
+        assert!((implied - d.scale()).abs() < 1e-6, "scale {implied}");
+    }
+
+    #[test]
+    fn extreme_value_quantile_inverts_the_cdf() {
+        let d = ExtremeValue::new(2.0, 3.0).unwrap();
+        for p in [1e-6, 0.01, 0.1, 0.5, 0.9, 0.99] {
+            let x = d.quantile(p);
+            assert!(
+                (d.cdf(x) - p).abs() < 1e-9 * p.max(1e-3),
+                "p={p}, x={x}, F={}",
+                d.cdf(x)
+            );
+        }
+        assert!(d.quantile(0.0).is_infinite());
+        assert!(d.quantile(1.0).is_infinite());
+    }
+
+    #[test]
+    fn extreme_value_density_matches_its_log_density() {
+        // Regression: the density used to multiply the exponent by exp(−z)
+        // before exponentiating, so it collapsed in the lower tail.
+        let d = ExtremeValue::new(1.0, 0.8).unwrap();
+        for x in [-0.221_743_700_646_320_96, 0.5, 1.0, 2.0, 4.0] {
+            let pdf = d.pdf(x);
+            let from_log = d.ln_pdf(x).exp();
+            assert!(
+                (pdf - from_log).abs() <= 1e-12 * pdf.abs().max(from_log.abs()),
+                "x={x}: pdf={pdf}, exp(ln pdf)={from_log}"
+            );
+            assert!(pdf > 0.0, "x={x}: the density must stay positive");
+        }
+        // The documented behaviour density at the 1 % quantile (scipy gumbel_r).
+        assert!((d.pdf(-0.221_743_700_646_320_96) - 0.057_564_627_324_851_1).abs() < 1e-12);
+    }
+
+    #[test]
+    fn weibull_rejects_non_positive_values() {
+        let s = Sample::new(vec![1.0, -1.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert!(matches!(
+            Weibull::fit_mle(&s),
+            Err(Error::NonPositive { .. })
+        ));
+    }
+
+    #[test]
+    fn exponential_fit_is_the_sample_mean() {
+        let values = vec![1.0, 2.0, 3.0, 4.0];
+        let s = Sample::new(values.clone(), MissingPolicy::Drop).unwrap();
+        let d = Exponential::fit_mle(&s).unwrap();
+        assert!((d.theta() - 2.5).abs() < 1e-12);
+        assert!((d.cdf(d.quantile(0.5)) - 0.5).abs() < 1e-12);
+        assert!((d.quantile(0.5) - 2.5 * std::f64::consts::LN_2).abs() < 1e-12);
+    }
+
+    #[test]
+    fn exponential_rejects_non_positive_values() {
+        let s = Sample::new(vec![1.0, 0.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert!(matches!(
+            Exponential::fit_mle(&s),
+            Err(Error::NonPositive { .. })
+        ));
+    }
+
+    #[test]
+    fn weibull_rejects_constant_samples() {
+        let s = Sample::new(vec![2.0, 2.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert_eq!(Weibull::fit_mle(&s).unwrap_err(), Error::ConstantSample);
+    }
+
+    #[test]
+    fn lognormal_rejects_non_positive_values() {
+        let s = Sample::new(vec![1.0, 0.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert!(matches!(
+            Lognormal::fit_moments(&s),
+            Err(Error::NonPositive { .. })
+        ));
+    }
+
+    #[test]
+    fn invalid_parameters_are_rejected() {
+        assert!(matches!(
+            Normal::new(0.0, 0.0),
+            Err(Error::InvalidParameter { name: "sigma", .. })
+        ));
+        assert!(matches!(
+            Normal::new(f64::NAN, 1.0),
+            Err(Error::InvalidParameter { name: "mu", .. })
+        ));
+        assert!(Normal::new(0.0, -1.0).is_err());
+    }
+
+    #[test]
+    fn density_at_zero() {
+        let n = normal_std();
+        assert!((n.pdf(0.0) - 0.398_942_280_401_432_7).abs() < 1e-15);
+    }
+
+    #[test]
+    fn cdf_and_quantile_are_consistent() {
+        let n = Normal::new(10.0, 2.0).unwrap();
+        assert!((n.cdf(10.0) - 0.5).abs() < 1e-15);
+        let x = n.quantile(0.975);
+        assert!((x - (10.0 + 2.0 * 1.959_963_984_540_054)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn ln_pdf_equals_log_of_pdf() {
+        let n = Normal::new(-1.0, 3.0).unwrap();
+        for x in [-5.0, -1.0, 0.0, 2.5, 9.0] {
+            let a = n.ln_pdf(x);
+            let b = n.pdf(x).ln();
+            assert!((a - b).abs() < 1e-14, "x={x}: {a} vs {b}");
+        }
+    }
+
+    #[test]
+    fn fit_recovers_parameters() {
+        let s = Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).unwrap();
+        let n = Normal::fit(&s).unwrap();
+        assert!((n.mu() - 3.0).abs() < 1e-15);
+        // sqrt(10/5) = sqrt(2)
+        assert!((n.sigma() - std::f64::consts::SQRT_2).abs() < 1e-15);
+    }
+
+    #[test]
+    fn fit_rejects_constant_and_n_one() {
+        let c = Sample::new(vec![2.0, 2.0, 2.0], MissingPolicy::Drop).unwrap();
+        assert_eq!(Normal::fit(&c).unwrap_err(), Error::ConstantSample);
+        let one = Sample::new(vec![2.0], MissingPolicy::Drop).unwrap();
+        assert_eq!(
+            Normal::fit(&one).unwrap_err(),
+            Error::SampleTooSmall { n: 1, min: 2 }
+        );
+    }
+
+    #[test]
+    fn log_likelihood_at_the_maximum() {
+        // Perturbing the MLE parameters cannot increase the log-likelihood.
+        let s = Sample::new(
+            vec![2.1, 2.4, 1.9, 2.2, 2.6, 2.0, 2.3, 1.8],
+            MissingPolicy::Drop,
+        )
+        .unwrap();
+        let fit = Normal::fit(&s).unwrap();
+        let ll = fit.log_likelihood(&s).unwrap();
+        for delta in [-0.1, -0.01, 0.01, 0.1] {
+            let m = Normal::new(fit.mu() + delta, fit.sigma()).unwrap();
+            assert!(m.log_likelihood(&s).unwrap() <= ll);
+            let v = Normal::new(fit.mu(), fit.sigma() * (1.0 + delta)).unwrap();
+            assert!(v.log_likelihood(&s).unwrap() <= ll);
+        }
+    }
+
+    #[test]
+    fn affine_invariance_of_the_cdf() {
+        let a = Normal::new(0.0, 1.0).unwrap();
+        let b = Normal::new(5.0, 3.0).unwrap();
+        for x in [-2.0, 0.0, 1.5] {
+            assert!((a.cdf(x) - b.cdf(5.0 + 3.0 * x)).abs() < 1e-14);
+        }
+    }
+}

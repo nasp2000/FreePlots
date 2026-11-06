@@ -394,3 +394,58 @@ fn plot(column_name: &str, by: Option<&str>, model: &Boxplot) -> PlotSpec {
         notes: Vec::new(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn frame() -> DataFrame {
+        DataFrame::new(vec![
+            Column::new_f64("y", vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0, 2.0, 3.0, 4.0]),
+            Column::new_text(
+                "g",
+                vec![
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "B".to_owned(),
+                    "B".to_owned(),
+                    "B".to_owned(),
+                ],
+            ),
+        ])
+        .unwrap()
+    }
+
+    #[test]
+    fn boxplot_reports_quartiles_and_outliers() {
+        let model = fit(&frame(), "y", Some("g")).expect("fit");
+        assert_eq!(model.groups.len(), 2);
+        assert_eq!(model.groups[0].label, "A");
+        assert_eq!(model.groups[0].n, 6);
+        assert_eq!(model.groups[0].outliers, vec![100.0]);
+        assert!(model.groups[0].upper_whisker <= 5.0);
+    }
+
+    #[test]
+    fn boxplot_without_group_uses_one_box() {
+        let model = fit(&frame(), "y", None).expect("fit");
+        assert_eq!(model.groups.len(), 1);
+        assert_eq!(model.groups[0].label, "y");
+    }
+
+    #[test]
+    fn report_and_plot_are_built() {
+        let out = analyze(&frame(), "y", Some("g")).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Boxplot"), "{text}");
+        assert!(text.contains("Outliers"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.points.len(), 1);
+        assert!(!plot.lines.is_empty());
+    }
+}

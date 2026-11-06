@@ -283,3 +283,62 @@ fn plot(counts_column: &str, chart: &RareEventsChart) -> PlotSpec {
         notes: Vec::new(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn frame(counts: Vec<f64>) -> DataFrame {
+        DataFrame::new(vec![Column::new_f64("events", counts)]).expect("frame")
+    }
+
+    #[test]
+    fn the_limits_follow_the_geometric_model() {
+        let df = frame(vec![1.0, 2.0, 3.0, 2.0, 1.0, 2.0]);
+        let chart = build(&df, "events", None).expect("chart");
+        let probability = 5.0 / (6.0 + 11.0);
+        assert!((chart.probability - probability).abs() < 1e-12);
+        // Limits are the interpolated inverse geometric CDF minus one.
+        let cdf = |k: f64| 1.0 - (1.0 - probability).powf(k);
+        let quantile = |q: f64| {
+            let mut k = 1usize;
+            while cdf(k as f64) < q {
+                k += 1;
+            }
+            let lower = cdf((k - 1) as f64);
+            let upper = cdf(k as f64);
+            (k as f64 - 1.0) + (q - lower) / (upper - lower) - 1.0
+        };
+        assert!((chart.limits.center - quantile(0.5).max(0.0)).abs() < 1e-12);
+        assert!((chart.limits.ucl - quantile(0.99865)).abs() < 1e-12);
+        assert!((chart.limits.lcl - quantile(0.00135).max(0.0)).abs() < 1e-12);
+        assert!(chart.signals.is_empty(), "{:?}", chart.signals);
+    }
+
+    #[test]
+    fn an_interval_outside_the_limits_is_a_signal() {
+        // p = 9/29, UCL about 68, so 200 is outside the geometric limits.
+        let df = frame(vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 200.0]);
+        let chart = build(&df, "events", None).expect("chart");
+        assert_eq!(chart.signals, vec![9]);
+    }
+
+    #[test]
+    fn a_column_without_events_is_refused() {
+        let df = frame(vec![0.0, 0.0, 0.0]);
+        assert!(matches!(
+            build(&df, "events", None),
+            Err(Error::Unsupported { .. })
+        ));
+    }
+
+    #[test]
+    fn the_report_lists_the_intervals() {
+        let df = frame(vec![1.0, 2.0, 3.0]);
+        let chart = build(&df, "events", None).expect("chart");
+        let text = report("events", &chart).to_session_text();
+        assert!(text.contains("G Chart"), "{text}");
+        assert!(text.contains("Center line"), "{text}");
+    }
+}

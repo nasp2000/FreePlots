@@ -1650,3 +1650,506 @@ pub fn fold_over_design(
     ));
     DataFrame::new(columns)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::{Column, DType, MissingPolicy};
+
+    fn frame() -> DataFrame {
+        let mut rows = Vec::new();
+        for a in [-1.0, 1.0] {
+            for b in [-1.0, 1.0] {
+                for _ in 0..2 {
+                    rows.push((a, b, 10.0 + 2.0 * a + 3.0 * b + a * b));
+                }
+            }
+        }
+        DataFrame::new(vec![
+            Column::new_f64("A", rows.iter().map(|row| row.0).collect()),
+            Column::new_f64("B", rows.iter().map(|row| row.1).collect()),
+            Column::new_f64("y", rows.iter().map(|row| row.2).collect()),
+        ])
+        .unwrap()
+    }
+
+    #[test]
+    fn fractional_alias_groups_follow_the_generators() {
+        let groups = fractional_aliases(
+            &["A".to_owned(), "B".to_owned(), "C".to_owned()],
+            &["D=ABC".to_owned()],
+        )
+        .expect("aliases");
+        assert!(
+            groups.iter().any(|group| ["A", "B", "C", "D"]
+                .iter()
+                .all(|term| group.contains(&(*term).to_owned()))),
+            "{groups:?}"
+        );
+    }
+
+    #[test]
+    fn blocked_factorial_separates_the_block_effect() {
+        // 2^2 design in two blocks; the second block carries a constant offset.
+        // Each block holds a complete replicate of the 2^2 design.
+        let mut rows = Vec::new();
+        for block in 0..2 {
+            for a in [-1.0, 1.0] {
+                for b in [-1.0, 1.0] {
+                    for _ in 0..2 {
+                        let offset = if block == 1 { 5.0 } else { 0.0 };
+                        rows.push((a, b, 10.0 + 2.0 * a + 3.0 * b + offset, block));
+                    }
+                }
+            }
+        }
+        let responses: Vec<f64> = rows.iter().map(|row| row.2).collect();
+        let df = DataFrame::new(vec![
+            Column::new_f64("A", rows.iter().map(|row| row.0).collect()),
+            Column::new_f64("B", rows.iter().map(|row| row.1).collect()),
+            Column::new_f64("y", responses),
+            Column::new_text(
+                "Block",
+                rows.iter().map(|row| (row.3 + 1).to_string()).collect(),
+            ),
+        ])
+        .expect("frame");
+        let model = fit_with_blocks(&df, "y", &["A".to_owned(), "B".to_owned()], Some("Block"))
+            .expect("fit");
+        let blocks = model.blocks.clone().expect("blocks");
+        assert_eq!(blocks.levels, vec!["1".to_owned(), "2".to_owned()]);
+        assert_eq!(blocks.df, 1);
+        assert!((blocks.means[1] - blocks.means[0] - 5.0).abs() < 1e-9);
+        let a_index = model.names.iter().position(|name| name == "A").expect("A");
+        let b_index = model.names.iter().position(|name| name == "B").expect("B");
+        assert!(
+            (model.effects[a_index] - 4.0).abs() < 1e-9,
+            "{:?}",
+            model.effects
+        );
+        assert!(
+            (model.effects[b_index] - 6.0).abs() < 1e-9,
+            "{:?}",
+            model.effects
+        );
+        let out = analyze_with_blocks(&df, "y", &["A".to_owned(), "B".to_owned()], Some("Block"))
+            .expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Blocks"), "{text}");
+        assert!(text.contains("Factorial model"), "{text}");
+    }
+
+    #[test]
+    fn fold_over_repeats_the_fraction_with_the_generated_factors_reversed() {
+        let df = fold_over_design(
+            &["A".to_owned(), "B".to_owned(), "C".to_owned()],
+            &["D=ABC".to_owned()],
+            false,
+            0,
+        )
+        .expect("fold over");
+        assert_eq!(df.n_rows(), 16);
+        let a = df
+            .column("A")
+            .expect("A")
+            .numeric(MissingPolicy::Drop)
+            .expect("A");
+        let b = df
+            .column("B")
+            .expect("B")
+            .numeric(MissingPolicy::Drop)
+            .expect("B");
+        let c = df
+            .column("C")
+            .expect("C")
+            .numeric(MissingPolicy::Drop)
+            .expect("C");
+        let d = df
+            .column("D")
+            .expect("D")
+            .numeric(MissingPolicy::Drop)
+            .expect("D");
+        for row in 0..8 {
+            // The base factors are repeated and the generated factor changes sign.
+            assert!((a[row] - a[row + 8]).abs() < 1e-12);
+            assert!((b[row] - b[row + 8]).abs() < 1e-12);
+            assert!((c[row] - c[row + 8]).abs() < 1e-12);
+            assert!((d[row] + d[row + 8]).abs() < 1e-12);
+            // The generator holds in the base half.
+            assert!((d[row] - a[row] * b[row] * c[row]).abs() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn blocked_design_adds_a_block_column() {
+        let df = blocked_factorial_design(
+            &["A".to_owned(), "B".to_owned()],
+            1,
+            0,
+            Some(2),
+            false,
+            2026,
+        )
+        .expect("design");
+        assert_eq!(df.n_rows(), 4);
+        let block = df.column_index("Block").expect("block column");
+        let values: Vec<String> = (0..df.n_rows())
+            .map(|row| df.cell_text(block, row).unwrap_or_default())
+            .collect();
+        assert_eq!(values, vec!["1", "1", "2", "2"]);
+    }
+
+    #[test]
+    fn central_composite_design_has_factorial_axial_and_center_runs() {
+        let df = central_composite_design(
+            &["A".to_owned(), "B".to_owned()],
+            4,
+            CcdAlpha::Rotatable,
+            false,
+            2026,
+        )
+        .expect("design");
+        let alpha = 4f64.powf(0.25);
+        assert_eq!(df.n_rows(), 4 + 4 + 4);
+        let a = df.column("A").unwrap().sample(MissingPolicy::Drop).unwrap();
+        let values = a.values();
+        assert!(values.contains(&-1.0));
+        assert!(values.contains(&1.0));
+        assert!(values.iter().any(|value| (*value - alpha).abs() < 1e-12));
+        assert!(values.iter().any(|value| (*value + alpha).abs() < 1e-12));
+        assert_eq!(values.iter().filter(|value| **value == 0.0).count(), 6);
+    }
+
+    #[test]
+    fn plackett_burman_designs_are_orthogonal() {
+        for runs in [8usize, 12, 20, 24, 32] {
+            let df = plackett_burman_design(runs, false, 2026).expect("design");
+            assert_eq!(df.n_rows(), runs);
+            assert_eq!(df.n_columns(), runs + 1, "runs {runs}");
+            let factors = runs - 1;
+            let columns: Vec<Vec<f64>> = (0..factors)
+                .map(|index| {
+                    let name = df.columns()[index + 2].name().to_owned();
+                    df.column(&name)
+                        .expect("factor")
+                        .numeric(MissingPolicy::Drop)
+                        .expect("numbers")
+                })
+                .collect();
+            // Every column is balanced (equal +1 and −1)…
+            for column in &columns {
+                let sum: f64 = column.iter().sum();
+                assert!(sum.abs() < 1e-9, "runs {runs} unbalanced column");
+                assert!(column.iter().all(|value| value.abs() == 1.0));
+            }
+            // …and every pair is orthogonal.
+            for i in 0..factors {
+                for j in (i + 1)..factors {
+                    let dot: f64 = columns[i].iter().zip(&columns[j]).map(|(a, b)| a * b).sum();
+                    assert!(dot.abs() < 1e-9, "runs {runs} pair {i},{j} dot {dot}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn plackett_burman_rejects_unavailable_run_counts() {
+        assert!(matches!(
+            plackett_burman_design(10, false, 1),
+            Err(Error::Unsupported(_))
+        ));
+        assert!(matches!(
+            plackett_burman_design(6, false, 1),
+            Err(Error::Unsupported(_))
+        ));
+    }
+
+    #[test]
+    fn box_behnken_design_has_pairs_and_center_runs() {
+        let factors: Vec<String> = ["A", "B", "C"]
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect();
+        let df = box_behnken_design(&factors, 3, false, 2026).expect("design");
+        assert_eq!(df.n_rows(), 4 * 3 + 3);
+        // Every row has exactly two active factors at ±1, or none at the centre.
+        let columns: Vec<Vec<f64>> = factors
+            .iter()
+            .map(|name| {
+                df.column(name)
+                    .unwrap()
+                    .numeric(MissingPolicy::Drop)
+                    .unwrap()
+            })
+            .collect();
+        for row in 0..df.n_rows() {
+            let mut active = 0;
+            for column in &columns {
+                let value = column[row];
+                assert!(value == 0.0 || (value - 1.0).abs() < 1e-12 || (value + 1.0).abs() < 1e-12);
+                if value != 0.0 {
+                    active += 1;
+                }
+            }
+            assert!(
+                active == 0 || active == 2,
+                "row {row} has {active} active factors"
+            );
+        }
+        // The design is orthogonal in the linear terms: every factor averages zero.
+        for name in &factors {
+            let column = df
+                .column(name)
+                .unwrap()
+                .sample(MissingPolicy::Drop)
+                .unwrap();
+            assert!(column.mean().unwrap().abs() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn box_behnken_design_validates_the_factor_count() {
+        assert!(matches!(
+            box_behnken_design(&["A".to_owned(), "B".to_owned()], 3, false, 1),
+            Err(Error::Unsupported(_))
+        ));
+        let factors: Vec<String> = ["A", "B", "C"]
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect();
+        assert!(matches!(
+            box_behnken_design(&factors, 0, false, 1),
+            Err(Error::InvalidParameter { .. })
+        ));
+    }
+
+    #[test]
+    fn central_composite_design_requires_center_points() {
+        assert!(matches!(
+            central_composite_design(
+                &["A".to_owned(), "B".to_owned()],
+                0,
+                CcdAlpha::FaceCentered,
+                false,
+                1
+            ),
+            Err(Error::InvalidParameter { .. })
+        ));
+    }
+
+    #[test]
+    fn fractional_design_uses_the_generator() {
+        let df = fractional_factorial_design(
+            &["A".to_owned(), "B".to_owned(), "C".to_owned()],
+            &["D=ABC".to_owned()],
+            2,
+            false,
+            2026,
+        )
+        .expect("design");
+        assert_eq!(df.n_rows(), 16);
+        assert_eq!(df.n_columns(), 6);
+        let a = df.column("A").unwrap().sample(MissingPolicy::Drop).unwrap();
+        let b = df.column("B").unwrap().sample(MissingPolicy::Drop).unwrap();
+        let c = df.column("C").unwrap().sample(MissingPolicy::Drop).unwrap();
+        let d = df.column("D").unwrap().sample(MissingPolicy::Drop).unwrap();
+        for index in 0..a.n() {
+            assert_eq!(
+                d.values()[index],
+                a.values()[index] * b.values()[index] * c.values()[index]
+            );
+        }
+    }
+
+    #[test]
+    fn fractional_main_effects_model_runs() {
+        let design = fractional_factorial_design(
+            &["A".to_owned(), "B".to_owned(), "C".to_owned()],
+            &["D=ABC".to_owned()],
+            1,
+            false,
+            2026,
+        )
+        .expect("design");
+        let a = design
+            .column("A")
+            .unwrap()
+            .sample(MissingPolicy::Drop)
+            .unwrap();
+        let b = design
+            .column("B")
+            .unwrap()
+            .sample(MissingPolicy::Drop)
+            .unwrap();
+        let c = design
+            .column("C")
+            .unwrap()
+            .sample(MissingPolicy::Drop)
+            .unwrap();
+        let d = design
+            .column("D")
+            .unwrap()
+            .sample(MissingPolicy::Drop)
+            .unwrap();
+        let y: Vec<f64> = (0..a.n())
+            .map(|index| {
+                10.0 + 2.0 * a.values()[index]
+                    + 3.0 * b.values()[index]
+                    + 4.0 * c.values()[index]
+                    + 5.0 * d.values()[index]
+            })
+            .collect();
+        let df = DataFrame::new(vec![
+            design.column("A").unwrap().clone(),
+            design.column("B").unwrap().clone(),
+            design.column("C").unwrap().clone(),
+            design.column("D").unwrap().clone(),
+            Column::new_f64("y", y),
+        ])
+        .unwrap();
+        let out = analyze_main_effects(
+            &df,
+            "y",
+            &[
+                "A".to_owned(),
+                "B".to_owned(),
+                "C".to_owned(),
+                "D".to_owned(),
+            ],
+        )
+        .expect("analysis");
+        assert!(out.results[0].title.contains("Fractional Factorial"));
+        assert!(out.results[0].to_session_text().contains("Aliasing"));
+    }
+
+    #[test]
+    fn full_factorial_design_has_the_expected_runs() {
+        let df = full_factorial_design(&["A".to_owned(), "B".to_owned()], 2, 1, false, 2026)
+            .expect("design");
+        assert_eq!(df.n_rows(), 9);
+        assert_eq!(df.n_columns(), 4);
+        assert_eq!(df.column("StdOrder").unwrap().dtype(), DType::Float);
+        let a = df.column("A").unwrap();
+        let b = df.column("B").unwrap();
+        assert!(
+            a.sample(MissingPolicy::Drop)
+                .unwrap()
+                .values()
+                .contains(&-1.0)
+        );
+        assert!(
+            b.sample(MissingPolicy::Drop)
+                .unwrap()
+                .values()
+                .contains(&1.0)
+        );
+        // Last run is the center point.
+        assert_eq!(a.sample(MissingPolicy::Drop).unwrap().values()[8], 0.0);
+        assert_eq!(b.sample(MissingPolicy::Drop).unwrap().values()[8], 0.0);
+    }
+
+    #[test]
+    fn randomization_is_deterministic_and_preserves_runs() {
+        let one = full_factorial_design(&["A".to_owned(), "B".to_owned()], 1, 0, true, 7)
+            .expect("design");
+        let two = full_factorial_design(&["A".to_owned(), "B".to_owned()], 1, 0, true, 7)
+            .expect("design");
+        assert_eq!(one, two);
+        let a = one
+            .column("A")
+            .unwrap()
+            .sample(MissingPolicy::Drop)
+            .unwrap();
+        assert_eq!(a.values().iter().filter(|value| **value == -1.0).count(), 2);
+        assert_eq!(a.values().iter().filter(|value| **value == 1.0).count(), 2);
+    }
+
+    #[test]
+    fn factorial_effects_are_twice_the_coded_coefficients() {
+        let model = fit(&frame(), "y", &["A".to_owned(), "B".to_owned()]).expect("fit");
+        assert_eq!(model.names.len(), 4);
+        assert!((model.effects[1] - 4.0).abs() < 1e-10);
+        assert!((model.effects[2] - 6.0).abs() < 1e-10);
+        assert!((model.effects[3] - 2.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn uncoded_factors_are_rejected() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("A", vec![0.5, 1.0, 0.5, 1.0]),
+            Column::new_f64("y", vec![1.0, 2.0, 3.0, 4.0]),
+        ])
+        .unwrap();
+        assert!(matches!(
+            fit(&df, "y", &["A".to_owned()]),
+            Err(Error::Cell { .. })
+        ));
+    }
+
+    #[test]
+    fn a_design_that_mixes_center_points_is_rejected() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("A", vec![0.0, -1.0, 1.0, 0.0]),
+            Column::new_f64("B", vec![0.0, -1.0, 1.0, 1.0]),
+            Column::new_f64("y", vec![1.0, 2.0, 3.0, 4.0]),
+        ])
+        .unwrap();
+        assert!(matches!(
+            fit(&df, "y", &["A".to_owned(), "B".to_owned()]),
+            Err(Error::Cell { .. })
+        ));
+    }
+
+    #[test]
+    fn the_sequential_decomposition_sums_to_the_model() {
+        let df = frame();
+        let out = analyze(&df, "y", &["A".to_owned(), "B".to_owned()]).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Seq SS"), "{text}");
+    }
+
+    #[test]
+    fn center_points_give_a_pure_error_estimate() {
+        // A full 2x2 factorial with two replicates and two center points.
+        let mut rows = Vec::new();
+        let mut values = Vec::new();
+        let mut a = Vec::new();
+        let mut b = Vec::new();
+        for (index, (av, bv)) in [(-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0)]
+            .iter()
+            .enumerate()
+        {
+            for replicate in 0..2 {
+                values.push(10.0 + av * 2.0 + bv * 1.0 + (replicate as f64) * 0.1);
+                a.push(*av);
+                b.push(*bv);
+            }
+            let _ = index;
+        }
+        for _ in 0..2 {
+            values.push(10.0);
+            a.push(0.0);
+            b.push(0.0);
+        }
+        rows.push(values);
+        let df = DataFrame::new(vec![
+            Column::new_f64("y", rows[0].clone()),
+            Column::new_f64("A", a),
+            Column::new_f64("B", b),
+        ])
+        .expect("frame");
+        let out = analyze(&df, "y", &["A".to_owned(), "B".to_owned()]).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Pure error"), "{text}");
+        assert!(text.contains("Center points"), "{text}");
+    }
+
+    #[test]
+    fn report_contains_effect_table() {
+        let out = analyze(&frame(), "y", &["A".to_owned(), "B".to_owned()]).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("2-Level Factorial"), "{text}");
+        assert!(text.contains("Effect"), "{text}");
+        assert!(out.plot.is_some());
+    }
+}

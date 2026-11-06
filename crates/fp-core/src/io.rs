@@ -465,3 +465,315 @@ pub fn load_project_sheets(path: impl AsRef<Path>) -> Result<Vec<(String, DataFr
 pub fn column_dtype(col: &Column) -> DType {
     col.dtype()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::MissingPolicy;
+
+    #[test]
+    fn detects_iso_date_columns() {
+        let text = "when;value\n2026-10-21;1\n2026-10-22;2\n";
+        let options = CsvOptions {
+            has_header: true,
+            delimiter: b';',
+            ..CsvOptions::default()
+        };
+        let df = read_csv_str(text, options).expect("frame");
+        assert_eq!(df.columns()[0].dtype(), crate::data::DType::Date);
+        assert_eq!(df.cell_text(0, 0).as_deref(), Some("2026-10-21"));
+    }
+
+    #[test]
+    fn bom_and_latin1_text_are_decoded() {
+        let (text, encoding) = decode_bytes(b"\xEF\xBB\xBFa;b\n1;2\n");
+        assert_eq!(encoding, "UTF-8");
+        assert!(text.starts_with("a;b"));
+        let (text, encoding) = decode_bytes(b"cidade\nS\xE3o Paulo\nA\xE7ores\n");
+        assert_eq!(encoding, "CP1252");
+        assert!(text.contains("São Paulo"));
+        assert!(text.contains("Açores"));
+    }
+
+    #[test]
+    fn a_ragged_csv_is_rejected_with_the_line() {
+        let path = std::env::temp_dir().join(format!(
+            "fp-ragged-{}-{}.csv",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.subsec_nanos())
+        ));
+        std::fs::write(&path, "a,b\n1,2\n3\n").expect("write");
+        let error = read_csv_file(&path).expect_err("ragged").to_string();
+        assert!(error.contains("line 3"), "{error}");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn non_finite_literals_stay_numeric() {
+        let text = "x\n1\nnan\n3\ninf\n-Infinity\n";
+        let df = read_csv_str(text, detect_options(text)).expect("frame");
+        assert_eq!(df.columns()[0].dtype(), crate::data::DType::Float);
+        // A missing value written as NaN or inf must not turn the column into
+        // text; the sample drops and counts it.
+        let sample = df
+            .column("x")
+            .unwrap()
+            .sample(MissingPolicy::Drop)
+            .expect("sample");
+        assert_eq!(sample.n(), 2);
+        assert_eq!(sample.excluded(), 3);
+    }
+
+    #[test]
+    fn a_project_keeps_every_worksheet_in_order() {
+        let first = DataFrame::new(vec![Column::new_f64("x", vec![1.0, 2.0])]).expect("a");
+        let second = DataFrame::new(vec![Column::new_text(
+            "g",
+            vec!["Açores".to_owned(), String::new()],
+        )])
+        .expect("b");
+        let sheets = vec![
+            ("diameter".to_owned(), first.clone()),
+            ("defects".to_owned(), second.clone()),
+        ];
+        let json = to_project_json_sheets(&sheets, "part.fpp").expect("write");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("json");
+        assert!(parsed.get("data").is_none(), "schema 2 writes only sheets");
+        assert_eq!(parsed["schema_version"], 2);
+        let back = from_project_json_sheets(&json).expect("read");
+        assert_eq!(back.len(), 2);
+        assert_eq!(back[0].0, "diameter");
+        assert_eq!(back[0].1, first);
+        assert_eq!(back[1].0, "defects");
+        assert_eq!(back[1].1, second);
+        // The single-sheet readers still see the first worksheet.
+        assert_eq!(from_project_json(&json).expect("single"), first);
+    }
+
+    #[test]
+    fn a_schema_one_project_is_read_as_one_worksheet() {
+        // Write a schema-2 file, then fold it back into the schema-1 shape.
+        let frame = DataFrame::new(vec![Column::new_f64("x", vec![1.5, 2.5])]).expect("frame");
+        let mut legacy: serde_json::Value =
+            serde_json::from_str(&to_project_json(&frame, "old.csv").expect("write"))
+                .expect("json");
+        let first = legacy["sheets"][0].clone();
+        legacy["data"] = first["data"].clone();
+        legacy["schema_version"] = serde_json::json!(1);
+        legacy.as_object_mut().expect("object").remove("sheets");
+        let legacy = serde_json::to_string(&legacy).expect("serialize");
+        let sheets = from_project_json_sheets(&legacy).expect("legacy read");
+        assert_eq!(sheets.len(), 1);
+        assert_eq!(sheets[0].0, "old.csv");
+        assert_eq!(sheets[0].1.n_rows(), 2);
+
+        let future = r#"{"schema_version": 99, "name": "x", "sheets": []}"#;
+        let error = from_project_json_sheets(future).expect_err("future");
+        assert!(error.to_string().contains("update the program"), "{error}");
+    }
+
+    #[test]
+    fn detects_semicolon_and_decimal_comma() {
+        let o = detect_options("a;b\n1,5;2,5\n");
+        assert_eq!(o.delimiter, b';');
+        assert!(o.decimal_comma);
+    }
+
+    #[test]
+    fn detects_simple_comma_as_separator() {
+        let o = detect_options("a,b,c\n1,2,3\n");
+        assert_eq!(o.delimiter, b',');
+        assert!(!o.decimal_comma);
+    }
+
+    #[test]
+    fn does_not_confuse_american_thousands_with_decimal() {
+        // With a dot in the file, the comma is not treated as decimal.
+        let o = detect_options("a;b\n1 234.56;7\n");
+        assert_eq!(o.delimiter, b';');
+        assert!(!o.decimal_comma);
+    }
+
+    #[test]
+    fn reads_csv_with_decimal_comma() {
+        let text = "peso;lote\n12,5;A\n13,25;A\n";
+        let df = read_csv_str(text, detect_options(text)).unwrap();
+        assert_eq!(df.n_rows(), 2);
+        let s = df
+            .column("peso")
+            .unwrap()
+            .sample(MissingPolicy::Drop)
+            .unwrap();
+        assert_eq!(s.values(), &[12.5, 13.25]);
+        assert_eq!(df.column("lote").unwrap().dtype(), DType::Text);
+    }
+
+    #[test]
+    fn reads_integers_as_integers() {
+        let df = read_csv_str("n\n1\n2\n3\n", CsvOptions::default()).unwrap();
+        assert_eq!(df.column("n").unwrap().dtype(), DType::Integer);
+    }
+
+    #[test]
+    fn empty_cells_are_missing() {
+        let df = read_csv_str("a,b\n1,10\n,20\n3,30\n", CsvOptions::default()).unwrap();
+        let col = df.column("a").unwrap();
+        assert_eq!(col.len(), 3);
+        assert!(col.is_missing(1));
+        let s = col.sample(MissingPolicy::Drop).unwrap();
+        assert_eq!(s.values(), &[1.0, 3.0]);
+    }
+
+    #[test]
+    fn fully_empty_rows_are_ignored() {
+        // Documented: a blank line is not a record with an empty cell.
+        let df = read_csv_str("x\n1\n\n3\n", CsvOptions::default()).unwrap();
+        assert_eq!(df.n_rows(), 2);
+    }
+
+    #[test]
+    fn accepts_utf8_bom() {
+        let mut bytes = vec![0xEF, 0xBB, 0xBF];
+        bytes.extend_from_slice(b"x\n1\n");
+        let (text, enc) = decode_bytes(&bytes);
+        assert_eq!(enc, "UTF-8");
+        assert_eq!(text, "x\n1\n");
+    }
+
+    #[test]
+    fn decodes_cp1252() {
+        // 0xE3 = 'ã' in CP1252; 0xE7 = 'ç'.
+        let (text, enc) = decode_bytes(&[0xE3, 0xE7]);
+        assert_eq!(enc, "CP1252");
+        assert_eq!(text, "ãç");
+        // 0x80 = '€' (differs from Latin-1).
+        assert_eq!(decode_bytes(&[0x80]).0, "€");
+    }
+
+    #[test]
+    fn rows_with_different_width_are_an_error() {
+        let e = read_csv_str("a,b\n1,2\n3\n", CsvOptions::default()).unwrap_err();
+        assert!(matches!(e, Error::Csv(_)));
+    }
+
+    #[test]
+    fn csv_roundtrip() {
+        let df = read_csv_str("x;y\n1,5;a\n2,5;b\n", detect_options("x;y\n1,5;a")).unwrap();
+        let out = write_csv_string(&df, true).unwrap();
+        assert!(out.contains("1,5"), "output: {out}");
+        let back = read_csv_str(&out, detect_options(&out)).unwrap();
+        assert_eq!(back.n_rows(), df.n_rows());
+        assert_eq!(
+            back.column("x").unwrap().dtype(),
+            df.column("x").unwrap().dtype()
+        );
+    }
+
+    #[test]
+    fn edited_cells_survive_csv_roundtrip() {
+        let input = "x;y\n1,5;a\n2,5;b\n";
+        let mut df = read_csv_str(input, detect_options(input)).unwrap();
+        df.set_cell(0, 0, "3,25").unwrap();
+        df.set_cell(0, 1, "*").unwrap();
+        df.set_cell(1, 1, "changed").unwrap();
+
+        let out = write_csv_string(&df, true).unwrap();
+        let back = read_csv_str(&out, detect_options(&out)).unwrap();
+        assert_eq!(back.cell_text(0, 0).as_deref(), Some("3.25"));
+        assert_eq!(back.cell_text(0, 1).as_deref(), Some("*"));
+        assert!(back.columns()[0].is_missing(1));
+        assert_eq!(back.cell_text(1, 1).as_deref(), Some("changed"));
+    }
+
+    #[test]
+    #[ignore = "phase 1 import budget; run on the target machine"]
+    fn import_one_million_cells_stays_inside_the_budget() {
+        use std::fmt::Write as _;
+        use std::time::{Duration, Instant};
+
+        let rows = 50_000;
+        let columns = 20;
+        let mut text = String::with_capacity(rows * columns * 8);
+        for column in 1..=columns {
+            let _ = write!(text, "C{column}");
+            if column < columns {
+                text.push(',');
+            }
+        }
+        text.push('\n');
+        for row in 0..rows {
+            for column in 0..columns {
+                let _ = write!(text, "{}", row as f64 * 0.01 + column as f64);
+                if column + 1 < columns {
+                    text.push(',');
+                }
+            }
+            text.push('\n');
+        }
+
+        let started = Instant::now();
+        let df = read_csv_str(&text, detect_options(&text)).expect("import");
+        let elapsed = started.elapsed();
+        println!("1M cells import: {elapsed:?}");
+        assert_eq!(df.n_rows(), rows);
+        assert_eq!(df.n_columns(), columns);
+        assert!(elapsed <= Duration::from_secs(3), "import took {elapsed:?}");
+    }
+
+    #[test]
+    fn project_roundtrip() {
+        let df = read_csv_str("x\n1.5\n2.5\n", CsvOptions::default()).unwrap();
+        let json = to_project_json(&df, "test").unwrap();
+        assert!(json.contains("\"schema_version\""));
+        let back = from_project_json(&json).unwrap();
+        assert_eq!(back, df);
+    }
+
+    #[test]
+    fn future_schema_is_rejected() {
+        let json = r#"{"schema_version": 99, "name": "x", "data": {"columns": []}}"#;
+        let e = from_project_json(json).unwrap_err();
+        assert!(matches!(e, Error::Project(_)));
+        assert!(e.to_string().contains("99"));
+    }
+
+    #[test]
+    fn text_column_does_not_become_a_number() {
+        let df = read_csv_str("x\n1\nabc\n", CsvOptions::default()).unwrap();
+        assert_eq!(df.column("x").unwrap().dtype(), DType::Text);
+    }
+
+    #[test]
+    fn the_preview_detects_the_semicolon_and_decimal_comma() {
+        let path = std::env::temp_dir().join("freeplots_preview.csv");
+        std::fs::write(&path, "weight;height\n12,5;10\n13,5;11\n").expect("write");
+        let preview = preview_csv_file(&path).expect("preview");
+        assert_eq!(preview.options.delimiter, b';');
+        assert!(preview.options.decimal_comma);
+        assert_eq!(preview.encoding, "UTF-8");
+        assert!(preview.text.contains("12,5"));
+        let (df, _) = read_csv_file_with_options(&path, preview.options).expect("read");
+        assert_eq!(df.n_rows(), 2);
+        assert_eq!(df.column("weight").expect("weight").value(0), Some(12.5));
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn the_preview_can_force_a_headerless_comma_file() {
+        let path = std::env::temp_dir().join("freeplots_preview2.csv");
+        std::fs::write(&path, "1,2\n3,4\n").expect("write");
+        let preview = preview_csv_file(&path).expect("preview");
+        let options = CsvOptions {
+            delimiter: b',',
+            decimal_comma: false,
+            has_header: false,
+        };
+        let (df, _) = read_csv_file_with_options(&path, options).expect("read");
+        assert_eq!(df.n_rows(), 2);
+        assert_eq!(df.n_columns(), 2);
+        assert_eq!(preview.options.delimiter, b',');
+        let _ = std::fs::remove_file(path);
+    }
+}

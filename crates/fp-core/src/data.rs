@@ -1378,3 +1378,386 @@ pub fn median_confidence_interval(sorted: &[f64], confidence: f64) -> Option<(f6
     let k = best?;
     Some((sorted[k - 1], sorted[n - k]))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample(values: &[f64]) -> Sample {
+        Sample::new(values.to_vec(), MissingPolicy::Drop).expect("valid sample")
+    }
+
+    #[test]
+    fn numeric_by_row_keeps_the_rows_aligned() {
+        // A missing value in the middle must leave a hole, not shift the rest.
+        let column = Column::new_f64("x", vec![1.0, f64::NAN, 3.0, 4.0]);
+        let values = column.numeric_by_row();
+        assert_eq!(values.len(), 4);
+        assert_eq!(values[0], 1.0);
+        assert!(values[1].is_nan());
+        assert_eq!(values[2], 3.0);
+        assert_eq!(values[3], 4.0);
+        // The compacting extractor is still the right tool for statistics.
+        assert_eq!(
+            column.numeric(MissingPolicy::Drop).expect("values"),
+            vec![1.0, 3.0, 4.0]
+        );
+        assert_eq!(column.value(2), Some(3.0));
+        assert_eq!(column.value(1), None);
+        assert_eq!(column.value(9), None);
+    }
+
+    #[test]
+    fn value_and_label_refuse_the_wrong_column_types() {
+        let text = Column::new_text("t", vec!["a".into(), "b".into()]);
+        assert_eq!(text.value(0), None);
+        assert_eq!(text.label(0).as_deref(), Some("a"));
+        let number = Column::new_f64("x", vec![2.5, 3.5]);
+        assert_eq!(number.value(1), Some(3.5));
+        assert_eq!(number.label(1).as_deref(), Some("3.5"));
+        let flag = Column::from_parts("b", ColumnData::Bool(vec![true, false]), vec![false, false])
+            .expect("bool column");
+        assert_eq!(flag.value(0), None);
+        assert_eq!(flag.label(0).as_deref(), Some("T"));
+        assert_eq!(flag.label(1).as_deref(), Some("F"));
+        let date = Column::new_date("d", vec![0, 1]);
+        assert_eq!(date.value(0), None);
+        assert!(date.label(0).is_some());
+    }
+
+    #[test]
+    fn the_skewness_and_kurtosis_follow_their_definitions() {
+        // A symmetric series has no skewness and no excess kurtosis.
+        let s = sample(&[1.0, 2.0, 3.0, 4.0, 5.0]);
+        let summary = ColumnSummary::from_sample(&s, 0.95).expect("summary");
+        assert!(summary.skewness.expect("skewness").abs() < 1e-12);
+        // The excess kurtosis of five equally spaced points is −1.3.
+        assert!((summary.excess_kurtosis.expect("kurtosis") + 1.3).abs() < 1e-12);
+        assert!(summary.skewness_standard_error.expect("se") > 0.0);
+
+        // A right-skewed series has a positive skewness.
+        let s = sample(&[1.0, 1.0, 1.0, 1.0, 10.0]);
+        let summary = ColumnSummary::from_sample(&s, 0.95).expect("summary");
+        assert!(summary.skewness.expect("skewness") > 1.0);
+    }
+
+    #[test]
+    fn median_confidence_interval_uses_the_order_statistics() {
+        let values: Vec<f64> = (1..=10).map(|i| i as f64).collect();
+        let interval = median_confidence_interval(&values, 0.95).expect("interval");
+        // With n = 10 the 95 % interval is [x₍₂₎, x₍₉₎] = [2, 9].
+        assert_eq!(interval, (2.0, 9.0));
+        let wider = median_confidence_interval(&values, 0.99).expect("interval");
+        // At 99 % only k = 1 survives: [x₍₁₎, x₍₁₀₎].
+        assert_eq!(wider, (1.0, 10.0));
+        assert!(median_confidence_interval(&[1.0], 0.95).is_none());
+    }
+
+    #[test]
+    fn median_confidence_interval_covers_the_exact_probability() {
+        // The coverage of [x₍ₖ₎, x₍ₙ₊₁₋ₖ₎] is 1 − 2·P(Bin(n, ½) ≤ k−1);
+        // for n = 20 and k = 3 that is 1 − 2·211/1048576 = 0.99960.
+        let values: Vec<f64> = (1..=20).map(|i| i as f64).collect();
+        let interval = median_confidence_interval(&values, 0.999).expect("interval");
+        assert_eq!(interval, (3.0, 18.0));
+    }
+
+    #[test]
+    fn known_mean_and_standard_deviation() {
+        let s = sample(&[2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]);
+        assert!((s.mean().unwrap() - 5.0).abs() < 1e-15);
+        // sample standard deviation of this classic series = sqrt(32/7)
+        assert!((s.sd().unwrap() - (32.0f64 / 7.0).sqrt()).abs() < 1e-15);
+        assert!((s.variance_population().unwrap() - 4.0).abs() < 1e-15);
+    }
+
+    #[test]
+    fn even_and_odd_median() {
+        assert_eq!(sample(&[1.0, 2.0, 3.0]).median().unwrap(), 2.0);
+        assert_eq!(sample(&[1.0, 2.0, 3.0, 4.0]).median().unwrap(), 2.5);
+    }
+
+    #[test]
+    fn empty_is_an_error() {
+        assert_eq!(
+            Sample::new(vec![], MissingPolicy::Drop).unwrap_err(),
+            Error::EmptySample
+        );
+    }
+
+    #[test]
+    fn non_finite_values_are_counted_or_rejected() {
+        let drop = Sample::new(vec![1.0, f64::NAN, 3.0], MissingPolicy::Drop).unwrap();
+        assert_eq!(drop.n(), 2);
+        assert_eq!(drop.excluded(), 1);
+        assert_eq!(
+            Sample::new(vec![1.0, f64::INFINITY], MissingPolicy::Error).unwrap_err(),
+            Error::NonFinite {
+                index: 1,
+                value: f64::INFINITY
+            }
+        );
+    }
+
+    #[test]
+    fn n_one_has_no_standard_deviation() {
+        let s = sample(&[42.0]);
+        assert_eq!(s.sd().unwrap_err(), Error::SampleTooSmall { n: 1, min: 2 });
+    }
+
+    #[test]
+    fn numerically_stable_variance() {
+        // Naive variance (E[x²] − E[x]²) fails here; ours does not.
+        let s = sample(&[1e8 + 1.0, 1e8 + 2.0, 1e8 + 3.0]);
+        assert!((s.variance().unwrap() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ties_are_detected() {
+        assert_eq!(sample(&[1.0, 1.0, 2.0, 2.0, 2.0]).ties(), 3);
+        assert_eq!(sample(&[1.0, 2.0]).ties(), 0);
+    }
+
+    #[test]
+    fn column_sample_counts_missing_and_non_finite_values() {
+        let column = Column::new_f64("C1", vec![1.0, f64::NAN, 3.0]);
+        let sample = column.sample(MissingPolicy::Drop).unwrap();
+        assert_eq!(sample.n(), 2);
+        assert_eq!(sample.excluded(), 1);
+        assert_eq!(sample.values(), &[1.0, 3.0]);
+    }
+
+    #[test]
+    fn text_column_is_not_numeric() {
+        let c = Column::new_text("C1", vec!["a".into(), "b".into()]);
+        assert!(matches!(c.numeric(MissingPolicy::Drop), Err(Error::Csv(_))));
+    }
+
+    #[test]
+    fn table_rejects_columns_of_different_lengths() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("C1", vec![1.0, 2.0]),
+            Column::new_f64("C2", vec![1.0]),
+        ]);
+        assert!(df.is_err());
+    }
+
+    #[test]
+    fn descriptives_of_small_sample() {
+        let d = Descriptives::from_sample(&sample(&[1.0, 2.0, 3.0])).unwrap();
+        assert_eq!(d.n, 3);
+        assert_eq!(d.min, 1.0);
+        assert_eq!(d.max, 3.0);
+        assert_eq!(d.median, 2.0);
+    }
+
+    #[test]
+    fn quantiles_use_the_interpolated_convention() {
+        let s = sample(&[1.0, 2.0, 3.0, 4.0, 5.0]);
+        assert_eq!(s.quantile(0.0).unwrap(), 1.0);
+        // h = (n + 1)p = 1.5 and 4.5 for the quartiles.
+        assert_eq!(s.quantile(0.25).unwrap(), 1.5);
+        assert_eq!(s.quantile(0.5).unwrap(), 3.0);
+        assert_eq!(s.quantile(0.75).unwrap(), 4.5);
+        assert_eq!(s.quantile(1.0).unwrap(), 5.0);
+        assert!(s.quantile(1.1).is_err());
+    }
+
+    #[test]
+    fn quartiles_match_the_documented_descriptive_statistics() {
+        // n = 20 dataset of the parity kit: the documented behaviour prints
+        // Q1 = 19.4198 and Q3 = 21.7969.
+        let values = [
+            20.62715749,
+            15.91402014,
+            20.71665986,
+            18.42692322,
+            24.57605812,
+            21.89088436,
+            18.68555526,
+            20.04259395,
+            19.25743458,
+            21.51474668,
+            20.02615504,
+            21.08730919,
+            20.64233209,
+            23.67040944,
+            20.18208664,
+            20.78376531,
+            23.56650505,
+            25.48269896,
+            19.90698872,
+            18.02129698,
+        ];
+        let s = sample(&values);
+        let summary = ColumnSummary::from_sample(&s, 0.95).unwrap();
+        assert!((summary.q1 - 19.419824).abs() < 1e-6, "{}", summary.q1);
+        assert!((summary.q3 - 21.796850).abs() < 1e-6, "{}", summary.q3);
+        assert!((summary.median - 20.634745).abs() < 1e-6);
+    }
+
+    #[test]
+    fn summary_reports_sd_quartiles_and_mean_ci() {
+        let s = sample(&[1.0, 2.0, 3.0, 4.0]);
+        let summary = ColumnSummary::from_sample(&s, 0.95).unwrap();
+        assert_eq!(summary.n, 4);
+        assert_eq!(summary.mean, 2.5);
+        assert_eq!(summary.q1, 1.25);
+        assert_eq!(summary.median, 2.5);
+        assert_eq!(summary.q3, 3.75);
+        assert_eq!(summary.iqr, 2.5);
+        let (low, high) = summary.ci_mean.expect("95% CI");
+        assert!(low < summary.mean && summary.mean < high);
+        assert!((high - low - 3.182446305284263 * summary.sd.unwrap()).abs() < 1e-9);
+    }
+
+    #[test]
+    fn summary_of_one_observation_has_no_sd_or_ci() {
+        let summary = ColumnSummary::from_sample(&sample(&[42.0]), 0.95).unwrap();
+        assert_eq!(summary.mean, 42.0);
+        assert!(summary.sd.is_none());
+        assert!(summary.se_mean.is_none());
+        assert!(summary.ci_mean.is_none());
+        assert_eq!(summary.q1, 42.0);
+        assert_eq!(summary.q3, 42.0);
+    }
+
+    #[test]
+    fn worksheet_cells_can_be_edited() {
+        let mut df = DataFrame::new(vec![
+            Column::new_f64("C1", vec![f64::NAN; 2]),
+            Column::new_text("C2", vec![String::new(); 2]),
+        ])
+        .unwrap();
+        df.set_cell(0, 0, "12,5").unwrap();
+        df.set_cell(0, 1, "*").unwrap();
+        df.set_cell(1, 0, "batch A").unwrap();
+
+        assert_eq!(df.cell_text(0, 0).as_deref(), Some("12.5"));
+        assert_eq!(df.cell_text(0, 1).as_deref(), Some("*"));
+        assert!(df.columns()[0].is_missing(1));
+        assert_eq!(
+            df.columns()[0].numeric(MissingPolicy::Drop).unwrap(),
+            vec![12.5]
+        );
+        assert_eq!(df.cell_text(1, 0).as_deref(), Some("batch A"));
+    }
+
+    #[test]
+    fn invalid_numeric_edit_keeps_the_old_value() {
+        let mut df = DataFrame::new(vec![Column::new_f64("C1", vec![1.0])]).unwrap();
+        let err = df.set_cell(0, 0, "not a number").unwrap_err();
+        assert!(matches!(err, Error::Cell { .. }));
+        assert_eq!(df.columns()[0].numeric(MissingPolicy::Drop).unwrap(), [1.0]);
+    }
+
+    #[test]
+    fn rows_and_columns_can_be_added_and_removed() {
+        let mut df = DataFrame::blank(2, 2).unwrap();
+        let row = df.add_row().unwrap();
+        assert_eq!(row, 2);
+        assert_eq!(df.n_rows(), 3);
+
+        df.insert_row(1).unwrap();
+        assert_eq!(df.n_rows(), 4);
+        df.remove_row(0).unwrap();
+        assert_eq!(df.n_rows(), 3);
+
+        let index = df.add_column(DType::Text);
+        assert_eq!(index, 2);
+        assert_eq!(df.n_columns(), 3);
+        assert_eq!(df.n_rows(), 3);
+        df.rename_column(2, "batch").unwrap();
+        assert_eq!(df.columns()[2].name(), "batch");
+        df.remove_column(1).unwrap();
+        assert_eq!(df.n_columns(), 2);
+    }
+
+    #[test]
+    fn blank_worksheet_gains_its_first_column_on_typing() {
+        let mut df = DataFrame::new(vec![]).unwrap();
+        df.ensure_rows(1).unwrap();
+        assert_eq!(df.n_columns(), 1);
+        assert_eq!(df.n_rows(), 1);
+        df.set_cell(0, 0, "4.5").unwrap();
+        assert_eq!(df.cell_text(0, 0).as_deref(), Some("4.5"));
+    }
+
+    #[test]
+    fn columns_can_be_inserted_and_reinserted() {
+        let mut df = DataFrame::blank(2, 2).unwrap();
+        let column = df.columns()[1].clone();
+        df.remove_column(1).unwrap();
+        df.insert_column(1, column).unwrap();
+        assert_eq!(df.n_columns(), 2);
+        df.insert_empty_column(1, "text", DType::Text).unwrap();
+        assert_eq!(df.n_columns(), 3);
+        assert_eq!(df.columns()[1].dtype(), DType::Text);
+        assert!(df.insert_empty_column(0, "C1", DType::Float).is_err());
+    }
+
+    #[test]
+    fn cells_can_be_marked_missing_and_rows_truncated() {
+        let mut df = DataFrame::blank(2, 3).unwrap();
+        df.set_cell(0, 0, "1").unwrap();
+        df.set_missing(0, 0).unwrap();
+        assert!(df.cell_is_missing(0, 0));
+        assert_eq!(df.cell_text(0, 0).as_deref(), Some("*"));
+
+        df.truncate_rows(1);
+        assert_eq!(df.n_rows(), 1);
+        df.truncate_rows(5);
+        assert_eq!(df.n_rows(), 1);
+    }
+
+    #[test]
+    fn the_standard_deviation_interval_matches_scipy() {
+        let sample =
+            Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).expect("sample");
+        let summary = ColumnSummary::from_sample(&sample, 0.95).expect("summary");
+        let (low, high) = summary.ci_sd.expect("interval");
+        assert!((low - 0.947_312_670_675_223_6).abs() < 1e-6, "{low}");
+        assert!((high - 4.543_490_393_448_267).abs() < 1e-6, "{high}");
+        let two = Sample::new(vec![1.0, 2.0], MissingPolicy::Drop).expect("sample");
+        let summary = ColumnSummary::from_sample(&two, 0.95).expect("summary");
+        let (low, high) = summary.ci_sd.expect("interval");
+        assert!((low - 0.315_475_114_078_284_2).abs() < 1e-6, "{low}");
+        assert!((high - 22.563_890_064_876_563).abs() < 1e-6, "{high}");
+        let one = Sample::new(vec![1.0], MissingPolicy::Drop).expect("sample");
+        assert!(
+            ColumnSummary::from_sample(&one, 0.95)
+                .expect("summary")
+                .ci_sd
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn the_date_formats_render_the_same_calendar_day() {
+        let day = parse_date("2024-02-29").expect("date");
+        assert_eq!(format_date_with(day, DateFormat::Iso), "2024-02-29");
+        assert_eq!(
+            format_date_with(day, DateFormat::DayMonthYear),
+            "29/02/2024"
+        );
+        assert_eq!(
+            format_date_with(day, DateFormat::MonthDayYear),
+            "02/29/2024"
+        );
+        assert_eq!(
+            format_date_with(day, DateFormat::DayMonthNameYear),
+            "29 Feb 2024"
+        );
+        assert_eq!(format_date_with(i64::MIN, DateFormat::Iso), "*");
+        assert_eq!(DateFormat::DayMonthYear.name(), "DD/MM/YYYY");
+    }
+
+    #[test]
+    fn column_names_must_be_unique_and_non_empty() {
+        let mut df = DataFrame::blank(2, 0).unwrap();
+        assert!(df.rename_column(0, "  ").is_err());
+        assert!(df.rename_column(1, "C1").is_err());
+        df.rename_column(0, "weight").unwrap();
+        assert_eq!(df.columns()[0].name(), "weight");
+    }
+}

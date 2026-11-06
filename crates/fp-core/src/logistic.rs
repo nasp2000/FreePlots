@@ -687,3 +687,217 @@ pub fn analyze(df: &DataFrame, response: &str, predictors: &[String]) -> Result<
         plot: None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    #[test]
+    fn a_saturated_binary_predictor_recovers_the_odds() {
+        // x = 0: 2 of 8 events (odds 1/3); x = 1: 6 of 8 events (odds 3).
+        let mut x = Vec::new();
+        let mut y = Vec::new();
+        for value in [0.0, 1.0] {
+            for index in 0..8 {
+                x.push(value);
+                let event = if value == 0.0 { index < 2 } else { index < 6 };
+                y.push(if event { 1.0 } else { 0.0 });
+            }
+        }
+        let df =
+            DataFrame::new(vec![Column::new_f64("y", y), Column::new_f64("x", x)]).expect("frame");
+        let model = fit(&df, "y", &["x".to_owned()]).expect("fit");
+        assert_eq!(model.n, 16);
+        assert_eq!(model.events, 8);
+        let constant = (1.0f64 / 3.0).ln();
+        let slope = 9.0f64.ln();
+        assert!(
+            (model.coefficients[0] - constant).abs() < 1e-6,
+            "{:?}",
+            model.coefficients
+        );
+        assert!(
+            (model.coefficients[1] - slope).abs() < 1e-6,
+            "{:?}",
+            model.coefficients
+        );
+        assert!((model.odds_ratios[1] - 9.0).abs() < 1e-5);
+        assert!(model.test_statistic > 0.0);
+        assert!(model.mcfadden_r2 > 0.0 && model.mcfadden_r2 < 1.0);
+        assert_eq!(model.correct, 12);
+        assert!(model.hosmer_lemeshow.is_none(), "fewer than 20 rows");
+    }
+
+    #[test]
+    fn a_categorical_predictor_is_dummy_coded() {
+        // Three levels with different event rates; the first level (A) is the
+        // reference, so the model has two dummy terms.
+        let mut group = Vec::new();
+        let mut y = Vec::new();
+        for (level, events) in [("A", 2), ("B", 5), ("C", 8)] {
+            for index in 0..10 {
+                group.push(level.to_owned());
+                y.push(if index < events { 1.0 } else { 0.0 });
+            }
+        }
+        let df = DataFrame::new(vec![
+            Column::new_f64("y", y),
+            Column::new_text("group", group),
+        ])
+        .expect("frame");
+        let model = fit(&df, "y", &["group".to_owned()]).expect("fit");
+        assert_eq!(model.terms, ["Constant", "group[B]", "group[C]"]);
+        assert_eq!(model.test_df, 2);
+        assert_eq!(model.n, 30);
+        // The odds rise with the level, so both coefficients are positive.
+        assert!(model.coefficients[1] > 0.0, "{:?}", model.coefficients);
+        assert!(model.coefficients[2] > model.coefficients[1]);
+        assert!(model.odds_ratios[1] > 1.0 && model.odds_ratios[2] > 1.0);
+        // The documented behaviour level has the lowest fitted probability.
+        let mean = |level: usize| {
+            let slice = &model.predicted[level * 10..level * 10 + 10];
+            slice.iter().sum::<f64>() / 10.0
+        };
+        assert!(mean(0) < mean(1) && mean(1) < mean(2));
+    }
+
+    #[test]
+    fn a_missing_response_keeps_the_rows_aligned() {
+        // The missing row sits first and carries a wild predictor value: if
+        // the response were compacted instead of read by row, the predictors
+        // would shift by one.
+        let mut x = vec![99.0];
+        let mut y = vec![f64::NAN];
+        for index in 1..=12 {
+            x.push(index as f64);
+            y.push(if index % 3 == 0 { 1.0 } else { 0.0 });
+        }
+        let with_missing = DataFrame::new(vec![
+            Column::new_f64("y", y.clone()),
+            Column::new_f64("x", x.clone()),
+        ])
+        .expect("frame");
+        let without = DataFrame::new(vec![
+            Column::new_f64("y", y[1..].to_vec()),
+            Column::new_f64("x", x[1..].to_vec()),
+        ])
+        .expect("frame");
+        let first = fit(&with_missing, "y", &["x".to_owned()]).expect("fit");
+        let second = fit(&without, "y", &["x".to_owned()]).expect("fit");
+        assert_eq!(first.n, 12);
+        assert_eq!(first.n, second.n);
+        for (a, b) in first.coefficients.iter().zip(&second.coefficients) {
+            assert!(
+                (a - b).abs() < 1e-9,
+                "{:?} vs {:?}",
+                first.coefficients,
+                second.coefficients
+            );
+        }
+        let out = analyze(&with_missing, "y", &["x".to_owned()]).expect("analysis");
+        assert_eq!(out.results[0].excluded, 1);
+    }
+
+    #[test]
+    fn a_single_level_categorical_predictor_is_rejected() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("y", vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0]),
+            Column::new_text(
+                "group",
+                vec![
+                    "A".into(),
+                    "A".into(),
+                    "A".into(),
+                    "A".into(),
+                    "A".into(),
+                    "A".into(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            fit(&df, "y", &["group".to_owned()]),
+            Err(Error::Unsupported(_))
+        ));
+    }
+
+    #[test]
+    fn a_text_response_is_rejected() {
+        let df = DataFrame::new(vec![
+            Column::new_text("y", vec!["no".into(), "yes".into(), "no".into()]),
+            Column::new_f64("x", vec![1.0, 2.0, 3.0]),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            fit(&df, "y", &["x".to_owned()]),
+            Err(Error::Csv(_))
+        ));
+    }
+
+    #[test]
+    fn a_continuous_predictor_gives_a_positive_slope() {
+        // Overlapping groups, so the maximum-likelihood estimate is finite.
+        let mut x = Vec::new();
+        let mut y = Vec::new();
+        for index in 0..40 {
+            x.push(index as f64);
+            let event = (index >= 20 && index % 4 != 0) || (index < 5 && index % 2 == 0);
+            y.push(if event { 1.0 } else { 0.0 });
+        }
+        let df =
+            DataFrame::new(vec![Column::new_f64("y", y), Column::new_f64("x", x)]).expect("frame");
+        let model = fit(&df, "y", &["x".to_owned()]).expect("fit");
+        assert!(model.coefficients[1] > 0.0);
+        assert!(model.odds_ratios[1] > 1.0);
+        assert!(model.correct > 30, "correct {}", model.correct);
+        let hl = model.hosmer_lemeshow.as_ref().expect("Hosmer-Lemeshow");
+        assert!(hl.statistic >= 0.0);
+        assert!((0.0..=1.0).contains(&hl.p_value));
+        assert_eq!(hl.df, hl.groups.len() - 2);
+    }
+
+    #[test]
+    fn a_non_binary_response_is_rejected() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("y", vec![0.0, 1.0, 2.0, 1.0]),
+            Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0]),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            fit(&df, "y", &["x".to_owned()]),
+            Err(Error::Unsupported(_))
+        ));
+    }
+
+    #[test]
+    fn a_constant_response_is_rejected() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("y", vec![1.0, 1.0, 1.0]),
+            Column::new_f64("x", vec![1.0, 2.0, 3.0]),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            fit(&df, "y", &["x".to_owned()]),
+            Err(Error::ConstantSample)
+        ));
+    }
+
+    #[test]
+    fn the_report_has_the_coefficient_table() {
+        let mut y = Vec::new();
+        let mut x = Vec::new();
+        for index in 0..40 {
+            x.push(index as f64);
+            y.push(if index % 3 == 0 { 0.0 } else { 1.0 });
+        }
+        let df =
+            DataFrame::new(vec![Column::new_f64("y", y), Column::new_f64("x", x)]).expect("frame");
+        let out = analyze(&df, "y", &["x".to_owned()]).expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Binary Logistic Regression"), "{text}");
+        assert!(text.contains("Odds ratio"), "{text}");
+        assert!(text.contains("Hosmer-Lemeshow"), "{text}");
+        assert!(out.plot.is_none());
+    }
+}

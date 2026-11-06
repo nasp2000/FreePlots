@@ -444,3 +444,132 @@ pub fn analyze(df: &DataFrame, columns: &[String], keep: usize) -> Result<Analys
         plot: Some(scree_plot(&model)),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    /// Two variables that are almost the same, plus an independent third.
+    fn frame() -> DataFrame {
+        let mut a = Vec::new();
+        let mut b = Vec::new();
+        let mut c = Vec::new();
+        for index in 0..40 {
+            let x = index as f64;
+            a.push(x);
+            b.push(2.0 * x + ((index % 3) as f64) * 0.01);
+            c.push(((index * 7) % 11) as f64);
+        }
+        DataFrame::new(vec![
+            Column::new_f64("a", a),
+            Column::new_f64("b", b),
+            Column::new_f64("c", c),
+        ])
+        .expect("frame")
+    }
+
+    #[test]
+    fn the_eigenvalues_of_a_correlation_matrix_sum_to_the_variables() {
+        let model = fit(
+            &frame(),
+            &["a".to_owned(), "b".to_owned(), "c".to_owned()],
+            2,
+        )
+        .expect("fit");
+        let total: f64 = model.eigenvalues.iter().sum();
+        assert!((total - 3.0).abs() < 1e-9, "{total}");
+        // The eigenvalues come in decreasing order.
+        for pair in model.eigenvalues.windows(2) {
+            assert!(pair[0] >= pair[1] - 1e-12);
+        }
+        // The explained proportions are normalised and cumulative.
+        let explained: f64 = model.explained.iter().sum();
+        assert!((explained - 1.0).abs() < 1e-9);
+        assert!((model.cumulative.last().copied().unwrap_or(0.0) - 1.0).abs() < 1e-9);
+        // The nearly duplicated variables share the first component.
+        assert!(model.explained[0] > 0.55, "{:?}", model.explained);
+    }
+
+    #[test]
+    fn the_scores_are_centred_and_orthogonal() {
+        let model = fit(
+            &frame(),
+            &["a".to_owned(), "b".to_owned(), "c".to_owned()],
+            3,
+        )
+        .expect("fit");
+        assert_eq!(model.scores.len(), 3);
+        for scores in &model.scores {
+            let mean = scores.iter().sum::<f64>() / scores.len() as f64;
+            assert!(mean.abs() < 1e-9, "mean {mean}");
+        }
+        let first = &model.scores[0];
+        let second = &model.scores[1];
+        let dot: f64 = first.iter().zip(second).map(|(a, b)| a * b).sum();
+        assert!(dot.abs() < 1e-6, "dot {dot}");
+    }
+
+    #[test]
+    fn duplicate_columns_are_rejected() {
+        let df = frame();
+        assert!(matches!(
+            fit(&df, &["a".to_owned(), "a".to_owned()], 1),
+            Err(Error::Unsupported(_))
+        ));
+        assert!(matches!(
+            fit(&df, &["a".to_owned()], 1),
+            Err(Error::Unsupported(_))
+        ));
+    }
+
+    #[test]
+    fn the_report_and_the_scree_plot_are_built() {
+        let out = analyze(
+            &frame(),
+            &["a".to_owned(), "b".to_owned(), "c".to_owned()],
+            2,
+        )
+        .expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Principal Component Analysis"), "{text}");
+        assert!(text.contains("Eigenvalue"), "{text}");
+        assert!(text.contains("Score PC1"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.points.len(), 3);
+    }
+
+    #[test]
+    fn a_missing_row_does_not_shift_the_columns() {
+        let rows = [
+            (1.0, 1.1, 5.0),
+            (2.0, 2.1, 4.0),
+            (3.0, 2.9, 3.0),
+            (4.0, 4.1, 2.0),
+            (5.0, 4.9, 1.0),
+            (6.0, 6.1, 0.5),
+        ];
+        let mut with_missing = rows.to_vec();
+        with_missing.insert(0, (f64::NAN, 99.0, 99.0));
+        let frame_of = |rows: &[(f64, f64, f64)]| {
+            DataFrame::new(vec![
+                Column::new_f64("a", rows.iter().map(|row| row.0).collect()),
+                Column::new_f64("b", rows.iter().map(|row| row.1).collect()),
+                Column::new_f64("c", rows.iter().map(|row| row.2).collect()),
+            ])
+            .expect("frame")
+        };
+        let columns = vec!["a".to_owned(), "b".to_owned(), "c".to_owned()];
+        let a = fit(&frame_of(&with_missing), &columns, 2).expect("pca");
+        let b = fit(&frame_of(&rows), &columns, 2).expect("pca");
+        assert_eq!(a.n, 6);
+        for (left, right) in a.eigenvalues.iter().zip(&b.eigenvalues) {
+            assert!(
+                (left - right).abs() < 1e-9,
+                "{:?} vs {:?}",
+                a.eigenvalues,
+                b.eigenvalues
+            );
+        }
+    }
+}

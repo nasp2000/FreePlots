@@ -13,7 +13,7 @@ env:
 
 jobs:
   test:
-    name: Build check
+    name: Independent tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,9 +31,9 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
-        run: cargo clippy --workspace --locked --features desktop -- -D warnings
-      - name: Build
-        run: cargo build --workspace --locked --features desktop
+        run: cargo clippy --workspace --all-targets --locked --features desktop -- -D warnings
+      - name: Tests
+        run: cargo test --workspace --features desktop --locked
 
   deny:
     name: Licences and advisories

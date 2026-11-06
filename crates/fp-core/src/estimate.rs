@@ -93,3 +93,55 @@ pub fn c4(n: usize) -> f64 {
     (2.0 / (n - 1.0)).sqrt()
         * (crate::special::ln_gamma(n / 2.0) - crate::special::ln_gamma((n - 1.0) / 2.0)).exp()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::MissingPolicy;
+
+    #[test]
+    fn normal_fit_has_state_and_n() {
+        let s = Sample::new(vec![1.0, 2.0, 3.0, 4.0], MissingPolicy::Drop).unwrap();
+        let fit = fit_normal(&s).unwrap();
+        assert_eq!(fit.status, FitStatus::Converged);
+        assert_eq!(fit.n, 4);
+        assert_eq!(fit.n_params(), 2);
+        assert!(fit.log_likelihood.is_finite());
+    }
+
+    #[test]
+    fn c4_matches_published_values() {
+        let cases = [
+            (2, 0.797_884_560_802_865_1),
+            (5, 0.939_985_602_986_625_7),
+            (8, 0.965_030_456_147_372_7),
+            (20, 0.986_934_267_524_653),
+            (200, 0.998_744_512_664_535_8),
+        ];
+        for (n, expected) in cases {
+            assert!(
+                (c4(n) - expected).abs() < 1e-12,
+                "c4({n}) = {}, expected {expected}",
+                c4(n)
+            );
+        }
+        assert!(c4(1).is_nan());
+    }
+
+    #[test]
+    fn not_converged_state_is_not_ok() {
+        assert!(!FitStatus::NotConverged.is_ok());
+        assert!(FitStatus::Converged.is_ok());
+        assert_eq!(FitStatus::NotConverged.as_str(), "NOT converged");
+    }
+
+    #[test]
+    fn empty_or_constant_sample_fails() {
+        assert_eq!(
+            Sample::new(vec![], MissingPolicy::Drop).unwrap_err(),
+            Error::EmptySample
+        );
+        let c = Sample::new(vec![1.0, 1.0, 1.0], MissingPolicy::Drop).unwrap();
+        assert_eq!(fit_normal(&c).unwrap_err(), Error::ConstantSample);
+    }
+}

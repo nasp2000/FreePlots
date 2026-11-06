@@ -696,3 +696,112 @@ fn constant_time_eq(a: &str, b: &str) -> bool {
     }
     diff == 0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture() -> String {
+        format!(
+            "{}/../fp-automation/tests/data/pchart.csv",
+            env!("CARGO_MANIFEST_DIR")
+        )
+    }
+
+    #[test]
+    fn the_token_gate_is_exact() {
+        assert!(bearer_authorises("Bearer abc123", "abc123"));
+        assert!(bearer_authorises("Bearer   abc123  ", "abc123"));
+        assert!(!bearer_authorises("Bearer abc12", "abc123"));
+        assert!(!bearer_authorises("Bearer abc124", "abc123"));
+        assert!(!bearer_authorises("bearer abc123", "abc123"));
+        assert!(!bearer_authorises("Basic abc123", "abc123"));
+        assert!(!bearer_authorises("", "abc123"));
+        assert!(constant_time_eq("secret", "secret"));
+        assert!(!constant_time_eq("secre", "secret"));
+        assert!(!constant_time_eq("secret", "secreT"));
+        assert!(public_bind_allows(false, &None));
+        assert!(!public_bind_allows(true, &None));
+        assert!(!public_bind_allows(true, &Some(String::new())));
+        assert!(public_bind_allows(true, &Some("x".to_owned())));
+    }
+
+    #[test]
+    fn the_tool_list_covers_the_semantic_surface() {
+        let names: Vec<String> = tools()
+            .iter()
+            .map(|tool| tool["name"].as_str().expect("name").to_owned())
+            .collect();
+        for expected in [
+            "freeplots_open_csv",
+            "freeplots_menu",
+            "freeplots_click",
+            "freeplots_set_text",
+            "freeplots_select",
+            "freeplots_session",
+            "freeplots_status",
+            "freeplots_widgets",
+            "freeplots_plot",
+            "freeplots_screenshot",
+            "freeplots_run_script",
+        ] {
+            assert!(names.iter().any(|name| name == expected), "{names:?}");
+        }
+    }
+
+    #[test]
+    fn a_script_drives_the_attribute_dialog() {
+        let mut automation = Automation::new();
+        automation.load_csv(fixture()).expect("load csv");
+        let log = run_script(
+            &mut automation,
+            &json!({
+                "steps": [
+                    {"action": "menu", "path": ["Stat", "Control Charts", "P/NP/C/U Chart…"]},
+                    {"action": "select", "label": "Chart:", "option": "P"},
+                    {"action": "select", "label": "Defects column:", "option": "defects"},
+                    {"action": "set_text", "label": "Constant size:", "value": "50"},
+                    {"action": "click", "label": "Run"}
+                ]
+            }),
+        )
+        .expect("script");
+        assert!(log.contains("1. menu Stat > Control Charts"), "{log}");
+        assert!(
+            automation.session().contains("P Chart"),
+            "{}",
+            automation.session()
+        );
+        assert!(automation.plot().is_some());
+    }
+
+    #[test]
+    fn a_missing_widget_is_reported_without_killing_the_server() {
+        let mut automation = Automation::new();
+        let error = run_tool(
+            &mut automation,
+            "freeplots_click",
+            &json!({"label": "No such button"}),
+        )
+        .expect_err("missing label");
+        assert!(error.contains("no visible widget"), "{error}");
+        // The session is still usable after the failed call.
+        assert!(!automation.status().is_empty());
+    }
+
+    #[cfg(feature = "headless-screenshots")]
+    #[test]
+    fn the_screenshot_tool_writes_a_png() {
+        let mut automation = Automation::new();
+        let path = std::env::temp_dir().join(format!("freeplots-{}.png", std::process::id()));
+        run_tool(
+            &mut automation,
+            "freeplots_screenshot",
+            &json!({"path": path.display().to_string()}),
+        )
+        .expect("screenshot");
+        let bytes = std::fs::read(&path).expect("read png");
+        assert!(bytes.starts_with(&[0x89, b'P', b'N', b'G']));
+        let _ = std::fs::remove_file(&path);
+    }
+}

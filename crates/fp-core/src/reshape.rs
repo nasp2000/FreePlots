@@ -324,3 +324,130 @@ pub fn subset(df: &DataFrame, column: &str, op: SubsetOp, value: &str) -> Result
     }
     DataFrame::new(columns)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::MissingPolicy;
+
+    fn frame() -> DataFrame {
+        DataFrame::new(vec![
+            Column::new_f64("y", vec![3.0, 1.0, 2.0, 4.0]),
+            Column::new_text(
+                "g",
+                vec![
+                    "b".to_owned(),
+                    "a".to_owned(),
+                    "b".to_owned(),
+                    "a".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame")
+    }
+
+    #[test]
+    fn sorting_uses_the_keys_in_order() {
+        let df = frame();
+        let sorted = sort(&df, &[("y".to_owned(), SortDirection::Ascending)]).expect("sort");
+        let values = sorted
+            .column("y")
+            .expect("y")
+            .numeric(MissingPolicy::Drop)
+            .expect("numbers");
+        assert_eq!(values, vec![1.0, 2.0, 3.0, 4.0]);
+
+        let by_group = sort(
+            &df,
+            &[
+                ("g".to_owned(), SortDirection::Ascending),
+                ("y".to_owned(), SortDirection::Descending),
+            ],
+        )
+        .expect("sort");
+        assert_eq!(by_group.n_rows(), 4);
+        assert_eq!(by_group.cell_text(0, 0).as_deref(), Some("4"));
+        assert_eq!(by_group.cell_text(0, 1).as_deref(), Some("1"));
+        assert_eq!(by_group.cell_text(0, 2).as_deref(), Some("3"));
+        assert_eq!(by_group.cell_text(0, 3).as_deref(), Some("2"));
+    }
+
+    #[test]
+    fn missing_values_sort_last() {
+        let df =
+            DataFrame::new(vec![Column::new_f64("y", vec![2.0, f64::NAN, 1.0])]).expect("frame");
+        let sorted = sort(&df, &[("y".to_owned(), SortDirection::Ascending)]).expect("sort");
+        assert_eq!(sorted.cell_text(0, 0).as_deref(), Some("1"));
+        assert_eq!(sorted.cell_text(0, 1).as_deref(), Some("2"));
+        assert!(sorted.cell_is_missing(0, 2));
+        let descending = sort(&df, &[("y".to_owned(), SortDirection::Descending)]).expect("sort");
+        assert!(descending.cell_is_missing(0, 2));
+    }
+
+    #[test]
+    fn transpose_turns_columns_into_rows() {
+        let transposed = transpose(&frame()).expect("transpose");
+        // Two original columns become two rows; the +1 column holds the names.
+        assert_eq!(transposed.n_rows(), 2);
+        assert_eq!(transposed.n_columns(), 5);
+        assert_eq!(transposed.cell_text(0, 0).as_deref(), Some("y"));
+        assert_eq!(transposed.cell_text(0, 1).as_deref(), Some("g"));
+        assert_eq!(transposed.cell_text(1, 0).as_deref(), Some("3"));
+        assert_eq!(transposed.cell_text(1, 1).as_deref(), Some("b"));
+        assert_eq!(transposed.cell_text(4, 0).as_deref(), Some("4"));
+        assert_eq!(transposed.cell_text(4, 1).as_deref(), Some("a"));
+    }
+
+    #[test]
+    fn stacking_builds_the_value_and_variable_columns() {
+        let df = frame();
+        let stacked = stack(&df, &["y".to_owned()]).expect("stack");
+        assert_eq!(stacked.n_rows(), 4);
+        assert_eq!(stacked.n_columns(), 2);
+        assert_eq!(stacked.cell_text(1, 0).as_deref(), Some("y"));
+        assert_eq!(stacked.cell_text(0, 0).as_deref(), Some("3"));
+    }
+
+    #[test]
+    fn unstacking_splits_the_levels_into_columns() {
+        let df = frame();
+        let wide = unstack(&df, "y", "g").expect("unstack");
+        assert_eq!(wide.n_columns(), 2);
+        let names: Vec<&str> = wide.columns().iter().map(Column::name).collect();
+        assert_eq!(names, vec!["a", "b"]);
+        // a gets the values 1 and 4, b the values 3 and 2 (row order).
+        assert_eq!(wide.cell_text(0, 0).as_deref(), Some("1"));
+        assert_eq!(wide.cell_text(0, 1).as_deref(), Some("4"));
+        assert_eq!(wide.cell_text(1, 0).as_deref(), Some("3"));
+    }
+
+    #[test]
+    fn subset_keeps_the_matching_rows() {
+        let df = frame();
+        let filtered = subset(&df, "y", SubsetOp::Greater, "2").expect("subset");
+        assert_eq!(filtered.n_rows(), 2);
+        let labels: Vec<String> = (0..filtered.n_rows())
+            .filter_map(|row| filtered.cell_text(0, row))
+            .collect();
+        assert_eq!(labels, vec!["3", "4"]);
+        let text = subset(&df, "g", SubsetOp::Equal, "b").expect("subset");
+        assert_eq!(text.n_rows(), 2);
+        assert!(matches!(
+            subset(&df, "y", SubsetOp::Greater, "99"),
+            Err(Error::EmptySample)
+        ));
+    }
+
+    #[test]
+    fn the_operator_parser_accepts_symbols() {
+        assert_eq!(SubsetOp::parse(">="), Some(SubsetOp::GreaterOrEqual));
+        assert_eq!(SubsetOp::parse("contains"), Some(SubsetOp::Contains));
+        assert_eq!(SubsetOp::parse("?"), None);
+        assert_eq!(
+            SortDirection::parse("desc"),
+            Some(SortDirection::Descending)
+        );
+        assert_eq!(SortDirection::parse("?"), None);
+        assert_eq!(SubsetOp::Greater.symbol(), ">");
+    }
+}

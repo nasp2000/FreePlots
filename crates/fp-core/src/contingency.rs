@@ -332,3 +332,174 @@ pub fn report(row_column: &str, column_name: &str, model: &Contingency) -> Analy
     );
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    #[test]
+    fn an_independent_table_is_not_significant() {
+        let df = DataFrame::new(vec![
+            Column::new_text(
+                "row",
+                vec![
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                ],
+            ),
+            Column::new_text(
+                "column",
+                vec![
+                    "x".to_owned(),
+                    "y".to_owned(),
+                    "x".to_owned(),
+                    "y".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        let model = test(&df, "row", "column").expect("test");
+        assert!((model.statistic - 0.0).abs() < 1e-12, "{}", model.statistic);
+        assert!(model.p_value > 0.9, "p {}", model.p_value);
+        assert_eq!(model.degrees_of_freedom, 1);
+        assert!((model.cramers_v - 0.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn fisher_exact_matches_the_hypergeometric_values() {
+        // The 2×2 table [[5, 0], [0, 5]]: P(x) = C(5,x)C(5,5−x)/C(10,5), so the
+        // observed table has p = 1/252 and the two tails double it.
+        let fisher = fisher_exact([[5.0, 0.0], [0.0, 5.0]]).expect("test");
+        assert!((fisher.two_sided - 2.0 / 252.0).abs() < 1e-12, "{fisher:?}");
+        assert!(fisher.odds_ratio.is_infinite());
+
+        // The tea-tasting table [[3, 1], [1, 3]]: the two-sided p-value is
+        // 34/70 = 0.4857 (the published value), the upper tail 17/70 and the
+        // lower tail 69/70.
+        let tea = fisher_exact([[3.0, 1.0], [1.0, 3.0]]).expect("test");
+        assert!((tea.two_sided - 34.0 / 70.0).abs() < 1e-12, "{tea:?}");
+        assert!((tea.upper - 17.0 / 70.0).abs() < 1e-12, "{tea:?}");
+        assert!((tea.lower - 69.0 / 70.0).abs() < 1e-12, "{tea:?}");
+        assert!((tea.odds_ratio - 9.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn fisher_exact_rejects_invalid_tables() {
+        assert!(matches!(
+            fisher_exact([[-1.0, 2.0], [3.0, 4.0]]),
+            Err(Error::Unsupported(_))
+        ));
+        assert!(matches!(
+            fisher_exact([[0.0, 0.0], [0.0, 0.0]]),
+            Err(Error::EmptySample)
+        ));
+    }
+
+    #[test]
+    fn a_two_by_two_report_carries_the_exact_test() {
+        let df = DataFrame::new(vec![
+            Column::new_text(
+                "passed",
+                vec![
+                    "yes".to_owned(),
+                    "yes".to_owned(),
+                    "yes".to_owned(),
+                    "yes".to_owned(),
+                    "yes".to_owned(),
+                    "no".to_owned(),
+                    "no".to_owned(),
+                    "no".to_owned(),
+                    "no".to_owned(),
+                    "no".to_owned(),
+                ],
+            ),
+            Column::new_text(
+                "group",
+                vec![
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        let model = test(&df, "group", "passed").expect("test");
+        let fisher = model.fisher.as_ref().expect("exact test");
+        assert!((fisher.two_sided - 2.0 / 252.0).abs() < 1e-12);
+        let text = report("group", "passed", &model).to_session_text();
+        assert!(text.contains("Fisher exact p"), "{text}");
+        assert!(text.contains("Odds ratio"), "{text}");
+    }
+
+    #[test]
+    fn an_associated_table_is_significant() {
+        let df = DataFrame::new(vec![
+            Column::new_text(
+                "row",
+                vec![
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                ],
+            ),
+            Column::new_text(
+                "column",
+                vec![
+                    "x".to_owned(),
+                    "x".to_owned(),
+                    "x".to_owned(),
+                    "y".to_owned(),
+                    "y".to_owned(),
+                    "y".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        let model = test(&df, "row", "column").expect("test");
+        assert!(model.statistic > 1.0, "{}", model.statistic);
+        assert!(model.p_value < 0.05, "p {}", model.p_value);
+        assert!(model.cramers_v > 0.5, "V {}", model.cramers_v);
+    }
+
+    #[test]
+    fn the_report_shows_the_table() {
+        let df = DataFrame::new(vec![
+            Column::new_text(
+                "row",
+                vec![
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                ],
+            ),
+            Column::new_text(
+                "column",
+                vec![
+                    "x".to_owned(),
+                    "y".to_owned(),
+                    "x".to_owned(),
+                    "y".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        let model = test(&df, "row", "column").expect("test");
+        let text = report("row", "column", &model).to_session_text();
+        assert!(text.contains("Chi-Square Test for Independence"), "{text}");
+        assert!(text.contains("Cramer's V"), "{text}");
+    }
+}

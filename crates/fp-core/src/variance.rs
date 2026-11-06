@@ -834,3 +834,214 @@ pub fn bonett(
         ci,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn frame(name: &str, values: Vec<f64>) -> DataFrame {
+        DataFrame::new(vec![Column::new_f64(name, values)]).unwrap()
+    }
+
+    #[test]
+    fn one_variance_chi_square_matches_the_definition() {
+        let df = frame("x", vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+        let result = one_sample(&df, "x", 1.0, Alternative::TwoSided, 0.95).expect("test");
+        let get = |name: &str| {
+            result
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+                .unwrap()
+        };
+        assert!((get("Sample variance") - 2.5).abs() < 1e-12);
+        assert!((get("Chi-square") - 10.0).abs() < 1e-12);
+        assert!((get("df") - 4.0).abs() < 1e-12);
+        assert!((get("p-value") - 0.080_8).abs() < 1e-3);
+    }
+
+    #[test]
+    fn one_variance_interval_contains_the_estimate() {
+        let df = frame("x", vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+        let result = one_sample(&df, "x", 1.0, Alternative::TwoSided, 0.95).expect("test");
+        let lower = result
+            .statistics
+            .iter()
+            .find(|(key, _)| *key == "CI lower")
+            .map(|(_, value)| *value)
+            .unwrap();
+        let upper = result
+            .statistics
+            .iter()
+            .find(|(key, _)| *key == "CI upper")
+            .map(|(_, value)| *value)
+            .unwrap();
+        assert!(lower < 2.5 && 2.5 < upper);
+    }
+
+    #[test]
+    fn two_variance_f_test_is_reported() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("a", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+            Column::new_f64("b", vec![2.0, 4.0, 6.0, 8.0, 10.0]),
+        ])
+        .unwrap();
+        let result = two_sample(&df, "a", "b", Alternative::TwoSided, 0.95).expect("test");
+        assert!(result.to_session_text().contains("Variance ratio"));
+        assert!((result.statistics[2].1 - 0.25).abs() < 1e-12);
+    }
+
+    #[test]
+    fn bartlett_matches_its_definition() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 20.0]),
+            Column::new_text(
+                "g",
+                vec![
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        let result = bartlett(&df, "x", "g").expect("bartlett");
+        let text = result.to_session_text();
+        assert!(text.contains("Bartlett Test"), "{text}");
+        // (N−k)·ln(s²ₚ) − Σ(nᵢ−1)·ln(sᵢ²) = 7.6441…, corrected by 1.125.
+        let mut groups = BTreeMap::new();
+        groups.insert("a".to_owned(), vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+        groups.insert("b".to_owned(), vec![1.0, 2.0, 3.0, 4.0, 20.0]);
+        let outcome = bartlett_statistic(&groups).expect("statistic");
+        assert!(
+            (outcome.statistic - 6.794_8).abs() < 1e-3,
+            "statistic {}",
+            outcome.statistic
+        );
+        assert!(
+            (outcome.p_value - 0.0092).abs() < 1e-3,
+            "p {}",
+            outcome.p_value
+        );
+        assert_eq!(outcome.degrees_of_freedom, 1.0);
+        assert!((outcome.correction - 1.125).abs() < 1e-12);
+    }
+
+    #[test]
+    fn levene_detects_different_spreads() {
+        let first = vec![1.0, 2.0, 3.0, 4.0, 5.0, 5.5, 4.5, 5.2];
+        let second = vec![1.0, 2.0, 3.0, 4.0, 20.0, 25.0, 18.0, 22.0];
+        let mut values = first.clone();
+        values.extend_from_slice(&second);
+        let mut labels = vec!["a".to_owned(); 8];
+        labels.extend(vec!["b".to_owned(); 8]);
+        let df = DataFrame::new(vec![
+            Column::new_f64("x", values),
+            Column::new_text("g", labels),
+        ])
+        .expect("frame");
+
+        let levene_result = levene(&df, "x", "g", VarianceCenter::Mean, 0.95).expect("levene");
+        let text = levene_result.to_session_text();
+        assert!(text.contains("Levene Test"), "{text}");
+
+        // The ANOVA on the absolute deviations separates the spreads.
+        let mut groups = BTreeMap::new();
+        groups.insert("a".to_owned(), first);
+        groups.insert("b".to_owned(), second);
+        let transformed: Vec<f64> = groups
+            .values()
+            .flat_map(|values| {
+                let mean = values.iter().sum::<f64>() / values.len() as f64;
+                values.iter().map(move |value| (value - mean).abs())
+            })
+            .collect();
+        let mut transformed_labels = vec!["a".to_owned(); 8];
+        transformed_labels.extend(vec!["b".to_owned(); 8]);
+        let levene = levene_statistic(&transformed, &transformed_labels, 0.95).expect("levene");
+        assert!(levene.p_value < 0.05, "{levene:?}");
+    }
+
+    #[test]
+    fn levene_median_centre_is_available() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 20.0]),
+            Column::new_text(
+                "g",
+                vec![
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "a".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                    "b".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        let result = levene(&df, "x", "g", VarianceCenter::Median, 0.95).expect("levene");
+        let text = result.to_session_text();
+        assert!(text.contains("Levene Test"), "{text}");
+        assert!(text.contains("group median"), "{text}");
+    }
+
+    #[test]
+    fn null_variance_must_be_positive() {
+        let df = frame("x", vec![1.0, 2.0, 3.0]);
+        assert!(matches!(
+            one_sample(&df, "x", 0.0, Alternative::TwoSided, 0.95),
+            Err(Error::InvalidParameter { .. })
+        ));
+    }
+
+    #[test]
+    fn bonett_equal_variances_are_not_rejected() {
+        let first =
+            Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).expect("sample");
+        let second =
+            Sample::new(vec![11.0, 12.0, 13.0, 14.0, 15.0], MissingPolicy::Drop).expect("sample");
+        let outcome = bonett(&first, &second, 0.95, Alternative::TwoSided).expect("bonett");
+        assert!((outcome.variance_ratio - 1.0).abs() < 1e-12);
+        assert!(outcome.z.abs() < 1e-12);
+        assert!((outcome.p_value - 1.0).abs() < 1e-12);
+        let (lower, upper) = outcome.ci;
+        assert!(lower.expect("lower") <= 1.0 && upper.expect("upper") >= 1.0);
+    }
+
+    #[test]
+    fn bonett_detects_a_variance_ratio() {
+        let first =
+            Sample::new(vec![10.0, 20.0, 30.0, 40.0, 50.0], MissingPolicy::Drop).expect("sample");
+        let second =
+            Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).expect("sample");
+        let outcome = bonett(&first, &second, 0.95, Alternative::TwoSided).expect("bonett");
+        assert!((outcome.variance_ratio - 100.0).abs() < 1e-6);
+        assert!(outcome.p_value < 1e-6);
+        assert!(outcome.z > 0.0);
+        let (lower, upper) = outcome.ci;
+        assert!(lower.expect("lower") < 100.0 && upper.expect("upper") > 100.0);
+    }
+
+    #[test]
+    fn bonett_needs_four_observations_per_group() {
+        let first = Sample::new(vec![1.0, 2.0, 3.0], MissingPolicy::Drop).expect("sample");
+        let second = Sample::new(vec![1.0, 2.0, 3.0, 4.0], MissingPolicy::Drop).expect("sample");
+        assert!(matches!(
+            bonett(&first, &second, 0.95, Alternative::TwoSided),
+            Err(Error::SampleTooSmall { n: 3, min: 4 })
+        ));
+    }
+}

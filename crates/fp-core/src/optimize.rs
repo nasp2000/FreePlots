@@ -155,3 +155,49 @@ pub fn nelder_mead<F: FnMut(&[f64]) -> f64>(
         iterations,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_simplex_finds_the_minimum_of_a_paraboloid() {
+        let result = nelder_mead(&[5.0, -3.0], &[1.0, 1.0], 500, 1e-10, |point| {
+            (point[0] - 1.0).powi(2) + (point[1] + 2.0).powi(2)
+        })
+        .expect("minimum");
+        assert!((result.arguments[0] - 1.0).abs() < 1e-4, "{result:?}");
+        assert!((result.arguments[1] + 2.0).abs() < 1e-4, "{result:?}");
+        assert!(result.value < 1e-8, "{}", result.value);
+    }
+
+    #[test]
+    fn the_simplex_handles_a_coupled_surface() {
+        // The minimum of the coupled surface solves 3x − y = 2 and −x + 3y = 4,
+        // which gives (1.25, 1.75).
+        let result = nelder_mead(&[-1.0, 4.0], &[0.5, 0.5], 2000, 1e-12, |point| {
+            (point[0] - 1.0).powi(2)
+                + (point[1] - 2.0).powi(2)
+                + 0.5 * (point[0] - point[1]).powi(2)
+        })
+        .expect("minimum");
+        assert!((result.arguments[0] - 1.25).abs() < 1e-4, "{result:?}");
+        assert!((result.arguments[1] - 1.75).abs() < 1e-4, "{result:?}");
+    }
+
+    #[test]
+    fn invalid_arguments_are_rejected() {
+        assert!(matches!(
+            nelder_mead(&[], &[], 10, 1e-6, |_| 0.0),
+            Err(Error::InvalidParameter { .. })
+        ));
+        assert!(matches!(
+            nelder_mead(&[1.0], &[1.0, 2.0], 10, 1e-6, |_| 0.0),
+            Err(Error::InvalidParameter { .. })
+        ));
+        assert!(matches!(
+            nelder_mead(&[1.0], &[1.0], 0, 1e-6, |_| 0.0),
+            Err(Error::InvalidParameter { .. })
+        ));
+    }
+}

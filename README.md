@@ -91,6 +91,18 @@ Run `FreePlots` with no arguments to see the full command list, or use the GUI f
 
 All interface and analysis options are saved in `settings.json` inside `FreePlots-data`, next to the executable (or in the user data directory when that folder is read-only): language, theme, zoom, window layout, graph style, last analysis choices, sample settings and conditional formatting. Nothing is sent anywhere.
 
+## Quality
+
+The public sources include a self-contained test suite for the engine and the interface:
+
+- published statistical formulas and closed-form checks;
+- deterministic boundary cases (empty input, constant samples, n = 1, ties, missing values);
+- reference values generated independently by the open-source scientific stack;
+- golden plot and report fixtures produced by FreePlots itself;
+- CLI and MCP end-to-end tests.
+
+GitHub Actions runs formatting, clippy and the full test suite on every change.
+
 ## Contributing
 
 Bug reports, data sets that break an analysis, translations and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change, and follow the [Code of Conduct](CODE_OF_CONDUCT.md).

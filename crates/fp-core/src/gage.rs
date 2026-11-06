@@ -960,3 +960,147 @@ fn report_nested(measurement: &str, model: &NestedGageRr) -> AnalysisResult {
     );
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn frame() -> DataFrame {
+        DataFrame::new(vec![
+            Column::new_f64("m", vec![1.0, 2.0, 2.0, 3.0, 4.0, 5.0, 5.0, 6.0]),
+            Column::new_text(
+                "part",
+                vec![
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "B".to_owned(),
+                    "B".to_owned(),
+                    "B".to_owned(),
+                    "B".to_owned(),
+                ],
+            ),
+            Column::new_text(
+                "operator",
+                vec![
+                    "O1".to_owned(),
+                    "O1".to_owned(),
+                    "O2".to_owned(),
+                    "O2".to_owned(),
+                    "O1".to_owned(),
+                    "O1".to_owned(),
+                    "O2".to_owned(),
+                    "O2".to_owned(),
+                ],
+            ),
+        ])
+        .unwrap()
+    }
+
+    #[test]
+    fn gage_rr_matches_hand_sums_of_squares() {
+        let model = fit(&frame(), "m", "part", "operator").expect("fit");
+        assert_eq!(model.parts, 2);
+        assert_eq!(model.operators, 2);
+        assert_eq!(model.replicates, 2);
+        assert!((model.ss_part - 18.0).abs() < 1e-12);
+        assert!((model.ss_operator - 2.0).abs() < 1e-12);
+        assert!((model.ss_interaction - 0.0).abs() < 1e-12);
+        assert!((model.ss_error - 2.0).abs() < 1e-12);
+        assert!((model.percent_grr - (1.0f64 / 5.5).sqrt() * 100.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn unbalanced_design_is_rejected() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("m", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+            Column::new_text(
+                "part",
+                vec![
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "B".to_owned(),
+                    "B".to_owned(),
+                ],
+            ),
+            Column::new_text(
+                "operator",
+                vec![
+                    "O1".to_owned(),
+                    "O1".to_owned(),
+                    "O2".to_owned(),
+                    "O1".to_owned(),
+                    "O1".to_owned(),
+                ],
+            ),
+        ])
+        .unwrap();
+        assert!(matches!(
+            fit(&df, "m", "part", "operator"),
+            Err(Error::Unsupported(_))
+        ));
+    }
+
+    #[test]
+    fn nested_gage_rr_matches_hand_sums_of_squares() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("m", vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+            Column::new_text(
+                "part",
+                vec![
+                    "P1".to_owned(),
+                    "P1".to_owned(),
+                    "P2".to_owned(),
+                    "P2".to_owned(),
+                    "P3".to_owned(),
+                    "P3".to_owned(),
+                    "P4".to_owned(),
+                    "P4".to_owned(),
+                ],
+            ),
+            Column::new_text(
+                "operator",
+                vec![
+                    "O1".to_owned(),
+                    "O1".to_owned(),
+                    "O1".to_owned(),
+                    "O1".to_owned(),
+                    "O2".to_owned(),
+                    "O2".to_owned(),
+                    "O2".to_owned(),
+                    "O2".to_owned(),
+                ],
+            ),
+        ])
+        .unwrap();
+        let model = fit_nested(&df, "m", "part", "operator").expect("fit");
+        assert_eq!(model.operators, 2);
+        assert_eq!(model.parts_per_operator, 2);
+        assert_eq!(model.replicates, 2);
+        assert!((model.ss_operator - 32.0).abs() < 1e-12);
+        assert!((model.ss_part - 8.0).abs() < 1e-12);
+        assert!((model.ss_error - 2.0).abs() < 1e-12);
+        assert!((model.percent_grr - (7.5f64 / 9.25).sqrt() * 100.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn a_part_seen_by_two_operators_is_rejected_for_nested() {
+        let df = frame();
+        assert!(matches!(
+            fit_nested(&df, "m", "part", "operator"),
+            Err(Error::Unsupported(_))
+        ));
+    }
+
+    #[test]
+    fn report_contains_anova_and_components() {
+        let out = analyze(&frame(), "m", "part", "operator").expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Gage R&R"), "{text}");
+        assert!(text.contains("%Gage R&R"), "{text}");
+        assert!(text.contains("Repeatability"), "{text}");
+    }
+}

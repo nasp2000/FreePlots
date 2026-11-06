@@ -635,3 +635,137 @@ pub fn analyze(
         plot: Some(regression::residual_plot(response, model)),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn data() -> DataFrame {
+        // x1 drives the response; x2 and x3 are orthogonal to x1 and to the
+        // residual, so they never improve the fit.
+        let x1: Vec<f64> = (0..12).map(|value| value as f64).collect();
+        let y = vec![
+            1.410456, 4.198339, 5.105444, 5.594605, 8.019128, 11.014304, 13.465211, 14.88367,
+            16.664885, 18.692888, 21.334876, 23.616195,
+        ];
+        let x2 = vec![
+            0.769231, -1.188811, 0.853147, -1.104895, 0.937063, -1.020979, 1.020979, -0.937063,
+            1.104895, -0.853147, 1.188811, -0.769231,
+        ];
+        let x3 = vec![
+            -0.571429, -0.571429, 1.257143, 1.257143, -0.914286, -0.914286, 0.914286, 0.914286,
+            -1.257143, -1.257143, 0.571429, 0.571429,
+        ];
+        DataFrame::new(vec![
+            Column::new_f64("y", y),
+            Column::new_f64("x1", x1),
+            Column::new_f64("x2", x2),
+            Column::new_f64("x3", x3),
+        ])
+        .expect("frame")
+    }
+
+    fn candidates() -> Vec<String> {
+        vec!["x1".to_owned(), "x2".to_owned(), "x3".to_owned()]
+    }
+
+    #[test]
+    fn forward_selection_keeps_the_linked_predictor() {
+        let options = StepwiseOptions {
+            method: StepMethod::Forward,
+            alpha_enter: 0.05,
+            ..StepwiseOptions::default()
+        };
+        let fit = fit(&data(), "y", &candidates(), options).expect("fit");
+        assert_eq!(fit.selected, vec!["x1".to_owned()]);
+        assert_eq!(fit.steps.len(), 1);
+        assert_eq!(fit.steps[0].action, StepAction::Added);
+        assert!(fit.steps[0].p_value < 0.05);
+        assert!((fit.model.coefficients[0] - 1.0).abs() < 1e-4);
+        assert!((fit.model.coefficients[1] - 2.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn backward_elimination_drops_the_unrelated_predictors() {
+        let options = StepwiseOptions {
+            method: StepMethod::Backward,
+            alpha_remove: 0.05,
+            ..StepwiseOptions::default()
+        };
+        let fit = fit(&data(), "y", &candidates(), options).expect("fit");
+        assert_eq!(fit.selected, vec!["x1".to_owned()]);
+        assert_eq!(fit.steps.len(), 2);
+        assert!(
+            fit.steps
+                .iter()
+                .all(|step| step.action == StepAction::Removed)
+        );
+    }
+
+    #[test]
+    fn bic_criterion_selects_the_linked_predictor() {
+        let options = StepwiseOptions {
+            criterion: StepCriterion::Bic,
+            ..StepwiseOptions::default()
+        };
+        let fit = fit(&data(), "y", &candidates(), options).expect("fit");
+        assert_eq!(fit.selected, vec!["x1".to_owned()]);
+    }
+
+    #[test]
+    fn categorical_candidates_are_rejected() {
+        let frame = DataFrame::new(vec![
+            Column::new_f64("y", vec![1.0, 2.0, 3.0, 4.0]),
+            Column::new_text(
+                "label",
+                vec![
+                    "a".to_owned(),
+                    "b".to_owned(),
+                    "a".to_owned(),
+                    "b".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        let error = fit(
+            &frame,
+            "y",
+            &["label".to_owned()],
+            StepwiseOptions::default(),
+        )
+        .expect_err("categorical candidate");
+        assert!(error.to_string().contains("numeric"));
+    }
+
+    #[test]
+    fn duplicate_candidates_are_rejected() {
+        let error = fit(
+            &data(),
+            "y",
+            &["x1".to_owned(), "x1".to_owned()],
+            StepwiseOptions::default(),
+        )
+        .expect_err("duplicates");
+        assert!(error.to_string().contains("duplicate"));
+    }
+
+    #[test]
+    fn missing_rows_are_removed_once_for_every_model() {
+        let mut frame = data();
+        frame.set_missing(0, 2).expect("missing response");
+        frame.set_missing(1, 5).expect("missing predictor");
+        let fit = fit(
+            &frame,
+            "y",
+            &["x1".to_owned()],
+            StepwiseOptions {
+                method: StepMethod::Forward,
+                alpha_enter: 0.05,
+                ..StepwiseOptions::default()
+            },
+        )
+        .expect("fit");
+        assert_eq!(fit.n, 10);
+        assert_eq!(fit.excluded, 2);
+    }
+}

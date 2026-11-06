@@ -249,3 +249,65 @@ pub fn analyze(df: &DataFrame, column_name: &str, confidence: f64) -> Result<Ana
         plot: Some(plot(&model)),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    #[test]
+    fn the_step_reaches_one_and_stays_sorted() {
+        let values = vec![3.0, 1.0, 2.0, 5.0, 4.0];
+        let model = from_values(&values, 0.95).expect("ecdf");
+        assert_eq!(model.values, vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+        assert!((model.probabilities[0] - 0.2).abs() < 1e-12);
+        assert!((model.probabilities[4] - 1.0).abs() < 1e-12);
+        assert!((model.largest_jump - 0.2).abs() < 1e-12);
+        assert!((model.quartiles[1] - 3.0).abs() < 1e-12);
+        // The band width falls with the sample size.
+        let wide = from_values(&values, 0.95).expect("wide");
+        let many: Vec<f64> = (1..=100).map(|index| index as f64).collect();
+        let narrow = from_values(&many, 0.95).expect("narrow");
+        assert!(narrow.epsilon < wide.epsilon);
+    }
+
+    #[test]
+    fn the_band_width_matches_the_dkw_formula() {
+        let values: Vec<f64> = (1..=50).map(|index| index as f64).collect();
+        let model = from_values(&values, 0.90).expect("ecdf");
+        let expected = ((2.0f64 / 0.10).ln() / (2.0 * 50.0)).sqrt();
+        assert!(
+            (model.epsilon - expected).abs() < 1e-12,
+            "{}",
+            model.epsilon
+        );
+        assert!(matches!(
+            from_values(&values, 1.5),
+            Err(Error::InvalidParameter { .. })
+        ));
+        assert!(matches!(from_values(&[], 0.95), Err(Error::EmptySample)));
+    }
+
+    #[test]
+    fn the_plot_has_a_step_and_a_band() {
+        let out = {
+            let df = DataFrame::new(vec![Column::new_f64(
+                "x",
+                vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, f64::NAN],
+            )])
+            .expect("frame");
+            analyze(&df, "x", 0.95).expect("analysis")
+        };
+        assert_eq!(out.results[0].excluded, 1);
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.points.len(), 6);
+        assert_eq!(plot.lines.len(), 12);
+        assert_eq!(plot.bands.len(), 1);
+        // The band stays inside [0, 1].
+        assert!(plot.bands[0].lower.iter().all(|point| point.y >= 0.0));
+        assert!(plot.bands[0].upper.iter().all(|point| point.y <= 1.0));
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Empirical CDF"), "{text}");
+        assert!(text.contains("Band half-width"), "{text}");
+    }
+}

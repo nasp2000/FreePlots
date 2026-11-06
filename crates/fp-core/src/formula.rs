@@ -554,3 +554,91 @@ fn parse_cell(name: &str) -> Option<(usize, usize)> {
     }
     Some((column - 1, row - 1))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn frame() -> DataFrame {
+        DataFrame::new(vec![
+            Column::new_f64("a", vec![1.0, 2.0, 3.0, 4.0]),
+            Column::new_text(
+                "b",
+                vec![
+                    "x".to_owned(),
+                    "y".to_owned(),
+                    "z".to_owned(),
+                    "w".to_owned(),
+                ],
+            ),
+        ])
+        .unwrap()
+    }
+
+    fn number(text: &str) -> f64 {
+        match evaluate(&frame(), text).expect("formula") {
+            Value::Number(value) => value,
+            Value::Text(text) => panic!("text {text}"),
+        }
+    }
+
+    #[test]
+    fn arithmetic_follows_the_excel_precedence() {
+        assert_eq!(number("=1+2*3"), 7.0);
+        assert_eq!(number("=(1+2)*3"), 9.0);
+        assert_eq!(number("=-2^2"), 4.0);
+        assert_eq!(number("=2^3^2"), 512.0);
+        assert_eq!(number("=10/4"), 2.5);
+        assert_eq!(number("=7%4"), 3.0);
+        assert_eq!(number("=1.5e2"), 150.0);
+    }
+
+    #[test]
+    fn ranges_and_aggregates_read_the_worksheet() {
+        assert_eq!(number("=C1R1"), 1.0);
+        assert_eq!(number("=C1R1+C1R2"), 3.0);
+        assert_eq!(number("=SUM(C1R1:C1R4)"), 10.0);
+        assert_eq!(number("=AVERAGE(C1R1:C1R4)"), 2.5);
+        assert_eq!(number("=MIN(C1R1:C1R4)"), 1.0);
+        assert_eq!(number("=MAX(C1R1:C1R4)"), 4.0);
+        assert_eq!(number("=COUNT(C1R1:C1R4)"), 4.0);
+        // A blank reference is zero, a blank cell inside a range is skipped.
+        assert_eq!(number("=C1R99"), 0.0);
+        assert_eq!(number("=SUM(C1R1:C2R2)"), 3.0);
+    }
+
+    #[test]
+    fn text_and_logical_functions_work() {
+        let frame = frame();
+        assert_eq!(
+            evaluate(&frame, "=IF(C1R3>2,\"big\",\"small\")"),
+            Ok(Value::Text("big".to_owned()))
+        );
+        assert_eq!(
+            evaluate(&frame, "=CONCAT(\"a\",\"-\",C2R1)"),
+            Ok(Value::Text("a-x".to_owned()))
+        );
+        assert_eq!(number("=ROUND(2.345,2)"), 2.35);
+        assert_eq!(number("=SQRT(9)"), 3.0);
+        assert_eq!(number("=POWER(2,10)"), 1024.0);
+        assert_eq!(number("=MOD(7,3)"), 1.0);
+        assert_eq!(number("=IF(C1R1=1,10,20)"), 10.0);
+    }
+
+    #[test]
+    fn invalid_formulas_are_reported() {
+        let frame = frame();
+        for formula in [
+            "=SUM(",
+            "=1/0",
+            "=C99R1",
+            "=C1R1+",
+            "=UNKNOWN(1)",
+            "=1+*2",
+            "=\"unterminated",
+        ] {
+            assert!(evaluate(&frame, formula).is_err(), "{formula}");
+        }
+    }
+}

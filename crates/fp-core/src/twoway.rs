@@ -533,3 +533,97 @@ pub fn residual_plot(response: &str, model: &TwoWayFit) -> PlotSpec {
         notes: Vec::new(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn frame() -> DataFrame {
+        // Two factors with two levels each and three observations per cell;
+        // the first factor shifts the response by one.
+        let mut rows = Vec::new();
+        for a in ["a1", "a2"] {
+            for b in ["b1", "b2"] {
+                for k in 0..3 {
+                    let base = if a == "a1" { 10.0 } else { 13.0 };
+                    let value = base + if b == "b2" { 1.0 } else { 0.0 } + k as f64 * 0.01;
+                    rows.push((a.to_owned(), b.to_owned(), value));
+                }
+            }
+        }
+        DataFrame::new(vec![
+            Column::new_f64("y", rows.iter().map(|(_, _, v)| *v).collect()),
+            Column::new_text("a", rows.iter().map(|(a, _, _)| a.clone()).collect()),
+            Column::new_text("b", rows.iter().map(|(_, b, _)| b.clone()).collect()),
+        ])
+        .expect("frame")
+    }
+
+    #[test]
+    fn the_two_factors_are_detected() {
+        let df = frame();
+        let model = fit(&df, "y", "a", "b").expect("fit");
+        assert_eq!(model.levels_first, vec!["a1", "a2"]);
+        assert_eq!(model.levels_second, vec!["b1", "b2"]);
+        assert_eq!(model.cells.len(), 4);
+        assert_eq!(model.n, 12);
+        // The first factor shifts the response by three, the second by one.
+        assert!(model.p_first < 0.001, "p {}", model.p_first);
+        assert!(model.p_second < 0.05, "p {}", model.p_second);
+        // The interaction is null: the shift does not depend on the level.
+        assert!(model.p_interaction > 0.5, "p {}", model.p_interaction);
+    }
+
+    #[test]
+    fn the_sums_of_squares_add_up() {
+        let df = frame();
+        let model = fit(&df, "y", "a", "b").expect("fit");
+        let sum = model.ss_first + model.ss_second + model.ss_interaction + model.ss_error;
+        assert!(
+            (sum - model.ss_total).abs() < 1e-9,
+            "{sum} vs {}",
+            model.ss_total
+        );
+    }
+
+    #[test]
+    fn an_unbalanced_design_is_refused() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("y", vec![1.0, 2.0, 3.0, 4.0]),
+            Column::new_text(
+                "a",
+                vec![
+                    "a1".to_owned(),
+                    "a1".to_owned(),
+                    "a2".to_owned(),
+                    "a2".to_owned(),
+                ],
+            ),
+            Column::new_text(
+                "b",
+                vec![
+                    "b1".to_owned(),
+                    "b1".to_owned(),
+                    "b1".to_owned(),
+                    "b2".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        assert!(matches!(
+            fit(&df, "y", "a", "b"),
+            Err(Error::Unsupported { .. })
+        ));
+    }
+
+    #[test]
+    fn the_report_lists_the_cells() {
+        let df = frame();
+        let model = fit(&df, "y", "a", "b").expect("fit");
+        let text = report("y", "a", "b", &model).to_session_text();
+        assert!(text.contains("Two-Way ANOVA"), "{text}");
+        assert!(text.contains("Interaction"), "{text}");
+        assert!(text.contains("a1"), "{text}");
+    }
+}

@@ -6083,3 +6083,338 @@ fn xlsx_import(args: &[String]) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_arguments_shows_help() {
+        assert!(run(&[]).is_ok());
+    }
+
+    #[test]
+    fn control_chart_options_validate_the_test_selection() {
+        let error = run(&[
+            "controlchart".to_owned(),
+            "x.csv".to_owned(),
+            "--chart".to_owned(),
+            "imr".to_owned(),
+            "--tests".to_owned(),
+            "9".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("outside the supported range 1–8"), "{error}");
+
+        let error = run(&[
+            "controlchart".to_owned(),
+            "x.csv".to_owned(),
+            "--chart".to_owned(),
+            "imr".to_owned(),
+            "--sensitivity".to_owned(),
+            "2=6".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("documented range 7–11"), "{error}");
+
+        let error = run(&[
+            "controlchart".to_owned(),
+            "x.csv".to_owned(),
+            "--chart".to_owned(),
+            "imr".to_owned(),
+            "--sensitivity".to_owned(),
+            "1=2".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("fixed"), "{error}");
+
+        // A valid list parses and only the missing file stops the command.
+        let error = run(&[
+            "controlchart".to_owned(),
+            "x.csv".to_owned(),
+            "--chart".to_owned(),
+            "imr".to_owned(),
+            "--tests".to_owned(),
+            "1:8".to_owned(),
+            "--sensitivity".to_owned(),
+            "2=8,5=3".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(!error.contains("--tests"), "{error}");
+        assert!(!error.contains("--sensitivity"), "{error}");
+    }
+
+    #[test]
+    fn the_new_commands_parse_their_arguments() {
+        let args = vec![
+            "equiv1".to_owned(),
+            "x.csv".to_owned(),
+            "--column".to_owned(),
+            "x".to_owned(),
+            "--margin".to_owned(),
+            "0.5".to_owned(),
+            "--mean".to_owned(),
+            "10".to_owned(),
+        ];
+        let error = run(&args).unwrap_err();
+        assert!(error.contains("CSV"), "{error}");
+
+        let args = vec![
+            "x.csv".to_owned(),
+            "--columns".to_owned(),
+            "a,b".to_owned(),
+            "--margin".to_owned(),
+            "0.5".to_owned(),
+        ];
+        assert!(parse_equivalence_columns(&args).is_ok());
+
+        let args = vec![
+            "x.csv".to_owned(),
+            "--response".to_owned(),
+            "y".to_owned(),
+            "--factor".to_owned(),
+            "g".to_owned(),
+            "--center".to_owned(),
+            "median".to_owned(),
+        ];
+        let (csv, response, factor, center) = parse_variance_test_args(&args).expect("arguments");
+        assert_eq!(response, "y");
+        assert_eq!(factor, "g");
+        assert_eq!(center, VarianceCenter::Median);
+        assert!(csv.ends_with("x.csv"));
+
+        let args = vec![
+            "x.csv".to_owned(),
+            "--expected".to_owned(),
+            "25,25,50".to_owned(),
+            "--parameters".to_owned(),
+            "1".to_owned(),
+        ];
+        let (_, _, expected, parameters) = parse_goodness_of_fit_args(&args).expect("arguments");
+        assert_eq!(expected, vec![25.0, 25.0, 50.0]);
+        assert_eq!(parameters, 1);
+
+        let args = vec!["x.csv".to_owned(), "--alpha".to_owned(), "1".to_owned()];
+        let (_, _, alpha) = parse_grubbs_args(&args).expect("arguments");
+        assert!((alpha - 0.01).abs() < 1e-12, "alpha {alpha}");
+
+        let args = vec![
+            "--test".to_owned(),
+            "t1".to_owned(),
+            "--effect".to_owned(),
+            "0.5".to_owned(),
+            "--n".to_owned(),
+            "40".to_owned(),
+        ];
+        let (procedure, effect, _, n, _, _, _, _) = parse_power_args(&args).expect("arguments");
+        assert_eq!(procedure, PowerProcedure::OneSampleT);
+        assert!((effect - 0.5).abs() < 1e-12);
+        assert_eq!(n, 40);
+    }
+
+    #[test]
+    fn the_new_commands_reject_bad_arguments() {
+        let args = vec!["x.csv".to_owned(), "--expected".to_owned(), "25".to_owned()];
+        assert!(parse_goodness_of_fit_args(&args).is_err());
+
+        let args = vec![
+            "--test".to_owned(),
+            "unknown".to_owned(),
+            "--effect".to_owned(),
+            "0.5".to_owned(),
+        ];
+        assert!(parse_power_args(&args).is_err());
+
+        let args = vec!["--effect".to_owned(), "0.5".to_owned()];
+        assert!(parse_power_args(&args).is_err());
+
+        let args = vec![
+            "x.csv".to_owned(),
+            "--response".to_owned(),
+            "y".to_owned(),
+            "--factor".to_owned(),
+            "g".to_owned(),
+            "--center".to_owned(),
+            "mode".to_owned(),
+        ];
+        assert!(parse_variance_test_args(&args).is_err());
+    }
+
+    #[test]
+    fn the_desirability_response_parses_its_fields() {
+        let response = parse_desirability_response("Strength:maximize:10:30").expect("maximize");
+        assert_eq!(response.column, "Strength");
+        assert_eq!(response.goal, fp_core::desirability::Goal::Maximize);
+        assert!((response.low - 10.0).abs() < 1e-12);
+        assert!((response.high - 30.0).abs() < 1e-12);
+        assert!((response.target - 20.0).abs() < 1e-12);
+        assert!((response.weight - 1.0).abs() < 1e-12);
+        assert!((response.importance - 1.0).abs() < 1e-12);
+
+        let response =
+            parse_desirability_response("Yield:target:60:100:target=80:weight=2:importance=3")
+                .expect("target");
+        assert_eq!(response.goal, fp_core::desirability::Goal::Target);
+        assert!((response.target - 80.0).abs() < 1e-12);
+        assert!((response.weight - 2.0).abs() < 1e-12);
+        assert!((response.importance - 3.0).abs() < 1e-12);
+
+        // Boundary: the limits themselves and a weight of one.
+        let response = parse_desirability_response("Cost:min:0:1:weight=1").expect("boundary");
+        assert_eq!(response.goal, fp_core::desirability::Goal::Minimize);
+        assert!((response.high - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn the_desirability_response_rejects_bad_fields() {
+        for text in [
+            "Strength:maximize:10",
+            ":maximize:10:30",
+            "Strength:sideways:10:30",
+            "Strength:maximize:ten:30",
+            "Strength:maximize:10:30:colour=red",
+            "Strength:maximize:10:30:weight",
+            "Yield:target:60:100:target=50",
+        ] {
+            assert!(
+                parse_desirability_response(text).is_err(),
+                "accepted {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_new_analysis_commands_validate_their_arguments() {
+        let error = run(&["stepstress".to_owned(), "x.csv".to_owned()]).unwrap_err();
+        assert!(error.contains("--duration"), "{error}");
+
+        let error = run(&[
+            "alt".to_owned(),
+            "x.csv".to_owned(),
+            "--time".to_owned(),
+            "t".to_owned(),
+            "--stress".to_owned(),
+            "s".to_owned(),
+            "--horizon".to_owned(),
+            "100".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("--mode"), "{error}");
+
+        let error = run(&[
+            "desirability".to_owned(),
+            "x.csv".to_owned(),
+            "--factors".to_owned(),
+            "A".to_owned(),
+            "--response".to_owned(),
+            "y:maximize:0:1".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("at least two factors"), "{error}");
+
+        let error = run(&[
+            "desirability".to_owned(),
+            "x.csv".to_owned(),
+            "--factors".to_owned(),
+            "A,B".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("--response"), "{error}");
+
+        let error = run(&[
+            "controlchart".to_owned(),
+            "x.csv".to_owned(),
+            "--chart".to_owned(),
+            "imr".to_owned(),
+            "--subgroup-column".to_owned(),
+            "lot".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("xbar-r"), "{error}");
+
+        let error = run(&["datediff".to_owned(), "x.csv".to_owned()]).unwrap_err();
+        assert!(error.contains("--first"), "{error}");
+
+        let error = run(&["dateadd".to_owned(), "x.csv".to_owned()]).unwrap_err();
+        assert!(error.contains("--column"), "{error}");
+
+        let error = run(&[
+            "dateadd".to_owned(),
+            "x.csv".to_owned(),
+            "--column".to_owned(),
+            "start".to_owned(),
+            "--days".to_owned(),
+            "1.5".to_owned(),
+        ])
+        .unwrap_err();
+        assert!(error.contains("--days"), "{error}");
+    }
+
+    #[test]
+    fn unknown_command_is_an_error() {
+        let e = run(&["make-coffee".to_owned()]).unwrap_err();
+        assert!(e.contains("unknown"));
+    }
+
+    #[test]
+    fn the_language_option_is_removed_from_the_arguments() {
+        let args: Vec<String> = ["describe", "--lang", "pt", "data.csv"]
+            .iter()
+            .map(|value| (*value).to_owned())
+            .collect();
+        let (rest, lang) = split_language(&args).expect("language");
+        assert_eq!(rest, vec!["describe".to_owned(), "data.csv".to_owned()]);
+        assert_eq!(lang, fp_core::i18n::Lang::Portuguese);
+        let args: Vec<String> = ["describe".to_owned(), "--lang=fr".to_owned()].to_vec();
+        assert!(split_language(&args).is_err());
+    }
+
+    #[test]
+    fn analyze_without_file_is_an_error() {
+        let e = run(&["analyze".to_owned()]).unwrap_err();
+        assert!(e.contains("CSV"));
+    }
+
+    #[test]
+    fn invalid_reps_is_an_error() {
+        let args = vec![
+            "analyze".to_owned(),
+            "x.csv".to_owned(),
+            "--reps".to_owned(),
+            "many".to_owned(),
+        ];
+        assert!(run(&args).unwrap_err().contains("--reps"));
+    }
+
+    #[test]
+    fn invalid_p_value_is_an_error() {
+        let args = vec![
+            "analyze".to_owned(),
+            "x.csv".to_owned(),
+            "--p-value".to_owned(),
+            "bootstrap".to_owned(),
+        ];
+        assert!(run(&args).unwrap_err().contains("--p-value"));
+    }
+
+    #[test]
+    fn invalid_distribution_is_an_error() {
+        let args = vec![
+            "analyze".to_owned(),
+            "x.csv".to_owned(),
+            "--distribution".to_owned(),
+            "cauchy".to_owned(),
+        ];
+        assert!(run(&args).unwrap_err().contains("--distribution"));
+    }
+
+    #[test]
+    fn unknown_option_is_an_error() {
+        let args = vec![
+            "analyze".to_owned(),
+            "x.csv".to_owned(),
+            "--turbo".to_owned(),
+        ];
+        assert!(run(&args).unwrap_err().contains("--turbo"));
+    }
+}

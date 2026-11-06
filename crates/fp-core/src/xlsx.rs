@@ -226,3 +226,97 @@ pub fn workbook(df: &DataFrame) -> Vec<u8> {
         ("xl/worksheets/sheet1.xml", sheet.into_bytes()),
     ])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    #[test]
+    fn the_header_is_bold_and_the_columns_are_wide() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", vec![10.0]),
+            Column::new_text("a_rather_long_name", vec!["x".to_owned()]),
+        ])
+        .expect("frame");
+        let bytes = workbook(&df);
+        let archive = crate::zip::ZipArchive::new(bytes).expect("archive");
+        let sheet =
+            String::from_utf8_lossy(&archive.read("xl/worksheets/sheet1.xml").unwrap()).to_string();
+        // Header cells carry the bold style; data cells do not.
+        assert!(sheet.contains("s=\"1\""), "the header style is missing");
+        assert!(sheet.contains("<cols>"), "the column widths are missing");
+        assert!(sheet.contains("customWidth=\"1\""));
+        assert!(
+            sheet.contains("state=\"frozen\""),
+            "the frozen header is missing"
+        );
+        // The wider header gets a wider column.
+        assert!(sheet.contains("width=\"22\""), "{sheet}");
+        let styles = String::from_utf8_lossy(&archive.read("xl/styles.xml").unwrap()).to_string();
+        assert!(styles.contains("<b/>"), "the bold font is missing");
+        assert!(styles.contains("<cellXfs count=\"3\">"), "{styles}");
+    }
+
+    #[test]
+    fn dates_are_written_as_excel_dates() {
+        let df = DataFrame::new(vec![Column::new_date(
+            "date",
+            vec![
+                crate::data::parse_date("2024-02-29").expect("date"),
+                crate::data::parse_date("2025-01-01").expect("date"),
+            ],
+        )])
+        .expect("frame");
+        let bytes = workbook(&df);
+        let archive = crate::zip::ZipArchive::new(bytes).expect("archive");
+        let sheet =
+            String::from_utf8_lossy(&archive.read("xl/worksheets/sheet1.xml").unwrap()).to_string();
+        // 2024-02-29 is serial 45351 in the 1900 date system.
+        assert!(sheet.contains("s=\"2\""), "{sheet}");
+        assert!(sheet.contains("<v>45351</v>"), "{sheet}");
+        let styles = String::from_utf8_lossy(&archive.read("xl/styles.xml").unwrap()).to_string();
+        assert!(styles.contains("formatCode=\"yyyy-mm-dd\""), "{styles}");
+        assert!(styles.contains("rgb=\"FF1F4E79\""), "{styles}");
+    }
+
+    #[test]
+    fn workbook_is_a_zip_with_the_expected_parts() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("x", vec![1.5, 2.5]),
+            Column::new_text("g", vec!["a".to_owned(), "b".to_owned()]),
+        ])
+        .unwrap();
+        let bytes = workbook(&df);
+        assert_eq!(&bytes[0..4], b"PK\x03\x04");
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("xl/worksheets/sheet1.xml"));
+        assert!(text.contains("<v>1.5</v>"));
+        assert!(text.contains("inlineStr"));
+    }
+
+    #[test]
+    fn unicode_and_missing_text_survive_the_workbook() {
+        let df = DataFrame::new(vec![Column::new_text(
+            "g",
+            vec![
+                "Açores".to_owned(),
+                "São Paulo".to_owned(),
+                String::new(),
+                "北京".to_owned(),
+            ],
+        )])
+        .unwrap();
+        let bytes = workbook(&df);
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("Açores"), "accented text missing");
+        assert!(text.contains("北京"), "CJK text missing");
+        // The reader must return the same rows (the empty string stays a cell).
+        let back = crate::xlsx_read::read_workbook_sheet(&bytes, None).expect("read");
+        assert_eq!(back.n_rows(), 4);
+        assert_eq!(back.cell_text(0, 0).as_deref(), Some("Açores"));
+        // An empty cell comes back as missing, not as the text "*".
+        assert!(back.cell_is_missing(0, 2));
+        assert_eq!(back.cell_text(0, 3).as_deref(), Some("北京"));
+    }
+}

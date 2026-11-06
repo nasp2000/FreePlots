@@ -396,3 +396,113 @@ pub fn analyze(
         plot: None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Column;
+
+    fn response(goal: Goal) -> Response {
+        Response {
+            column: "y".to_owned(),
+            goal,
+            low: 0.0,
+            target: 5.0,
+            high: 10.0,
+            weight: 1.0,
+            importance: 1.0,
+        }
+    }
+
+    #[test]
+    fn the_desirability_shapes_are_correct() {
+        let maximize = response(Goal::Maximize);
+        assert_eq!(maximize.desirability(0.0), 0.0);
+        assert_eq!(maximize.desirability(5.0), 0.5);
+        assert_eq!(maximize.desirability(10.0), 1.0);
+        let minimize = response(Goal::Minimize);
+        assert_eq!(minimize.desirability(0.0), 1.0);
+        assert_eq!(minimize.desirability(10.0), 0.0);
+        let target = response(Goal::Target);
+        assert_eq!(target.desirability(5.0), 1.0);
+        assert_eq!(target.desirability(0.0), 0.0);
+        assert_eq!(target.desirability(7.5), 0.5);
+    }
+
+    #[test]
+    fn the_combined_desirability_is_the_weighted_geometric_mean() {
+        let responses = vec![response(Goal::Maximize), response(Goal::Minimize)];
+        let value = combined(&responses, &[0.25, 0.81]);
+        assert!((value - 0.45).abs() < 1e-12, "{value}");
+        assert_eq!(combined(&responses, &[0.0, 1.0]), 0.0);
+    }
+
+    fn frame() -> DataFrame {
+        let mut a = Vec::new();
+        let mut b = Vec::new();
+        let mut y1 = Vec::new();
+        let mut y2 = Vec::new();
+        for first in [-1.0_f64, 0.0, 1.0] {
+            for second in [-1.0_f64, 0.0, 1.0] {
+                a.push(first);
+                b.push(second);
+                y1.push(10.0 - (first - 0.3).powi(2) - (second + 0.2).powi(2));
+                y2.push(5.0 + (first - 0.3).powi(2) + (second + 0.2).powi(2));
+            }
+        }
+        DataFrame::new(vec![
+            Column::new_f64("A", a),
+            Column::new_f64("B", b),
+            Column::new_f64("y1", y1),
+            Column::new_f64("y2", y2),
+        ])
+        .expect("frame")
+    }
+
+    #[test]
+    fn the_optimiser_finds_the_common_optimum() {
+        let responses = vec![
+            Response {
+                column: "y1".to_owned(),
+                goal: Goal::Maximize,
+                low: 5.0,
+                target: 10.0,
+                high: 10.0,
+                weight: 1.0,
+                importance: 1.0,
+            },
+            Response {
+                column: "y2".to_owned(),
+                goal: Goal::Minimize,
+                low: 5.0,
+                target: 5.0,
+                high: 10.0,
+                weight: 1.0,
+                importance: 1.0,
+            },
+        ];
+        let fit =
+            optimize(&frame(), &["A".to_owned(), "B".to_owned()], &responses).expect("optimiser");
+        assert!((fit.optimum[0] - 0.3).abs() < 1e-3, "{:?}", fit.optimum);
+        assert!((fit.optimum[1] + 0.2).abs() < 1e-3, "{:?}", fit.optimum);
+        assert!(fit.combined > 0.99, "{}", fit.combined);
+    }
+
+    #[test]
+    fn invalid_responses_are_rejected() {
+        let df = frame();
+        assert!(optimize(&df, &["A".to_owned(), "B".to_owned()], &[]).is_err());
+        let mut bad = response(Goal::Maximize);
+        bad.low = 10.0;
+        bad.high = 0.0;
+        assert!(bad.validate().is_err());
+        let mut bad = response(Goal::Target);
+        bad.target = 20.0;
+        assert!(bad.validate().is_err());
+        let duplicate = vec![response(Goal::Maximize), response(Goal::Minimize)];
+        assert!(optimize(&df, &["A".to_owned(), "B".to_owned()], &duplicate).is_err());
+        let mut as_factor = response(Goal::Maximize);
+        as_factor.column = "A".to_owned();
+        assert!(optimize(&df, &["A".to_owned(), "B".to_owned()], &[as_factor]).is_err());
+    }
+}

@@ -746,3 +746,195 @@ pub fn power_report(
     report.notes = notes;
     Ok(report)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn one_sample_t_power_matches_the_known_values() {
+        // d = 0.5, alpha = 0.05 (two-sided) and n = 64: the normal
+        // approximation gives Phi(0.5·8 − 1.998) = 0.977, and the
+        // non-central t is very close to it.
+        let power = one_sample_t_power(0.5, 64, 0.05, Alternative::TwoSided).expect("power");
+        assert!((power - 0.976).abs() < 0.01, "power {power}");
+        // With no effect the power is the level of the test.
+        let null = one_sample_t_power(0.0, 30, 0.05, Alternative::TwoSided).expect("power");
+        assert!((null - 0.05).abs() < 1e-6, "power {null}");
+    }
+
+    #[test]
+    fn one_sample_t_power_grows_with_the_sample_size() {
+        let mut previous = 0.0;
+        for n in [10, 20, 40, 80, 160] {
+            let power = one_sample_t_power(0.8, n, 0.05, Alternative::TwoSided).expect("power");
+            assert!(power > previous, "n={n}, power {power}");
+            previous = power;
+        }
+    }
+
+    #[test]
+    fn one_sample_t_sample_size_reaches_the_requested_power() {
+        // The standard table for d = 0.5, alpha = 0.05 and power 0.80 gives
+        // n = 34 for a one-sample test.
+        let n = one_sample_t_sample_size(0.5, 0.05, 0.8, Alternative::TwoSided).expect("n");
+        assert!((33..=35).contains(&n), "n {n}");
+        let power = one_sample_t_power(0.5, n, 0.05, Alternative::TwoSided).expect("power");
+        assert!(power >= 0.8, "power {power}");
+        let smaller = one_sample_t_sample_size(0.5, 0.05, 0.8, Alternative::TwoSided).expect("n");
+        assert_eq!(n, smaller);
+    }
+
+    #[test]
+    fn two_sample_t_power_and_sample_size_are_consistent() {
+        // d = 1.0 with ten observations per group: the normal approximation
+        // gives Phi(√5 − 2.101) = 0.55.
+        let power = two_sample_t_power(1.0, 10, 0.05, Alternative::TwoSided).expect("power");
+        assert!((power - 0.56).abs() < 0.02, "power {power}");
+        let n = two_sample_t_sample_size(1.0, 0.05, 0.8, Alternative::TwoSided).expect("n");
+        let achieved = two_sample_t_power(1.0, n, 0.05, Alternative::TwoSided).expect("power");
+        assert!(achieved >= 0.8, "power {achieved}");
+    }
+
+    #[test]
+    fn proportion_power_matches_the_normal_approximation() {
+        // p0 = 0.5 against p1 = 0.6 with n = 100: the shift is 2 σ, so the
+        // two-sided power is about 0.51.
+        let power = proportion_power(0.5, 0.6, 100, 0.05, Alternative::TwoSided).expect("power");
+        assert!((power - 0.51).abs() < 0.02, "power {power}");
+        let null = proportion_power(0.5, 0.5, 100, 0.05, Alternative::TwoSided).expect("power");
+        assert!((null - 0.05).abs() < 1e-9, "power {null}");
+    }
+
+    #[test]
+    fn proportion_sample_size_reaches_the_requested_power() {
+        let n = proportion_sample_size(0.5, 0.6, 0.05, 0.8, Alternative::TwoSided).expect("n");
+        let power = proportion_power(0.5, 0.6, n, 0.05, Alternative::TwoSided).expect("power");
+        assert!(power >= 0.8, "power {power}");
+        assert!(n > 100, "n {n}");
+    }
+
+    #[test]
+    fn correlation_power_uses_the_fisher_transformation() {
+        // rho = 0.3 with n = 100: atanh(0.3)·√97 = 3.05, so the power is
+        // Phi(3.05 − 1.96) = 0.86.
+        let power = correlation_power(0.3, 100, 0.05).expect("power");
+        assert!((power - 0.86).abs() < 0.02, "power {power}");
+        let n = correlation_sample_size(0.3, 0.05, 0.8).expect("n");
+        let achieved = correlation_power(0.3, n, 0.05).expect("power");
+        assert!(achieved >= 0.8, "power {achieved}");
+    }
+
+    #[test]
+    fn the_report_covers_every_procedure() {
+        for procedure in [
+            PowerProcedure::OneSampleT,
+            PowerProcedure::TwoSampleT,
+            PowerProcedure::Proportion,
+            PowerProcedure::Correlation,
+            PowerProcedure::Anova,
+            PowerProcedure::Regression,
+        ] {
+            let effect = match procedure {
+                PowerProcedure::Proportion => 0.6,
+                PowerProcedure::Regression => 0.3,
+                _ => 0.5,
+            };
+            let report = power_report(
+                procedure,
+                effect,
+                0.5,
+                40,
+                3,
+                0.05,
+                0.8,
+                Alternative::TwoSided,
+            )
+            .expect("report");
+            let text = report.to_session_text();
+            assert!(text.contains("Power and Sample Size"), "{text}");
+            assert!(text.contains("Power"), "{text}");
+
+            let report = power_report(
+                procedure,
+                effect,
+                0.5,
+                0,
+                3,
+                0.05,
+                0.8,
+                Alternative::TwoSided,
+            )
+            .expect("report");
+            let text = report.to_session_text();
+            assert!(text.contains("Sample size"), "{text}");
+        }
+    }
+
+    #[test]
+    fn the_procedure_names_are_parsed() {
+        assert_eq!(
+            PowerProcedure::parse("t1"),
+            Some(PowerProcedure::OneSampleT)
+        );
+        assert_eq!(
+            PowerProcedure::parse("2-Sample-T"),
+            Some(PowerProcedure::TwoSampleT)
+        );
+        assert_eq!(
+            PowerProcedure::parse("proportion"),
+            Some(PowerProcedure::Proportion)
+        );
+        assert_eq!(
+            PowerProcedure::parse("pearson"),
+            Some(PowerProcedure::Correlation)
+        );
+        assert_eq!(PowerProcedure::parse("unknown"), None);
+        assert_eq!(PowerProcedure::OneSampleT.as_str(), "t1");
+    }
+
+    #[test]
+    fn the_anova_power_matches_the_two_sample_t_test() {
+        // With two groups the ANOVA F test is the square of the t test, so the
+        // powers agree: Δ = 1 with ten observations per group gives about
+        // 0.56.
+        let anova = anova_power(1.0, 2, 10, 0.05).expect("anova power");
+        let t = two_sample_t_power(1.0, 10, 0.05, Alternative::TwoSided).expect("t power");
+        assert!((anova - t).abs() < 0.01, "anova {anova}, t {t}");
+    }
+
+    #[test]
+    fn the_anova_and_regression_powers_grow_with_the_sample_size() {
+        let mut previous = 0.0;
+        for n in [5, 10, 20, 40, 80] {
+            let power = anova_power(1.0, 3, n, 0.05).expect("anova power");
+            assert!(power > previous, "n={n}, power {power}");
+            previous = power;
+        }
+        let n = anova_sample_size(1.0, 3, 0.05, 0.8).expect("sample size");
+        let achieved = anova_power(1.0, 3, n, 0.05).expect("anova power");
+        assert!(achieved >= 0.8, "power {achieved}");
+
+        let power = regression_power(0.3, 2, 50, 0.05).expect("regression power");
+        assert!(power > 0.8, "power {power}");
+        let n = regression_sample_size(0.3, 2, 0.05, 0.8).expect("sample size");
+        let achieved = regression_power(0.3, 2, n, 0.05).expect("regression power");
+        assert!(achieved >= 0.8, "power {achieved}");
+    }
+
+    #[test]
+    fn invalid_arguments_are_rejected() {
+        assert!(matches!(
+            one_sample_t_power(0.5, 1, 0.05, Alternative::TwoSided),
+            Err(Error::SampleTooSmall { .. })
+        ));
+        assert!(matches!(
+            one_sample_t_power(0.5, 30, 1.5, Alternative::TwoSided),
+            Err(Error::InvalidParameter { .. })
+        ));
+        assert!(matches!(
+            proportion_power(0.5, 1.5, 30, 0.05, Alternative::TwoSided),
+            Err(Error::InvalidParameter { .. })
+        ));
+    }
+}

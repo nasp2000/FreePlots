@@ -16,8 +16,9 @@ so a change is only finished when the numbers, the report and the UI all agree.
 
 1. **The formula and the convention.** State the estimator, the defaults, the
    exclusions and the confidence level in the report notes.
-2. **Input handling**: typical, boundary (empty, constant, n = 1, ties, missing
-   values) and invalid input.
+2. **Input handling and tests**: typical, boundary (empty, constant, n = 1,
+   ties, missing values) and invalid input; the public suite runs on every
+   change.
 3. **The UI path** when the analysis is reachable from a dialog: the dialog,
    its validation and its persistence.
 4. **Documentation**: the report note and the relevant section of the user
@@ -27,8 +28,8 @@ so a change is only finished when the numbers, the report and the UI all agree.
 
 ```bash
 cargo fmt --all --check
-cargo clippy --workspace --locked --features desktop -- -D warnings
-cargo build --workspace --locked --features desktop
+cargo clippy --workspace --all-targets --locked --features desktop -- -D warnings
+cargo test --workspace --features desktop --locked
 ```
 
 The desktop feature is opt-in so the engine and the headless UI layer build on

@@ -432,3 +432,36 @@ impl Catalog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalogues_cover_both_languages() {
+        let en = Catalog::english();
+        let pt = Catalog::new(Lang::Portuguese);
+        assert_eq!(en.observations(), "Observations (n)");
+        assert_eq!(pt.observations(), "Observações (n)");
+        assert_eq!(pt.warnings(), "AVISOS");
+        assert_ne!(en.estimation_method(), pt.estimation_method());
+    }
+
+    #[test]
+    fn labels_are_translated_and_unknown_ones_are_kept() {
+        let en = Catalog::english();
+        let pt = Catalog::new(Lang::Portuguese);
+        assert_eq!(en.label("Term"), "Term");
+        assert_eq!(pt.label("Term"), "Termo");
+        assert_eq!(pt.label("Center line"), "Linha central");
+        assert_eq!(pt.label("Something else"), "Something else");
+    }
+
+    #[test]
+    fn language_codes_round_trip() {
+        assert_eq!(Lang::parse("en"), Some(Lang::English));
+        assert_eq!(Lang::parse("pt-PT"), Some(Lang::Portuguese));
+        assert_eq!(Lang::Portuguese.code(), "pt");
+        assert!(Lang::parse("fr").is_none());
+    }
+}
