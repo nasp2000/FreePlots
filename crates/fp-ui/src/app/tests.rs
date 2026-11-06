@@ -7117,6 +7117,12 @@ fn the_graph_context_menu_changes_are_visible() {
     app.apply_graph_action(&ctx, GraphAction::ReportToggle);
     assert_eq!(svg(&app), cpk_baseline);
 
+    // The capability bars are the "bands" of this graph.
+    app.graph_overlay.show_bands = false;
+    assert_ne!(svg(&app), cpk_baseline, "bands did not change the SVG");
+    app.graph_overlay.show_bands = true;
+    assert_eq!(svg(&app), cpk_baseline);
+
     // The label editor changes the title, subtitle and axis labels.
     app.apply_graph_action(&ctx, GraphAction::Labels);
     app.graph_label_subtitle = "audit".to_owned();
@@ -7224,9 +7230,6 @@ fn the_graph_context_menu_changes_are_visible() {
     app.graph_overlay.show_lines = false;
     assert_ne!(svg(&app), scatter_baseline, "lines did not change the SVG");
     app.graph_overlay.show_lines = true;
-    app.graph_overlay.show_bands = false;
-    assert_ne!(svg(&app), scatter_baseline, "bands did not change the SVG");
-    app.graph_overlay.show_bands = true;
     assert_eq!(svg(&app), scatter_baseline);
 
     // The panel editor changes the column count of a multi-panel plot.
