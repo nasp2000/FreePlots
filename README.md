@@ -59,6 +59,10 @@ cargo build --release -p fp-app --features desktop
 
 The desktop feature needs the usual X11/OpenGL development packages on Linux. The engine, the CLI and the headless UI layer build without them.
 
+### Windows rendering
+
+The Windows build uses **wgpu** (D3D12/Vulkan) by default. If a machine needs the OpenGL backend, start it with `FreePlots.exe --renderer glow`, or set `FREEPLOTS_RENDERER=glow`. Linux uses the OpenGL backend by default; `--renderer wgpu` is available there too.
+
 ### First steps
 1. Open a CSV (`File > Open CSV...`) or press **Samples** and pick an example.
 2. Choose an analysis from the **Stat** menu.
