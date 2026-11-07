@@ -160,13 +160,13 @@ fn two_level_products(k: usize) -> Vec<Vec<usize>> {
     for mask in 1..(1usize << k) {
         let mut levels = Vec::with_capacity(runs);
         for run in 0..runs {
-            let mut parity = 0u32;
+            let mut xor = 0u32;
             for bit in 0..k {
                 if mask & (1 << bit) != 0 {
-                    parity ^= ((run >> bit) & 1) as u32;
+                    xor ^= ((run >> bit) & 1) as u32;
                 }
             }
-            levels.push(parity as usize + 1);
+            levels.push(xor as usize + 1);
         }
         columns.push(levels);
     }
