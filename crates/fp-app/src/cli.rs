@@ -2890,6 +2890,21 @@ fn option_string(options: &[String], name: &str) -> Option<String> {
         .cloned()
 }
 
+/// Reads an optional option, rejecting a flag that is present without a value.
+///
+/// `option_string` cannot tell "the option is absent" from "the option is the
+/// last argument"; for an optional option the second must be an error, not a
+/// silent default.
+fn optional_string(options: &[String], name: &str) -> Result<Option<String>, String> {
+    match options.iter().position(|value| value == name) {
+        Some(index) => match options.get(index + 1) {
+            Some(value) if !value.starts_with("--") => Ok(Some(value.clone())),
+            _ => Err(format!("{name} requires a value")),
+        },
+        None => Ok(None),
+    }
+}
+
 fn sort_rows(args: &[String]) -> Result<(), String> {
     let (input, output, options) = reshape_paths(args)?;
     let raw = option_string(&options, "--by").ok_or_else(|| "missing --by <col,...>".to_owned())?;
@@ -2954,7 +2969,7 @@ fn subset_rows(args: &[String]) -> Result<(), String> {
     let (input, output, options) = reshape_paths(args)?;
     let column =
         option_string(&options, "--column").ok_or_else(|| "missing --column <name>".to_owned())?;
-    let raw = option_string(&options, "--op").unwrap_or_else(|| "=".to_owned());
+    let raw = optional_string(&options, "--op")?.unwrap_or_else(|| "=".to_owned());
     let op =
         fp_core::reshape::SubsetOp::parse(&raw).ok_or_else(|| format!("invalid --op: {raw}"))?;
     let value =
@@ -4347,11 +4362,14 @@ fn integer_option(args: &[String], name: &str, default: usize) -> Result<usize, 
     }
 }
 
-fn svg_option(args: &[String]) -> Option<PathBuf> {
-    args.iter()
-        .position(|value| value == "--svg")
-        .and_then(|index| args.get(index + 1))
-        .map(PathBuf::from)
+fn svg_option(args: &[String]) -> Result<Option<PathBuf>, String> {
+    match args.iter().position(|value| value == "--svg") {
+        Some(index) => match args.get(index + 1) {
+            Some(value) if !value.starts_with("--") => Ok(Some(PathBuf::from(value))),
+            _ => Err("--svg requires a path".to_owned()),
+        },
+        None => Ok(None),
+    }
 }
 
 fn print_with_plot(
@@ -5509,7 +5527,7 @@ fn acceptance_curve(args: &[String]) -> Result<(), String> {
     for result in &mut out.results {
         result.set_lang(lang);
     }
-    print_with_plot(&out, svg_option(args))
+    print_with_plot(&out, svg_option(args)?)
 }
 
 fn sampling_plan(args: &[String]) -> Result<(), String> {
@@ -5517,7 +5535,7 @@ fn sampling_plan(args: &[String]) -> Result<(), String> {
     let ltpd = number_option(args, "--ltpd", 5.0)? / 100.0;
     let alpha = number_option(args, "--alpha", 5.0)? / 100.0;
     let beta = number_option(args, "--beta", 10.0)? / 100.0;
-    let lot = match option_string(args, "--lot") {
+    let lot = match optional_string(args, "--lot")? {
         Some(raw) => Some(
             raw.parse::<usize>()
                 .map_err(|_| format!("invalid --lot: {raw}"))?,
@@ -5530,7 +5548,7 @@ fn sampling_plan(args: &[String]) -> Result<(), String> {
     for result in &mut out.results {
         result.set_lang(lang);
     }
-    print_with_plot(&out, svg_option(args))
+    print_with_plot(&out, svg_option(args)?)
 }
 
 fn t2_chart(args: &[String]) -> Result<(), String> {

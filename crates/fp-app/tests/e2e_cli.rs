@@ -2402,3 +2402,40 @@ fn a_renderer_variable_with_an_unknown_value_is_rejected() {
         "{stderr}"
     );
 }
+
+// An option that is present without its value used to be treated as absent
+// when it was the last argument, so the command silently ran with its default
+// instead of telling the caller that the value was missing.
+#[test]
+fn an_optional_option_at_the_end_without_a_value_is_rejected() {
+    let dir = temp_dir("dangling-option");
+    let csv = dir.join("data.csv");
+    fs::write(&csv, "a,b,g\n1,2,A\n2,4,A\n3,6,B\n4,8,B\n").expect("write csv");
+    let out_csv = dir.join("out.csv");
+    let check = |args: &[&str], message: &str| {
+        let out = Command::new(bin()).args(args).output().expect("run binary");
+        assert_eq!(out.status.code(), Some(1), "args: {args:?}");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(stderr.contains(message), "args: {args:?}\nstderr: {stderr}");
+    };
+    check(
+        &[
+            "subset",
+            csv.to_str().expect("utf8"),
+            out_csv.to_str().expect("utf8"),
+            "--column",
+            "g",
+            "--op",
+        ],
+        "--op requires a value",
+    );
+    check(
+        &["sampleplan", "--aql", "1", "--ltpd", "5", "--lot"],
+        "--lot requires a value",
+    );
+    check(
+        &["occurve", "--sample", "20", "--accept", "1", "--svg"],
+        "--svg requires a path",
+    );
+    fs::remove_dir_all(&dir).ok();
+}
