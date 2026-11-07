@@ -12,7 +12,8 @@ Usage:
     python3 scripts/reference-report.py --validate # check the corpus only
 
 The check runs in CI.  It does not run any analysis, open a network connection
-or read a private capture: only the committed JSON and golden files are read.
+or read anything outside this repository: only the committed JSON and golden
+files are read.
 """
 
 from __future__ import annotations

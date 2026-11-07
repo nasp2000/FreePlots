@@ -44,16 +44,21 @@ pub struct Dotplot {
 
 /// Reads the numeric value of a row (`None` when the cell is missing).
 fn value_at(column: &Column, values: &[f64], row: usize) -> Option<f64> {
-    if column.is_missing(row) || !values[row].is_finite() {
+    let value = *values.get(row)?;
+    if column.is_missing(row) || !value.is_finite() {
         return None;
     }
-    Some(values[row])
+    Some(value)
 }
 
 /// Builds the data of the plot.
 pub fn fit(df: &DataFrame, column_name: &str, factor: Option<&str>) -> Result<Dotplot> {
     let column = df.column(column_name)?;
-    let values = column.numeric(MissingPolicy::Drop)?;
+    // `numeric` validates that the column is numeric, but it also compacts the
+    // values; the rows below are addressed by their original index, so read the
+    // row-aligned copy instead. A missing value must not shift the rows after it.
+    column.numeric(MissingPolicy::Drop)?;
+    let values = column.numeric_by_row();
     match factor {
         None => {
             let mut kept = Vec::new();
@@ -373,6 +378,54 @@ mod tests {
         ));
         let empty = DataFrame::new(vec![Column::new_f64("y", vec![f64::NAN])]).expect("frame");
         assert!(matches!(fit(&empty, "y", None), Err(Error::EmptySample)));
+        let text =
+            DataFrame::new(vec![Column::new_text("y", vec!["a".to_owned()])]).expect("frame");
+        assert!(matches!(fit(&text, "y", None), Err(Error::Csv(_))));
+    }
+
+    // A non-finite cell used to be dropped while the loop still addressed the
+    // compacted vector by the original row number, so a leading `NaN` both
+    // shifted every value and indexed past the end of the vector.
+    #[test]
+    fn a_missing_value_does_not_shift_the_rows() {
+        let df = DataFrame::new(vec![Column::new_f64(
+            "y",
+            vec![f64::NAN, 2.0, 3.0, f64::INFINITY, 4.0],
+        )])
+        .expect("frame");
+        let model = fit(&df, "y", None).expect("fit");
+        assert_eq!(model.values, vec![vec![2.0, 3.0, 4.0]]);
+        assert_eq!(model.n, 3);
+        assert_eq!(model.excluded, 2);
+        assert!((model.means[0] - 3.0).abs() < 1e-12);
+        let plot = plot(&model);
+        assert_eq!(plot.points.len(), 3);
+        assert!(plot.points.iter().all(|point| point.y.is_finite()));
+    }
+
+    #[test]
+    fn a_missing_value_does_not_shift_grouped_rows() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("y", vec![f64::NAN, 2.0, 5.0, 7.0]),
+            Column::new_text(
+                "g",
+                vec![
+                    "A".to_owned(),
+                    "A".to_owned(),
+                    "B".to_owned(),
+                    "B".to_owned(),
+                ],
+            ),
+        ])
+        .expect("frame");
+        let model = fit(&df, "y", Some("g")).expect("fit");
+        assert_eq!(model.levels, vec!["A", "B"]);
+        assert_eq!(model.values, vec![vec![2.0], vec![5.0, 7.0]]);
+        assert_eq!(model.n, 3);
+        assert_eq!(model.excluded, 1);
+        let plot = plot(&model);
+        assert_eq!(plot.points.len(), 3);
+        assert_eq!(plot.lines.len(), 2);
     }
 
     #[test]
