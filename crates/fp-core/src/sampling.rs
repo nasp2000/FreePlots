@@ -15,8 +15,8 @@
 //! that gives `Pa(AQL) ≥ 1 − α` and `Pa(LTPD) ≤ β`.
 //!
 //! The documented behaviour has acceptance sampling; its lot-size and rounding
-//! conventions were not documented, so the numbers are not claimed as documented
-//! behaviour — see `the project notes`.
+//! conventions were not documented, so the numbers are not claimed to match the documented behaviour
+//! — see the project notes.
 
 use crate::error::{Error, Result};
 use crate::plot::{PlotSpec, Point, Segment, linear_axis};

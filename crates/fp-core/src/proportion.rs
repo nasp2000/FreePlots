@@ -4,7 +4,7 @@
 //! The one-sample test offers the exact binomial p-value and the normal
 //! approximation; its interval is Clopper–Pearson for the exact method and
 //! Wilson for the normal method. The two-sample test uses the pooled normal
-//! approximation. These are standard conventions, not yet documented from the
+//! approximation. These are standard conventions, not yet taken from the
 //! documented behaviour.
 
 use crate::data::{Column, ColumnData, DataFrame};

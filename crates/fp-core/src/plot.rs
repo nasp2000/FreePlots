@@ -498,8 +498,8 @@ fn rescaled_axis(axis: &AxisSpec, range: (f64, f64)) -> Option<AxisSpec> {
 
 /// Percentage ticks used on a probability axis.
 ///
-/// The normal/lognormal and the Weibull/exponential sets are the ones documented
-/// from the documented behaviour (see `the project notes`); the decade anchors
+/// The normal/lognormal and the Weibull/exponential sets are the ones taken
+/// from the documented behaviour (see the project notes); the decade anchors
 /// at the ends are kept so an axis that expands past 1–99 % still has labels.
 /// The Logit and ExtremeValue scales reuse the normal set: those families are
 /// engine additions with no documented plot to record.
@@ -762,7 +762,7 @@ impl PlotSpec {
         !self.points.is_empty() || self.panels.iter().any(Self::has_points)
     }
 
-    /// Specification of a Normal probability plot, in the documented behaviour orientation.
+    /// Specification of a Normal probability plot, in the documented behaviour's orientation.
     ///
     /// Data on the horizontal axis, probability on the vertical axis. The
     /// vertical coordinates are `z = Φ⁻¹(p)`, so the fitted line is
@@ -858,7 +858,7 @@ impl PlotSpec {
         }
     }
 
-    /// Specification of a log-normal probability plot, in the documented behaviour orientation.
+    /// Specification of a log-normal probability plot, in the documented behaviour's orientation.
     ///
     /// Data on a base-10 log axis, probability on the normal scale. The fitted
     /// line is `z = (ln x − µ)/σ`; in `u = log10(x)` coordinates its slope is
@@ -963,7 +963,7 @@ impl PlotSpec {
     /// `α·ln(10)`. The 95 % band is the delta method on the `log10` axis
     /// coordinate, with the covariance from the numerical Hessian of the
     /// log-likelihood; the documented plot matches it within 0.3 % at
-    /// p = 20–80 % (see `the project notes`).
+    /// p = 20–80 % (see the project notes).
     pub fn weibull_probability(
         plot: &ProbabilityPlot,
         dist: &Weibull,
@@ -1066,7 +1066,7 @@ impl PlotSpec {
     /// `y = ln(−ln(1 − p))`. The fitted line is `y = ln(x) − ln(θ)`; in
     /// `u = log10(x)` coordinates its slope is `ln(10)` and it passes through
     /// `(log10 θ, 0)`, the 63.2 % quantile. No confidence band is drawn: the
-    /// the documented behaviour covariance construction is not recovered.
+    /// the documented behaviour's covariance construction is not recovered.
     pub fn exponential_probability(
         plot: &ProbabilityPlot,
         dist: &Exponential,

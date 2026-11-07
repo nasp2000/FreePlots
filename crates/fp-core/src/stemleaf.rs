@@ -11,8 +11,8 @@
 //! observations on the stem.
 //!
 //! The documented behaviour has a stem-and-leaf display; its unit and rounding
-//! rules were not documented, so the numbers are not claimed as documented behaviour
-//! — see `the project notes`.
+//! rules were not documented, so the numbers are not claimed to match the documented behaviour
+//! — see the project notes.
 
 use std::collections::BTreeMap;
 

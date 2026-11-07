@@ -3,7 +3,7 @@
 //!
 //! Decision D14: the p-value of Anderson–Darling with **estimated** parameters
 //! uses the D'Agostino–Stephens composite-AD approximation, recovered from
-//! the documented behaviour . It is deterministic and is derived for the same
+//! the documented behaviour. It is deterministic and is derived for the same
 //! null as the statistic, so it avoids critical values that assume known
 //! parameters. The Monte Carlo version is kept as an independent cross-check.
 
@@ -645,7 +645,7 @@ mod tests {
     #[test]
     fn ad_p_value_matches_the_recovered_table() {
         // Reference values produced by an independent implementation of the
-        // the documented behaviour formula (NATIVE_FORMULAS.md §6.2).
+        // the documented behaviour's formula (NATIVE_FORMULAS.md §6.2).
         let cases = [
             (2, 0.1, 0.893_407_215_070_051_4),
             (5, 0.2, 0.751_178_312_124_852_1),

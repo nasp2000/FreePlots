@@ -15,8 +15,8 @@
 //! sample (the largest jump of the step).
 //!
 //! The documented behaviour has an empirical CDF plot; its band convention was not
-//! documented, so the numbers are not claimed as documented behaviour — see
-//! `the project notes`.
+//! documented, so the numbers are not claimed to match the documented behaviour — see
+//! the project notes.
 
 use crate::data::{DataFrame, MissingPolicy};
 use crate::error::{Error, Result};

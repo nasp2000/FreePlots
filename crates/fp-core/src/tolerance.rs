@@ -12,8 +12,8 @@
 //! n = 30 give 3.379 and 2.549 for 95 %/95 %).
 //!
 //! The documented behaviour has a tolerance-interval dialog; its conventions
-//! were not documented, so the numbers are not claimed as documented behaviour —
-//! see `the project notes`.
+//! were not documented, so the numbers are not claimed to match the documented behaviour —
+//! see the project notes.
 
 use crate::data::{DataFrame, MissingPolicy, Sample};
 use crate::error::{Error, Result};

@@ -8,7 +8,7 @@
 //! interval of each group (`s/√n` with `n − 1` degrees of freedom).
 //!
 //! The documented behaviour has an interval plot; its defaults were not documented,
-//! so the numbers are not claimed as documented behaviour — see `the project notes`.
+//! so the numbers are not claimed to match the documented behaviour — see the project notes.
 
 use crate::anova;
 use crate::data::DataFrame;

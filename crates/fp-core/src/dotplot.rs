@@ -11,7 +11,7 @@
 //! centre; it carries no meaning beyond separating the dots.
 //!
 //! The documented behaviour has a dotplot; its stacking rule was not documented, so
-//! the layout is our own — see `the project notes`.
+//! the layout is our own — see the project notes.
 
 use std::collections::BTreeMap;
 

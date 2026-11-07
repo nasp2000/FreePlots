@@ -20,8 +20,8 @@
 //! zero, because `T²` cannot be negative.
 //!
 //! The documented behaviour has a multivariate control chart; its limits and
-//! subgroup conventions were not documented, so the numbers are not claimed as
-//! documented behaviour — see `the project notes`.
+//! subgroup conventions were not documented, so the numbers are not claimed to
+//! match the documented behaviour — see the project notes.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};

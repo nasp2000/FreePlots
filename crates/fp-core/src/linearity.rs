@@ -12,7 +12,7 @@
 //! The process variation is the `6·s` spread of the reference values of the
 //! study, which is the standard convention for a linearity study; the exact
 //! convention of the documented behaviour was not documented, so the report says so
-//! — see `the project notes`.
+//! — see the project notes.
 
 use std::collections::BTreeMap;
 

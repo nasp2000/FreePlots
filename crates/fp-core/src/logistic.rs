@@ -18,7 +18,7 @@
 //!
 //! The documented behaviour has a binary logistic regression; its convergence
 //! and grouping conventions were not documented, so the numbers are not claimed
-//! as documented behaviour — see `the project notes`.
+//! to match the documented behaviour — see the project notes.
 
 use std::collections::BTreeSet;
 
@@ -755,7 +755,7 @@ mod tests {
         assert!(model.coefficients[1] > 0.0, "{:?}", model.coefficients);
         assert!(model.coefficients[2] > model.coefficients[1]);
         assert!(model.odds_ratios[1] > 1.0 && model.odds_ratios[2] > 1.0);
-        // The documented behaviour level has the lowest fitted probability.
+        // The documented behaviour's level has the lowest fitted probability.
         let mean = |level: usize| {
             let slice = &model.predicted[level * 10..level * 10 + 10];
             slice.iter().sum::<f64>() / 10.0

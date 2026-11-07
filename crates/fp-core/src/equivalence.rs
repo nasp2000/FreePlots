@@ -14,7 +14,7 @@
 //! rejects.
 //!
 //! The documented behaviour has no equivalence-test path, so this is an
-//! addition of this engine; see `the project notes`.
+//! addition of this engine; see the project notes.
 
 use crate::data::{Column, ColumnData, DataFrame, MissingPolicy, Sample};
 use crate::error::{Error, Result};

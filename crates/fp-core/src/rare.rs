@@ -9,9 +9,9 @@
 //! `(n − 1) / (n + Σg)`, and the quantile is interpolated between the two
 //! surrounding integers of the inverse CDF, the documented convention.
 //!
-//! The reference record prints a different event probability for the same
+//! The documented record prints a different event probability for the same
 //! counts (0.594 against 0.625), so the limits are documented but not claimed
-//! as documented behaviour — see `the project notes`.
+//! to match the documented behaviour — see the project notes.
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};

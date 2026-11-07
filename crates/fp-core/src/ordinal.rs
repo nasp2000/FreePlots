@@ -20,7 +20,7 @@
 //!
 //! The documented behaviour has ordinal regression; its convergence and
 //! parameterisation conventions were not documented, so the numbers are not
-//! claimed as documented behaviour — see `the project notes`.
+//! claimed to match the documented behaviour — see the project notes.
 
 use std::collections::BTreeMap;
 

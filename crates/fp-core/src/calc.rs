@@ -17,7 +17,7 @@
 //! silent garbage.
 //!
 //! The documented behaviour has a worksheet calculator; its syntax was not
-//! documented, so the grammar here is our own — see `the project notes`.
+//! documented, so the grammar here is our own — see the project notes.
 
 use crate::data::{Column, DataFrame};
 use crate::error::{Error, Result};

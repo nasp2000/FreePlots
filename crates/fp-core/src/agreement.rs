@@ -18,7 +18,7 @@
 //!
 //! The documented behaviour has an attribute agreement analysis; its repetition
 //! and between-appraiser rules were not documented, so the numbers are not
-//! claimed as documented behaviour — see `the project notes`.
+//! claimed to match the documented behaviour — see the project notes.
 
 use std::collections::BTreeMap;
 

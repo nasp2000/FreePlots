@@ -14,8 +14,8 @@
 //! that rule the sign of a component would depend on rounding.
 //!
 //! The documented behaviour has a principal-components analysis; its extraction
-//! and sign conventions were not documented, so the numbers are not claimed as
-//! documented behaviour — see `the project notes`.
+//! and sign conventions were not documented, so the numbers are not claimed to
+//! match the documented behaviour — see the project notes.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};

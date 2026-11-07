@@ -12,8 +12,8 @@
 //! * the **correlation test** uses Fisher's `atanh` transformation.
 //!
 //! The documented behaviour has a power-and-sample-size dialog; its defaults
-//! were not documented, so the numbers are not claimed as documented behaviour —
-//! see `the project notes`.
+//! were not documented, so the numbers are not claimed to match the documented behaviour —
+//! see the project notes.
 
 use crate::error::{Error, Result};
 use crate::hypothesis::Alternative;

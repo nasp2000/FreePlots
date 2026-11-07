@@ -284,7 +284,7 @@ pub enum AnalysisSpec {
         column: String,
         /// Test family.
         test: NormalityTestKind,
-        /// Draw/report percentile lines (the documented behaviour default: off).
+        /// Draw/report percentile lines (the documented behaviour's default: off).
         percentile_lines: bool,
     },
     /// Descriptive statistics for one column.
@@ -5698,7 +5698,7 @@ pub fn capability_non_normal(
 /// Normal process capability with within/overall sigma and ppm.
 ///
 /// This is a documented standard implementation, not yet verified against a
-/// documented-behaviour capability report: the exact unbiasing and
+/// documented capability report: the exact unbiasing and
 /// confidence-interval conventions remain pending.
 pub fn capability_normal(
     df: &DataFrame,

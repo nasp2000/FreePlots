@@ -90,7 +90,7 @@ pub struct Limits {
 
 /// Tests for special causes and their sensitivities.
 ///
-/// The defaults are the documented ones of the documented behaviour's `DEFTEST`
+/// The defaults are the documented behaviour's `DEFTEST`
 /// subcommand. Test 1 (a point outside a control limit) is fixed at three
 /// sigma because that is where the limits are drawn; the other seven accept
 /// the documented ranges.

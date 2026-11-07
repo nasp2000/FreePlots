@@ -11,7 +11,7 @@
 //! fitted. Rows must be complete in every variable (listwise deletion).
 //!
 //! The documented behaviour has a matrix plot; its bin and panel conventions were
-//! not documented, so the layout is our own — see `the project notes`.
+//! not documented, so the layout is our own — see the project notes.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};

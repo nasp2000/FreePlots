@@ -7,7 +7,7 @@
 //! Theil–Sen slope, which quantifies what the eye sees.
 //!
 //! The documented behaviour has a time-series plot; its axis and marker defaults
-//! were not documented, so the layout is our own — see `the project notes`.
+//! were not documented, so the layout is our own — see the project notes.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};

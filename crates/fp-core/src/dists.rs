@@ -936,7 +936,7 @@ impl Distribution for Loglogistic {
 /// `F(x) = P(α, x/β)` for `x > 0`, with shape `α` and scale `β`; the mean is
 /// `αβ` and the variance `αβ²`. The documented behaviour has no gamma
 /// probability plot, so this family is an addition of this engine rather than
-/// a recovered one — see `the project notes`.
+/// a recovered one — see the project notes.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Gamma {
     shape: f64,
@@ -1168,7 +1168,7 @@ impl Distribution for Gamma {
 ///
 /// `F(x) = exp(−exp(−(x − µ)/σ))`. The documented behaviour has no extreme-value
 /// probability plot, so this family is an addition of this engine rather than
-/// a recovered one — see `the project notes`.
+/// a recovered one — see the project notes.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ExtremeValue {
     location: f64,

@@ -1708,7 +1708,7 @@ mod tests {
         values.sort_by(f64::total_cmp);
         let theta = values.iter().sum::<f64>() / values.len() as f64;
         let adjusted = adjusted_ad_exponential(&values, theta).expect("statistic");
-        // Documented from the reference distribution analysis (n = 20).
+        // Taken from the reference distribution analysis (n = 20).
         assert!((adjusted - 0.896290).abs() < 1e-4, "{adjusted}");
         // The report prints it in the statistics block.
         let df = DataFrame::new(vec![Column::new_f64("time", values)]).expect("frame");

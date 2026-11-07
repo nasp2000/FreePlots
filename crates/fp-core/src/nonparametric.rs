@@ -6,8 +6,8 @@
 //! assumption; the p-values use the normal approximation (with a continuity
 //! correction and a tie correction) or the chi-square distribution. The
 //! documented behaviour offers the same tests, but the conventions were not
-//! documented from it, so the numbers are not claimed as documented behaviour —
-//! see `the project notes`.
+//! taken from it, so the numbers are not claimed to match the documented behaviour —
+//! see the project notes.
 
 use std::collections::BTreeMap;
 

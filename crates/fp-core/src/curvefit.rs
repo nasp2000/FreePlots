@@ -8,7 +8,7 @@
 //!
 //! The documented behaviour has a curve-fit dialog; its model list and defaults
 //! were not documented, so this is an addition of this engine rather than a
-//! recovered behaviour — see `the project notes`.
+//! recovered behaviour — see the project notes.
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};

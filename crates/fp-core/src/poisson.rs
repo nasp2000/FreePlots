@@ -13,8 +13,8 @@
 //! (overdispersion when it is well above one) and the fitted counts.
 //!
 //! The documented behaviour has a Poisson regression; its convergence and
-//! dispersion conventions were not documented, so the numbers are not claimed as
-//! documented behaviour — see `the project notes`.
+//! dispersion conventions were not documented, so the numbers are not claimed to
+//! match the documented behaviour — see the project notes.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};

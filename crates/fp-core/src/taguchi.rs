@@ -31,8 +31,8 @@
 //! response gives the significance of each factor.
 //!
 //! The documented behaviour has Taguchi designs; its array list and pooling rules
-//! were not documented, so the numbers are not claimed as documented behaviour — see
-//! `the project notes`.
+//! were not documented, so the numbers are not claimed to match the documented behaviour — see
+//! the project notes.
 
 use crate::data::{Column, DataFrame};
 use crate::error::{Error, Result};
@@ -155,7 +155,7 @@ impl OrthogonalArray {
 fn two_level_products(k: usize) -> Vec<Vec<usize>> {
     let runs = 1usize << k;
     let mut columns = Vec::new();
-    // Each mask selects a subset of the factors; the level is the parity of the
+    // Each mask selects a subset of the factors; the level is the XOR of the
     // AND of the subset with the run pattern.
     for mask in 1..(1usize << k) {
         let mut levels = Vec::with_capacity(runs);

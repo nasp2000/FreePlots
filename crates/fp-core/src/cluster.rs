@@ -14,8 +14,8 @@
 //! coloured by cluster.
 //!
 //! The documented behaviour clusters; its initialisation and distance conventions
-//! were not documented, so the numbers are not claimed as documented behaviour — see
-//! `the project notes`.
+//! were not documented, so the numbers are not claimed to match the documented behaviour — see
+//! the project notes.
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};

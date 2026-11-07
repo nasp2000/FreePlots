@@ -7,8 +7,8 @@
 //! `(rows − 1)·(cols − 1)`. Cramér's V is reported as the effect size.
 //!
 //! The documented behaviour has a cross-tabulation and a chi-square test of
-//! independence; the conventions were not documented from it, so the numbers
-//! are not claimed as documented behaviour — see `the project notes`.
+//! independence; the conventions were not taken from it, so the numbers
+//! are not claimed to match the documented behaviour — see the project notes.
 
 use std::collections::BTreeMap;
 

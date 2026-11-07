@@ -20,7 +20,7 @@
 //!
 //! The documented behaviour has a time-series family; its conventions (centring
 //! rule, seasonal normalisation, optimiser) were not documented, so the numbers
-//! are not claimed as documented behaviour — see `the project notes`.
+//! are not claimed to match the documented behaviour — see the project notes.
 
 use crate::data::{DataFrame, MissingPolicy};
 use crate::error::{Error, Result};
