@@ -37,6 +37,30 @@ jobs:
       - name: Tests
         run: cargo test --workspace --features desktop --locked
 
+  linux-gui:
+    name: Linux GUI smoke
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxkbcommon-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libgl1-mesa-dri mesa-vulkan-drivers \
+            xvfb xdotool openbox python3-pil
+      - name: Build
+        run: cargo build --release --locked -p fp-app --features desktop
+      # The window must paint on a hidden X display, under the default backend
+      # and the wgpu override. A renderer that opens a blank client area fails.
+      - name: GUI smoke test
+        run: xvfb-run -a -s "-screen 0 1280x800x24" python3 scripts/linux-gui-smoke.py --exe target/release/FreePlots
+
   deny:
     name: Licences and advisories
     runs-on: ubuntu-latest

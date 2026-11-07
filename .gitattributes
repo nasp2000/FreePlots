@@ -1,0 +1,12 @@
+# The same LF line endings on Windows and Linux. Goldens (SVG and Session
+# text) are compared byte for byte, so a CRLF checkout must not change them.
+* text=auto eol=lf
+
+# Assets and workbooks carried verbatim.
+*.png binary
+*.ico binary
+*.ttf binary
+*.rgba binary
+*.xlsx binary
+*.gif binary
+*.mp4 binary
