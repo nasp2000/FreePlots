@@ -3,7 +3,7 @@
 //!
 //! Every analysis must either produce a finite answer or refuse with a
 //! readable reason; it must never panic or print a silent `inf`/`NaN`. The
-//! cases follow `docs/test-plan.md` §6 and §7.
+//! cases are the boundary and invalid-input cases of the native suite.
 
 use fp_core::data::{Column, DType, DataFrame};
 use fp_core::io::{CsvOptions, decode_bytes, read_csv_str};
