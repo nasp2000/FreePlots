@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+[package]
+name = "fp-mcp"
+description = "FreePlots: optional MCP adapter over the semantic UI automation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+# Enables the GPU renderer used by the headless screenshot test.
+headless-screenshots = ["fp-automation/wgpu-render"]
+
+[dependencies]
+fp-automation = { path = "../fp-automation", version = "0.1.0" }
+fp-core.workspace = true
+egui.workspace = true
+serde.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: MIT
+//! Independent reference values for the classical decomposition .
+//!
+//! The values in `tests/reference/timeseries.json` were computed independently;
+//! the test reads the committed file and never runs an external process.
+
+use fp_core::timeseries::{self, DecompositionModel};
+use serde_json::Value;
+
+fn reference() -> Value {
+    let raw = include_str!("reference/timeseries.json");
+    serde_json::from_str(raw).expect("valid JSON reference")
+}
+
+fn numbers(value: &Value) -> Vec<f64> {
+    value
+        .as_array()
+        .expect("number list")
+        .iter()
+        .map(|value| value.as_f64().expect("number"))
+        .collect()
+}
+
+/// A list that may contain nulls.
+fn optional_numbers(value: &Value) -> Vec<Option<f64>> {
+    value
+        .as_array()
+        .expect("number list")
+        .iter()
+        .map(|value| value.as_f64())
+        .collect()
+}
+
+fn close(actual: f64, expected: f64, tolerance: f64, what: &str) {
+    assert!(
+        (actual - expected).abs() <= tolerance * (1.0 + expected.abs()),
+        "{what}: {actual} vs reference {expected}"
+    );
+}
+
+fn compare_optional(actual: &[Option<f64>], expected: &[Option<f64>], tolerance: f64, what: &str) {
+    assert_eq!(actual.len(), expected.len(), "{what} length");
+    for (index, (actual, expected)) in actual.iter().zip(expected).enumerate() {
+        match (actual, expected) {
+            (Some(actual), Some(expected)) => {
+                close(*actual, *expected, tolerance, &format!("{what}[{index}]"));
+            }
+            (None, None) => {}
+            _ => panic!("{what}[{index}]: {actual:?} vs {expected:?}"),
+        }
+    }
+}
+
+#[test]
+fn moving_averages_match_reference() {
+    let r = reference();
+    let tolerance = r["tolerance"].as_f64().expect("tolerance");
+    let values = numbers(&r["additive"]["values"]);
+    let odd = timeseries::moving_average(&values, 3);
+    let even = timeseries::moving_average(&values, 4);
+    compare_optional(
+        &odd,
+        &optional_numbers(&r["moving_average"]["odd"]),
+        tolerance,
+        "MA(3)",
+    );
+    compare_optional(
+        &even,
+        &optional_numbers(&r["moving_average"]["even"]),
+        tolerance,
+        "MA(4)",
+    );
+}
+
+#[test]
+fn additive_decomposition_matches_reference() {
+    let r = reference();
+    let tolerance = r["tolerance"].as_f64().expect("tolerance");
+    let case = &r["additive"];
+    let values = numbers(&case["values"]);
+    let model = timeseries::decompose(&values, 4, DecompositionModel::Additive).expect("decompose");
+    compare_optional(
+        &model.trend,
+        &optional_numbers(&case["trend"]),
+        tolerance,
+        "trend",
+    );
+    compare_optional(
+        &model.residual,
+        &optional_numbers(&case["residual"]),
+        tolerance,
+        "residual",
+    );
+    compare_optional(
+        &model.adjusted,
+        &optional_numbers(&case["adjusted"]),
+        tolerance,
+        "adjusted",
+    );
+    for (index, expected) in numbers(&case["seasonal"]).into_iter().enumerate() {
+        close(model.seasonal[index], expected, tolerance, "seasonal");
+    }
+}
+
+#[test]
+fn multiplicative_decomposition_matches_reference() {
+    let r = reference();
+    let tolerance = r["tolerance"].as_f64().expect("tolerance");
+    let case = &r["multiplicative"];
+    let values = numbers(&case["values"]);
+    let model =
+        timeseries::decompose(&values, 4, DecompositionModel::Multiplicative).expect("decompose");
+    compare_optional(
+        &model.trend,
+        &optional_numbers(&case["trend"]),
+        tolerance,
+        "trend",
+    );
+    compare_optional(
+        &model.residual,
+        &optional_numbers(&case["residual"]),
+        tolerance,
+        "residual",
+    );
+    compare_optional(
+        &model.adjusted,
+        &optional_numbers(&case["adjusted"]),
+        tolerance,
+        "adjusted",
+    );
+    for (index, expected) in numbers(&case["seasonal"]).into_iter().enumerate() {
+        close(model.seasonal[index], expected, tolerance, "seasonal");
+    }
+}
+
+#[test]
+fn a_short_series_is_rejected() {
+    assert!(timeseries::decompose(&[1.0, 2.0, 3.0], 4, DecompositionModel::Additive).is_err());
+    assert!(timeseries::decompose(&[1.0; 8], 1, DecompositionModel::Additive).is_err());
+}

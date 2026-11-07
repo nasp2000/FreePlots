@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620">
+<rect x="0" y="0" width="900" height="620" fill="#ffffff"/>
+<text x="450.0" y="28" font-family="sans-serif" font-size="16" fill="#000000">Probability Plot: Lognormal</text>
+<rect x="70.0" y="50.0" width="800.0" height="510.0" fill="none" stroke="#000000" stroke-width="1"/>
+<defs><clipPath id="fp-plot"><rect x="70.0" y="50.0" width="800.0" height="510.0"/></clipPath></defs>
+<line x1="106.4" y1="50.0" x2="106.4" y2="560.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="106.4" y1="560.0" x2="106.4" y2="565.0" stroke="#000000" stroke-width="1"/>
+<text x="106.4" y="576.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="middle">1</text>
+<line x1="274.5" y1="50.0" x2="274.5" y2="560.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="274.5" y1="560.0" x2="274.5" y2="565.0" stroke="#000000" stroke-width="1"/>
+<text x="274.5" y="576.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="middle">1.2</text>
+<line x1="416.7" y1="50.0" x2="416.7" y2="560.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="416.7" y1="560.0" x2="416.7" y2="565.0" stroke="#000000" stroke-width="1"/>
+<text x="416.7" y="576.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="middle">1.4</text>
+<line x1="539.9" y1="50.0" x2="539.9" y2="560.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="539.9" y1="560.0" x2="539.9" y2="565.0" stroke="#000000" stroke-width="1"/>
+<text x="539.9" y="576.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="middle">1.6</text>
+<line x1="648.5" y1="50.0" x2="648.5" y2="560.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="648.5" y1="560.0" x2="648.5" y2="565.0" stroke="#000000" stroke-width="1"/>
+<text x="648.5" y="576.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="middle">1.8</text>
+<line x1="745.7" y1="50.0" x2="745.7" y2="560.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="745.7" y1="560.0" x2="745.7" y2="565.0" stroke="#000000" stroke-width="1"/>
+<text x="745.7" y="576.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="middle">2</text>
+<line x1="833.6" y1="50.0" x2="833.6" y2="560.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="833.6" y1="560.0" x2="833.6" y2="565.0" stroke="#000000" stroke-width="1"/>
+<text x="833.6" y="576.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="middle">2.2</text>
+<line x1="70.0" y1="560.0" x2="870.0" y2="560.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="560.0" x2="70.0" y2="560.0" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="563.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">1</text>
+<line x1="70.0" y1="485.3" x2="870.0" y2="485.3" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="485.3" x2="70.0" y2="485.3" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="488.3" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">5</text>
+<line x1="70.0" y1="445.5" x2="870.0" y2="445.5" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="445.5" x2="70.0" y2="445.5" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="448.5" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">10</text>
+<line x1="70.0" y1="397.3" x2="870.0" y2="397.3" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="397.3" x2="70.0" y2="397.3" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="400.3" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">20</text>
+<line x1="70.0" y1="362.5" x2="870.0" y2="362.5" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="362.5" x2="70.0" y2="362.5" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="365.5" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">30</text>
+<line x1="70.0" y1="332.8" x2="870.0" y2="332.8" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="332.8" x2="70.0" y2="332.8" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="335.8" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">40</text>
+<line x1="70.0" y1="305.0" x2="870.0" y2="305.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="305.0" x2="70.0" y2="305.0" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="308.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">50</text>
+<line x1="70.0" y1="277.2" x2="870.0" y2="277.2" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="277.2" x2="70.0" y2="277.2" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="280.2" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">60</text>
+<line x1="70.0" y1="247.5" x2="870.0" y2="247.5" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="247.5" x2="70.0" y2="247.5" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="250.5" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">70</text>
+<line x1="70.0" y1="212.7" x2="870.0" y2="212.7" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="212.7" x2="70.0" y2="212.7" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="215.7" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">80</text>
+<line x1="70.0" y1="164.5" x2="870.0" y2="164.5" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="164.5" x2="70.0" y2="164.5" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="167.5" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">90</text>
+<line x1="70.0" y1="124.7" x2="870.0" y2="124.7" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="124.7" x2="70.0" y2="124.7" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="127.7" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">95</text>
+<line x1="70.0" y1="50.0" x2="870.0" y2="50.0" stroke="#e6e6e6" stroke-width="1"/>
+<line x1="65.0" y1="50.0" x2="70.0" y2="50.0" stroke="#000000" stroke-width="1"/>
+<text x="62.0" y="53.0" font-family="sans-serif" font-size="10" fill="#333333" text-anchor="end">99</text>
+<g clip-path="url(#fp-plot)">
+<path d="M -145.40 560.00 L -136.30 556.02 L -127.20 552.03 L -118.11 548.05 L -109.03 544.06 L -99.96 540.08 L -90.90 536.09 L -81.85 532.11 L -72.81 528.12 L -63.78 524.14 L -54.76 520.16 L -45.75 516.17 L -36.75 512.19 L -27.77 508.20 L -18.80 504.22 L -9.84 500.23 L -0.89 496.25 L 8.04 492.27 L 16.95 488.28 L 25.85 484.30 L 34.74 480.31 L 43.60 476.33 L 52.45 472.34 L 61.28 468.36 L 70.10 464.38 L 78.89 460.39 L 87.66 456.41 L 96.41 452.42 L 105.14 448.44 L 113.85 444.45 L 122.54 440.47 L 131.19 436.48 L 139.83 432.50 L 148.43 428.52 L 157.01 424.53 L 165.56 420.55 L 174.08 416.56 L 182.57 412.58 L 191.03 408.59 L 199.45 404.61 L 207.84 400.62 L 216.19 396.64 L 224.51 392.66 L 232.78 388.67 L 241.02 384.69 L 249.21 380.70 L 257.37 376.72 L 265.48 372.73 L 273.54 368.75 L 281.56 364.77 L 289.53 360.78 L 297.45 356.80 L 305.32 352.81 L 313.14 348.83 L 320.90 344.84 L 328.62 340.86 L 336.27 336.88 L 343.88 332.89 L 351.42 328.91 L 358.91 324.92 L 366.34 320.94 L 373.72 316.95 L 381.03 312.97 L 388.28 308.98 L 395.48 305.00 L 402.62 301.02 L 409.69 297.03 L 416.71 293.05 L 423.67 289.06 L 430.57 285.08 L 437.42 281.09 L 444.20 277.11 L 450.93 273.12 L 457.61 269.14 L 464.23 265.16 L 470.79 261.17 L 477.31 257.19 L 483.77 253.20 L 490.18 249.22 L 496.54 245.23 L 502.86 241.25 L 509.13 237.27 L 515.35 233.28 L 521.53 229.30 L 527.67 225.31 L 533.76 221.33 L 539.82 217.34 L 545.84 213.36 L 551.82 209.38 L 557.76 205.39 L 563.67 201.41 L 569.54 197.42 L 575.39 193.44 L 581.20 189.45 L 586.98 185.47 L 592.74 181.48 L 598.46 177.50 L 604.16 173.52 L 609.84 169.53 L 615.48 165.55 L 621.11 161.56 L 626.71 157.58 L 632.29 153.59 L 637.85 149.61 L 643.39 145.62 L 648.91 141.64 L 654.41 137.66 L 659.89 133.67 L 665.36 129.69 L 670.81 125.70 L 676.24 121.72 L 681.66 117.73 L 687.06 113.75 L 692.45 109.77 L 697.82 105.78 L 703.18 101.80 L 708.53 97.81 L 713.87 93.83 L 719.19 89.84 L 724.50 85.86 L 729.81 81.88 L 735.10 77.89 L 740.38 73.91 L 745.65 69.92 L 750.91 65.94 L 756.16 61.95 L 761.41 57.97 L 766.64 53.98 L 771.87 50.00 L 1109.17 50.00 L 1100.06 53.98 L 1090.96 57.97 L 1081.88 61.95 L 1072.80 65.94 L 1063.73 69.92 L 1054.66 73.91 L 1045.61 77.89 L 1036.57 81.88 L 1027.54 85.86 L 1018.52 89.84 L 1009.51 93.83 L 1000.52 97.81 L 991.53 101.80 L 982.56 105.78 L 973.60 109.77 L 964.66 113.75 L 955.73 117.73 L 946.81 121.72 L 937.91 125.70 L 929.03 129.69 L 920.16 133.67 L 911.31 137.66 L 902.48 141.64 L 893.67 145.62 L 884.87 149.61 L 876.10 153.59 L 867.35 157.58 L 858.62 161.56 L 849.91 165.55 L 841.23 169.53 L 832.57 173.52 L 823.94 177.50 L 815.33 181.48 L 806.75 185.47 L 798.20 189.45 L 789.68 193.44 L 781.19 197.42 L 772.74 201.41 L 764.31 205.39 L 755.93 209.38 L 747.57 213.36 L 739.26 217.34 L 730.98 221.33 L 722.75 225.31 L 714.55 229.30 L 706.40 233.28 L 698.29 237.27 L 690.22 241.25 L 682.21 245.23 L 674.24 249.22 L 666.32 253.20 L 658.45 257.19 L 650.63 261.17 L 642.86 265.16 L 635.15 269.14 L 627.49 273.12 L 619.89 277.11 L 612.34 281.09 L 604.85 285.08 L 597.42 289.06 L 590.05 293.05 L 582.74 297.03 L 575.48 301.02 L 568.28 305.00 L 561.15 308.98 L 554.07 312.97 L 547.05 316.95 L 540.09 320.94 L 533.19 324.92 L 526.35 328.91 L 519.56 332.89 L 512.83 336.88 L 506.16 340.86 L 499.54 344.84 L 492.97 348.83 L 486.46 352.81 L 480.00 356.80 L 473.58 360.78 L 467.22 364.77 L 460.91 368.75 L 454.64 372.73 L 448.41 376.72 L 442.24 380.70 L 436.10 384.69 L 430.00 388.67 L 423.95 392.66 L 417.93 396.64 L 411.95 400.62 L 406.01 404.61 L 400.10 408.59 L 394.22 412.58 L 388.38 416.56 L 382.56 420.55 L 376.78 424.53 L 371.03 428.52 L 365.30 432.50 L 359.60 436.48 L 353.93 440.47 L 348.28 444.45 L 342.65 448.44 L 337.05 452.42 L 331.47 456.41 L 325.91 460.39 L 320.37 464.38 L 314.85 468.36 L 309.35 472.34 L 303.87 476.33 L 298.41 480.31 L 292.96 484.30 L 287.52 488.28 L 282.11 492.27 L 276.70 496.25 L 271.32 500.23 L 265.94 504.22 L 260.58 508.20 L 255.23 512.19 L 249.90 516.17 L 244.57 520.16 L 239.26 524.14 L 233.96 528.12 L 228.67 532.11 L 223.39 536.09 L 218.12 540.08 L 212.85 544.06 L 207.60 548.05 L 202.36 552.03 L 197.12 556.02 L 191.90 560.00 Z" fill="#d9d9d9" fill-opacity="0.55" stroke="none"/>
+<line x1="70.00" y1="534.01" x2="870.00" y2="89.21" stroke="#c00000" stroke-width="2.0"/>
+<circle cx="106.36" cy="504.59" r="3" fill="#1f4e79"/>
+<circle cx="194.28" cy="456.60" r="3" fill="#1f4e79"/>
+<circle cx="235.28" cy="427.26" r="3" fill="#1f4e79"/>
+<circle cx="274.54" cy="404.76" r="3" fill="#1f4e79"/>
+<circle cx="312.19" cy="385.85" r="3" fill="#1f4e79"/>
+<circle cx="348.37" cy="369.08" r="3" fill="#1f4e79"/>
+<circle cx="383.18" cy="353.70" r="3" fill="#1f4e79"/>
+<circle cx="416.73" cy="339.22" r="3" fill="#1f4e79"/>
+<circle cx="449.09" cy="325.32" r="3" fill="#1f4e79"/>
+<circle cx="480.36" cy="311.74" r="3" fill="#1f4e79"/>
+<circle cx="510.61" cy="298.26" r="3" fill="#1f4e79"/>
+<circle cx="539.89" cy="284.68" r="3" fill="#1f4e79"/>
+<circle cx="568.28" cy="270.78" r="3" fill="#1f4e79"/>
+<circle cx="595.81" cy="256.30" r="3" fill="#1f4e79"/>
+<circle cx="622.55" cy="240.92" r="3" fill="#1f4e79"/>
+<circle cx="648.54" cy="224.15" r="3" fill="#1f4e79"/>
+<circle cx="673.81" cy="205.24" r="3" fill="#1f4e79"/>
+<circle cx="698.41" cy="182.74" r="3" fill="#1f4e79"/>
+<circle cx="745.72" cy="153.40" r="3" fill="#1f4e79"/>
+<circle cx="833.64" cy="105.41" r="3" fill="#1f4e79"/>
+</g>
+<text x="470.0" y="606.0" font-family="sans-serif" font-size="12" fill="#000000" text-anchor="middle">Data</text>
+<text x="18" y="305.0" font-family="sans-serif" font-size="12" fill="#000000" text-anchor="middle" transform="rotate(-90 18 305.0)">Percent</text>
+</svg>

@@ -1,0 +1,28 @@
+Probability Plot: Normal — column C1
+====================================
+FreePlots engine 0.1.0
+
+Estimation method          Sample moments (n−1)
+Observations (n)           20
+Excluded (non-finite)      0
+
+Estimated parameters
+  Mean (µ)                   10.735000
+  Standard deviation (σ)     0.786000
+
+Statistics
+  Median                     10.650000
+  Minimum                    9.500000
+  Maximum                    12.400000
+
+Goodness of fit
+  Anderson–Darling (A²)      0.312000
+  p-value (Anderson–Darling) 0.522179
+
+Method notes
+  Plotting positions         Benard (median ranks) — (i − 0.3) / (n + 0.4)
+
+WARNINGS
+  * small sample (n = 20 < 30): interpret with caution
+
+End of report.

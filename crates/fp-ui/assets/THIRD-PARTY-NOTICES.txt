@@ -1,0 +1,791 @@
+FreePlots - third-party notices
+================================
+
+FreePlots is an independent open-source project. It is not affiliated with
+or endorsed by any commercial statistical software vendor, and it is not
+sponsored or approved by one. Names and marks of other products belong to
+their respective owners.
+
+FreePlots itself
+----------------
+MIT License
+
+Copyright (c) 2026 FreePlots contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Third-party dependencies
+------------------------
+This binary links the permissive packages below. The author line is the
+copyright attribution declared by each package. The full inventory,
+including build-time and development-only packages, is in THIRD-PARTY.md
+and DEPENDENCIES.csv, shipped beside this file with every release. The
+licence texts follow the package list.
+
+  accesskit 0.24.1 - MIT - The AccessKit contributors
+  accesskit_atspi_common 0.18.1 - MIT - The AccessKit contributors
+  accesskit_consumer 0.35.0 - MIT - The AccessKit contributors
+  accesskit_consumer 0.36.0 - MIT - The AccessKit contributors
+  accesskit_unix 0.21.1 - MIT - The AccessKit contributors
+  accesskit_windows 0.32.1 - MIT - The AccessKit contributors
+  accesskit_winit 0.32.2 - Apache-2.0 - The AccessKit contributors
+  adler2 2.0.1 - MIT - Jonas Schievink <jonasschievink@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>
+  ahash 0.8.12 - MIT - Tom Kaitchuck <Tom.Kaitchuck@gmail.com>
+  allocator-api2 0.2.21 - MIT - Zakarum <zaq.dev@icloud.com>
+  arboard 3.7.0 - MIT - Copyright (c) 2022 The Arboard contributors
+  arrayref 0.3.9 - BSD-2-Clause - David Roundy <roundyd@physics.oregonstate.edu>
+  arrayvec 0.7.8 - MIT - bluss
+  as-raw-xcb-connection 1.0.1 - MIT - Copyright 2019 as-raw-xcb-connection Contributers
+  ash 0.38.0+1.3.281 - MIT - Maik Klein <maikklein@googlemail.com>, Benjamin Saunders <ben.e.saunders@gmail.com>, Marijn Suijten <marijn@traverseresearch.nl>
+  async-broadcast 0.7.2 - MIT - Stjepan Glavina <stjepang@gmail.com>, Yoshua Wuyts <yoshuawuyts@gmail.com>, Zeeshan Ali Khan <zeeshanak@gnome.org>
+  async-channel 2.5.0 - MIT - Stjepan Glavina <stjepang@gmail.com>
+  async-executor 1.14.1 - MIT - Stjepan Glavina <stjepang@gmail.com>, John Nunley <dev@notgull.net>
+  async-io 2.6.0 - MIT - Stjepan Glavina <stjepang@gmail.com>
+  async-lock 3.4.2 - MIT - Stjepan Glavina <stjepang@gmail.com>
+  async-process 2.5.0 - MIT - Stjepan Glavina <stjepang@gmail.com>
+  async-signal 0.2.14 - MIT - John Nunley <dev@notgull.net>
+  async-task 4.7.1 - MIT - Stjepan Glavina <stjepang@gmail.com>
+  atomic-waker 1.1.2 - MIT - Stjepan Glavina <stjepang@gmail.com>, Contributors to futures-rs
+  atspi 0.29.0 - MIT - Alberto Tirla <albertotirla@gmail.com>, DataTriny <datatriny@gmail.com>, Luuk van der Duim <luukvanderduim@gmail.com>, Michael Connor Buchan <mikey@blindcomputing.org>, Tait Hoyem <tait@tait.tech>
+  atspi-common 0.13.0 - MIT - Copyright (c) 2022 Tait Hoyem <tait@tait.tech>
+  atspi-proxies 0.13.0 - MIT - Copyright (c) 2022 Tait Hoyem <tait@tait.tech>
+  base64 0.22.1 - MIT - Marshall Pierce <marshall@mpierce.org>
+  bit-set 0.10.0 - MIT - Alexis Beingessner <a.beingessner@gmail.com>
+  bit-vec 0.9.1 - MIT - Alexis Beingessner <a.beingessner@gmail.com>
+  bitflags 1.3.2 - MIT - The Rust Project Developers
+  bitflags 2.13.2 - MIT - The Rust Project Developers
+  blocking 1.7.0 - MIT - the blocking contributors
+  bytemuck 1.25.2 - MIT - Lokathor <zefria@gmail.com>
+  byteorder-lite 0.1.0 - MIT - Copyright (c) 2015 Andrew Gallant
+  calloop 0.13.0 - MIT - Elinor Berger <elinor@safaradeg.net>
+  calloop 0.14.5 - MIT - Elinor Berger <elinor@safaradeg.net>
+  calloop-wayland-source 0.3.0 - MIT - Kirill Chibisov <contact@kchibisov.com>
+  calloop-wayland-source 0.4.1 - MIT - Kirill Chibisov <contact@kchibisov.com>
+  cfg-if 1.0.5 - MIT - Alex Crichton <alex@alexcrichton.com>
+  clipboard-win 5.4.3 - BSL-1.0 - Douman <douman@gmx.se>
+  codespan-reporting 0.13.1 - Apache-2.0 - Brendan Zabarauskas <bjzaba@yahoo.com.au>
+  color 0.3.3 - MIT - the color contributors
+  color_quant 1.1.0 - MIT - nwin <nwin@users.noreply.github.com>
+  concurrent-queue 2.5.0 - MIT - Stjepan Glavina <stjepang@gmail.com>, Taiki Endo <te316e89@gmail.com>, John Nunley <dev@notgull.net>
+  core_maths 0.1.1 - MIT - Robert Bastian <me@robertbastian.dev
+  crc32fast 1.5.2 - MIT - Sam Rijs <srijs@airpost.net>, Alex Crichton <alex@alexcrichton.com>
+  crossbeam-utils 0.8.23 - MIT - Copyright (c) 2019 The Crossbeam Project Developers
+  csv 1.4.0 - MIT - Andrew Gallant <jamslam@gmail.com>
+  csv-core 0.1.13 - MIT - Andrew Gallant <jamslam@gmail.com>
+  cursor-icon 1.2.0 - MIT - Kirill Chibisov <contact@kchibisov.com>
+  data-url 0.3.2 - MIT - Simon Sapin <simon.sapin@exyr.org>
+  dlib 0.5.3 - MIT - Elinor Berger <elinor@safaradeg.net>
+  downcast-rs 1.2.1 - MIT - Ashish Myles <marcianx@gmail.com>, Runji Wang <wangrunji0408@163.com>
+  dpi 0.1.2 - Apache-2.0 AND MIT - Copyright (c) 2018 Jorge Aparicio; Copyright © 2005-2020 Rich Felker, et al.; Copyright © 1993,2004 Sun Microsystems or; Copyright © 2003-2011 David Schultz or; Copyright © 2003-2009 Steven G. Kargl or; Copyright © 2003-2009 Bruce D. Evans or; Copyright © 2008 Stephen L. Moshier or; Copyright © 2017-2018 Arm Limited
+  ecolor 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>, Andreas Reich <reichandreas@gmx.de>
+  eframe 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  egui 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  egui-wgpu 0.36.2 - MIT - Nils Hasenbanck <nils@hasenbanck.de>, embotech <opensource@embotech.com>, Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  egui-winit 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  egui_extras 0.36.2 - MIT - Dominik Rössler <dominik@freshx.de>, Emil Ernerfeldt <emil.ernerfeldt@gmail.com>, René Rössler <rene@freshx.de>
+  egui_glow 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  egui_kittest 0.36.2 - MIT - Lucas Meurer <hi@lucasmerlin.me>, Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  either 1.19.0 - MIT - Copyright (c) 2015
+  emath 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  endi 1.1.1 - MIT - Zeeshan Ali Khan <zeenix@gmail.com>
+  enum-map 2.7.3 - MIT - Kamila Borowska <kamila@borowska.pw>
+  enumflags2 0.7.12 - MIT - maik klein <maikklein@googlemail.com>, Maja Kądziołka <maya@compilercrim.es>
+  epaint 0.36.2 - MIT - Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
+  equivalent 1.0.3 - MIT - Copyright (c) 2016--2023
+  errno 0.3.14 - MIT - Chris Wong <lambda.fairy@gmail.com>, Dan Gohman <dev@sunfishcode.online>
+  error-code 3.4.0 - BSL-1.0 - Douman <douman@gmx.se>
+  euclid 0.22.14 - MIT - The Servo Project Developers
+  event-listener 5.4.2 - MIT - Stjepan Glavina <stjepang@gmail.com>, John Nunley <dev@notgull.net>
+  event-listener-strategy 0.5.4 - MIT - John Nunley <dev@notgull.net>
+  fastrand 2.5.0 - MIT - Stjepan Glavina <stjepang@gmail.com>
+  fdeflate 0.3.7 - MIT - The image-rs Developers
+  fearless_simd 0.4.1 - MIT - Raph Levien <raph.levien@gmail.com>
+  flate2 1.1.10 - MIT - Alex Crichton <alex@alexcrichton.com>, Josh Triplett <josh@joshtriplett.org>
+  float-cmp 0.9.0 - MIT - Mike Dilger <mike@mikedilger.com>
+  foldhash 0.2.0 - Zlib - Orson Peters <orsonpeters@gmail.com>
+  font-types 0.12.7 - MIT - Copyright 2019 Fontations Developers
+  fontconfig-parser 0.5.8 - MIT - Copyright (c) 2021 Riey
+  fontdb 0.23.0 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
+  futures-core 0.3.34 - MIT - Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors
+  futures-io 0.3.34 - MIT - Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors
+  futures-lite 2.6.1 - MIT - Stjepan Glavina <stjepang@gmail.com>, Contributors to futures-rs
+  futures-task 0.3.34 - MIT - Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors
+  futures-util 0.3.34 - MIT - Copyright (c) 2016 Alex Crichton; Copyright (c) 2017 The Tokio Authors
+  gethostname 1.1.0 - Apache-2.0 - Sebastian Wiesner <sebastian@swsnr.de>
+  getrandom 0.3.4 - MIT - The Rand Project Developers
+  gif 0.13.3 - MIT - The image-rs Developers
+  glow 0.17.0 - MIT - Joshua Groves <josh@joshgroves.com>, Dzmitry Malyshau <kvarkus@gmail.com>
+  glutin 0.32.3 - Apache-2.0 - Kirill Chibisov <contact@kchibisov.com>
+  glutin-winit 0.5.0 - MIT - Kirill Chibisov <contact@kchibisov.com>
+  glutin_egl_sys 0.7.1 - Apache-2.0 - Kirill Chibisov <contact@kchibisov.com>
+  glutin_glx_sys 0.6.1 - Apache-2.0 - Kirill Chibisov <contact@kchibisov.com>
+  glutin_wgl_sys 0.6.1 - Apache-2.0 - Kirill Chibisov <contact@kchibisov.com>
+  gpu-allocator 0.28.0 - MIT - Traverse Research <opensource@traverseresearch.nl>
+  guillotiere 0.7.0 - MIT - Nicolas Silva <nical@fastmail.com>
+  half 2.7.1 - MIT - Kathryn Long <squeeself@gmail.com>
+  harfrust 0.12.0 - MIT - Copyright (c) HarfBuzz developers; Copyright (c) 2020 Yevhenii Reizner
+  hashbrown 0.16.1 - MIT - Amanieu d'Antras <amanieu@gmail.com>
+  hashbrown 0.17.1 - MIT - Copyright (c) 2016 Amanieu d'Antras
+  hex 0.4.3 - MIT - KokaKiwi <kokakiwi@kokakiwi.net>
+  image 0.25.6 - MIT - The image-rs Developers
+  image-webp 0.2.4 - MIT - the image-webp contributors
+  imagesize 0.13.0 - MIT - Maid Dog <maiddogsrl@gmail.com>
+  indexmap 2.14.2 - MIT - Copyright (c) 2016--2017
+  itertools 0.15.0 - MIT - bluss
+  itoa 1.0.18 - MIT - David Tolnay <dtolnay@gmail.com>
+  jpeg-encoder 0.6.1 - MIT AND IJG - Volker Ströbel <volkerstroebel@mysurdity.de>
+  khronos-egl 6.0.0 - MIT - Timothée Haudebourg <author@haudebourg.net>, Sean Kerr <sean@metatomic.io>
+  kittest 0.4.0 - MIT - Lucas Meurer, rerun.io <opensource@rerun.io>
+  kurbo 0.11.3 - MIT - Raph Levien <raph.levien@gmail.com>
+  kurbo 0.13.1 - MIT - Copyright (c) 2018 Raph Levien
+  libc 0.2.191 - MIT - Copyright (c) The Rust Project Developers
+  libloading 0.8.9 - ISC - Simonas Kazlauskas <libloading@kazlauskas.me>
+  libm 0.2.15 - MIT - Jorge Aparicio <jorge@japaric.io>
+  linebender_resource_handle 0.1.1 - MIT - the linebender_resource_handle contributors
+  linux-raw-sys 0.12.1 - MIT - Dan Gohman <dev@sunfishcode.online>
+  linux-raw-sys 0.4.15 - MIT - Dan Gohman <dev@sunfishcode.online>
+  lock_api 0.4.14 - MIT - Amanieu d'Antras <amanieu@gmail.com>
+  log 0.4.34 - MIT - The Rust Project Developers
+  memchr 2.8.3 - MIT - Andrew Gallant <jamslam@gmail.com>, bluss
+  memmap2 0.9.11 - MIT - Dan Burkert <dan@danburkert.com>, Yevhenii Reizner <razrfalcon@gmail.com>, The Contributors
+  miniz_oxide 0.8.9 - MIT - Frommi <daniil.liferenko@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>, Rich Geldreich richgel99@gmail.com
+  miniz_oxide 0.9.1 - MIT - Frommi <daniil.liferenko@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>, Rich Geldreich richgel99@gmail.com
+  naga 30.0.1 - MIT - gfx-rs developers
+  naga-types 30.0.1 - MIT - gfx-rs developers
+  nohash-hasher 0.2.0 - MIT - Parity Technologies <admin@parity.io>
+  num-traits 0.2.19 - MIT - The Rust Project Developers
+  once_cell 1.21.4 - MIT - Aleksey Kladov <aleksey.kladov@gmail.com>
+  ordered-float 5.5.1 - MIT - Jonathan Reem <jonathan.reem@gmail.com>, Matt Brubeck <mbrubeck@limpet.net>
+  ordered-stream 0.2.0 - MIT - Daniel De Graaf <code@danieldg.net>, Zeeshan Ali Khan <zeeshanak@gnome.org>
+  parking 2.2.1 - MIT - Stjepan Glavina <stjepang@gmail.com>, The Rust Project Developers
+  parking_lot 0.12.5 - MIT - Amanieu d'Antras <amanieu@gmail.com>
+  parking_lot_core 0.9.12 - MIT - Amanieu d'Antras <amanieu@gmail.com>
+  peniko 0.6.1 - MIT - Copyright (c) 2018 Raph Levien
+  percent-encoding 2.3.2 - MIT - The rust-url developers
+  phf 0.13.1 - MIT - Steven Fackler <sfackler@gmail.com>
+  phf_shared 0.13.1 - MIT - Steven Fackler <sfackler@gmail.com>
+  pico-args 0.5.0 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
+  pin-project-lite 0.2.17 - MIT - the pin-project-lite contributors
+  piper 0.2.5 - MIT - Stjepan Glavina <stjepang@gmail.com>, John Nunley <dev@notgull.net>
+  png 0.17.16 - MIT - The image-rs Developers
+  polling 3.11.0 - MIT - Stjepan Glavina <stjepang@gmail.com>, John Nunley <dev@notgull.net>
+  pollster 1.0.1 - MIT - Joshua Barretto <joshua@jsbarretto.com>
+  polycool 0.4.0 - MIT - Copyright (c) 2018 Raph Levien
+  presser 0.3.1 - MIT - Embark <opensource@embark-studios.com>, Gray Olson <gray@grayolson.com
+  proc-macro2 1.0.107 - MIT - David Tolnay <dtolnay@gmail.com>, Alex Crichton <alex@alexcrichton.com>
+  profiling 1.0.18 - MIT - Philip Degarmo <aclysma@gmail.com>
+  quick-error 2.0.1 - MIT - Paul Colomiets <paul@colomiets.name>, Colin Kiegel <kiegel@gmx.de>
+  quote 1.0.47 - MIT - David Tolnay <dtolnay@gmail.com>
+  range-alloc 0.1.5 - MIT - the gfx-rs Developers
+  raw-window-handle 0.6.2 - MIT - Osspial <osspial@gmail.com>
+  read-fonts 0.41.0 - MIT - Copyright 2019 Fontations Developers
+  renderdoc-sys 1.1.0 - MIT - Eyal Kalderon <ebkalderon@gmail.com>
+  resvg 0.45.1 - MIT - Copyright 2017 the Resvg Authors
+  rgb 0.8.53 - MIT - Kornel Lesiński <kornel@geekhood.net>, James Forster <james.forsterer@gmail.com>
+  roxmltree 0.20.0 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
+  rustc-hash 1.1.0 - MIT - The Rust Project Developers
+  rustc-hash 2.1.3 - MIT - The Rust Project Developers
+  rustix 0.38.44 - MIT - Dan Gohman <dev@sunfishcode.online>, Jakub Konka <kubkon@jakubkonka.com>
+  rustix 1.1.5 - MIT - Dan Gohman <dev@sunfishcode.online>, Jakub Konka <kubkon@jakubkonka.com>
+  rustybuzz 0.20.1 - MIT - Caleb Maclennan <caleb@alerque.com>, Laurenz Stampfl <laurenz.stampfl@gmail.com>, Yevhenii Reizner <razrfalcon@gmail.com>, خالد حسني (Khaled Hosny) <khaled@aliftype.com>
+  ryu 1.0.23 - Apache-2.0 - David Tolnay <dtolnay@gmail.com>
+  scoped-tls 1.0.1 - MIT - Alex Crichton <alex@alexcrichton.com>
+  scopeguard 1.2.0 - MIT - bluss
+  self_cell 1.3.0 - Apache-2.0 - Lukas Bergdoll <lukas.bergdoll@gmail.com>
+  serde 1.0.228 - MIT - Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>
+  serde_core 1.0.228 - MIT - Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>
+  serde_json 1.0.145 - MIT - Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>
+  serde_spanned 1.1.2 - MIT - Copyright Individual contributors
+  signal-hook-registry 1.4.8 - MIT - Michal 'vorner' Vaner <vorner@vorner.cz>, Masaki Hara <ackie.h.gmai@gmail.com>
+  simd-adler32 0.3.10 - MIT - Marvin Countryman <me@maar.vin>
+  simplecss 0.2.2 - MIT - Copyright (c) 2018 Reizner Evgeniy
+  siphasher 1.0.4 - MIT - Frank Denis <github@pureftpd.org>
+  skrifa 0.44.0 - MIT - Copyright 2019 Fontations Developers
+  slab 0.4.12 - MIT - Carl Lerche <me@carllerche.com>
+  slotmap 1.1.1 - Zlib - Orson Peters <orsonpeters@gmail.com>
+  smallvec 1.16.3 - MIT - The Servo Project Developers
+  smithay-client-toolkit 0.19.2 - MIT - Elinor Berger <elinor@safaradeg.net>, i509VCB <mail@i509.me>, Ashley Wulber <ashley@system76.com>
+  smithay-client-toolkit 0.20.0 - MIT - Elinor Berger <elinor@safaradeg.net>, i509VCB <mail@i509.me>, Ashley Wulber <ashley@system76.com>
+  smithay-clipboard 0.7.3 - MIT - Kirill Chibisov <contact@kchibisov.com>, Elinor Berger <elinor@safaradeg.net>
+  smol_str 0.2.2 - MIT - Aleksey Kladov <aleksey.kladov@gmail.com>
+  spirv 0.4.0+sdk-1.4.341.0 - Apache-2.0 - Lei Zhang <antiagainst@gmail.com>
+  static_assertions 1.1.0 - MIT - Nikolai Vazquez
+  strict-num 0.1.1 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
+  svgtypes 0.15.3 - MIT - Copyright (c) 2018 Yevhenii Reizner
+  syn 3.0.9 - MIT - David Tolnay <dtolnay@gmail.com>
+  thiserror 1.0.69 - MIT - David Tolnay <dtolnay@gmail.com>
+  thiserror 2.0.21 - MIT - David Tolnay <dtolnay@gmail.com>
+  tiny-skia 0.11.4 - BSD-3-Clause - Yevhenii Reizner <razrfalcon@gmail.com>
+  tiny-skia-path 0.11.4 - BSD-3-Clause - Yevhenii Reizner <razrfalcon@gmail.com>
+  tinyvec 1.13.3 - MIT - Lokathor <zefria@gmail.com>
+  toml 1.1.8+spec-1.1.0 - MIT - Copyright Individual contributors
+  toml_datetime 1.1.2+spec-1.1.0 - MIT - Copyright Individual contributors
+  toml_parser 1.1.5+spec-1.1.0 - MIT - Copyright Individual contributors
+  tracing 0.1.44 - MIT - Eliza Weisman <eliza@buoyant.io>, Tokio Contributors <team@tokio.rs>
+  tracing-core 0.1.36 - MIT - Tokio Contributors <team@tokio.rs>
+  ttf-parser 0.25.1 - MIT - Caleb Maclennan <caleb@alerque.com>, Laurenz Stampfl <laurenz.stampfl@gmail.com>, Yevhenii Reizner <razrfalcon@gmail.com>, خالد حسني (Khaled Hosny) <khaled@aliftype.com>
+  type-map 0.5.1 - MIT - Jacob Brown <kardeiz@gmail.com>
+  unicode-bidi 0.3.18 - MIT - The Servo Project Developers
+  unicode-bidi-mirroring 0.4.0 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
+  unicode-ccc 0.4.0 - MIT - Yevhenii Reizner <razrfalcon@gmail.com>
+  unicode-general-category 1.1.0 - Apache-2.0 - YesLogic Pty. Ltd. <info@yeslogic.com>
+  unicode-ident 1.0.27 - MIT AND Unicode-3.0 - David Tolnay <dtolnay@gmail.com>
+  unicode-properties 0.1.5 - MIT AND Unicode-3.0 - Charles Lew <crlf0710@gmail.com>, Manish Goregaokar <manishsmail@gmail.com>
+  unicode-script 0.5.9 - MIT - Manish Goregaokar <manishsmail@gmail.com>
+  unicode-segmentation 1.13.3 - MIT - kwantam <kwantam@gmail.com>, Manish Goregaokar <manishsmail@gmail.com>
+  unicode-vo 0.1.0 - MIT - Evgeniy Reizner <razrfalcon@gmail.com>
+  unicode-width 0.2.2 - MIT - kwantam <kwantam@gmail.com>, Manish Goregaokar <manishsmail@gmail.com>
+  usvg 0.45.1 - MIT - Copyright 2017 the Resvg Authors
+  uuid 1.28.0 - MIT - Ashley Mannix<ashleymannix@live.com.au>, Dylan DPC<dylan.dpc@gmail.com>, Hunar Roop Kahlon<hunar.roop@gmail.com>
+  vello_common 0.1.0 - MIT - Copyright 2020 the Vello Authors
+  vello_cpu 0.1.0 - MIT - Copyright 2020 the Vello Authors
+  wayland-backend 0.3.17 - MIT - Elinor Berger <elinor@safaradeg.net>
+  wayland-client 0.31.15 - MIT - Elinor Berger <elinor@safaradeg.net>
+  wayland-csd-frame 0.3.0 - MIT - Kirill Chibisov <contact@kchibisov.com>
+  wayland-cursor 0.31.14 - MIT - Elinor Berger <elinor@safaradeg.net>
+  wayland-protocols 0.32.13 - MIT - Elinor Berger <elinor@safaradeg.net>
+  wayland-protocols-experimental 20250721.0.1 - MIT - Elinor Berger <elinor@safaradeg.net>
+  wayland-protocols-misc 0.3.12 - MIT - Elinor Berger <elinor@safaradeg.net>
+  wayland-protocols-plasma 0.3.12 - MIT - Elinor Berger <elinor@safaradeg.net>
+  wayland-protocols-wlr 0.3.12 - MIT - Elinor Berger <elinor@safaradeg.net>
+  wayland-sys 0.31.11 - MIT - Elinor Berger <elinor@safaradeg.net>
+  web-time 1.1.0 - MIT - Copyright 2023 dAxpeDDa
+  weezl 0.1.12 - MIT - The image-rs Developers
+  wgpu 30.0.1 - MIT - gfx-rs developers
+  wgpu-core 30.0.1 - MIT - gfx-rs developers
+  wgpu-core-deps-windows-linux-android 30.0.1 - MIT - gfx-rs developers
+  wgpu-hal 30.0.1 - MIT - gfx-rs developers
+  wgpu-naga-bridge 30.0.1 - MIT - gfx-rs developers
+  wgpu-types 30.0.1 - MIT - gfx-rs developers
+  windows 0.62.2 - MIT - Copyright (c) Microsoft Corporation.
+  windows-collections 0.3.2 - MIT - Copyright (c) Microsoft Corporation.
+  windows-core 0.62.2 - MIT - Copyright (c) Microsoft Corporation.
+  windows-future 0.3.2 - MIT - Copyright (c) Microsoft Corporation.
+  windows-link 0.2.1 - MIT - Copyright (c) Microsoft Corporation.
+  windows-numerics 0.3.1 - MIT - Copyright (c) Microsoft Corporation.
+  windows-result 0.4.1 - MIT - Copyright (c) Microsoft Corporation.
+  windows-strings 0.5.1 - MIT - Copyright (c) Microsoft Corporation.
+  windows-sys 0.52.0 - MIT - Microsoft
+  windows-sys 0.61.2 - MIT - Copyright (c) Microsoft Corporation.
+  windows-targets 0.52.6 - MIT - Microsoft
+  windows-threading 0.2.1 - MIT - Copyright (c) Microsoft Corporation.
+  windows_aarch64_msvc 0.52.6 - MIT - Microsoft
+  windows_x86_64_msvc 0.52.6 - MIT - Microsoft
+  winit 0.30.13 - Apache-2.0 - The winit contributors, Pierre Krieger <pierre.krieger1708@gmail.com>
+  winnow 1.0.4 - MIT - the winnow contributors
+  x11-dl 2.21.0 - MIT - daggerbot <daggerbot@gmail.com>, Erle Pereira <erle@erlepereira.com>, AltF02 <contact@altf2.dev>
+  x11rb 0.13.2 - MIT - Uli Schlachter <psychon@znc.in>, Eduardo Sánchez Muñoz <eduardosm-dev@e64.io>, notgull <jtnunley01@gmail.com>
+  x11rb-protocol 0.13.2 - MIT - Uli Schlachter <psychon@znc.in>, Eduardo Sánchez Muñoz <eduardosm-dev@e64.io>, notgull <jtnunley01@gmail.com>
+  xcursor 0.3.11 - MIT - Samuele Esposito
+  xkbcommon-dl 0.4.2 - MIT - Francesca Frangipane <francesca@comfysoft.net>
+  xkeysym 0.2.1 - MIT - John Nunley <jtnunley01@gmail.com>
+  xmlwriter 0.1.0 - MIT - Evgeniy Reizner <razrfalcon@gmail.com>
+  zbus 5.19.0 - MIT - Zeeshan Ali Khan <zeeshanak@gnome.org>
+  zbus-lockstep 0.5.2 - MIT - Luuk van der Duim <luukvanderduim@gmail.com>, Tait Hoyem<tait@tait.tech>
+  zbus_names 4.3.5 - MIT - Zeeshan Ali Khan <zeeshanak@gnome.org>
+  zbus_xml 5.2.1 - MIT - Zeeshan Ali Khan <zeeshanak@gnome.org>
+  zcheapstr 1.2.0 - MIT - Zeeshan Ali Khan <zeeshanak@gnome.org>
+  zerocopy 0.8.63 - MIT - Copyright 2023 The Fuchsia Authors
+  zune-core 0.4.12 - MIT - the zune-core contributors
+  zune-jpeg 0.4.21 - MIT - caleb <etemesicaleb@gmail.com>
+  zvariant 5.15.1 - MIT - Zeeshan Ali Khan <zeeshanak@gnome.org>
+  zvariant_utils 4.2.0 - MIT - Zeeshan Ali Khan <zeeshanak@gnome.org>, turbocooler <turbocooler@cocaine.ninja>
+
+Bundled fonts
+-------------
+The interface embeds three unmodified DejaVu faces: DejaVu Sans,
+DejaVu Serif and DejaVu Sans Mono. They are distributed under the
+Bitstream Vera licence reproduced below. DejaVu changes are in the
+public domain.
+
+DejaVu fonts - licence for the bundled DejaVu Sans, DejaVu Serif and
+DejaVu Sans Mono faces.
+
+Upstream: https://dejavu-fonts.github.io/
+The three TrueType files in this directory are unmodified copies of the
+upstream release. DejaVu changes are in the public domain. Only the font
+software is covered here.
+
+Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved.
+Bitstream Vera is a trademark of Bitstream, Inc.
+DejaVu changes are in public domain.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of the fonts accompanying this license ("Fonts") and associated
+documentation files (the "Font Software"), to reproduce and distribute the
+Font Software, including without limitation the rights to use, copy, merge,
+publish, distribute, and/or sell copies of the Font Software, and to permit
+persons to whom the Font Software is furnished to do so, subject to the
+following conditions:
+
+The above copyright and trademark notices and this permission notice shall
+be included in all copies of one or more of the Font Software typefaces.
+
+The Font Software may be modified, altered, or added to, and in particular
+the designs of glyphs or characters in the Fonts may be modified and
+additional glyphs or characters may be added to the Fonts, only if the fonts
+are renamed to names not containing either the words "Bitstream" or the word
+"Vera".
+
+This License becomes null and void to the extent applicable to Fonts or Font
+Software that has been modified and is distributed under the "Bitstream
+Vera" names.
+
+The Font Software may be sold as part of a larger software package but no
+copy of one or more of the Font Software typefaces may be sold by itself.
+
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT,
+TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL BITSTREAM OR THE GNOME
+FOUNDATION BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING
+ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE
+FONT SOFTWARE.
+
+Except as contained in this notice, the names of Gnome, the Gnome
+Foundation, and Bitstream Inc., shall not be used in advertising or
+otherwise to promote the sale, use or other dealings in this Font Software
+without prior written authorization from the Gnome Foundation or Bitstream
+Inc., respectively. For further information, contact: fonts at gnome dot
+org.
+
+Licence texts
+-------------
+
+--- MIT License ---
+
+MIT License
+
+Copyright (c) the copyright holders listed for each package in
+licenses/DEPENDENCIES.csv
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--- Apache License 2.0 ---
+
+Apache License
+                        Version 2.0, January 2004
+                     http://www.apache.org/licenses/
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. Definitions.
+
+   "License" shall mean the terms and conditions for use, reproduction,
+   and distribution as defined by Sections 1 through 9 of this document.
+
+   "Licensor" shall mean the copyright owner or entity authorized by
+   the copyright owner that is granting the License.
+
+   "Legal Entity" shall mean the union of the acting entity and all
+   other entities that control, are controlled by, or are under common
+   control with that entity. For the purposes of this definition,
+   "control" means (i) the power, direct or indirect, to cause the
+   direction or management of such entity, whether by contract or
+   otherwise, or (ii) ownership of fifty percent (50%) or more of the
+   outstanding shares, or (iii) beneficial ownership of such entity.
+
+   "You" (or "Your") shall mean an individual or Legal Entity
+   exercising permissions granted by this License.
+
+   "Source" form shall mean the preferred form for making modifications,
+   including but not limited to software source code, documentation
+   source, and configuration files.
+
+   "Object" form shall mean any form resulting from mechanical
+   transformation or translation of a Source form, including but
+   not limited to compiled object code, generated documentation,
+   and conversions to other media types.
+
+   "Work" shall mean the work of authorship, whether in Source or
+   Object form, made available under the License, as indicated by a
+   copyright notice that is included in or attached to the work
+   (an example is provided in the Appendix below).
+
+   "Derivative Works" shall mean any work, whether in Source or Object
+   form, that is based on (or derived from) the Work and for which the
+   editorial revisions, annotations, elaborations, or other modifications
+   represent, as a whole, an original work of authorship. For the purposes
+   of this License, Derivative Works shall not include works that remain
+   separable from, or merely link (or bind by name) to the interfaces of,
+   the Work and Derivative Works thereof.
+
+   "Contribution" shall mean any work of authorship, including
+   the original version of the Work and any modifications or additions
+   to that Work or Derivative Works thereof, that is intentionally
+   submitted to Licensor for inclusion in the Work by the copyright owner
+   or by an individual or Legal Entity authorized to submit on behalf of
+   the copyright owner. For the purposes of this definition, "submitted"
+   means any form of electronic, verbal, or written communication sent
+   to the Licensor or its representatives, including but not limited to
+   communication on electronic mailing lists, source code control systems,
+   and issue tracking systems that are managed by, or on behalf of, the
+   Licensor for the purpose of discussing and improving the Work, but
+   excluding communication that is conspicuously marked or otherwise
+   designated in writing by the copyright owner as "Not a Contribution."
+
+   "Contributor" shall mean Licensor and any individual or Legal Entity
+   on behalf of whom a Contribution has been received by Licensor and
+   subsequently incorporated within the Work.
+
+2. Grant of Copyright License. Subject to the terms and conditions of
+   this License, each Contributor hereby grants to You a perpetual,
+   worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+   copyright license to reproduce, prepare Derivative Works of,
+   publicly display, publicly perform, sublicense, and distribute the
+   Work and such Derivative Works in Source or Object form.
+
+3. Grant of Patent License. Subject to the terms and conditions of
+   this License, each Contributor hereby grants to You a perpetual,
+   worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+   (except as stated in this section) patent license to make, have made,
+   use, offer to sell, sell, import, and otherwise transfer the Work,
+   where such license applies only to those patent claims licensable
+   by such Contributor that are necessarily infringed by their
+   Contribution(s) alone or by combination of their Contribution(s)
+   with the Work to which such Contribution(s) was submitted. If You
+   institute patent litigation against any entity (including a
+   cross-claim or counterclaim in a lawsuit) alleging that the Work
+   or a Contribution incorporated within the Work constitutes direct
+   or contributory patent infringement, then any patent licenses
+   granted to You under this License for that Work shall terminate
+   as of the date such litigation is filed.
+
+4. Redistribution. You may reproduce and distribute copies of the
+   Work or Derivative Works thereof in any medium, with or without
+   modifications, and in Source or Object form, provided that You
+   meet the following conditions:
+
+   (a) You must give any other recipients of the Work or
+       Derivative Works a copy of this License; and
+
+   (b) You must cause any modified files to carry prominent notices
+       stating that You changed the files; and
+
+   (c) You must retain, in the Source form of any Derivative Works
+       that You distribute, all copyright, patent, trademark, and
+       attribution notices from the Source form of the Work,
+       excluding those notices that do not pertain to any part of
+       the Derivative Works; and
+
+   (d) If the Work includes a "NOTICE" text file as part of its
+       distribution, then any Derivative Works that You distribute must
+       include a readable copy of the attribution notices contained
+       within such NOTICE file, excluding those notices that do not
+       pertain to any part of the Derivative Works, in at least one
+       of the following places: within a NOTICE text file distributed
+       as part of the Derivative Works; within the Source form or
+       documentation, if provided along with the Derivative Works; or,
+       within a display generated by the Derivative Works, if and
+       wherever such third-party notices normally appear. The contents
+       of the NOTICE file are for informational purposes only and
+       do not modify the License. You may add Your own attribution
+       notices within Derivative Works that You distribute, alongside
+       or as an addendum to the NOTICE text from the Work, provided
+       that such additional attribution notices cannot be construed
+       as modifying the License.
+
+   You may add Your own copyright statement to Your modifications and
+   may provide additional or different license terms and conditions
+   for use, reproduction, or distribution of Your modifications, or
+   for any such Derivative Works as a whole, provided Your use,
+   reproduction, and distribution of the Work otherwise complies with
+   the conditions stated in this License.
+
+5. Submission of Contributions. Unless You explicitly state otherwise,
+   any Contribution intentionally submitted for inclusion in the Work
+   by You to the Licensor shall be under the terms and conditions of
+   this License, without any additional terms or conditions.
+   Notwithstanding the above, nothing herein shall supersede or modify
+   the terms of any separate license agreement you may have executed
+   with Licensor regarding such Contributions.
+
+6. Trademarks. This License does not grant permission to use the trade
+   names, trademarks, service marks, or product names of the Licensor,
+   except as required for reasonable and customary use in describing the
+   origin of the Work and reproducing the content of the NOTICE file.
+
+7. Disclaimer of Warranty. Unless required by applicable law or
+   agreed to in writing, Licensor provides the Work (and each
+   Contributor provides its Contributions) on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+   implied, including, without limitation, any warranties or conditions
+   of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+   PARTICULAR PURPOSE. You are solely responsible for determining the
+   appropriateness of using or redistributing the Work and assume any
+   risks associated with Your exercise of permissions under this License.
+
+8. Limitation of Liability. In no event and under no legal theory,
+   whether in tort (including negligence), contract, or otherwise,
+   unless required by applicable law (such as deliberate and grossly
+   negligent acts) or agreed to in writing, shall any Contributor be
+   liable to You for damages, including any direct, indirect, special,
+   incidental, or consequential damages of any character arising as a
+   result of this License or out of the use or inability to use the
+   Work (including but not limited to damages for loss of goodwill,
+   work stoppage, computer failure or malfunction, or any and all
+   other commercial damages or losses), even if such Contributor
+   has been advised of the possibility of such damages.
+
+9. Accepting Warranty or Additional Liability. While redistributing
+   the Work or Derivative Works thereof, You may choose to offer,
+   and charge a fee for, acceptance of support, warranty, indemnity,
+   or other liability obligations and/or rights consistent with this
+   License. However, in accepting such obligations, You may act only
+   on Your own behalf and on Your sole responsibility, not on behalf
+   of any other Contributor, and only if You agree to indemnify,
+   defend, and hold each Contributor harmless for any liability
+   incurred by, or claims asserted against, such Contributor by reason
+   of your accepting any such warranty or additional liability.
+
+END OF TERMS AND CONDITIONS
+
+--- BSD 3-Clause License ---
+
+BSD 3-Clause License
+
+Copyright (c) the copyright holders listed for each package in
+licenses/DEPENDENCIES.csv
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--- BSD 2-Clause License ---
+
+BSD 2-Clause License
+
+Copyright (c) the copyright holders listed for each package in
+licenses/DEPENDENCIES.csv
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--- ISC License ---
+
+ISC License
+
+Copyright (c) the copyright holders listed for each package in
+licenses/DEPENDENCIES.csv
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+--- zlib License ---
+
+zlib License
+
+Copyright (c) the copyright holders listed for each package in
+licenses/DEPENDENCIES.csv
+
+This software is provided 'as-is', without any express or implied warranty.
+In no event will the authors be held liable for any damages arising from the
+use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not claim
+   that you wrote the original software. If you use this software in a
+   product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+3. This notice may not be removed or altered from any source distribution.
+
+--- Boost Software License 1.0 ---
+
+Boost Software License - Version 1.0 - August 17th, 2003
+
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of the software and accompanying documentation covered by
+this license (the "Software") to use, reproduce, display, distribute,
+execute, and transmit the Software, and to prepare derivative works of the
+Software, and to permit third-parties to whom the Software is furnished to
+do so, all subject to the following:
+
+The copyright notices in the Software and this entire statement, including
+the above license grant, this restriction and the following disclaimer,
+must be included in all copies of the Software, in whole or in part, and
+all derivative works of the Software, unless such copies or derivative
+works are solely in the form of machine-executable object code generated by
+a source language processor.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+--- Independent JPEG Group licence ---
+
+Independent JPEG Group (IJG) licence
+
+The authors make NO WARRANTY or representation, either express or implied,
+with respect to this software, its quality, accuracy, merchantability, or
+fitness for a particular purpose. This software is provided "AS IS", and you,
+its user, assume the entire risk as to its quality and accuracy.
+
+This software is copyright (C) 1991-1998, Thomas G. Lane.
+All Rights Reserved except as specified below.
+
+Permission is hereby granted to use, copy, modify, and distribute this software
+(or portions thereof) for any purpose, without fee, subject to these
+conditions:
+
+(1) If any part of the source code for this software is distributed, then this
+README file must be included, with this copyright and no-warranty notice
+unmodified; and any recipient of this software must be informed that the
+software is available from the same place as the original.
+
+(2) If only executable code is distributed, then the accompanying
+documentation must state that "this software is based in part on the work of
+the Independent JPEG Group".
+
+(3) Permission for use of this software is granted only if the user accepts
+full responsibility for any undesirable consequences; the authors accept NO
+LIABILITY for damages of any kind.
+
+These conditions apply to any software derived from or based on the IJG code,
+not just to the unmodified library. If you use our work, you ought to
+acknowledge us.
+
+Permission is NOT granted for the use of any IJG author's name or company name
+in advertising or publicity relating to this software or products derived from
+it. This software may be referred to only as "the Independent JPEG Group's
+software".
+
+We specifically permit and encourage the use of this software as the basis of
+commercial products, provided that all warranty or liability claims are
+assumed by the product vendor.
+
+--- Unicode License V3 ---
+
+UNICODE LICENSE V3
+
+COPYRIGHT AND PERMISSION NOTICE
+
+Copyright © 1991-2023 Unicode, Inc.
+
+NOTICE TO USER: Carefully read the following legal agreement. BY
+DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING DATA FILES, AND/OR
+SOFTWARE, YOU UNEQUIVOCALLY ACCEPT, AND AGREE TO BE BOUND BY, ALL OF THE
+TERMS AND CONDITIONS OF THIS AGREEMENT. IF YOU DO NOT AGREE, DO NOT
+DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE THE DATA FILES OR SOFTWARE.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of data files and any associated documentation (the "Data Files") or
+software and any associated documentation (the "Software") to deal in the
+Data Files or Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, and/or sell
+copies of the Data Files or Software, and to permit persons to whom the
+Data Files or Software are furnished to do so, provided that either (a)
+this copyright and permission notice appear with all copies of the Data
+Files or Software, or (b) this copyright and permission notice appear in
+associated Documentation.
+
+THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF
+THIRD PARTY RIGHTS.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS NOTICE
+BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES,
+OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE DATA
+FILES OR SOFTWARE.
+
+Except as contained in this notice, the name of a copyright holder shall
+not be used in advertising or otherwise to promote the sale, use or other
+dealings in these Data Files or Software without prior written
+authorization of the copyright holder.

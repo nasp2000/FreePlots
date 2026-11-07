@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: MIT
+//! Independent reference values for the g chart and the NP/C/U charts.
+//!
+//! The values in `tests/reference/control3.json` were computed independently;
+//! the test reads the committed file and never runs an external process.
+
+use fp_core::attribute::{self, AttributeChartKind};
+use fp_core::data::{Column, DataFrame};
+use fp_core::rare;
+use serde_json::Value;
+
+fn reference() -> Value {
+    let raw = include_str!("reference/control3.json");
+    serde_json::from_str(raw).expect("valid JSON reference")
+}
+
+fn numbers(value: &Value) -> Vec<f64> {
+    value
+        .as_array()
+        .expect("number list")
+        .iter()
+        .map(|value| value.as_f64().expect("number"))
+        .collect()
+}
+
+fn close(actual: f64, expected: f64, tolerance: f64, what: &str) {
+    assert!(
+        (actual - expected).abs() <= tolerance * (1.0 + expected.abs()),
+        "{what}: {actual} vs oracle {expected}"
+    );
+}
+
+fn statistic(text: &str, label: &str) -> f64 {
+    let prefix: Vec<&str> = label.split_whitespace().collect();
+    for line in text.lines() {
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        if tokens.len() > prefix.len()
+            && tokens[..prefix.len()] == prefix[..]
+            && let Ok(value) = tokens[prefix.len()].parse()
+        {
+            return value;
+        }
+    }
+    panic!("no {label} in:\n{text}")
+}
+
+fn chart_row<'a>(text: &'a str, label: &str) -> Vec<&'a str> {
+    text.lines()
+        .find(|line| {
+            let tokens: Vec<&str> = line.split_whitespace().collect();
+            tokens.len() > 2 && tokens[0] == label && tokens[1].parse::<f64>().is_ok()
+        })
+        .map(|line| line.split_whitespace().collect())
+        .unwrap_or_else(|| panic!("no chart row {label} in:\n{text}"))
+}
+
+fn check_attribute(case: &Value, kind: AttributeChartKind, label: &str, size: Option<usize>) {
+    // The Session report prints six decimals.
+    let r = reference();
+    let tolerance = 1e-6;
+    let df =
+        DataFrame::new(vec![Column::new_f64("defects", numbers(&r["counts"]))]).expect("frame");
+    let out = attribute::analyze(&df, kind, "defects", None, size).expect("attribute chart");
+    let text = out.results[0].to_session_text();
+    close(
+        statistic(&text, "Center line"),
+        case["center"].as_f64().expect("center"),
+        tolerance,
+        "center",
+    );
+    let row = chart_row(&text, label);
+    close(
+        row[5].parse().expect("UCL"),
+        case["ucl"].as_f64().expect("UCL"),
+        tolerance,
+        "UCL",
+    );
+    close(
+        row[2].parse().expect("LCL"),
+        case["lcl"].as_f64().expect("LCL"),
+        tolerance,
+        "LCL",
+    );
+    let signals = statistic(&text, "Points outside limits") as usize;
+    assert_eq!(
+        signals,
+        case["signals"].as_array().expect("signals").len(),
+        "{text}"
+    );
+}
+
+#[test]
+fn the_np_chart_matches_the_binomial_limits() {
+    let r = reference();
+    check_attribute(
+        &r["np"],
+        AttributeChartKind::Np,
+        "NP",
+        Some(r["size"].as_u64().unwrap() as usize),
+    );
+}
+
+#[test]
+fn the_c_chart_matches_the_poisson_limits() {
+    let r = reference();
+    check_attribute(&r["c"], AttributeChartKind::C, "C", None);
+}
+
+#[test]
+fn the_u_chart_matches_the_poisson_limits() {
+    let r = reference();
+    check_attribute(
+        &r["u"],
+        AttributeChartKind::U,
+        "U",
+        Some(r["size"].as_u64().unwrap() as usize),
+    );
+}
+
+#[test]
+fn the_g_chart_matches_the_geometric_limits() {
+    let r = reference();
+    let case = &r["g"];
+    let tolerance = r["tolerance"].as_f64().expect("tolerance");
+    let df =
+        DataFrame::new(vec![Column::new_f64("counts", numbers(&case["counts"]))]).expect("frame");
+    let chart = rare::build(&df, "counts", None).expect("g chart");
+    close(
+        chart.probability,
+        case["probability"].as_f64().expect("probability"),
+        tolerance,
+        "event probability",
+    );
+    close(
+        chart.limits.center,
+        case["center"].as_f64().expect("center"),
+        tolerance,
+        "center",
+    );
+    close(
+        chart.limits.ucl,
+        case["ucl"].as_f64().expect("UCL"),
+        tolerance,
+        "UCL",
+    );
+    close(
+        chart.limits.lcl,
+        case["lcl"].as_f64().expect("LCL"),
+        tolerance,
+        "LCL",
+    );
+    let signals: Vec<usize> = case["signals"]
+        .as_array()
+        .expect("signals")
+        .iter()
+        .map(|value| value.as_u64().expect("signal") as usize)
+        .collect();
+    assert_eq!(chart.signals, signals);
+}
+
+#[test]
+fn invalid_inputs_are_rejected() {
+    let r = reference();
+    let df = DataFrame::new(vec![Column::new_f64("counts", vec![0.0; 5])]).expect("frame");
+    assert!(rare::build(&df, "counts", None).is_err());
+    let negative =
+        DataFrame::new(vec![Column::new_f64("defects", vec![-1.0, 2.0])]).expect("frame");
+    assert!(attribute::analyze(&negative, AttributeChartKind::C, "defects", None, None).is_err());
+    let np =
+        DataFrame::new(vec![Column::new_f64("defects", numbers(&r["counts"]))]).expect("frame");
+    assert!(attribute::analyze(&np, AttributeChartKind::Np, "defects", None, None).is_err());
+}

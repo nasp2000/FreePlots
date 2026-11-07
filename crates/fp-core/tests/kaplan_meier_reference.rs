@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: MIT
+//! Independent reference values for the Kaplan–Meier estimate.
+//!
+//! The values in `tests/reference/kaplan_meier.json` were computed
+//! independently; the test reads the committed file and never runs an external
+//! process. The survival values are the product-limit estimate and the interval
+//! is the normal (linear) Greenwood interval, the convention used by the engine.
+
+use fp_core::data::{Column, DataFrame};
+use fp_core::reliability;
+use serde_json::Value;
+
+fn reference() -> Value {
+    let raw = include_str!("reference/kaplan_meier.json");
+    serde_json::from_str(raw).expect("valid JSON reference")
+}
+
+fn frame(case: &Value) -> DataFrame {
+    let times: Vec<f64> = case["times"]
+        .as_array()
+        .expect("times")
+        .iter()
+        .map(|value| value.as_f64().expect("time"))
+        .collect();
+    let censor: Vec<f64> = case["censor"]
+        .as_array()
+        .expect("censor")
+        .iter()
+        .map(|value| value.as_f64().expect("censor"))
+        .collect();
+    DataFrame::new(vec![
+        Column::new_f64("time", times),
+        Column::new_f64("censor", censor),
+    ])
+    .expect("frame")
+}
+
+#[test]
+fn kaplan_meier_matches_the_product_limit_reference() {
+    let r = reference();
+    let tolerance = r["tolerance"].as_f64().expect("tolerance");
+    let confidence = r["confidence"].as_f64().expect("confidence");
+    let model = reliability::fit(&frame(&r), "time", Some("censor"), 1.0, confidence)
+        .expect("kaplan-meier");
+    // reference prepends S(0) = 1; the engine's table starts at the first
+    // observed time.
+    let expected: Vec<&Value> = r["points"]
+        .as_array()
+        .expect("points")
+        .iter()
+        .filter(|case| case["time"].as_f64().expect("time") > 0.0)
+        .collect();
+    assert_eq!(model.points.len(), expected.len());
+    for (point, case) in model.points.iter().zip(expected) {
+        let time = case["time"].as_f64().expect("time");
+        assert!(
+            (point.time - time).abs() <= tolerance,
+            "time {}",
+            point.time
+        );
+        for (actual, key) in [
+            (point.survival, "survival"),
+            (point.ci_lower, "ci_lower"),
+            (point.ci_upper, "ci_upper"),
+        ] {
+            let expected = case[key].as_f64().expect("value");
+            assert!(
+                (actual - expected).abs() <= tolerance,
+                "t = {time}, {key}: {actual} vs reference {expected}"
+            );
+        }
+        assert!(point.ci_lower <= point.survival + tolerance);
+        assert!(point.survival <= point.ci_upper + tolerance);
+    }
+    let median = model.median.expect("median");
+    let expected_median = r["median"].as_f64().expect("median");
+    assert!((median - expected_median).abs() <= tolerance);
+}
+
+#[test]
+fn the_interval_stays_inside_the_unit_interval() {
+    let r = reference();
+    let model = reliability::fit(
+        &frame(&r),
+        "time",
+        Some("censor"),
+        1.0,
+        r["confidence"].as_f64().expect("confidence"),
+    )
+    .expect("kaplan-meier");
+    for point in &model.points {
+        assert!((0.0..=1.0).contains(&point.ci_lower), "{point:?}");
+        assert!((0.0..=1.0).contains(&point.ci_upper), "{point:?}");
+        assert!(point.ci_lower <= point.ci_upper, "{point:?}");
+    }
+    // A one-sample curve is flat at one with a degenerate interval.
+    let df = DataFrame::new(vec![Column::new_f64("time", vec![1.0])]).expect("frame");
+    let model = reliability::fit(&df, "time", None, 1.0, 0.95).expect("single point");
+    assert_eq!(model.points[0].survival, 0.0);
+    assert_eq!(model.points[0].ci_lower, 0.0);
+    assert_eq!(model.points[0].ci_upper, 0.0);
+}
+
+#[test]
+fn a_non_positive_time_is_rejected() {
+    let df = DataFrame::new(vec![Column::new_f64("time", vec![0.0, 1.0])]).expect("frame");
+    assert!(reliability::fit(&df, "time", None, 1.0, 0.95).is_err());
+}
