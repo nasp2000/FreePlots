@@ -372,7 +372,7 @@ fn looks_like_column(value: &str) -> bool {
         && !value.contains('*')
 }
 
-fn numeric_pair<'a>(argv: &'a [String]) -> Option<(usize, &'a str, &'a str)> {
+fn numeric_pair(argv: &[String]) -> Option<(usize, &str, &str)> {
     pairs(argv).into_iter().find(|(_, option, value)| {
         (NUMERIC_OPTIONS.contains(option) || *option == "--factors") && looks_numeric(value)
     })

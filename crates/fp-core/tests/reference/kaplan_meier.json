@@ -1,6 +1,5 @@
 {
-  "source": "Computed by hand: product-limit survival with the normal (linear) Greenwood interval, the documented convention.",
-  "generated_with": "python",
+  "source": "Computed by hand: product-limit survival with the normal (linear) Greenwood interval.",
   "tolerance": 1e-09,
   "confidence": 0.95,
   "times": [

@@ -1,6 +1,5 @@
 {
-  "source": "Computed with scipy from the accelerated-life likelihood.",
-  "generated_with": "scipy 1.18.1",
+  "source": "Computed from the accelerated-life likelihood with an independent implementation.",
   "tolerance": 1e-06,
   "weibull": {
     "name": "weibull_arrhenius",

@@ -2089,7 +2089,7 @@ mod tests {
             );
             assert!(pdf > 0.0, "x={x}: the density must stay positive");
         }
-        // The documented behaviour density at the 1 % quantile (scipy gumbel_r).
+        // The reference density at the 1 % quantile (Gumbel distribution).
         assert!((d.pdf(-0.221_743_700_646_320_96) - 0.057_564_627_324_851_1).abs() < 1e-12);
     }
 

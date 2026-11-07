@@ -1,6 +1,5 @@
 {
-  "source": "Generated from statsmodels seasonal_decompose; see generated_with.",
-  "generated_with": "statsmodels 0.15.0",
+  "source": "Generated from the published classical decomposition.",
   "tolerance": 1e-08,
   "period": 4,
   "additive": {

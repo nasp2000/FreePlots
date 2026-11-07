@@ -1,4 +1,5 @@
 {
+  "source": "Computed by hand from the one-way ANOVA definitions.",
   "tolerance": 1e-09,
   "confidence": 0.95,
   "groups": {

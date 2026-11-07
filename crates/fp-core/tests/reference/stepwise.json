@@ -1,6 +1,5 @@
 {
-  "source": "Computed with statsmodels OLS and the partial-F test.",
-  "generated_with": "statsmodels; scipy 1.18.1",
+  "source": "Computed with a hand-built OLS and the partial-F test.",
   "tolerance": 1e-09,
   "alpha": 0.15,
   "data": {

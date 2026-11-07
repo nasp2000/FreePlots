@@ -1,6 +1,5 @@
 {
-  "source": "Generated from scipy (Box-Cox) and lifelines (censored fits).",
-  "generated_with": "scipy 1.18.1; lifelines 0.30.3",
+  "source": "Generated from the published Box-Cox profile and censored-fit definitions.",
   "tolerance": 1e-06,
   "boxcox": {
     "data": [

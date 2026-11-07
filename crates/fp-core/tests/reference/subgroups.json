@@ -1,4 +1,6 @@
 {
+  "source": "Computed by hand from the subgroup range and standard-deviation definitions.",
+  "tolerance": 1e-09,
   "r": {
     "groups": [
       [
@@ -218,6 +220,5 @@
         0.9278332028548257
       ]
     ]
-  },
-  "tolerance": 1e-09
+  }
 }

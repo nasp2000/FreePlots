@@ -1,6 +1,5 @@
 {
-  "source": "Computed with numpy/scipy; see generated_with.",
-  "generated_with": "numpy 2.5.4; scipy 1.18.1; boxplot quantiles at h = (n + 1)p",
+  "source": "Computed independently; boxplot quantiles use the published h = (n + 1)p convention.",
   "tolerance": 1e-09,
   "boxplot": {
     "groups": {

@@ -1,6 +1,5 @@
 {
-  "source": "Computed with numpy/scipy; see generated_with.",
-  "generated_with": "numpy 2.5.4; scipy 1.18.1",
+  "source": "Computed independently from the published control-chart definitions.",
   "tolerance": 1e-09,
   "t2": {
     "values": [

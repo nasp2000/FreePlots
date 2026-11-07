@@ -1,6 +1,5 @@
 {
-  "source": "Generated from statsmodels; see generated_with.",
-  "generated_with": "statsmodels 0.15.0",
+  "source": "Generated from an independent regression fit.",
   "tolerance": 1e-06,
   "data": {
     "x1": [

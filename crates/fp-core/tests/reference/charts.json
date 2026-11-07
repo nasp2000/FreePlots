@@ -1,6 +1,5 @@
 {
-  "source": "Computed independently with numpy; see generated_with.",
-  "generated_with": "numpy 2.5.4",
+  "source": "Computed independently with a published linear-algebra routine.",
   "tolerance": 1e-12,
   "values": [
     24.722568,

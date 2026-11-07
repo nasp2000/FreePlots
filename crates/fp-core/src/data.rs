@@ -1711,7 +1711,7 @@ mod tests {
     }
 
     #[test]
-    fn the_standard_deviation_interval_matches_scipy() {
+    fn the_standard_deviation_interval_matches_reference() {
         let sample =
             Sample::new(vec![1.0, 2.0, 3.0, 4.0, 5.0], MissingPolicy::Drop).expect("sample");
         let summary = ColumnSummary::from_sample(&sample, 0.95).expect("summary");

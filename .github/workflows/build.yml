@@ -32,6 +32,8 @@ jobs:
         run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked --features desktop -- -D warnings
+      - name: Reference provenance
+        run: python3 scripts/reference-report.py --check
       - name: Tests
         run: cargo test --workspace --features desktop --locked
 

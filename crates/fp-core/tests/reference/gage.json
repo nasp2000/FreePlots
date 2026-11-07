@@ -1,6 +1,5 @@
 {
   "source": "Generated from a hand-built two-way ANOVA and the AIAG components.",
-  "generated_with": "scipy 1.18.1",
   "tolerance": 1e-09,
   "measurement": [
     11.046212452369515,

@@ -1,4 +1,6 @@
 {
+  "source": "Computed from the Box-Cox normal-identification likelihood.",
+  "tolerance": 1e-06,
   "values": [
     2.1,
     1.4,
@@ -36,6 +38,5 @@
   "sigma": 0.2843135445222107,
   "a2": 0.16513279657562308,
   "log_likelihood": -44.9166173072272,
-  "n_params": 3,
-  "tolerance": 1e-06
+  "n_params": 3
 }

@@ -1,4 +1,6 @@
 {
+  "source": "Computed by hand from the CUSUM and EWMA definitions.",
+  "tolerance": 1e-09,
   "values": [
     10.2,
     10.8,

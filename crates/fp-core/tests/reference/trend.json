@@ -1,5 +1,5 @@
 {
-  "source": "Computed by hand from the Mann\u2013Kendall and Theil\u2013Sen definitions.",
+  "source": "Computed by hand from the Mann-Kendall and Theil-Sen definitions.",
   "tolerance": 1e-12,
   "values": [
     10.0,

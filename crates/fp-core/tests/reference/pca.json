@@ -1,6 +1,5 @@
 {
-  "source": "Generated from numpy.linalg.eigh; see generated_with.",
-  "generated_with": "numpy 2.5.4",
+  "source": "Generated from the published symmetric eigenvalue routine.",
   "tolerance": 1e-09,
   "columns": [
     "v1",

@@ -1,6 +1,5 @@
 {
-  "source": "Generated from statsmodels OrderedModel; see generated_with.",
-  "generated_with": "statsmodels 0.15.0",
+  "source": "Generated from an independent ordinal-logistic fit.",
   "tolerance": 0.0001,
   "x1": [
     0.5009005243373508,

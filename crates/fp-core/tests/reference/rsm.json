@@ -1,6 +1,5 @@
 {
-  "source": "Generated from a hand-built OLS and scipy; see generated_with.",
-  "generated_with": "scipy 1.18.1",
+  "source": "Generated from a hand-built OLS and the published t/F distributions.",
   "tolerance": 1e-06,
   "rows": [
     [

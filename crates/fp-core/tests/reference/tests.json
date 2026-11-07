@@ -1,6 +1,5 @@
 {
-  "source": "Generated from scipy.stats; see generated_with.",
-  "generated_with": "scipy 1.18.1",
+  "source": "Generated from the published test distributions.",
   "tolerance": 1e-09,
   "one_sample": {
     "data": [

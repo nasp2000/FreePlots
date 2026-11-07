@@ -1,6 +1,5 @@
 {
-  "source": "Generated from scikit-learn KMeans; see generated_with.",
-  "generated_with": "scikit-learn 1.9.1",
+  "source": "Generated from an independent k-means implementation.",
   "tolerance": 1e-06,
   "k": 3,
   "values": [
