@@ -2357,3 +2357,48 @@ fn date_tools_add_difference_and_shift_columns() {
     assert!(written.contains("2024-03-30"), "{written}");
     fs::remove_dir_all(&dir).ok();
 }
+
+// The renderer selection happens before any window is created, so a bad value
+// is rejected in a headless test. Painting itself is checked by
+// `scripts/windows-gui-smoke.ps1` on a real Windows desktop.
+#[cfg(feature = "desktop")]
+#[test]
+fn an_unknown_renderer_is_rejected_before_the_window_opens() {
+    let out = Command::new(bin())
+        .args(["--renderer", "banana"])
+        .output()
+        .expect("run binary");
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("invalid --renderer: banana"), "{stderr}");
+}
+
+#[cfg(feature = "desktop")]
+#[test]
+fn a_renderer_without_a_value_is_rejected() {
+    let out = Command::new(bin())
+        .arg("--renderer")
+        .output()
+        .expect("run binary");
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("--renderer requires glow or wgpu"),
+        "{stderr}"
+    );
+}
+
+#[cfg(feature = "desktop")]
+#[test]
+fn a_renderer_variable_with_an_unknown_value_is_rejected() {
+    let out = Command::new(bin())
+        .env("FREEPLOTS_RENDERER", "banana")
+        .output()
+        .expect("run binary");
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("invalid FREEPLOTS_RENDERER: banana"),
+        "{stderr}"
+    );
+}

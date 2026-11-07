@@ -66,6 +66,12 @@ jobs:
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: cargo build --release --locked -p fp-app --features desktop
+      # The window must paint on a real desktop with the runner's software
+      # D3D12 adapter (WARP), under the default backend and the explicit
+      # overrides. A renderer that opens a blank client area fails here.
+      - name: GUI smoke test
+        shell: pwsh
+        run: ./scripts/windows-gui-smoke.ps1 -Exe target/release/FreePlots.exe
       - name: Licence inventory and SBOM for this build
         shell: bash
         run: |
