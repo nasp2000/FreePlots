@@ -2,9 +2,11 @@
 """Write and check the reference-corpus report.
 
 Every committed reference file must say where its numbers come from and the
-tolerance the tests apply.  This script reads that provenance, hashes the
-golden plots and writes a single public report; ``--check`` fails when the
-report on disk no longer matches the corpus, so the report cannot drift.
+tolerance the tests apply; a reference file that no test reads, and a golden
+file that no test compares against, are rejected.  This script reads that
+provenance, hashes the golden plots and writes a single public report;
+``--check`` fails when the report on disk no longer matches the corpus, so the
+report cannot drift.
 
 Usage:
     python3 scripts/reference-report.py            # rewrite the report
@@ -21,13 +23,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REFERENCE = ROOT / "crates/fp-core/tests/reference"
 GOLDEN = ROOT / "crates/fp-core/tests/golden"
+TESTS = ROOT / "crates/fp-core/tests"
 REPORT = ROOT / "docs/reference-corpus.md"
+
+# `include_str!("reference/x.json")` and `assert_golden("x.svg", ...)`.
+INCLUDE_RE = re.compile(r'include_str!\(\s*"reference/([^"]+)"\s*\)')
+GOLDEN_RE = re.compile(r'assert_golden\(\s*"([^"]+)"')
 
 
 def human_size(size: int) -> str:
@@ -82,18 +90,49 @@ def markdown_cell(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ").strip()
 
 
-def corpus() -> tuple[list[dict], list[Path]]:
+def read_usage(pattern: re.Pattern[str]) -> dict[str, list[str]]:
+    """Map each included file to the test files that read it."""
+    usage: dict[str, list[str]] = {}
+    for path in sorted(TESTS.glob("*.rs")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for name in pattern.findall(text):
+            usage.setdefault(name, [])
+            if path.name not in usage[name]:
+                usage[name].append(path.name)
+    return usage
+
+
+def corpus() -> tuple[list[dict], list[Path], dict[str, list[str]]]:
     reference_files = sorted(REFERENCE.glob("*.json"))
     golden_files = sorted(path for path in GOLDEN.iterdir() if path.is_file())
     if not reference_files:
         raise SystemExit(f"no reference files under {REFERENCE.relative_to(ROOT)}")
     if not golden_files:
         raise SystemExit(f"no golden files under {GOLDEN.relative_to(ROOT)}")
-    return [read_provenance(path) for path in reference_files], golden_files
+
+    reference_usage = read_usage(INCLUDE_RE)
+    golden_usage = read_usage(GOLDEN_RE)
+    entries = []
+    for path in reference_files:
+        entry = read_provenance(path)
+        if path.name not in reference_usage:
+            raise SystemExit(
+                f"{path.relative_to(ROOT)}: no test reads this file; "
+                "remove it or include it from a test"
+            )
+        entry["tests"] = reference_usage[path.name]
+        entries.append(entry)
+    for path in golden_files:
+        if path.name not in golden_usage:
+            raise SystemExit(
+                f"{path.relative_to(ROOT)}: no test compares against this file; "
+                "remove it or call assert_golden with it"
+            )
+    return entries, golden_files, golden_usage
 
 
 def build() -> str:
-    entries, golden_files = corpus()
+    entries, golden_files, golden_usage = corpus()
     lines = [
         "# Reference corpus",
         "",
@@ -106,34 +145,39 @@ def build() -> str:
         "A new reference value is accepted only with a `source` that describes the",
         "derivation, a positive `tolerance`, and (where useful) a `method` that",
         "records the formula or algorithm. Public reports describe the method; they",
-        "do not name another product or tool.",
+        "do not name another product or tool. A reference file that no test reads,",
+        "and a golden file that no test compares against, are rejected.",
         "",
         f"- reference files: **{len(entries)}**",
         f"- golden files: **{len(golden_files)}**",
         "",
         "## Reference values",
         "",
-        "| File | Source | Method | Tolerance |",
-        "|---|---|---|---|",
+        "| File | Source | Method | Tolerance | Test |",
+        "|---|---|---|---|---|",
     ]
     for entry in entries:
+        tests = ", ".join(f"`{name}`" for name in entry["tests"])
         lines.append(
             f"| `{entry['name']}` "
             f"| {markdown_cell(entry['source'])} "
             f"| {markdown_cell(entry['method'])} "
-            f"| `{entry['tolerance']}` |"
+            f"| `{entry['tolerance']}` "
+            f"| {tests} |"
         )
 
     lines += [
         "",
         "## Golden plots",
         "",
-        "| File | Size | SHA-256 |",
-        "|---|---:|---|",
+        "| File | Size | SHA-256 | Test |",
+        "|---|---:|---|---|",
     ]
     for path in golden_files:
+        tests = ", ".join(f"`{name}`" for name in golden_usage[path.name])
         lines.append(
-            f"| `{path.name}` | {human_size(path.stat().st_size)} | `{digest(path)}` |"
+            f"| `{path.name}` | {human_size(path.stat().st_size)} "
+            f"| `{digest(path)}` | {tests} |"
         )
 
     lines += [
@@ -167,11 +211,12 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.validate:
-        entries, golden_files = corpus()
+        entries, golden_files, _ = corpus()
         for path in golden_files:
             digest(path)
         print(
-            f"{len(entries)} reference files and {len(golden_files)} golden files "
+            f"{len(entries)} reference files (each read by a test) and "
+            f"{len(golden_files)} golden files (each compared by a test) "
             "have valid provenance"
         )
         return 0
