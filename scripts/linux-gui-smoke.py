@@ -224,6 +224,8 @@ def run_case(
             if optional and app.process.poll() is not None:
                 code = app.process.returncode
                 log = app.text().strip()
+                if code < 0:
+                    raise Failure(f"{name}: crashed with signal {-code}\n{log}")
                 if code != 0 and log:
                     print(f"  PASS  {name} is unavailable here (exit {code}): {log.splitlines()[-1]}")
                     return
