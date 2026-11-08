@@ -120,12 +120,13 @@ jobs:
           $staging = "bundle\$name"
           New-Item -ItemType Directory -Force -Path $staging, "dist" | Out-Null
           Copy-Item target/release/FreePlots.exe $staging
+          Copy-Item LICENSE $staging
           Copy-Item licences-out/LICENSES.txt, licences-out/THIRD-PARTY.md, `
             licences-out/DEPENDENCIES.csv, licences-out/sbom.spdx.json $staging
           @(
             "FreePlots $env:GITHUB_REF_NAME",
             "",
-            "This archive contains the executable, the licence inventory, the third-party notices and the SPDX SBOM.",
+            "This archive contains the executable, the project licence, the licence inventory, the third-party notices and the SPDX SBOM.",
             "",
             "The Windows executable is unsigned: SmartScreen may warn on a downloaded copy.",
             "Verify the archive against SHA256SUMS before extracting it."
@@ -185,11 +186,12 @@ jobs:
           staging="bundle/$name"
           mkdir -p "$staging"
           cp target/release/FreePlots "$staging/"
+          cp LICENSE "$staging/"
           cp licences-out/LICENSES.txt licences-out/THIRD-PARTY.md licences-out/DEPENDENCIES.csv licences-out/sbom.spdx.json "$staging/"
           {
             echo "FreePlots $GITHUB_REF_NAME"
             echo
-            echo "This archive contains the executable, the licence inventory, the third-party notices and the SPDX SBOM."
+            echo "This archive contains the executable, the project licence, the licence inventory, the third-party notices and the SPDX SBOM."
             echo
             echo "Verify the archive against SHA256SUMS before extracting it."
           } > "$staging/README.txt"
