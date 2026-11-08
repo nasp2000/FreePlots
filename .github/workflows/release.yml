@@ -73,13 +73,19 @@ jobs:
           if (-not $env:CERT_PFX -or -not $env:CERT_PASSWORD) {
             throw "Configure WINDOWS_CERT_PFX and WINDOWS_CERT_PASSWORD for a release tag."
           }
-      - name: Sign the executable
-        if: ${{ secrets.WINDOWS_CERT_PFX != '' }}
+      - name: Sign and verify the executable
         shell: pwsh
         env:
           CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
           CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
         run: |
+          if (-not $env:CERT_PFX) {
+            Write-Host "::warning::WINDOWS_CERT_PFX is not set; this executable is unsigned and SmartScreen will warn on downloaded copies."
+            exit 0
+          }
+          if (-not $env:CERT_PASSWORD) {
+            throw "WINDOWS_CERT_PASSWORD is not set."
+          }
           $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX))
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
@@ -88,20 +94,11 @@ jobs:
           & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 target\release\FreePlots.exe
           if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
           Remove-Item $pfx
-      - name: Verify the signature
-        if: ${{ secrets.WINDOWS_CERT_PFX != '' }}
-        shell: pwsh
-        run: |
           $signature = Get-AuthenticodeSignature target\release\FreePlots.exe
           $signature | Format-List Status, StatusMessage, SignerCertificate
           if ($signature.Status -ne 'Valid') {
             throw "the Authenticode signature is not valid: $($signature.Status)"
           }
-      - name: Unsigned build notice
-        if: ${{ secrets.WINDOWS_CERT_PFX == '' }}
-        shell: pwsh
-        run: |
-          Write-Host "::warning::WINDOWS_CERT_PFX is not set; this executable is unsigned and SmartScreen will warn on downloaded copies."
       - name: Check dependencies
         shell: pwsh
         run: |
