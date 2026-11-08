@@ -159,6 +159,7 @@ const MATRIX: &[Case] = &[
 
 struct Outcome {
     status: Option<i32>,
+    stdout: String,
     stderr: String,
     timed_out: bool,
 }
@@ -189,6 +190,7 @@ fn run(argv: &[String], dir: &Path) -> Outcome {
     let timed_out = status.is_none();
     Outcome {
         status: status.flatten(),
+        stdout: fs::read_to_string(&out_path).unwrap_or_default(),
         stderr: fs::read_to_string(&err_path).unwrap_or_default(),
         timed_out,
     }
@@ -208,13 +210,17 @@ fn context(outcome: &Outcome) -> String {
     let status = outcome
         .status
         .map_or_else(|| "no status".to_owned(), |code| code.to_string());
-    format!("status {status}\nstderr:\n{}", outcome.stderr.trim_end())
+    format!(
+        "status {status}\nstdout:\n{}\nstderr:\n{}",
+        outcome.stdout.trim_end(),
+        outcome.stderr.trim_end()
+    )
 }
 
 fn assert_no_crash(label: &str, outcome: &Outcome) {
     assert!(!outcome.timed_out, "{label}: did not finish in 30 s");
     assert!(
-        !outcome.stderr.contains("panicked at"),
+        !outcome.stdout.contains("panicked at") && !outcome.stderr.contains("panicked at"),
         "{label}: panicked\n{}",
         context(outcome)
     );
@@ -236,9 +242,12 @@ fn assert_rejected(label: &str, outcome: &Outcome) {
         "{label}: expected exit status 1\n{}",
         context(outcome)
     );
+    // The desktop binary is a Windows GUI-subsystem program; when a test
+    // starts it without a console, the diagnostic can arrive on either stream.
     assert!(
-        !outcome.stderr.trim().is_empty(),
-        "{label}: rejected without a message"
+        !outcome.stderr.trim().is_empty() || !outcome.stdout.trim().is_empty(),
+        "{label}: rejected without a message\n{}",
+        context(outcome)
     );
 }
 
