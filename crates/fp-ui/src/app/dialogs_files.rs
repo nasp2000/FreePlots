@@ -590,6 +590,13 @@ impl FreePlotsApp {
                 );
                 ui.add_space(12.0);
                 ui.vertical_centered(|ui| {
+                    ui.hyperlink_to(
+                        "github.com/nasp2000/FreePlots",
+                        "https://github.com/nasp2000/FreePlots",
+                    );
+                });
+                ui.add_space(8.0);
+                ui.vertical_centered(|ui| {
                     ui.label(
                         RichText::new(self.catalog().label("MIT license"))
                             .size(12.0)

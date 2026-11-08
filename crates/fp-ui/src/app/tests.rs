@@ -588,6 +588,13 @@ fn the_about_dialog_has_no_clear_button() {
     assert!(harness.get_by_label("MIT license").rect().width() > 0.0);
     assert!(
         harness
+            .get_by_label("github.com/nasp2000/FreePlots")
+            .rect()
+            .width()
+            > 0.0
+    );
+    assert!(
+        harness
             .get_by_label("FreePlots Engine 0.1.0")
             .rect()
             .width()
