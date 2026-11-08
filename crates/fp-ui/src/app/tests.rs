@@ -7654,6 +7654,9 @@ fn the_formula_bar_has_an_accessible_name() {
     // The "fx" label names the formula bar, so a screen reader announces the
     // text input instead of an unnamed edit.
     harness.get_by_role_and_label(accesskit::Role::TextInput, "Formula bar");
+    // Start from an empty field: the bar opens with the selected cell's value.
+    harness.state_mut().edit_buffer.clear();
+    harness.run();
     harness
         .get_by_role_and_label(accesskit::Role::TextInput, "Formula bar")
         .click();
