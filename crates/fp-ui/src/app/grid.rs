@@ -38,8 +38,12 @@ impl FreePlotsApp {
         let (cell_col, cell_row) = self.selected_cell.unwrap_or((0, 0));
         let mut commit = false;
         ui.horizontal(|ui| {
-            ui.strong("fx")
+            let formula_label = ui
+                .strong("fx")
                 .on_hover_text("Formula bar: type a value or an expression for the selected cell");
+            formula_label.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::Label, true, "Formula bar")
+            });
             ui.help_label(format!("C{} R{}", cell_col + 1, cell_row + 1))
                 .on_hover_text(format!(
                     "Selected cell: column C{}, row {}. Type in the field, then press Enter or \
@@ -52,6 +56,7 @@ impl FreePlotsApp {
                     egui::TextEdit::singleline(&mut self.edit_buffer)
                         .desired_width((ui.available_width() - 40.0).max(80.0)),
                 )
+                .labelled_by(formula_label.id)
                 .on_hover_text("Type a value or =SUM(C1R1:C1R10); Enter commits the result. References are C<column>R<row>");
             self.formula_focused = response.has_focus();
             if response.changed() {

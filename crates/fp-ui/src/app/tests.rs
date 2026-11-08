@@ -7640,6 +7640,31 @@ fn the_cells_expose_their_painted_text_to_accessibility() {
 }
 
 #[test]
+fn the_formula_bar_has_an_accessible_name() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let df = DataFrame::new(vec![Column::new_f64("weight", vec![1.0, 2.0])]).expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    // The "fx" label names the formula bar, so a screen reader announces the
+    // text input instead of an unnamed edit.
+    harness.get_by_role_and_label(accesskit::Role::TextInput, "Formula bar");
+    harness
+        .get_by_role_and_label(accesskit::Role::TextInput, "Formula bar")
+        .click();
+    harness
+        .get_by_role_and_label(accesskit::Role::TextInput, "Formula bar")
+        .type_text("=1+1");
+    harness.run();
+    assert_eq!(harness.state().edit_buffer, "=1+1");
+}
+
+#[test]
 fn saving_over_an_existing_file_asks_first() {
     use egui_kittest::{Harness, kittest::Queryable};
 
