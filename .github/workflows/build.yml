@@ -46,6 +46,29 @@ jobs:
       - name: Tests
         run: cargo test --workspace --features desktop --locked
 
+  performance:
+    name: Performance budgets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Analyses on a million rows
+        env:
+          FREEPLOTS_ANALYSIS_BUDGET_MS: 5000
+        run: cargo test --release --locked -p fp-core --test performance_budget
+      - name: Heap with a million cells
+        run: cargo test --release --locked -p fp-core --test memory_budget
+      - name: Import a million cells
+        run: cargo test --release --locked -p fp-core --lib import_one_million -- --ignored
+      - name: Grid frame budget
+        env:
+          FREEPLOTS_FRAME_BUDGET_MS: 60
+          FREEPLOTS_EDIT_BUDGET_MS: 40
+        run: cargo test --release --locked -p fp-ui --lib grid_100k -- --ignored
+
   linux-gui:
     name: Linux GUI smoke
     needs: test
