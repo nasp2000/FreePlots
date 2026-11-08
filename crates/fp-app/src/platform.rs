@@ -658,6 +658,7 @@ mod windows {
     #[link(name = "kernel32")]
     unsafe extern "system" {
         fn AttachConsole(process_id: Dword) -> i32;
+        fn GetStdHandle(std_handle: Dword) -> *mut c_void;
         fn SetStdHandle(std_handle: Dword, handle: *mut c_void) -> i32;
     }
 
@@ -722,6 +723,16 @@ mod windows {
     /// Reattaches the standard streams to the console that launched the
     /// process, so a CLI invocation of the GUI-subsystem binary prints there.
     pub fn attach_console() {
+        // A parent that redirected stdout/stderr (a script, a test harness or
+        // a pipe) already gave the process those handles. Attaching to its
+        // console and reopening CONOUT$ would discard the redirection and lose
+        // every diagnostic, so keep the inherited handles in that case.
+        let invalid = |handle: *mut c_void| handle.is_null() || handle as isize == -1;
+        let output = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
+        let error = unsafe { GetStdHandle(STD_ERROR_HANDLE) };
+        if !invalid(output) && !invalid(error) {
+            return;
+        }
         let attached = unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
         if attached == 0 {
             return;
