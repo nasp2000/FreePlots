@@ -82,6 +82,17 @@ function Write-Fail([string]$Message) {
     $script:failed++
 }
 
+function Join-Arguments {
+    param([string[]]$Items)
+    ($Items | ForEach-Object {
+        if ($_ -match '[\s"]') {
+            '"' + ($_ -replace '"', '\"') + '"'
+        } else {
+            $_
+        }
+    }) -join ' '
+}
+
 function Start-App {
     param(
         [string]$ExePath,
@@ -95,9 +106,7 @@ function Start-App {
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.CreateNoWindow = $false
-    foreach ($arg in (@('--gui', '--bridge', "127.0.0.1:$Port") + $ExtraArgs)) {
-        [void]$psi.ArgumentList.Add($arg)
-    }
+    $psi.Arguments = Join-Arguments (@('--gui', '--bridge', "127.0.0.1:$Port") + $ExtraArgs)
     # A variable set by the runner or by a previous case must not decide this
     # case's backend.
     [void]$psi.Environment.Remove('FREEPLOTS_RENDERER')
@@ -345,8 +354,7 @@ function Invoke-InvalidRendererCase {
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
-    [void]$psi.ArgumentList.Add('--renderer')
-    [void]$psi.ArgumentList.Add('banana')
+    $psi.Arguments = '--renderer banana'
     $process = [System.Diagnostics.Process]::Start($psi)
     $stdout = $process.StandardOutput.ReadToEndAsync()
     $stderr = $process.StandardError.ReadToEndAsync()

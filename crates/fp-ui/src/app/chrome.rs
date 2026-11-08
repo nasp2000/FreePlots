@@ -8,6 +8,11 @@ impl FreePlotsApp {
         self.poll_analysis(ui.ctx());
         ui.ctx()
             .data_mut(|data| data.insert_temp(egui::Id::new("fp_dialog_open"), false));
+        // Do not zoom past the point where the minimum layout no longer fits
+        // the window: on a small screen 200 % would clip the menus and dialogs
+        // with no way to scroll to them.
+        let max_zoom = max_zoom_for(ui.ctx());
+        self.zoom = self.zoom.clamp(0.5, max_zoom);
         // A window close with unsaved work is cancelled once and turned into a
         // prompt. A project save in flight keeps cancelling the close until the
         // runner writes the file.
@@ -34,7 +39,7 @@ impl FreePlotsApp {
             )
         });
         if zoom_in {
-            self.zoom = (self.zoom * 1.1).min(2.5);
+            self.zoom = (self.zoom * 1.1).min(max_zoom);
         }
         if zoom_out {
             self.zoom = (self.zoom / 1.1).max(0.5);
@@ -396,16 +401,19 @@ impl FreePlotsApp {
                     .on_hover_text("Zoom in (Ctrl +)")
                     .clicked()
                 {
-                    self.zoom = (self.zoom * 1.1).min(2.5);
+                    self.zoom = (self.zoom * 1.1).min(max_zoom_for(ui.ctx()));
                 }
                 let mut percent = self.zoom * 100.0;
                 ui.spacing_mut().slider_width = 80.0;
                 if ui
-                    .add(egui::Slider::new(&mut percent, 50.0..=250.0).show_value(false))
+                    .add(
+                        egui::Slider::new(&mut percent, 50.0..=(max_zoom_for(ui.ctx()) * 100.0))
+                            .show_value(false),
+                    )
                     .on_hover_text("Interface zoom")
                     .changed()
                 {
-                    self.zoom = percent / 100.0;
+                    self.zoom = (percent / 100.0).clamp(0.5, max_zoom_for(ui.ctx()));
                 }
                 if ui
                     .small_button("−")
@@ -567,4 +575,15 @@ impl FreePlotsApp {
             self.add_sheet();
         }
     }
+}
+
+/// Largest zoom that still fits the minimum layout (760×520 points) in the
+/// physical window. Beyond it the interface is clipped with no scrollbar.
+#[must_use]
+pub(super) fn maximum_zoom(physical: egui::Vec2) -> f32 {
+    (physical.x / 760.0).min(physical.y / 520.0).clamp(0.5, 2.5)
+}
+
+fn max_zoom_for(ctx: &egui::Context) -> f32 {
+    maximum_zoom(ctx.content_rect().size() * ctx.pixels_per_point())
 }

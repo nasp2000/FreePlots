@@ -670,6 +670,34 @@ fn the_diagnostics_dialog_copies_the_report_and_opens_the_folder() {
 }
 
 #[test]
+fn the_zoom_limit_keeps_the_minimum_layout_visible() {
+    use super::chrome::maximum_zoom;
+
+    assert!((maximum_zoom(egui::vec2(1024.0, 760.0)) - 1024.0 / 760.0).abs() < 1e-6);
+    assert!((maximum_zoom(egui::vec2(1920.0, 1080.0)) - 1080.0 / 520.0).abs() < 1e-6);
+    assert!((maximum_zoom(egui::vec2(3840.0, 2160.0)) - 2.5).abs() < 1e-6);
+    assert!((maximum_zoom(egui::vec2(800.0, 600.0)) - 800.0 / 760.0).abs() < 1e-6);
+}
+
+#[test]
+fn a_small_window_clamps_the_zoom() {
+    use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.zoom = 2.0;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1024.0, 760.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    let expected = 1024.0 / 760.0;
+    assert!(
+        (harness.state().zoom - expected).abs() < 1e-3,
+        "zoom {}",
+        harness.state().zoom
+    );
+}
+
+#[test]
 fn the_plus_button_adds_a_worksheet_tab() {
     use egui_kittest::{Harness, kittest::Queryable};
 
