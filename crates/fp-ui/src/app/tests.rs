@@ -630,7 +630,7 @@ fn the_about_link_asks_the_runner_to_open_the_browser() {
 
 #[test]
 fn an_open_dialog_raises_the_window() {
-    use egui_kittest::{Harness, kittest::Queryable};
+    use egui_kittest::Harness;
 
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());
