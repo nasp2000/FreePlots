@@ -21,8 +21,8 @@ All notable changes to FreePlots are recorded here. The format follows
 - One archive per platform (Windows x86_64 and Raspberry Pi 4, aarch64), with
   the licence inventory, third-party notices and SPDX SBOM inside.
 - An unsigned Windows executable and a `SHA256SUMS` file in every release.
-- Expected-PPM confidence-interval record for normal capability, and the
-  reference-corpus provenance report.
+- Expected-PPM confidence intervals for the normal capability report (overall
+  and within sigma), and the reference-corpus provenance report.
 
 ### Notes
 
