@@ -1294,6 +1294,7 @@ pub struct FreePlotsApp {
     show_diagnostics: bool,
     diagnostics_text: String,
     log_path: Option<PathBuf>,
+    copy_diagnostics_request: bool,
     open_data_dir_request: bool,
     /// Help → Third-party licences.
     show_licences: bool,

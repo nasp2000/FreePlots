@@ -662,6 +662,7 @@ fn the_diagnostics_dialog_copies_the_report_and_opens_the_folder() {
     harness.get_by_label("Diagnostics");
     harness.get_by_label("Copy diagnostics").click();
     harness.run();
+    assert!(harness.state_mut().take_copy_diagnostics_request());
     harness.get_by_label("Open data folder").click();
     harness.run();
     assert!(harness.state_mut().take_open_data_dir_request());

@@ -141,6 +141,23 @@ impl eframe::App for Desktop {
         {
             self.app.set_error(error);
         }
+        if self.app.take_copy_diagnostics_request() {
+            let mut text = self.app.diagnostics_text().to_owned();
+            if let Some(error) = self.app.last_error() {
+                text.push_str("\nlast error: ");
+                text.push_str(error);
+            }
+            if let Some(log) = self.app.diagnostics_log_path() {
+                text.push_str("\n\n--- log tail ---\n");
+                text.push_str(&crate::platform::log_tail(log, 65_536));
+            }
+            match arboard::Clipboard::new().and_then(|mut clipboard| clipboard.set_text(text)) {
+                Ok(()) => self.app.set_status("Diagnostics copied to the clipboard"),
+                Err(error) => self
+                    .app
+                    .set_error(format!("Cannot copy the diagnostics: {error}")),
+            }
+        }
         let error = self.app.last_error().map(str::to_owned);
         if error != self.last_error {
             if let Some(error) = &error

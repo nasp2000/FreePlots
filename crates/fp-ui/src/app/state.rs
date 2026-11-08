@@ -405,6 +405,7 @@ impl FreePlotsApp {
             show_diagnostics: false,
             diagnostics_text: String::new(),
             log_path: None,
+            copy_diagnostics_request: false,
             open_data_dir_request: false,
             show_licences: false,
             show_tour: false,

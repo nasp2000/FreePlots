@@ -627,6 +627,11 @@ impl FreePlotsApp {
         self.log_path.as_deref()
     }
 
+    /// Takes the request to copy the diagnostics to the clipboard.
+    pub fn take_copy_diagnostics_request(&mut self) -> bool {
+        std::mem::take(&mut self.copy_diagnostics_request)
+    }
+
     /// Takes the request to open the data folder.
     pub fn take_open_data_dir_request(&mut self) -> bool {
         std::mem::take(&mut self.open_data_dir_request)
@@ -837,12 +842,7 @@ impl FreePlotsApp {
                         .help_button(self.catalog().label("Copy diagnostics"))
                         .clicked()
                     {
-                        let mut text = self.diagnostics_text.clone();
-                        if let Some(error) = &self.error {
-                            text.push_str("\nlast error: ");
-                            text.push_str(error);
-                        }
-                        ui.ctx().copy_text(text);
+                        self.copy_diagnostics_request = true;
                     }
                     if ui
                         .help_button(self.catalog().label("Open data folder"))
