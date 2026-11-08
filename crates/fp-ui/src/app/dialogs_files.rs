@@ -570,9 +570,7 @@ impl FreePlotsApp {
             .default_width(440.0)
             .show(ctx, |ui| {
                 ui.add_space(4.0);
-                ui.vertical_centered(|ui| {
-                    about_formula(ui);
-                });
+                about_formula(ui);
                 ui.add_space(16.0);
                 ui.label(RichText::new(format!("FreePlots Engine {}", fp_core::VERSION)).strong());
                 ui.label(
@@ -589,20 +587,16 @@ impl FreePlotsApp {
                     .size(12.0),
                 );
                 ui.add_space(12.0);
-                ui.vertical_centered(|ui| {
-                    ui.hyperlink_to(
-                        "github.com/nasp2000/FreePlots",
-                        "https://github.com/nasp2000/FreePlots",
-                    );
-                });
+                ui.hyperlink_to(
+                    "github.com/nasp2000/FreePlots",
+                    "https://github.com/nasp2000/FreePlots",
+                );
                 ui.add_space(8.0);
-                ui.vertical_centered(|ui| {
-                    ui.label(
-                        RichText::new(self.catalog().label("MIT license"))
-                            .size(12.0)
-                            .color(ui.visuals().text_color()),
-                    );
-                });
+                ui.label(
+                    RichText::new(self.catalog().label("MIT license"))
+                        .size(12.0)
+                        .color(ui.visuals().text_color()),
+                );
             });
         self.show_about = open;
     }

@@ -586,6 +586,12 @@ fn the_about_dialog_has_no_clear_button() {
         "the About dialog must not show a Clear button"
     );
     assert!(harness.get_by_label("MIT license").rect().width() > 0.0);
+    // The formula header is left-aligned, not centred in the dialog.
+    let formula = harness.get_by_label("FreePlots =").rect();
+    assert!(
+        formula.left() - window.left() < 40.0,
+        "the About header is not left-aligned"
+    );
     assert!(
         harness
             .get_by_label("github.com/nasp2000/FreePlots")
