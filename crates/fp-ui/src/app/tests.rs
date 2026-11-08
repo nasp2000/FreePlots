@@ -586,18 +586,18 @@ fn the_about_dialog_has_no_clear_button() {
         "the About dialog must not show a Clear button"
     );
     assert!(harness.get_by_label("MIT license").rect().width() > 0.0);
+    assert!(
+        harness
+            .get_by_label("Visit the public FreePlots repository")
+            .rect()
+            .width()
+            > 0.0
+    );
     // The formula header is left-aligned, not centred in the dialog.
     let formula = harness.get_by_label("FreePlots =").rect();
     assert!(
         formula.left() - window.left() < 40.0,
         "the About header is not left-aligned"
-    );
-    assert!(
-        harness
-            .get_by_label("github.com/nasp2000/FreePlots")
-            .rect()
-            .width()
-            > 0.0
     );
     assert!(
         harness
@@ -7656,6 +7656,7 @@ fn the_about_and_help_follow_the_language() {
         "Statistics and analysis software written in Rust by AI, accessible to everyone.",
     );
     harness.get_by_label("MIT license");
+    harness.get_by_label("Visit the public FreePlots repository");
     assert_eq!(
         harness
             .query_all_by_label(
@@ -7674,6 +7675,12 @@ fn the_about_and_help_follow_the_language() {
         "Software de análise e estatística escrito em Rust por IA, acessível a todos.",
     );
     harness.get_by_label("Licença MIT");
+    harness.get_by_label("Visite o repositório público do FreePlots");
+    harness.get_by_label("Motor FreePlots 0.1.0");
+    assert_eq!(
+        harness.query_all_by_label("FreePlots Engine 0.1.0").count(),
+        0
+    );
     assert_eq!(harness.query_all_by_label("MIT license").count(), 0);
     assert_eq!(
         harness

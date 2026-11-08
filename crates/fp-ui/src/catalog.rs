@@ -154,6 +154,7 @@ impl UiCatalog {
             "English" => "Inglês",
             "Português" => "Português",
             "About FreePlots" => "Sobre o FreePlots",
+            "FreePlots Engine" => "Motor FreePlots",
             "Where the settings are stored…" => "Onde estão guardadas as definições…",
             "Third-party licences…" => "Licenças de terceiros…",
             "Show the tour" => "Ver o tour",
@@ -415,6 +416,7 @@ impl UiCatalog {
                 "Software de análise e estatística escrito em Rust por IA, acessível a todos."
             }
             "MIT license" => "Licença MIT",
+            "Visit the public FreePlots repository" => "Visite o repositório público do FreePlots",
             // Help.
             "New worksheet, open and save as" => "Nova folha, abrir e guardar como",
             "Print the Session report" => "Imprimir o relatório da sessão",
