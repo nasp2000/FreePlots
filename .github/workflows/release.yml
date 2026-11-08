@@ -61,18 +61,9 @@ jobs:
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: cargo build --release --locked -p fp-app --features desktop
-      # A downloaded release must be signed: SmartScreen only trusts a signed
-      # binary, and an unsigned tag release is not a production artefact.
-      - name: Require the signing certificate
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
-        env:
-          CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
-          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
-        run: |
-          if (-not $env:CERT_PFX -or -not $env:CERT_PASSWORD) {
-            throw "Configure WINDOWS_CERT_PFX and WINDOWS_CERT_PASSWORD for a release tag."
-          }
+      # Unsigned Windows release for now: the release notes tell the user to
+      # verify the SHA-256. A certificate or signing token can be added later
+      # without changing the rest of the pipeline.
       - name: Sign and verify the executable
         shell: pwsh
         env:

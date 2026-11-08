@@ -16,6 +16,12 @@ All notable changes to FreePlots are recorded here. The format follows
 - Expected-PPM confidence-interval record for normal capability, and the
   reference-corpus provenance report.
 
+### Notes
+
+- The Windows executable is unsigned for now: SmartScreen may warn on a
+  downloaded copy. Verify the SHA-256 against `SHA256SUMS` in the release before
+  running it.
+
 ### Fixed
 
 - Closing the window with unsaved changes now asks before discarding them and
