@@ -6,6 +6,8 @@ use super::*;
 impl FreePlotsApp {
     pub fn show(&mut self, ui: &mut egui::Ui) {
         self.poll_analysis(ui.ctx());
+        ui.ctx()
+            .data_mut(|data| data.insert_temp(egui::Id::new("fp_dialog_open"), false));
         // A window close with unsaved work is cancelled once and turned into a
         // prompt. A project save in flight keeps cancelling the close until the
         // runner writes the file.
@@ -210,6 +212,26 @@ impl FreePlotsApp {
         self.axis_scale_window(&ctx);
         self.data_display_window(&ctx);
         self.reference_line_window(&ctx);
+        // A modal dialog must be visible above the native graph viewport: the
+        // graph is a child window and would otherwise cover the centred save
+        // and option dialogs. The level returns to normal when the last
+        // dialog closes.
+        let dialog_open = ctx
+            .data(|data| data.get_temp::<bool>(egui::Id::new("fp_dialog_open")))
+            .unwrap_or(false);
+        if dialog_open != self.dialogs_on_top {
+            self.dialogs_on_top = dialog_open;
+            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(if dialog_open {
+                egui::WindowLevel::AlwaysOnTop
+            } else {
+                egui::WindowLevel::Normal
+            }));
+            if dialog_open {
+                // The graph may be a separate child viewport; bring the main
+                // window (which owns the dialog) to the front as well.
+                ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+            }
+        }
         self.persist_preferences();
     }
     pub(super) fn toolbar(&mut self, ui: &mut egui::Ui) {

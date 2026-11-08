@@ -465,6 +465,7 @@ impl FreePlotsApp {
             restore_request: false,
             discard_autosave: false,
             open_url_request: None,
+            dialogs_on_top: false,
             batch_request: None,
             browse_request: None,
             folder_request: None,

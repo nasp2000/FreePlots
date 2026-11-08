@@ -1378,6 +1378,8 @@ pub struct FreePlotsApp {
     discard_autosave: bool,
     /// A link the user clicked; the desktop runner opens it in the browser.
     open_url_request: Option<String>,
+    /// Whether the main viewport is currently raised for an open dialog.
+    dialogs_on_top: bool,
     batch_request: Option<BatchRequest>,
     browse_request: Option<BrowseRequest>,
     folder_request: Option<FolderRequest>,
@@ -5075,6 +5077,10 @@ impl<'a> DialogWindow<'a> {
         ctx: &egui::Context,
         add_contents: impl FnOnce(&mut egui::Ui) -> R,
     ) -> Option<egui::InnerResponse<Option<R>>> {
+        // Every dialog marks the frame, so the runner can raise the main
+        // window above an open native graph viewport for as long as one is
+        // visible.
+        ctx.data_mut(|data| data.insert_temp(egui::Id::new("fp_dialog_open"), true));
         // Open in the middle of the window, then let the user drag it. A
         // pinned dialog keeps the position it was given.
         if !self.fixed {
@@ -5361,6 +5367,7 @@ fn dialog_window<'a>(title: impl Into<String>) -> DialogWindow<'a> {
         clear: true,
         fixed: false,
         inner: egui::Window::new(egui::RichText::new(title.into()).heading())
+            .order(egui::Order::Foreground)
             .title_frame(
                 egui::Frame::window(&egui::Style::default())
                     .fill(egui::Color32::TRANSPARENT)

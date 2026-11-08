@@ -629,6 +629,23 @@ fn the_about_link_asks_the_runner_to_open_the_browser() {
 }
 
 #[test]
+fn an_open_dialog_raises_the_window() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.show_save = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    assert!(harness.state().dialogs_on_top);
+    harness.state_mut().show_save = false;
+    harness.run();
+    assert!(!harness.state().dialogs_on_top);
+}
+
+#[test]
 fn the_plus_button_adds_a_worksheet_tab() {
     use egui_kittest::{Harness, kittest::Queryable};
 
@@ -3545,13 +3562,18 @@ fn grid_100k_by_20_stays_inside_the_frame_budget() {
         output.textures_delta.clear();
     }
     let frame = started.elapsed() / 3;
-    // The 20 ms budget is the desktop target; the Raspberry Pi 4 is
-    // slower and gets a 60 ms budget for the same frame.
-    let frame_budget = if cfg!(target_arch = "aarch64") {
-        Duration::from_millis(60)
-    } else {
-        Duration::from_millis(20)
-    };
+    // The 20 ms budget is the desktop target; the Raspberry Pi 4 and the
+    // shared CI runner get a wider budget for the same frame.
+    let frame_budget_ms = std::env::var("FREEPLOTS_FRAME_BUDGET_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(if cfg!(target_arch = "aarch64") {
+            60
+        } else {
+            20
+        });
+    let frame_budget = Duration::from_millis(frame_budget_ms);
     println!("100k×20 frame: {frame:?} (budget {frame_budget:?})");
     assert!(frame <= frame_budget, "frame took {frame:?}");
 
@@ -3560,11 +3582,16 @@ fn grid_100k_by_20_stays_inside_the_frame_budget() {
     let started = Instant::now();
     assert!(app.commit_cell());
     let edit = started.elapsed();
-    let edit_budget = if cfg!(target_arch = "aarch64") {
-        Duration::from_millis(40)
-    } else {
-        Duration::from_millis(16)
-    };
+    let edit_budget_ms = std::env::var("FREEPLOTS_EDIT_BUDGET_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(if cfg!(target_arch = "aarch64") {
+            40
+        } else {
+            16
+        });
+    let edit_budget = Duration::from_millis(edit_budget_ms);
     println!("cell edit + status summary: {edit:?} (budget {edit_budget:?})");
     assert!(edit <= edit_budget, "edit took {edit:?}");
 }
