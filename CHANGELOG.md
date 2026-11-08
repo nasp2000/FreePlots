@@ -6,13 +6,21 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Release downloads are one `.zip` per platform: Windows x86_64 and
+  Raspberry Pi 4 (aarch64). Each archive carries the executable, the licence
+  inventory, the third-party notices, the SPDX SBOM and a short README, and
+  `SHA256SUMS` covers the archives.
+- Linux x86_64 is no longer published.
+
 ## [0.1.0] - 2026-11-08
 
 ### Added
 
-- Portable Windows x86_64 and Linux aarch64 executables, with the licence
-  inventory, third-party notices and SPDX SBOM next to each build.
-- Signed Windows executable and a `SHA256SUMS` file in every release.
+- One archive per platform (Windows x86_64 and Raspberry Pi 4, aarch64), with
+  the licence inventory, third-party notices and SPDX SBOM inside.
+- An unsigned Windows executable and a `SHA256SUMS` file in every release.
 - Expected-PPM confidence-interval record for normal capability, and the
   reference-corpus provenance report.
 

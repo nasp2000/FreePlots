@@ -113,26 +113,39 @@ jobs:
             --third-party licences-out/THIRD-PARTY.md \
             --notice licences-out/LICENSES.txt \
             --created "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          mkdir -p dist
-          cp target/release/FreePlots.exe dist/
-          cp licences-out/LICENSES.txt licences-out/THIRD-PARTY.md licences-out/DEPENDENCIES.csv licences-out/sbom.spdx.json dist/
-      - name: Upload the executable and notices
+      - name: Bundle the release archive
+        shell: pwsh
+        run: |
+          $name = "FreePlots-windows-x86_64"
+          $staging = "bundle\$name"
+          New-Item -ItemType Directory -Force -Path $staging, "dist" | Out-Null
+          Copy-Item target/release/FreePlots.exe $staging
+          Copy-Item licences-out/LICENSES.txt, licences-out/THIRD-PARTY.md, `
+            licences-out/DEPENDENCIES.csv, licences-out/sbom.spdx.json $staging
+          @(
+            "FreePlots $env:GITHUB_REF_NAME",
+            "",
+            "This archive contains the executable, the licence inventory, the third-party notices and the SPDX SBOM.",
+            "",
+            "The Windows executable is unsigned: SmartScreen may warn on a downloaded copy.",
+            "Verify the archive against SHA256SUMS before extracting it."
+          ) | Set-Content "$staging\README.txt"
+          Compress-Archive -Path "$staging\*" -DestinationPath "dist\$name.zip" -CompressionLevel Optimal
+      - name: Upload the archive
         uses: actions/upload-artifact@v4
         with:
           name: FreePlots-windows-x86_64
-          path: dist
+          path: dist/FreePlots-windows-x86_64.zip
           if-no-files-found: error
 
   linux:
-    name: Linux ${{ matrix.arch }} portable
+    name: Raspberry Pi 4 (aarch64) portable
     needs: test
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: x86_64
-            runner: ubuntu-latest
           - arch: aarch64
             runner: ubuntu-24.04-arm
     steps:
@@ -147,7 +160,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxkbcommon-dev \
-            libgl1-mesa-dev libegl1-mesa-dev
+            libgl1-mesa-dev libegl1-mesa-dev zip
       - name: Build portable binary
         run: cargo build --release --locked -p fp-app --features desktop
       - name: Strip the binary
@@ -162,19 +175,30 @@ jobs:
           esac
           python3 scripts/licence-inventory.py \
             --platform "$PLATFORM" \
-            --artifact "FreePlots-linux-${{ matrix.arch }}" \
+            --artifact "FreePlots-rpi4-${{ matrix.arch }}" \
             --output-dir licences-out \
             --third-party licences-out/THIRD-PARTY.md \
             --notice licences-out/LICENSES.txt \
             --created "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           mkdir -p dist
-          cp target/release/FreePlots dist/
-          cp licences-out/LICENSES.txt licences-out/THIRD-PARTY.md licences-out/DEPENDENCIES.csv licences-out/sbom.spdx.json dist/
-      - name: Upload the binary and notices
+          name="FreePlots-rpi4-${{ matrix.arch }}"
+          staging="bundle/$name"
+          mkdir -p "$staging"
+          cp target/release/FreePlots "$staging/"
+          cp licences-out/LICENSES.txt licences-out/THIRD-PARTY.md licences-out/DEPENDENCIES.csv licences-out/sbom.spdx.json "$staging/"
+          {
+            echo "FreePlots $GITHUB_REF_NAME"
+            echo
+            echo "This archive contains the executable, the licence inventory, the third-party notices and the SPDX SBOM."
+            echo
+            echo "Verify the archive against SHA256SUMS before extracting it."
+          } > "$staging/README.txt"
+          (cd "$staging" && zip -q -r "../../dist/$name.zip" .)
+      - name: Upload the archive
         uses: actions/upload-artifact@v4
         with:
-          name: FreePlots-linux-${{ matrix.arch }}
-          path: dist
+          name: FreePlots-rpi4-${{ matrix.arch }}
+          path: dist/FreePlots-rpi4-${{ matrix.arch }}.zip
           if-no-files-found: error
 
   publish:
@@ -187,25 +211,15 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Stage binaries with their own notices and SBOM
+      - name: Collect the archives
         run: |
           mkdir -p release
-          cp artifacts/FreePlots-windows-x86_64/FreePlots.exe release/
-          for f in LICENSES.txt THIRD-PARTY.md DEPENDENCIES.csv sbom.spdx.json; do
-            cp "artifacts/FreePlots-windows-x86_64/$f" "release/FreePlots-windows-x86_64-$f"
-          done
-          for arch in x86_64 aarch64; do
-            cp "artifacts/FreePlots-linux-$arch/FreePlots" "release/FreePlots-linux-$arch"
-            for f in LICENSES.txt THIRD-PARTY.md DEPENDENCIES.csv sbom.spdx.json; do
-              cp "artifacts/FreePlots-linux-$arch/$f" "release/FreePlots-linux-$arch-$f"
-            done
-          done
+          find artifacts -type f -name '*.zip' -exec cp {} release/ \;
+          ls -lh release
       - name: Checksums
         run: |
           cd release
-          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
-            | sort -z \
-            | xargs -0 sha256sum > SHA256SUMS
+          sha256sum *.zip > SHA256SUMS
           cat SHA256SUMS
       - name: Release notes from the CHANGELOG
         run: python3 scripts/changelog-section.py "$GITHUB_REF_NAME" > release-notes.md

@@ -47,9 +47,9 @@ The **Samples** button opens a gallery of ready worksheets with the analysis alr
 ## Get started
 
 ### Portable builds
-Portable executables are produced for **Windows x86_64** and **Linux aarch64**. There is no installer, no registry and no administrator requirement.
+Portable executables are produced for **Windows x86_64** and **Raspberry Pi 4 (aarch64)**. Each release ships one `.zip` per platform with the executable, the licence inventory, the third-party notices, the SPDX SBOM and a short README. There is no installer, no registry and no administrator requirement.
 
-The Windows executable is currently unsigned, so SmartScreen may show a warning on first run; choose **More info → Run anyway**. Compare its SHA-256 with the `SHA256SUMS` file in the release before running it.
+The Windows executable is currently unsigned, so SmartScreen may show a warning on first run; choose **More info → Run anyway**. Compare the archive SHA-256 with the `SHA256SUMS` file in the release before extracting it.
 
 ### Build from source
 Rust 1.99 or newer:
