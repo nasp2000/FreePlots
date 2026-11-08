@@ -1449,6 +1449,19 @@ impl FreePlotsApp {
                 if menu_icon_item(
                     ui,
                     ToolIcon::Info,
+                    self.catalog().label("Diagnostics…"),
+                    None,
+                    true,
+                )
+                .on_hover_text("Version, data folder, log path and last error")
+                .clicked()
+                {
+                    self.show_diagnostics = true;
+                    ui.close();
+                }
+                if menu_icon_item(
+                    ui,
+                    ToolIcon::Info,
                     self.catalog().label("Assistant for agents…"),
                     None,
                     true,

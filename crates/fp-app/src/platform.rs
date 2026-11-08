@@ -63,6 +63,47 @@ pub fn open_url(url: &str) -> Result<(), String> {
         .map_err(|error| format!("{url}: {error}"))
 }
 
+/// Name of the diagnostic log in the data directory.
+pub const LOG_NAME: &str = "freeplots.log";
+
+/// Appends one line to the diagnostic log, rotating a file larger than 1 MiB.
+#[cfg(feature = "desktop")]
+pub fn log_line(path: &Path, line: &str) {
+    if let Ok(metadata) = fs::metadata(path)
+        && metadata.len() > 1_048_576
+    {
+        let _ = fs::rename(path, path.with_extension("log.1"));
+    }
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{line}");
+    }
+}
+
+/// Reads at most `max` bytes from the end of the log.
+#[cfg(feature = "desktop")]
+pub fn log_tail(path: &Path, max: usize) -> String {
+    let Ok(bytes) = fs::read(path) else {
+        return String::new();
+    };
+    let start = bytes.len().saturating_sub(max);
+    String::from_utf8_lossy(&bytes[start..]).into_owned()
+}
+
+/// Appends every panic to the log before the default hook prints it.
+#[cfg(feature = "desktop")]
+pub fn install_panic_hook(path: PathBuf) {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let thread = std::thread::current();
+        let name = thread.name().unwrap_or("unnamed");
+        log_line(&path, &format!("panic in {name}: {info}"));
+        if let Some(location) = info.location() {
+            log_line(&path, &format!("  at {location}"));
+        }
+        default(info);
+    }));
+}
+
 /// Reads a CSV file through the engine parser.
 ///
 /// The UI never opens files; the desktop runner calls this function.
@@ -374,6 +415,22 @@ mod tests {
         assert!(open_url("file:///etc/passwd").is_err());
         assert!(open_url("javascript:alert(1)").is_err());
         assert!(open_url("../relative").is_err());
+    }
+
+    #[cfg(feature = "desktop")]
+    #[test]
+    fn the_log_rotates_and_keeps_the_tail() {
+        let dir = std::env::temp_dir().join(format!("fp-log-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("dir");
+        let log = dir.join(LOG_NAME);
+        log_line(&log, "first line");
+        assert!(log_tail(&log, 1024).contains("first line"));
+        fs::write(&log, "x".repeat(1_048_577)).expect("big log");
+        log_line(&log, "after rotation");
+        assert!(dir.join("freeplots.log.1").exists());
+        assert!(fs::metadata(&log).expect("log").len() < 100);
+        assert!(log_tail(&log, 1024).contains("after rotation"));
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[cfg(feature = "desktop")]

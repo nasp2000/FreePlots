@@ -604,6 +604,40 @@ impl FreePlotsApp {
         self.show_about = true;
     }
 
+    /// Opens the diagnostics window.
+    pub fn open_diagnostics(&mut self) {
+        self.show_diagnostics = true;
+    }
+
+    /// Fills the diagnostics window from the desktop runner.
+    pub fn set_diagnostics(&mut self, text: String, log_path: PathBuf) {
+        self.diagnostics_text = text;
+        self.log_path = Some(log_path);
+    }
+
+    /// Text shown at the top of the diagnostics window.
+    #[must_use]
+    pub fn diagnostics_text(&self) -> &str {
+        &self.diagnostics_text
+    }
+
+    /// Log file the runner appends to, when it resolved a data directory.
+    #[must_use]
+    pub fn diagnostics_log_path(&self) -> Option<&std::path::Path> {
+        self.log_path.as_deref()
+    }
+
+    /// Takes the request to open the data folder.
+    pub fn take_open_data_dir_request(&mut self) -> bool {
+        std::mem::take(&mut self.open_data_dir_request)
+    }
+
+    /// Last error shown to the user, if any.
+    #[must_use]
+    pub fn last_error(&self) -> Option<&str> {
+        self.error.as_deref()
+    }
+
     pub(super) fn about_window(&mut self, ctx: &egui::Context) {
         if !self.show_about {
             return;
@@ -769,6 +803,56 @@ impl FreePlotsApp {
             ctx.copy_text(text);
         }
         self.show_settings_info = open;
+    }
+
+    /// Version, data folder, log path and the last error, for a bug report.
+    pub(super) fn diagnostics_window(&mut self, ctx: &egui::Context) {
+        if !self.show_diagnostics {
+            return;
+        }
+        let mut open = self.show_diagnostics;
+        dialog_window(self.catalog().label("Diagnostics"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(620.0)
+            .show(ctx, |ui| {
+                ui.label(self.catalog().label("Version and paths for a bug report:"));
+                egui::ScrollArea::vertical()
+                    .max_height(180.0)
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::Label::new(
+                                RichText::new(&self.diagnostics_text).monospace().size(12.0),
+                            )
+                            .selectable(true),
+                        );
+                    });
+                if let Some(error) = &self.error {
+                    ui.colored_label(ui.visuals().error_fg_color, error);
+                }
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("Copy diagnostics"))
+                        .clicked()
+                    {
+                        let mut text = self.diagnostics_text.clone();
+                        if let Some(error) = &self.error {
+                            text.push_str("\nlast error: ");
+                            text.push_str(error);
+                        }
+                        ui.ctx().copy_text(text);
+                    }
+                    if ui
+                        .help_button(self.catalog().label("Open data folder"))
+                        .clicked()
+                    {
+                        self.open_data_dir_request = true;
+                    }
+                });
+            });
+        self.show_diagnostics = open;
     }
     pub(super) fn agents_window(&mut self, ctx: &egui::Context) {
         if !self.show_agents_dialog {

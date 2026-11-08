@@ -646,6 +646,29 @@ fn an_open_dialog_raises_the_window() {
 }
 
 #[test]
+fn the_diagnostics_dialog_copies_the_report_and_opens_the_folder() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_diagnostics(
+        "FreePlots 0.1.0\nOS: test\nData folder: /tmp\nLog: /tmp/freeplots.log".to_owned(),
+        std::path::PathBuf::from("/tmp/freeplots.log"),
+    );
+    app.open_diagnostics();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.get_by_label("Diagnostics");
+    harness.get_by_label("Copy diagnostics").click();
+    harness.run();
+    harness.get_by_label("Open data folder").click();
+    harness.run();
+    assert!(harness.state_mut().take_open_data_dir_request());
+    assert!(!harness.state_mut().take_open_data_dir_request());
+}
+
+#[test]
 fn the_plus_button_adds_a_worksheet_tab() {
     use egui_kittest::{Harness, kittest::Queryable};
 

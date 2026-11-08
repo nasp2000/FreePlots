@@ -423,6 +423,11 @@ impl UiCatalog {
             "Restore" => "Restaurar",
             "Discard" => "Descartar",
             "Later" => "Mais tarde",
+            "Diagnostics…" => "Diagnósticos…",
+            "Diagnostics" => "Diagnósticos",
+            "Version and paths for a bug report:" => "Versão e caminhos para um relatório de erro:",
+            "Copy diagnostics" => "Copiar diagnósticos",
+            "Open data folder" => "Abrir pasta de dados",
             "Visit the public FreePlots repository" => "Visite o repositório público do FreePlots",
             // Help.
             "New worksheet, open and save as" => "Nova folha, abrir e guardar como",

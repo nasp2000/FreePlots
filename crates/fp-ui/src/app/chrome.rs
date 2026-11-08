@@ -196,6 +196,7 @@ impl FreePlotsApp {
         self.conditional_dialog(&ctx);
         self.about_window(&ctx);
         self.settings_info_window(&ctx);
+        self.diagnostics_window(&ctx);
         self.agents_window(&ctx);
         self.licences_window(&ctx);
         self.tour_window(&ctx);

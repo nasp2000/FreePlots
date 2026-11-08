@@ -32,6 +32,10 @@ struct Desktop {
     folder_browse: Option<Receiver<Option<PathBuf>>>,
     /// The black caption is applied once, after the native window exists.
     dark_caption: bool,
+    /// Data directory, for the diagnostics window.
+    data_dir: Option<PathBuf>,
+    /// Last error already written to the log.
+    last_error: Option<String>,
 }
 
 impl eframe::App for Desktop {
@@ -130,6 +134,21 @@ impl eframe::App for Desktop {
             && let Err(error) = crate::platform::open_url(&url)
         {
             self.app.set_error(error);
+        }
+        if self.app.take_open_data_dir_request()
+            && let Some(dir) = &self.data_dir
+            && let Err(error) = crate::platform::open_path(dir)
+        {
+            self.app.set_error(error);
+        }
+        let error = self.app.last_error().map(str::to_owned);
+        if error != self.last_error {
+            if let Some(error) = &error
+                && let Some(log) = self.app.diagnostics_log_path()
+            {
+                crate::platform::log_line(log, &format!("error: {error}"));
+            }
+            self.last_error = error;
         }
 
         let title = format!("FreePlots — {}", self.app.source());
@@ -726,14 +745,28 @@ pub fn run(args: &[String]) -> Result<(), String> {
     }
 
     let mut app = FreePlotsApp::new();
-    // Preferences live in the data directory (next to the executable when it
-    // is writable, otherwise the user data directory).
-    let preferences = std::env::current_exe()
+    // Preferences and the diagnostic log live in the data directory (next to
+    // the executable when it is writable, otherwise the user data directory).
+    let data_dir = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
         .and_then(|dir| crate::platform::resolve_data_dir(&dir).ok())
-        .map(|data| data.path.join("settings.json"));
-    if let Some(path) = preferences {
+        .map(|data| data.path);
+    let log_path = data_dir
+        .as_ref()
+        .map(|dir| dir.join(crate::platform::LOG_NAME));
+    if let Some(log) = &log_path {
+        crate::platform::install_panic_hook(log.clone());
+        crate::platform::log_line(
+            log,
+            &format!(
+                "FreePlots {} starting on {}",
+                fp_core::VERSION,
+                std::env::consts::OS
+            ),
+        );
+    }
+    if let Some(path) = data_dir.as_ref().map(|dir| dir.join("settings.json")) {
         app.set_preferences_path(path);
     }
     // A newer autosave is offered before the first file is opened.
@@ -786,6 +819,23 @@ pub fn run(args: &[String]) -> Result<(), String> {
             Err(_) => eframe::Renderer::Glow,
         },
     };
+    if let (Some(dir), Some(log)) = (&data_dir, &log_path) {
+        let renderer_name = match renderer {
+            eframe::Renderer::Glow => "glow",
+            eframe::Renderer::Wgpu => "wgpu",
+        };
+        app.set_diagnostics(
+            format!(
+                "FreePlots {}\nOS: {}\nRenderer: {}\nData folder: {}\nLog: {}",
+                fp_core::VERSION,
+                std::env::consts::OS,
+                renderer_name,
+                dir.display(),
+                log.display()
+            ),
+            log.clone(),
+        );
+    }
     let options = eframe::NativeOptions {
         renderer,
         viewport: egui::ViewportBuilder::default()
@@ -811,6 +861,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
                 browse: None,
                 folder_browse: None,
                 dark_caption: false,
+                data_dir,
+                last_error: None,
             }))
         }),
     )

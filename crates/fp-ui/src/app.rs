@@ -1290,6 +1290,11 @@ pub struct FreePlotsApp {
     show_agents_dialog: bool,
     /// Help → Where the settings are stored.
     show_settings_info: bool,
+    /// Diagnostics dialog: version, data folder, log path and last error.
+    show_diagnostics: bool,
+    diagnostics_text: String,
+    log_path: Option<PathBuf>,
+    open_data_dir_request: bool,
     /// Help → Third-party licences.
     show_licences: bool,
     /// Help → Show the tour.
