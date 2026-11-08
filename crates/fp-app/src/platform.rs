@@ -37,6 +37,32 @@ pub fn open_path(path: &Path) -> Result<(), String> {
         .map_err(|error| format!("{}: {error}", path.display()))
 }
 
+/// Opens an HTTP(S) link in the default browser.
+///
+/// Only web links are accepted; a `file:` or custom-scheme URL cannot make the
+/// runner start an arbitrary handler.
+#[cfg(feature = "desktop")]
+pub fn open_url(url: &str) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(format!("refusing to open a non-web link: {url}"));
+    }
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = std::process::Command::new("rundll32");
+        command.arg("url.dll,FileProtocolHandler");
+        command
+    };
+    #[cfg(target_os = "macos")]
+    let mut command = std::process::Command::new("open");
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = std::process::Command::new("xdg-open");
+    command
+        .arg(url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("{url}: {error}"))
+}
+
 /// Reads a CSV file through the engine parser.
 ///
 /// The UI never opens files; the desktop runner calls this function.
@@ -172,6 +198,31 @@ pub fn write_text(path: &Path, text: &str) -> Result<(), String> {
 #[cfg(feature = "desktop")]
 pub fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
     fs::write(path, bytes).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Removes a file, ignoring "not found".
+#[cfg(feature = "desktop")]
+pub fn remove_file(path: &Path) -> Result<(), String> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("{}: {error}", path.display())),
+    }
+}
+
+/// `true` when `candidate` was modified after `reference`.
+///
+/// A missing timestamp counts as "newer", so a dangling autosave is still
+/// offered instead of being silently ignored.
+#[cfg(feature = "desktop")]
+pub fn is_newer(candidate: &Path, reference: &Path) -> bool {
+    let Ok(candidate) = fs::metadata(candidate).and_then(|meta| meta.modified()) else {
+        return false;
+    };
+    let Ok(reference) = fs::metadata(reference).and_then(|meta| meta.modified()) else {
+        return true;
+    };
+    candidate > reference
 }
 
 /// Loads every worksheet of a `.fpp` project.
@@ -315,6 +366,14 @@ mod tests {
         assert_eq!(missing.len(), 1);
         assert!(missing[0].1.is_err());
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(feature = "desktop")]
+    #[test]
+    fn only_web_links_are_opened() {
+        assert!(open_url("file:///etc/passwd").is_err());
+        assert!(open_url("javascript:alert(1)").is_err());
+        assert!(open_url("../relative").is_err());
     }
 
     #[cfg(feature = "desktop")]

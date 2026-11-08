@@ -609,6 +609,26 @@ fn the_about_dialog_has_no_clear_button() {
 }
 
 #[test]
+fn the_about_link_asks_the_runner_to_open_the_browser() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_about = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness
+        .get_by_label("Visit the public FreePlots repository")
+        .click();
+    harness.run();
+    assert_eq!(
+        harness.state_mut().take_open_url_request().as_deref(),
+        Some("https://github.com/nasp2000/FreePlots")
+    );
+}
+
+#[test]
 fn the_plus_button_adds_a_worksheet_tab() {
     use egui_kittest::{Harness, kittest::Queryable};
 
@@ -3087,6 +3107,86 @@ fn the_recovery_file_sits_next_to_the_preferences() {
     app.set_preferences_path(dir.join("settings.json"));
     assert_eq!(app.recovery_path(), Some(expected.as_path()));
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn autosave_runs_only_when_dirty_and_waits_for_the_interval() {
+    let mut app = FreePlotsApp::new();
+    let dir = std::env::temp_dir().join(format!("fp-autosave-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    app.set_data(frame(), "weights.csv [UTF-8]".to_owned());
+    app.set_preferences_path(dir.join("settings.json"));
+    let expected = dir.join("autosave.fpp");
+    assert_eq!(app.autosave_path(), Some(expected.as_path()));
+    assert!(!app.autosave_due());
+
+    app.edit_target = Some((0, 0));
+    app.edit_buffer = "3".to_owned();
+    app.edit_dirty = true;
+    assert!(app.commit_cell());
+    assert!(app.autosave_due());
+    app.note_autosave();
+    assert!(!app.autosave_due());
+    app.set_autosave_interval(std::time::Duration::ZERO);
+    assert!(app.autosave_due());
+
+    // A project save clears the flag and asks the runner to delete the file.
+    app.mark_saved("weights.fpp", FileKind::Project);
+    assert!(!app.dirty());
+    assert!(app.take_discard_autosave());
+    assert!(!app.take_discard_autosave());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn restoring_the_autosave_marks_the_project_dirty() {
+    let mut app = FreePlotsApp::new();
+    app.offer_restore(std::path::PathBuf::from("autosave.fpp"));
+    assert!(app.restore_prompt_open());
+    app.apply_restored(
+        vec![("Worksheet 1".to_owned(), frame())],
+        "autosave.fpp [recovered]".to_owned(),
+    );
+    assert!(!app.restore_prompt_open());
+    assert!(app.dirty());
+    assert_eq!(app.source(), "autosave.fpp [recovered]");
+    assert_eq!(app.save_kind, FileKind::Project);
+    assert_eq!(app.save_path, "recovered.fpp");
+    assert!(app.status().contains("Recovered"));
+}
+
+#[test]
+fn the_restore_prompt_offers_restore_discard_and_later() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.offer_restore(std::path::PathBuf::from("autosave.fpp"));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.get_by_label("Restore");
+    harness.get_by_label("Discard");
+    harness.get_by_label("Later").click();
+    harness.run();
+    assert!(!harness.state().restore_prompt_open());
+}
+
+#[test]
+fn the_restore_prompt_follows_the_language() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_language(fp_core::i18n::Lang::Portuguese);
+    app.offer_restore(std::path::PathBuf::from("autosave.fpp"));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.get_by_label("Recuperar trabalho não guardado");
+    harness.get_by_label("Restaurar");
+    harness.get_by_label("Descartar");
+    harness.get_by_label("Mais tarde");
 }
 
 #[test]

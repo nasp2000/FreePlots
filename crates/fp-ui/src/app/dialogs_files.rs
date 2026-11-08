@@ -225,6 +225,54 @@ impl FreePlotsApp {
             self.cancel_close();
         }
     }
+    /// Offers a newer autosave found at startup.
+    pub(super) fn restore_window(&mut self, ctx: &egui::Context) {
+        let Some(path) = self.restore_path.clone() else {
+            return;
+        };
+        let mut restore = false;
+        let mut discard = false;
+        let mut later = false;
+        dialog_window(self.catalog().label("Recover unsaved work"))
+            .without_clear()
+            .collapsible(false)
+            .resizable(false)
+            .default_width(460.0)
+            .show(ctx, |ui| {
+                ui.label(
+                    self.catalog()
+                        .label("A recovery copy from an earlier session is available."),
+                );
+                ui.label(
+                    RichText::new(path.display().to_string())
+                        .monospace()
+                        .size(12.0),
+                );
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Restore")).clicked() {
+                        restore = true;
+                    }
+                    if ui.help_button(self.catalog().label("Discard")).clicked() {
+                        discard = true;
+                    }
+                    if ui.help_button(self.catalog().label("Later")).clicked() {
+                        later = true;
+                    }
+                });
+            });
+        if restore {
+            self.restore_request = true;
+            self.restore_path = None;
+        }
+        if discard {
+            self.discard_autosave = true;
+            self.restore_path = None;
+        }
+        if later {
+            self.dismiss_restore();
+        }
+    }
+
     pub(super) fn sheet_rename_window(&mut self, ctx: &egui::Context) {
         if !self.show_sheet_rename {
             return;
@@ -597,15 +645,27 @@ impl FreePlotsApp {
                 );
                 ui.add_space(12.0);
                 ui.vertical_centered(|ui| {
-                    ui.hyperlink_to(
-                        self.catalog().label("Visit the public FreePlots repository"),
-                        "https://github.com/nasp2000/FreePlots",
-                    );
+                    if ui
+                        .hyperlink_to(
+                            self.catalog().label("Visit the public FreePlots repository"),
+                            "https://github.com/nasp2000/FreePlots",
+                        )
+                        .clicked()
+                    {
+                        self.open_url_request =
+                            Some("https://github.com/nasp2000/FreePlots".to_owned());
+                    }
                     ui.add_space(4.0);
-                    ui.hyperlink_to(
-                        self.catalog().label("MIT license"),
-                        "https://github.com/nasp2000/FreePlots/blob/main/LICENSE",
-                    );
+                    if ui
+                        .hyperlink_to(
+                            self.catalog().label("MIT license"),
+                            "https://github.com/nasp2000/FreePlots/blob/main/LICENSE",
+                        )
+                        .clicked()
+                    {
+                        self.open_url_request =
+                            Some("https://github.com/nasp2000/FreePlots/blob/main/LICENSE".to_owned());
+                    }
                 });
             });
         self.show_about = open;

@@ -19,6 +19,7 @@ impl FreePlotsApp {
             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
         }
         self.close_prompt_window(ui.ctx());
+        self.restore_window(ui.ctx());
         if ui.ctx().input(|input| input.key_pressed(egui::Key::Escape)) {
             self.close_dialogs();
         }

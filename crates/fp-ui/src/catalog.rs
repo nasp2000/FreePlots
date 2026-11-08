@@ -416,6 +416,13 @@ impl UiCatalog {
                 "Software de análise e estatística escrito em Rust por IA, acessível a todos."
             }
             "MIT license" => "Licença MIT",
+            "Recover unsaved work" => "Recuperar trabalho não guardado",
+            "A recovery copy from an earlier session is available." => {
+                "Está disponível uma cópia de recuperação de uma sessão anterior."
+            }
+            "Restore" => "Restaurar",
+            "Discard" => "Descartar",
+            "Later" => "Mais tarde",
             "Visit the public FreePlots repository" => "Visite o repositório público do FreePlots",
             // Help.
             "New worksheet, open and save as" => "Nova folha, abrir e guardar como",

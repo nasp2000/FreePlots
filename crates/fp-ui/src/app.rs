@@ -1360,6 +1360,20 @@ pub struct FreePlotsApp {
     recovery_request: bool,
     /// Recovery file, next to the preferences.
     recovery_path: Option<PathBuf>,
+    /// Autosave file, next to the preferences.
+    autosave_path: Option<PathBuf>,
+    /// Last autosave, to space the periodic writes.
+    last_autosave: Option<std::time::Instant>,
+    /// Minimum gap between autosaves.
+    autosave_interval: std::time::Duration,
+    /// A newer autosave offered at startup.
+    restore_path: Option<PathBuf>,
+    /// The user chose to restore it.
+    restore_request: bool,
+    /// The user chose to discard (delete) the autosave.
+    discard_autosave: bool,
+    /// A link the user clicked; the desktop runner opens it in the browser.
+    open_url_request: Option<String>,
     batch_request: Option<BatchRequest>,
     browse_request: Option<BrowseRequest>,
     folder_request: Option<FolderRequest>,
@@ -2159,6 +2173,9 @@ impl FreePlotsApp {
         self.error = None;
         if kind == FileKind::Project {
             self.dirty = false;
+            // The project is on disk: the autosave is no longer needed.
+            self.discard_autosave = true;
+            self.last_autosave = None;
         }
     }
 
@@ -2203,6 +2220,84 @@ impl FreePlotsApp {
         self.recovery_path.as_deref()
     }
 
+    /// Autosave file next to the preferences, when the desktop resolved one.
+    #[must_use]
+    pub fn autosave_path(&self) -> Option<&std::path::Path> {
+        self.autosave_path.as_deref()
+    }
+
+    /// `true` when a dirty project should be written to the autosave file.
+    ///
+    /// The first edit is written immediately; later writes wait for the
+    /// interval so a long editing session does not rewrite the file every
+    /// frame.
+    #[must_use]
+    pub fn autosave_due(&self) -> bool {
+        self.dirty
+            && self.autosave_path.is_some()
+            && self
+                .last_autosave
+                .is_none_or(|last| last.elapsed() >= self.autosave_interval)
+    }
+
+    /// Records that the autosave was written.
+    pub fn note_autosave(&mut self) {
+        self.last_autosave = Some(std::time::Instant::now());
+    }
+
+    /// Replaces the autosave interval (tests use a shorter one).
+    pub fn set_autosave_interval(&mut self, interval: std::time::Duration) {
+        self.autosave_interval = interval;
+    }
+
+    /// Offers a newer autosave found at startup.
+    pub fn offer_restore(&mut self, path: PathBuf) {
+        self.restore_path = Some(path);
+    }
+
+    /// `true` while the restore prompt is open.
+    #[must_use]
+    pub fn restore_prompt_open(&self) -> bool {
+        self.restore_path.is_some()
+    }
+
+    /// Takes the user's choice to restore; the runner reads the file.
+    pub fn take_restore_request(&mut self) -> bool {
+        std::mem::take(&mut self.restore_request)
+    }
+
+    /// Takes the request to delete the autosave file.
+    pub fn take_discard_autosave(&mut self) -> bool {
+        std::mem::take(&mut self.discard_autosave)
+    }
+
+    /// Takes a link the user clicked, for the desktop runner to open.
+    pub fn take_open_url_request(&mut self) -> Option<String> {
+        self.open_url_request.take()
+    }
+
+    /// Loads the worksheets recovered from the autosave.
+    ///
+    /// The recovered project is unsaved work even when the source file was
+    /// clean, so it stays dirty until the user writes it to a `.fpp`.
+    pub fn apply_restored(&mut self, sheets: Vec<(String, DataFrame)>, source: String) {
+        self.load_project_sheets(sheets, source);
+        self.dirty = true;
+        self.restore_path = None;
+        self.restore_request = false;
+        self.last_autosave = Some(std::time::Instant::now());
+        // Recovered work is a project, not the autosave file: a save asks for
+        // a new `.fpp` name instead of overwriting the recovery copy.
+        self.save_kind = FileKind::Project;
+        self.save_path = "recovered.fpp".to_owned();
+        self.status = "Recovered unsaved work".to_owned();
+    }
+
+    /// Keeps the autosave for a later session without restoring it now.
+    pub fn dismiss_restore(&mut self) {
+        self.restore_path = None;
+    }
+
     /// Saves the project and closes once the runner confirms the write.
     pub fn save_before_close(&mut self) {
         self.close_prompt = false;
@@ -2216,6 +2311,7 @@ impl FreePlotsApp {
         self.close_after_save = false;
         self.close_confirmed = true;
         self.dirty = false;
+        self.discard_autosave = true;
     }
 
     /// Keeps the window open.
@@ -3603,6 +3699,9 @@ impl FreePlotsApp {
         self.recovery_path = path
             .parent()
             .map(|directory| directory.join("recovery.fpp"));
+        self.autosave_path = path
+            .parent()
+            .map(|directory| directory.join("autosave.fpp"));
         self.preferences_path = Some(path);
     }
 

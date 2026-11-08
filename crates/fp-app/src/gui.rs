@@ -97,6 +97,41 @@ impl eframe::App for Desktop {
 
         self.app.show(ui);
 
+        if self.app.autosave_due()
+            && let Some(path) = self.app.autosave_path().map(std::path::Path::to_path_buf)
+        {
+            let written =
+                fp_core::io::to_project_json_sheets(&self.app.project_sheets(), "autosave.fpp")
+                    .map_err(|error| error.to_string())
+                    .and_then(|json| crate::platform::write_text(&path, &json));
+            if let Err(error) = written {
+                self.app.set_status(format!("Autosave failed: {error}"));
+            }
+            self.app.note_autosave();
+        }
+        if self.app.take_restore_request()
+            && let Some(path) = self.app.autosave_path().map(std::path::Path::to_path_buf)
+        {
+            match crate::platform::load_project_sheets(&path) {
+                Ok(sheets) => self
+                    .app
+                    .apply_restored(sheets, format!("{} [recovered]", path.display())),
+                Err(error) => self
+                    .app
+                    .set_error(format!("Cannot restore the autosave: {error}")),
+            }
+        }
+        if self.app.take_discard_autosave()
+            && let Some(path) = self.app.autosave_path().map(std::path::Path::to_path_buf)
+        {
+            let _ = crate::platform::remove_file(&path);
+        }
+        if let Some(url) = self.app.take_open_url_request()
+            && let Err(error) = crate::platform::open_url(&url)
+        {
+            self.app.set_error(error);
+        }
+
         let title = format!("FreePlots — {}", self.app.source());
         ui.ctx()
             .send_viewport_cmd(egui::ViewportCommand::Title(title));
@@ -700,6 +735,29 @@ pub fn run(args: &[String]) -> Result<(), String> {
         .map(|data| data.path.join("settings.json"));
     if let Some(path) = preferences {
         app.set_preferences_path(path);
+    }
+    // A newer autosave is offered before the first file is opened.
+    let autosave = app.autosave_path().map(std::path::Path::to_path_buf);
+    if let Some(autosave) = autosave
+        && autosave.exists()
+    {
+        let newer = match path.as_deref() {
+            Some(project)
+                if project
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("fpp")) =>
+            {
+                crate::platform::is_newer(&autosave, project)
+            }
+            _ => true,
+        };
+        if newer {
+            app.offer_restore(autosave);
+        } else {
+            // The open project is newer than the autosave: it is stale.
+            let _ = crate::platform::remove_file(&autosave);
+        }
     }
     app.maybe_show_tour();
     app.set_background_analyses(true);
