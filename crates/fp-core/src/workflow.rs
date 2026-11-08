@@ -26,7 +26,7 @@ use crate::plot::{
 };
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::spc::{ControlChartKind, TestSet};
-use crate::special::{SplitMix64, chi_square_quantile, normal_cdf, normal_quantile, normal_sf};
+use crate::special::{SplitMix64, chi_square_quantile, normal_cdf, normal_quantile};
 
 /// What a probability plot displays, mirroring the documented behaviour's `BOTH`/symbols/fit
 /// display choice.
@@ -5066,6 +5066,125 @@ fn wilson_interval(successes: usize, n: usize, confidence: f64) -> Option<(f64, 
     Some(((center - half).max(0.0), (center + half).min(1.0)))
 }
 
+/// Expected PPM below and above the limits, with confidence intervals.
+#[derive(Debug, Clone, Copy)]
+struct ExpectedPpm {
+    low: f64,
+    high: f64,
+    total: f64,
+    low_ci: (f64, f64),
+    high_ci: (f64, f64),
+    total_ci: (f64, f64),
+}
+
+/// Normal-approximation interval for the expected PPM.
+///
+/// Each tail uses the z scale: `z = (limit - mean)/sigma`, with
+/// `SE(z) = sqrt(1/n + z²/(2·df))`. The total uses the logit of the summed
+/// tail probability and the delta-method variance of that sum.
+fn expected_ppm_interval(
+    mean: f64,
+    sigma: f64,
+    df: f64,
+    n: usize,
+    lsl: Option<f64>,
+    usl: Option<f64>,
+    confidence: f64,
+) -> Option<ExpectedPpm> {
+    if !mean.is_finite()
+        || !sigma.is_finite()
+        || sigma <= 0.0
+        || !df.is_finite()
+        || df <= 0.0
+        || n < 2
+        || !(0.0..1.0).contains(&confidence)
+    {
+        return None;
+    }
+    let z_critical = normal_quantile(1.0 - (1.0 - confidence) / 2.0);
+    let density = |z: f64| (-0.5 * z * z).exp() / (2.0 * std::f64::consts::PI).sqrt();
+    let (mut low, mut low_lo, mut low_hi) = (0.0, 0.0, 0.0);
+    let (mut high, mut high_lo, mut high_hi) = (0.0, 0.0, 0.0);
+    let (mut d_mean, mut d_sigma) = (0.0, 0.0);
+    if let Some(limit) = lsl {
+        let z = (limit - mean) / sigma;
+        let se = (1.0 / n as f64 + z * z / (2.0 * df)).sqrt();
+        low = normal_cdf(z);
+        low_lo = normal_cdf(z - z_critical * se);
+        low_hi = normal_cdf(z + z_critical * se);
+        d_mean += -density(z) / sigma;
+        d_sigma += -density(z) * z / sigma;
+    }
+    if let Some(limit) = usl {
+        let z = (limit - mean) / sigma;
+        let se = (1.0 / n as f64 + z * z / (2.0 * df)).sqrt();
+        high = 1.0 - normal_cdf(z);
+        high_lo = 1.0 - normal_cdf(z + z_critical * se);
+        high_hi = 1.0 - normal_cdf(z - z_critical * se);
+        d_mean += density(z) / sigma;
+        d_sigma += density(z) * z / sigma;
+    }
+    let total = low + high;
+    let total_ci = if lsl.is_some() && usl.is_some() && total > 0.0 && total < 1.0 {
+        let variance = d_mean * d_mean * sigma * sigma / n as f64
+            + d_sigma * d_sigma * sigma * sigma / (2.0 * df);
+        let logit = (total / (1.0 - total)).ln();
+        let se = variance.sqrt() / (total * (1.0 - total));
+        let lo = 1.0 / (1.0 + (-(logit - z_critical * se)).exp());
+        let hi = 1.0 / (1.0 + (-(logit + z_critical * se)).exp());
+        (lo, hi)
+    } else {
+        // One-sided total, or a probability at the boundary.
+        (low_lo + high_lo, low_hi + high_hi)
+    };
+    Some(ExpectedPpm {
+        low,
+        high,
+        total,
+        low_ci: (low_lo, low_hi),
+        high_ci: (high_lo, high_hi),
+        total_ci,
+    })
+}
+
+fn expected_ppm_table(overall: ExpectedPpm, within: ExpectedPpm, confidence: f64) -> Item {
+    let ppm = |value: f64| format!("{:.1}", value * 1_000_000.0);
+    let ci =
+        |(low, high): (f64, f64)| format!("{:.1} – {:.1}", low * 1_000_000.0, high * 1_000_000.0);
+    Item::Table {
+        headers: vec![
+            "PPM".to_owned(),
+            "Expected overall".to_owned(),
+            format!("{:.0}% CI", confidence * 100.0),
+            "Expected within".to_owned(),
+            format!("{:.0}% CI", confidence * 100.0),
+        ],
+        rows: vec![
+            vec![
+                "PPM < LSL".to_owned(),
+                ppm(overall.low),
+                ci(overall.low_ci),
+                ppm(within.low),
+                ci(within.low_ci),
+            ],
+            vec![
+                "PPM > USL".to_owned(),
+                ppm(overall.high),
+                ci(overall.high_ci),
+                ppm(within.high),
+                ci(within.high_ci),
+            ],
+            vec![
+                "PPM total".to_owned(),
+                ppm(overall.total),
+                ci(overall.total_ci),
+                ppm(within.total),
+                ci(within.total_ci),
+            ],
+        ],
+    }
+}
+
 fn observed_ppm_table(
     low: Option<usize>,
     high: Option<usize>,
@@ -5865,16 +5984,8 @@ pub fn capability_normal(
         }
         _ => None,
     };
-    let expected_ppm = |sigma: f64| {
-        let mut ppm = 0.0;
-        if let Some(lsl) = lsl {
-            ppm += normal_cdf((lsl - mean) / sigma) * 1_000_000.0;
-        }
-        if let Some(usl) = usl {
-            ppm += normal_sf((usl - mean) / sigma) * 1_000_000.0;
-        }
-        ppm
-    };
+    let overall_ppm = expected_ppm_interval(mean, overall, (n - 1) as f64, n, lsl, usl, confidence);
+    let within_ppm = expected_ppm_interval(mean, within, within_df, n, lsl, usl, confidence);
     let observed_low = lsl.map(|limit| {
         sample
             .values()
@@ -5949,11 +6060,6 @@ pub fn capability_normal(
             fmt_ci(cpk_overall_ci),
         ],
         vec![
-            "PPM (expected)".to_owned(),
-            format!("{:.1}", expected_ppm(within)),
-            format!("{:.1}", expected_ppm(overall)),
-        ],
-        vec![
             "PPM (observed)".to_owned(),
             format!("{observed:.1}"),
             format!("{observed:.1}"),
@@ -6018,6 +6124,15 @@ pub fn capability_normal(
         n,
         confidence,
     ));
+    if let (Some(overall_ppm), Some(within_ppm)) = (overall_ppm, within_ppm) {
+        result.extra.push(Item::Message(
+            "Expected PPM from the fitted normal; intervals use the z scale (total by logit)."
+                .to_owned(),
+        ));
+        result
+            .extra
+            .push(expected_ppm_table(overall_ppm, within_ppm, confidence));
+    }
     result.notes = vec![
         ("Subgroup size".to_owned(), subgroup.to_string()),
         (
@@ -6039,7 +6154,8 @@ pub fn capability_normal(
         (
             "Confidence intervals".to_owned(),
             format!(
-                "{:.0}%; Cp/Pp chi-square, Cpk/Ppk normal approximation",
+                "{:.0}%; Cp/Pp chi-square, Cpk/Ppk normal approximation, expected PPM \
+                 z-scale normal approximation (total by logit and delta method)",
                 confidence * 100.0
             ),
         ),
@@ -6090,8 +6206,8 @@ pub fn capability_normal(
         "capability assumes a stable process; no control-chart stability test was run".to_owned(),
     );
     result.warnings.push(
-        "capability confidence intervals use standard approximations and have not been \
-         verified against documented output"
+        "Cp/Ppk intervals use standard approximations; expected PPM intervals use the \
+         published z-scale and logit approximations"
             .to_owned(),
     );
     Ok(result)
@@ -9652,6 +9768,45 @@ mod tests {
     }
 
     #[test]
+    fn expected_ppm_intervals_follow_the_recorded_values() {
+        let overall =
+            expected_ppm_interval(19.8411, 3.16297, 29.0, 30, Some(15.0), Some(25.0), 0.95)
+                .expect("overall intervals");
+        assert!(
+            (overall.low * 1e6 - 62_941.03).abs() < 5.0,
+            "{}",
+            overall.low * 1e6
+        );
+        assert!((overall.high * 1e6 - 51_440.66).abs() < 5.0);
+        assert!((overall.total * 1e6 - 114_381.69).abs() < 5.0);
+        assert!((overall.low_ci.0 * 1e6 - 19_570.04).abs() < 5.0);
+        assert!((overall.low_ci.1 * 1e6 - 159_048.19).abs() < 5.0);
+        assert!((overall.high_ci.0 * 1e6 - 14_531.63).abs() < 5.0);
+        assert!((overall.high_ci.1 * 1e6 - 140_191.83).abs() < 5.0);
+        assert!((overall.total_ci.0 * 1e6 - 48_940.14).abs() < 5.0);
+        assert!((overall.total_ci.1 * 1e6 - 244_805.56).abs() < 5.0);
+
+        let within =
+            expected_ppm_interval(19.8411, 3.10733, 29.0, 30, Some(15.0), Some(25.0), 0.95)
+                .expect("within intervals");
+        assert!((within.low * 1e6 - 59_622.58).abs() < 10.0);
+        assert!((within.high * 1e6 - 48_432.32).abs() < 10.0);
+        assert!((within.total * 1e6 - 108_054.90).abs() < 10.0);
+        assert!((within.low_ci.0 * 1e6 - 18_069.59).abs() < 10.0);
+        assert!((within.low_ci.1 * 1e6 - 153_735.84).abs() < 10.0);
+        assert!((within.high_ci.0 * 1e6 - 13_291.96).abs() < 10.0);
+        assert!((within.high_ci.1 * 1e6 - 135_030.57).abs() < 10.0);
+        assert!((within.total_ci.0 * 1e6 - 45_131.09).abs() < 10.0);
+        assert!((within.total_ci.1 * 1e6 - 236_940.41).abs() < 10.0);
+
+        let one_sided = expected_ppm_interval(19.8411, 3.16297, 29.0, 30, Some(15.0), None, 0.95)
+            .expect("one-sided intervals");
+        assert_eq!(one_sided.high, 0.0);
+        assert_eq!(one_sided.total_ci, one_sided.low_ci);
+        assert!(expected_ppm_interval(1.0, 0.0, 10.0, 10, Some(0.0), None, 0.95).is_none());
+    }
+
+    #[test]
     fn capability_confidence_intervals_follow_standard_formulas() {
         let (low, high) = cp_confidence_interval(1.0, 10.0, 0.95).expect("Cp CI");
         assert!((low - 0.5698).abs() < 1e-3, "low={low}");
@@ -9689,6 +9844,7 @@ mod tests {
             "Anderson–Darling (A²)",
             "Decision at 5%",
             "Observed PPM",
+            "Expected PPM",
         ] {
             assert!(text.contains(needle), "{needle} missing:\n{text}");
         }
