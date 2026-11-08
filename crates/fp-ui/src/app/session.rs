@@ -13,6 +13,7 @@ impl FreePlotsApp {
         }
         self.undo_stack.push(group);
         self.redo_stack.clear();
+        self.dirty = true;
     }
     pub fn undo(&mut self) {
         let Some(group) = self.undo_stack.pop() else {
@@ -31,6 +32,7 @@ impl FreePlotsApp {
         self.redo_stack.push(group.clone());
         self.error = None;
         self.status = format!("Undo — {} change(s)", group.actions.len());
+        self.dirty = true;
         self.restore_after_history();
     }
     pub fn redo(&mut self) {
@@ -50,6 +52,7 @@ impl FreePlotsApp {
         self.undo_stack.push(group.clone());
         self.error = None;
         self.status = format!("Redo — {} change(s)", group.actions.len());
+        self.dirty = true;
         self.restore_after_history();
     }
     pub(super) fn restore_after_history(&mut self) {

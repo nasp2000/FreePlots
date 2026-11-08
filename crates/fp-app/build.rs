@@ -17,8 +17,10 @@ fn main() {
     resource.set("FileDescription", "FreePlots");
     resource.set("ProductName", "FreePlots");
     resource.set("CompanyName", "FreePlots");
-    resource.set("FileVersion", "0.1.0.0");
-    resource.set("ProductVersion", "0.1.0.0");
+    let version = std::env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".to_owned());
+    let numeric = format!("{version}.0");
+    resource.set("FileVersion", &numeric);
+    resource.set("ProductVersion", &numeric);
     resource.set("OriginalFilename", "FreePlots.exe");
     resource.set("LegalCopyright", "MIT");
     if let Err(error) = resource.compile() {

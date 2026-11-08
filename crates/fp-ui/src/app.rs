@@ -1348,6 +1348,18 @@ pub struct FreePlotsApp {
     save_kind: FileKind,
     save_decimal_comma: bool,
     save_request: Option<SaveRequest>,
+    /// The project has changes that are not in a `.fpp` file.
+    dirty: bool,
+    /// Show the save/discard/cancel prompt before the window closes.
+    close_prompt: bool,
+    /// Close the window once the pending project save finishes.
+    close_after_save: bool,
+    /// The user already confirmed closing (discarded or saved).
+    close_confirmed: bool,
+    /// Ask the desktop runner to write the recovery snapshot.
+    recovery_request: bool,
+    /// Recovery file, next to the preferences.
+    recovery_path: Option<PathBuf>,
     batch_request: Option<BatchRequest>,
     browse_request: Option<BrowseRequest>,
     folder_request: Option<FolderRequest>,
@@ -1439,6 +1451,7 @@ impl FreePlotsApp {
         self.load_sheet(index);
         self.tab_first = self.tab_first.min(index);
         self.status = "New worksheet — 8 columns".to_owned();
+        self.dirty = true;
         index
     }
 
@@ -1467,6 +1480,7 @@ impl FreePlotsApp {
         }
         self.tab_first = self.tab_first.min(self.sheets.len().saturating_sub(1));
         self.status = format!("{name} closed");
+        self.dirty = true;
         true
     }
 
@@ -1489,6 +1503,7 @@ impl FreePlotsApp {
         if let Some(sheet) = self.sheets.get_mut(self.sheet_rename_target) {
             sheet.name = name.clone();
             self.status = format!("Worksheet renamed to {name}");
+            self.dirty = true;
         }
         self.show_sheet_rename = false;
     }
@@ -1622,6 +1637,10 @@ impl FreePlotsApp {
         self.error = None;
         self.undo_stack.clear();
         self.redo_stack.clear();
+        self.dirty = !empty_active;
+        self.close_prompt = false;
+        self.close_after_save = false;
+        self.close_confirmed = false;
         let column = self
             .selected
             .as_deref()
@@ -1928,6 +1947,8 @@ impl FreePlotsApp {
         let message = message.into();
         self.status = message.clone();
         self.error = Some(message);
+        // A failed save must not be followed by the automatic close.
+        self.close_after_save = false;
     }
 
     /// Takes a pending "open this path" request emitted by the File menu.
@@ -2129,10 +2150,79 @@ impl FreePlotsApp {
     }
 
     /// Records that the worksheet was written to `path`.
-    pub fn mark_saved(&mut self, path: &str) {
+    ///
+    /// Only a project save clears the unsaved-changes flag: CSV, HTML, PDF and
+    /// graph exports are copies, not the document.
+    pub fn mark_saved(&mut self, path: &str, kind: FileKind) {
         self.source = path.to_owned();
         self.status = format!("Saved {path}");
         self.error = None;
+        if kind == FileKind::Project {
+            self.dirty = false;
+        }
+    }
+
+    /// `true` when the project has changes that are not in a `.fpp` file.
+    #[must_use]
+    pub fn dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Handles the window's close request.
+    ///
+    /// Returns `true` when the caller must cancel the close and show the
+    /// prompt. A dirty project also asks the desktop runner for a recovery
+    /// snapshot before the prompt appears.
+    pub fn request_close(&mut self) -> bool {
+        if self.close_after_save {
+            return true;
+        }
+        if self.dirty && !self.close_confirmed {
+            self.recovery_request = true;
+            self.close_prompt = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` while the save/discard/cancel prompt is open.
+    #[must_use]
+    pub fn close_prompt_open(&self) -> bool {
+        self.close_prompt
+    }
+
+    /// Takes the pending recovery-snapshot request.
+    pub fn take_recovery_request(&mut self) -> bool {
+        std::mem::take(&mut self.recovery_request)
+    }
+
+    /// Recovery file next to the preferences, when the desktop resolved one.
+    #[must_use]
+    pub fn recovery_path(&self) -> Option<&std::path::Path> {
+        self.recovery_path.as_deref()
+    }
+
+    /// Saves the project and closes once the runner confirms the write.
+    pub fn save_before_close(&mut self) {
+        self.close_prompt = false;
+        self.close_after_save = true;
+        self.begin_save(FileKind::Project);
+    }
+
+    /// Closes without saving; the recovery snapshot is left on disk.
+    pub fn discard_and_close(&mut self) {
+        self.close_prompt = false;
+        self.close_after_save = false;
+        self.close_confirmed = true;
+        self.dirty = false;
+    }
+
+    /// Keeps the window open.
+    pub fn cancel_close(&mut self) {
+        self.close_prompt = false;
+        self.close_after_save = false;
+        self.close_confirmed = false;
     }
 
     /// Last generated plot, if any.
@@ -3510,6 +3600,9 @@ impl FreePlotsApp {
             self.apply_preferences(preferences);
         }
         self.saved_preferences = Some(self.preferences());
+        self.recovery_path = path
+            .parent()
+            .map(|directory| directory.join("recovery.fpp"));
         self.preferences_path = Some(path);
     }
 

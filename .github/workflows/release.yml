@@ -1,0 +1,227 @@
+# SPDX-License-Identifier: MIT
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Desktop build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxkbcommon-dev \
+            libgl1-mesa-dev libegl1-mesa-dev
+      # A tag must describe the version the binary actually reports.
+      - name: Release tag matches Cargo.toml
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+          "$PY" scripts/check-release-version.py "$GITHUB_REF_NAME"
+      - name: Tests
+        run: cargo test --workspace --features desktop --locked
+
+  windows:
+    name: Windows x86_64 portable
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Build portable exe
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: cargo build --release --locked -p fp-app --features desktop
+      # A downloaded release must be signed: SmartScreen only trusts a signed
+      # binary, and an unsigned tag release is not a production artefact.
+      - name: Require the signing certificate
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          if (-not $env:CERT_PFX -or -not $env:CERT_PASSWORD) {
+            throw "Configure WINDOWS_CERT_PFX and WINDOWS_CERT_PASSWORD for a release tag."
+          }
+      - name: Sign the executable
+        if: ${{ secrets.WINDOWS_CERT_PFX != '' }}
+        shell: pwsh
+        env:
+          CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found" }
+          & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 target\release\FreePlots.exe
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
+          Remove-Item $pfx
+      - name: Verify the signature
+        if: ${{ secrets.WINDOWS_CERT_PFX != '' }}
+        shell: pwsh
+        run: |
+          $signature = Get-AuthenticodeSignature target\release\FreePlots.exe
+          $signature | Format-List Status, StatusMessage, SignerCertificate
+          if ($signature.Status -ne 'Valid') {
+            throw "the Authenticode signature is not valid: $($signature.Status)"
+          }
+      - name: Unsigned build notice
+        if: ${{ secrets.WINDOWS_CERT_PFX == '' }}
+        shell: pwsh
+        run: |
+          Write-Host "::warning::WINDOWS_CERT_PFX is not set; this executable is unsigned and SmartScreen will warn on downloaded copies."
+      - name: Check dependencies
+        shell: pwsh
+        run: |
+          $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
+          if ($dumpbin) {
+            & $dumpbin.Source /dependents target\release\FreePlots.exe
+          } else {
+            Write-Host "dumpbin not on PATH; skipping dependency listing"
+          }
+      - name: GUI smoke test
+        shell: pwsh
+        run: ./scripts/windows-gui-smoke.ps1 -Exe target/release/FreePlots.exe
+      - name: Licence inventory and SBOM for this build
+        shell: bash
+        run: |
+          if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+          "$PY" scripts/licence-inventory.py \
+            --platform x86_64-pc-windows-msvc \
+            --artifact FreePlots-windows-x86_64 \
+            --output-dir licences-out \
+            --third-party licences-out/THIRD-PARTY.md \
+            --notice licences-out/LICENSES.txt \
+            --created "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p dist
+          cp target/release/FreePlots.exe dist/
+          cp licences-out/LICENSES.txt licences-out/THIRD-PARTY.md licences-out/DEPENDENCIES.csv licences-out/sbom.spdx.json dist/
+      - name: Upload the executable and notices
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreePlots-windows-x86_64
+          path: dist
+          if-no-files-found: error
+
+  linux:
+    name: Linux ${{ matrix.arch }} portable
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxkbcommon-dev \
+            libgl1-mesa-dev libegl1-mesa-dev
+      - name: Build portable binary
+        run: cargo build --release --locked -p fp-app --features desktop
+      - name: Strip the binary
+        run: strip target/release/FreePlots
+      - name: Smoke test
+        run: ./target/release/FreePlots --version
+      - name: Licence inventory and SBOM for this build
+        run: |
+          case "${{ matrix.arch }}" in
+            x86_64) PLATFORM=x86_64-unknown-linux-gnu ;;
+            aarch64) PLATFORM=aarch64-unknown-linux-gnu ;;
+          esac
+          python3 scripts/licence-inventory.py \
+            --platform "$PLATFORM" \
+            --artifact "FreePlots-linux-${{ matrix.arch }}" \
+            --output-dir licences-out \
+            --third-party licences-out/THIRD-PARTY.md \
+            --notice licences-out/LICENSES.txt \
+            --created "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p dist
+          cp target/release/FreePlots dist/
+          cp licences-out/LICENSES.txt licences-out/THIRD-PARTY.md licences-out/DEPENDENCIES.csv licences-out/sbom.spdx.json dist/
+      - name: Upload the binary and notices
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreePlots-linux-${{ matrix.arch }}
+          path: dist
+          if-no-files-found: error
+
+  publish:
+    name: publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Stage binaries with their own notices and SBOM
+        run: |
+          mkdir -p release
+          cp artifacts/FreePlots-windows-x86_64/FreePlots.exe release/
+          for f in LICENSES.txt THIRD-PARTY.md DEPENDENCIES.csv sbom.spdx.json; do
+            cp "artifacts/FreePlots-windows-x86_64/$f" "release/FreePlots-windows-x86_64-$f"
+          done
+          for arch in x86_64 aarch64; do
+            cp "artifacts/FreePlots-linux-$arch/FreePlots" "release/FreePlots-linux-$arch"
+            for f in LICENSES.txt THIRD-PARTY.md DEPENDENCIES.csv sbom.spdx.json; do
+              cp "artifacts/FreePlots-linux-$arch/$f" "release/FreePlots-linux-$arch-$f"
+            done
+          done
+      - name: Checksums
+        run: |
+          cd release
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > SHA256SUMS
+          cat SHA256SUMS
+      - name: Release notes from the CHANGELOG
+        run: python3 scripts/changelog-section.py "$GITHUB_REF_NAME" > release-notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          body_path: release-notes.md

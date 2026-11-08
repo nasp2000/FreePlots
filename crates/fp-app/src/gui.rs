@@ -267,8 +267,22 @@ impl eframe::App for Desktop {
                 {
                     self.app.mark_graph_saved(&request.path);
                 }
-                Ok(()) => self.app.mark_saved(&request.path),
+                Ok(()) => self.app.mark_saved(&request.path, request.kind),
                 Err(e) => self.app.set_error(e),
+            }
+        }
+
+        // A dirty project asks for a recovery copy before the close prompt.
+        if self.app.take_recovery_request()
+            && let Some(path) = self.app.recovery_path()
+        {
+            match fp_core::io::to_project_json_sheets(&self.app.project_sheets(), "recovery.fpp") {
+                Ok(json) => {
+                    if let Err(error) = crate::platform::write_text(path, &json) {
+                        eprintln!("freeplots: recovery snapshot: {error}");
+                    }
+                }
+                Err(error) => eprintln!("freeplots: recovery snapshot: {error}"),
             }
         }
 

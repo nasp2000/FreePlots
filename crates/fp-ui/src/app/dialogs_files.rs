@@ -170,6 +170,7 @@ impl FreePlotsApp {
                     }
                     if ui.help_button(self.catalog().label("Cancel")).clicked() {
                         self.show_save = false;
+                        self.close_after_save = false;
                     }
                 });
                 ui.small(
@@ -178,6 +179,51 @@ impl FreePlotsApp {
                 );
             });
         self.show_save = open && self.show_save;
+        if !open {
+            self.close_after_save = false;
+        }
+    }
+
+    /// Prompt shown when the window closes with unsaved changes.
+    pub(super) fn close_prompt_window(&mut self, ctx: &egui::Context) {
+        if !self.close_prompt {
+            return;
+        }
+        let mut save = false;
+        let mut discard = false;
+        let mut cancel = false;
+        dialog_window("Unsaved changes")
+            .without_clear()
+            .collapsible(false)
+            .resizable(false)
+            .default_width(430.0)
+            .show(ctx, |ui| {
+                ui.label("This project has changes that are not in a .fpp file.");
+                ui.label(
+                    "Save them before closing? A recovery copy is written to the data folder.",
+                );
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Save")).clicked() {
+                        save = true;
+                    }
+                    if ui.help_button("Discard").clicked() {
+                        discard = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        if save {
+            self.save_before_close();
+        }
+        if discard {
+            self.discard_and_close();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+        if cancel {
+            self.cancel_close();
+        }
     }
     pub(super) fn sheet_rename_window(&mut self, ctx: &egui::Context) {
         if !self.show_sheet_rename {

@@ -59,23 +59,6 @@ cargo build --release -p fp-app --features desktop
 
 The desktop feature needs the usual X11/OpenGL development packages on Linux. The engine, the CLI and the headless UI layer build without them.
 
-### Rendering and desktop smoke tests
-
-The Windows build uses **wgpu** (D3D12/Vulkan) by default. If a machine needs the OpenGL backend, start it with `FreePlots.exe --renderer glow`, or set `FREEPLOTS_RENDERER=glow`. Linux uses the OpenGL backend by default; `--renderer wgpu` is available there too.
-
-CI starts the built executable on a Windows desktop and asks its automation bridge for a screenshot, so a renderer that opens a blank client area fails the build instead of reaching a user. The same check runs on a normal Windows machine:
-
-```powershell
-powershell -NoProfile -File scripts/windows-gui-smoke.ps1 -Exe target\release\FreePlots.exe
-```
-
-On Linux the same check runs on a hidden X display: the window must paint, survive a resize and close cleanly. It also runs on any machine with Xvfb, xdotool, openbox and Pillow:
-
-```sh
-xvfb-run -a -s "-screen 0 1280x800x24" \
-    python3 scripts/linux-gui-smoke.py --exe target/release/FreePlots
-```
-
 ### First steps
 1. Open a CSV (`File > Open CSV...`) or press **Samples** and pick an example.
 2. Choose an analysis from the **Stat** menu.

@@ -2994,9 +2994,106 @@ fn save_request_and_mark_saved_are_exposed() {
     assert_eq!(request.path, "out.csv");
     assert_eq!(request.kind, FileKind::Csv);
     assert!(!request.decimal_comma);
-    app.mark_saved("out.csv");
+    app.mark_saved("out.csv", FileKind::Csv);
     assert_eq!(app.source(), "out.csv");
     assert!(app.status().contains("Saved"));
+}
+
+#[test]
+fn editing_marks_the_project_dirty_and_a_project_save_clears_it() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv [UTF-8]".to_owned());
+    assert!(!app.dirty());
+    app.edit_target = Some((0, 0));
+    app.edit_buffer = "3".to_owned();
+    app.edit_dirty = true;
+    assert!(app.commit_cell());
+    assert!(app.dirty());
+
+    app.mark_saved("weights.fpp", FileKind::Project);
+    assert!(!app.dirty());
+    assert_eq!(app.source(), "weights.fpp");
+
+    // CSV and graph exports are copies, not the project document.
+    app.edit_buffer = "4".to_owned();
+    app.edit_dirty = true;
+    assert!(app.commit_cell());
+    app.mark_saved("weights.csv", FileKind::Csv);
+    assert!(app.dirty());
+}
+
+#[test]
+fn closing_with_unsaved_changes_asks_first() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv [UTF-8]".to_owned());
+    app.edit_target = Some((0, 0));
+    app.edit_buffer = "3".to_owned();
+    app.edit_dirty = true;
+    assert!(app.commit_cell());
+
+    assert!(app.request_close());
+    assert!(app.close_prompt_open());
+    assert!(app.take_recovery_request());
+    assert!(!app.take_recovery_request());
+    app.cancel_close();
+    assert!(!app.close_prompt_open());
+    assert!(app.dirty());
+
+    assert!(app.request_close());
+    app.discard_and_close();
+    assert!(!app.dirty());
+    assert!(!app.request_close());
+}
+
+#[test]
+fn saving_before_close_requests_a_project_write() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv [UTF-8]".to_owned());
+    app.edit_target = Some((0, 0));
+    app.edit_buffer = "3".to_owned();
+    app.edit_dirty = true;
+    assert!(app.commit_cell());
+    assert!(app.request_close());
+    app.save_before_close();
+    assert!(app.show_save);
+    assert_eq!(app.save_kind, FileKind::Project);
+    assert!(app.save_path.ends_with(".fpp"));
+    assert!(app.close_after_save);
+    app.mark_saved("weights.fpp", FileKind::Project);
+    assert!(!app.dirty());
+    app.cancel_close();
+    assert!(!app.close_after_save);
+}
+
+#[test]
+fn the_recovery_file_sits_next_to_the_preferences() {
+    let mut app = FreePlotsApp::new();
+    let dir = std::env::temp_dir().join(format!("fp-recovery-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let expected = dir.join("recovery.fpp");
+    app.set_preferences_path(dir.join("settings.json"));
+    assert_eq!(app.recovery_path(), Some(expected.as_path()));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn the_close_prompt_offers_save_discard_and_cancel() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv [UTF-8]".to_owned());
+    app.edit_target = Some((0, 0));
+    app.edit_buffer = "3".to_owned();
+    app.edit_dirty = true;
+    assert!(app.commit_cell());
+    assert!(app.request_close());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.get_by_label("Save");
+    harness.get_by_label("Discard");
+    harness.get_by_label("Cancel");
 }
 
 #[test]

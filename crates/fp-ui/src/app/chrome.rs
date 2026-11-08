@@ -6,6 +6,19 @@ use super::*;
 impl FreePlotsApp {
     pub fn show(&mut self, ui: &mut egui::Ui) {
         self.poll_analysis(ui.ctx());
+        // A window close with unsaved work is cancelled once and turned into a
+        // prompt. A project save in flight keeps cancelling the close until the
+        // runner writes the file.
+        if ui.ctx().input(|input| input.viewport().close_requested()) && self.request_close() {
+            ui.ctx()
+                .send_viewport_cmd(egui::ViewportCommand::CancelClose);
+        }
+        if self.close_after_save && !self.dirty {
+            self.close_after_save = false;
+            self.close_confirmed = true;
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+        self.close_prompt_window(ui.ctx());
         if ui.ctx().input(|input| input.key_pressed(egui::Key::Escape)) {
             self.close_dialogs();
         }

@@ -97,6 +97,8 @@ jobs:
         with:
           toolchain: 1.99.1
       - uses: Swatinem/rust-cache@v2
+      - name: Tests
+        run: cargo test --workspace --features desktop --locked
       - name: Build
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
