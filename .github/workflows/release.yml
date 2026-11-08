@@ -62,7 +62,7 @@ jobs:
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: cargo build --release --locked -p fp-app --features desktop
       # Unsigned Windows release for now: the release notes tell the user to
-      # verify the SHA-256. A certificate or signing token can be added later
+      # verify the SHA-256. A certificate or signing service can be added later
       # without changing the rest of the pipeline.
       - name: Sign and verify the executable
         shell: pwsh
