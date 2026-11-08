@@ -459,6 +459,8 @@ impl FreePlotsApp {
             autosave_path: None,
             last_autosave: None,
             autosave_interval: std::time::Duration::from_secs(60),
+            autosave_revision: 0,
+            autosaved_revision: 0,
             restore_path: None,
             restore_request: false,
             discard_autosave: false,

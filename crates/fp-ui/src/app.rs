@@ -1366,6 +1366,10 @@ pub struct FreePlotsApp {
     last_autosave: Option<std::time::Instant>,
     /// Minimum gap between autosaves.
     autosave_interval: std::time::Duration,
+    /// Counts changes since the last autosave.
+    autosave_revision: u64,
+    /// Revision already written to the autosave file.
+    autosaved_revision: u64,
     /// A newer autosave offered at startup.
     restore_path: Option<PathBuf>,
     /// The user chose to restore it.
@@ -1465,7 +1469,7 @@ impl FreePlotsApp {
         self.load_sheet(index);
         self.tab_first = self.tab_first.min(index);
         self.status = "New worksheet — 8 columns".to_owned();
-        self.dirty = true;
+        self.mark_dirty();
         index
     }
 
@@ -1494,7 +1498,7 @@ impl FreePlotsApp {
         }
         self.tab_first = self.tab_first.min(self.sheets.len().saturating_sub(1));
         self.status = format!("{name} closed");
-        self.dirty = true;
+        self.mark_dirty();
         true
     }
 
@@ -1517,7 +1521,7 @@ impl FreePlotsApp {
         if let Some(sheet) = self.sheets.get_mut(self.sheet_rename_target) {
             sheet.name = name.clone();
             self.status = format!("Worksheet renamed to {name}");
-            self.dirty = true;
+            self.mark_dirty();
         }
         self.show_sheet_rename = false;
     }
@@ -1651,7 +1655,11 @@ impl FreePlotsApp {
         self.error = None;
         self.undo_stack.clear();
         self.redo_stack.clear();
-        self.dirty = !empty_active;
+        if empty_active {
+            self.dirty = false;
+        } else {
+            self.mark_dirty();
+        }
         self.close_prompt = false;
         self.close_after_save = false;
         self.close_confirmed = false;
@@ -2176,6 +2184,7 @@ impl FreePlotsApp {
             // The project is on disk: the autosave is no longer needed.
             self.discard_autosave = true;
             self.last_autosave = None;
+            self.autosaved_revision = self.autosave_revision;
         }
     }
 
@@ -2235,6 +2244,7 @@ impl FreePlotsApp {
     pub fn autosave_due(&self) -> bool {
         self.dirty
             && self.autosave_path.is_some()
+            && self.autosave_revision != self.autosaved_revision
             && self
                 .last_autosave
                 .is_none_or(|last| last.elapsed() >= self.autosave_interval)
@@ -2243,6 +2253,13 @@ impl FreePlotsApp {
     /// Records that the autosave was written.
     pub fn note_autosave(&mut self) {
         self.last_autosave = Some(std::time::Instant::now());
+        self.autosaved_revision = self.autosave_revision;
+    }
+
+    /// Marks a change that an autosave must record.
+    fn mark_dirty(&mut self) {
+        self.dirty = true;
+        self.autosave_revision = self.autosave_revision.saturating_add(1);
     }
 
     /// Replaces the autosave interval (tests use a shorter one).
@@ -2282,10 +2299,11 @@ impl FreePlotsApp {
     /// clean, so it stays dirty until the user writes it to a `.fpp`.
     pub fn apply_restored(&mut self, sheets: Vec<(String, DataFrame)>, source: String) {
         self.load_project_sheets(sheets, source);
-        self.dirty = true;
+        self.mark_dirty();
         self.restore_path = None;
         self.restore_request = false;
         self.last_autosave = Some(std::time::Instant::now());
+        self.autosaved_revision = self.autosave_revision;
         // Recovered work is a project, not the autosave file: a save asks for
         // a new `.fpp` name instead of overwriting the recovery copy.
         self.save_kind = FileKind::Project;

@@ -3128,6 +3128,11 @@ fn autosave_runs_only_when_dirty_and_waits_for_the_interval() {
     app.note_autosave();
     assert!(!app.autosave_due());
     app.set_autosave_interval(std::time::Duration::ZERO);
+    // No new change: the interval alone does not rewrite the same state.
+    assert!(!app.autosave_due());
+    app.edit_buffer = "4".to_owned();
+    app.edit_dirty = true;
+    assert!(app.commit_cell());
     assert!(app.autosave_due());
 
     // A project save clears the flag and asks the runner to delete the file.
