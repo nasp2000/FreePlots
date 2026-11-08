@@ -894,3 +894,51 @@ fn window_icon() -> egui::IconData {
         height: 64,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[derive(Debug)]
+    struct Dropped(PathBuf);
+
+    impl egui::DroppedFile for Dropped {
+        fn path(&self) -> &Path {
+            &self.0
+        }
+
+        fn bytes(&self) -> Result<Vec<u8>, String> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[test]
+    fn a_dropped_csv_asks_for_the_preview() {
+        let mut desktop = Desktop {
+            app: FreePlotsApp::new(),
+            bridge: None,
+            pending_shot: None,
+            browse: None,
+            folder_browse: None,
+            dark_caption: false,
+            data_dir: None,
+            last_error: None,
+        };
+        let mut input = egui::RawInput::default();
+        input
+            .dropped_files
+            .push(std::sync::Arc::new(Dropped(PathBuf::from("report.csv"))));
+        desktop.serve_dropped(&mut input);
+        assert_eq!(
+            desktop.app.take_preview_request().as_deref(),
+            Some("report.csv")
+        );
+        // A file the application does not open is ignored instead of panicking.
+        input
+            .dropped_files
+            .push(std::sync::Arc::new(Dropped(PathBuf::from("notes.pdf"))));
+        desktop.serve_dropped(&mut input);
+        assert_eq!(desktop.app.take_preview_request(), None);
+    }
+}
