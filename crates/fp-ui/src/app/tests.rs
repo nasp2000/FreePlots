@@ -415,8 +415,149 @@ fn a_paste_event_fills_a_block() {
 }
 
 #[test]
-fn a_click_anywhere_in_an_empty_cell_selects_it() {
+fn a_paste_on_the_name_line_uses_the_first_row_as_names() {
     use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.selected_name_column = Some(0);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    // The first row names the columns; the rest starts at worksheet row 1.
+    harness.event(egui::Event::Paste(
+        "Peso\tAltura\n10\t1.72\n11\t1.80\n".to_owned(),
+    ));
+    harness.run();
+    let data = harness.state().data().expect("frame");
+    assert_eq!(data.columns()[0].name(), "Peso");
+    assert_eq!(data.columns()[1].name(), "Altura");
+    assert_eq!(data.cell_text(0, 0).as_deref(), Some("10"));
+    assert_eq!(data.cell_text(1, 0).as_deref(), Some("1.72"));
+    assert_eq!(data.cell_text(0, 1).as_deref(), Some("11"));
+    assert_eq!(data.cell_text(1, 1).as_deref(), Some("1.80"));
+}
+
+#[test]
+fn an_empty_pasted_name_keeps_the_current_column_name() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.paste_names_and_data(0, "\tAltura\n10\t1.72\n");
+    let data = app.data().expect("frame");
+    assert_eq!(data.columns()[0].name(), "weight");
+    assert_eq!(data.columns()[1].name(), "Altura");
+    assert_eq!(data.cell_text(0, 0).as_deref(), Some("10"));
+}
+
+#[test]
+fn pasting_duplicate_names_leaves_the_sheet_unchanged() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let before = app.data().expect("frame").clone();
+    app.paste_names_and_data(0, "same\tsame\n1\t2\n");
+    let data = app.data().expect("frame");
+    assert_eq!(data.columns()[0].name(), before.columns()[0].name());
+    assert_eq!(data.columns()[1].name(), before.columns()[1].name());
+    assert_eq!(data.cell_text(0, 0), before.cell_text(0, 0));
+    assert_eq!(data.cell_text(1, 0), before.cell_text(1, 0));
+    assert!(app.error.is_some(), "the duplicate must be reported");
+}
+
+#[test]
+fn undoing_a_named_paste_restores_the_names_and_cells() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let before = app.data().expect("frame").clone();
+    app.paste_names_and_data(0, "Peso\tAltura\n10\t1.72\n");
+    app.undo();
+    let data = app.data().expect("frame");
+    assert_eq!(data.columns()[0].name(), before.columns()[0].name());
+    assert_eq!(data.columns()[1].name(), before.columns()[1].name());
+    assert_eq!(data.cell_text(0, 0), before.cell_text(0, 0));
+    assert_eq!(data.cell_text(1, 0), before.cell_text(1, 0));
+}
+
+#[test]
+fn typing_on_the_name_line_edits_it_in_place() {
+    use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.selected_name_column = Some(0);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness
+        .input_mut()
+        .events
+        .push(egui::Event::Text("Peso".to_owned()));
+    harness.run();
+    assert_eq!(harness.state().inline_name, Some(0));
+    assert_eq!(harness.state().inline_buffer, "Peso");
+    harness.input_mut().events.push(egui::Event::Key {
+        key: egui::Key::Enter,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers::NONE,
+    });
+    harness.run();
+    harness.run();
+    assert_eq!(harness.state().inline_name, None);
+    assert_eq!(harness.state().data().unwrap().columns()[0].name(), "Peso");
+    assert_eq!(harness.state().selected_name_column, Some(0));
+}
+
+#[test]
+fn clearing_the_name_line_returns_to_the_automatic_name() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.begin_inline_name_edit(0);
+    app.inline_buffer.clear();
+    assert!(app.commit_inline_name_edit());
+    assert_eq!(app.data().unwrap().columns()[0].name(), "C1");
+}
+
+#[test]
+fn a_duplicate_name_keeps_the_name_editor_open() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.begin_inline_name_edit(0);
+    app.inline_buffer = "batch".to_owned();
+    assert!(!app.commit_inline_name_edit());
+    assert!(app.error.is_some());
+    assert_eq!(app.inline_name, Some(0));
+    assert_eq!(app.data().unwrap().columns()[0].name(), "weight");
+}
+
+#[test]
+fn the_name_line_sits_below_the_system_name_and_selects_on_click() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    let system = harness.get_by_label("C1").rect();
+    let name = harness
+        .get_by_label_contains("Column name C1: weight")
+        .rect();
+    assert!(name.top() >= system.bottom() - 1.0, "{name:?} {system:?}");
+    assert!(name.height() > 0.0);
+    harness
+        .get_by_label_contains("Column name C1: weight")
+        .click();
+    harness.run();
+    assert_eq!(harness.state().selected_name_column, Some(0));
+}
+
+#[test]
+fn a_click_anywhere_in_an_empty_cell_selects_it() {
+    use egui_kittest::{Harness, kittest::Queryable};
 
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());
@@ -425,7 +566,8 @@ fn a_click_anywhere_in_an_empty_cell_selects_it() {
         .build_ui_state(|ui, app| app.show(ui), app);
     harness.run();
     // The right-hand half of an empty C2 cell: there is no text there.
-    let pos = egui::pos2(170.0, 205.0);
+    let cell = harness.get_by_label("C2 R3: A").rect();
+    let pos = egui::pos2(cell.right() - 4.0, cell.center().y);
     harness.hover_at(pos);
     harness.run();
     harness.event(egui::Event::PointerButton {
@@ -625,6 +767,25 @@ fn the_about_link_asks_the_runner_to_open_the_browser() {
     assert_eq!(
         harness.state_mut().take_open_url_request().as_deref(),
         Some("https://github.com/nasp2000/FreePlots")
+    );
+}
+
+#[test]
+fn the_help_menu_checks_for_updates_by_opening_the_releases_page() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let app = FreePlotsApp::new();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label("Check for updates").click();
+    harness.run();
+    assert_eq!(
+        harness.state_mut().take_open_url_request().as_deref(),
+        Some("https://github.com/nasp2000/FreePlots/releases/latest")
     );
 }
 
@@ -3569,6 +3730,22 @@ fn rename_column_updates_the_selection() {
     app.commit_rename_column();
     assert_eq!(app.data().unwrap().columns()[1].name(), "batch_id");
     assert_eq!(app.selected_column(), Some("batch_id"));
+}
+
+#[test]
+fn the_name_line_renames_its_own_column() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.select_cell(1, 0);
+    app.selected_name_column = Some(0);
+    app.begin_rename_column_at(Some(0));
+    assert_eq!(app.rename_text, "weight");
+    app.rename_text = "Peso".to_owned();
+    app.commit_rename_column();
+    let df = app.data().unwrap();
+    assert_eq!(df.columns()[0].name(), "Peso");
+    assert_eq!(df.columns()[1].name(), "batch");
+    assert_eq!(app.selected_name_column, Some(0));
 }
 
 #[test]

@@ -1462,6 +1462,22 @@ impl FreePlotsApp {
                 if menu_icon_item(
                     ui,
                     ToolIcon::Info,
+                    self.catalog().label("Check for updates"),
+                    None,
+                    true,
+                )
+                .on_hover_text(
+                    "Opens the releases page in your browser; FreePlots itself stays offline",
+                )
+                .clicked()
+                {
+                    self.open_url_request =
+                        Some("https://github.com/nasp2000/FreePlots/releases/latest".to_owned());
+                    ui.close();
+                }
+                if menu_icon_item(
+                    ui,
+                    ToolIcon::Info,
                     self.catalog().label("Assistant for agents…"),
                     None,
                     true,

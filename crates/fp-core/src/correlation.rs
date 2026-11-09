@@ -12,6 +12,25 @@ use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::scatter::{kendall, pearson_correlation, spearman};
 use crate::special::student_t_cdf;
 
+/// Largest number of pair-observations one matrix will process.
+///
+/// Every pair of columns is correlated over the complete rows, and the rank
+/// correlations sort those rows per pair; the cost therefore grows with
+/// `pairs × rows`. Beyond this limit the run would hold the worker for minutes,
+/// so the analysis asks for fewer columns instead.
+const MAX_PAIR_OBSERVATIONS: usize = 40_000_000;
+
+/// Refuses a matrix whose pair count would make the run unreasonably long.
+fn check_workload(pairs: usize, rows: usize) -> Result<()> {
+    if pairs.saturating_mul(rows) > MAX_PAIR_OBSERVATIONS {
+        return Err(Error::Unsupported(format!(
+            "the correlation matrix has {pairs} column pairs over {rows} rows, beyond the \
+             {MAX_PAIR_OBSERVATIONS} pair-observations processed per run; select fewer columns"
+        )));
+    }
+    Ok(())
+}
+
 /// A pair of columns and their correlations.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pair {
@@ -171,7 +190,9 @@ pub fn correlate(df: &DataFrame, columns: &[String]) -> Result<AnalysisResult> {
         .map(|name| df.column(name))
         .collect::<Result<Vec<_>>>()?;
     let rows = df.n_rows();
-    let mut pairs = Vec::with_capacity(columns.len() * (columns.len() - 1) / 2);
+    let pairs_count = columns.len() * (columns.len() - 1) / 2;
+    check_workload(pairs_count, rows)?;
+    let mut pairs = Vec::with_capacity(pairs_count);
     for i in 0..columns.len() {
         for j in (i + 1)..columns.len() {
             let (xs, ys, n) = complete_pairs(data[i], data[j], rows);
@@ -323,5 +344,34 @@ mod tests {
             correlate(&df, &["x".to_owned()]),
             Err(Error::Unsupported { .. })
         ));
+    }
+
+    #[test]
+    fn the_workload_limit_accepts_the_boundary_and_rejects_more() {
+        assert!(check_workload(40, 1_000_000).is_ok());
+        assert!(check_workload(40, 1_000_001).is_err());
+        assert!(check_workload(45, 1_000_000).is_err());
+        assert!(check_workload(usize::MAX, usize::MAX).is_err());
+    }
+
+    #[test]
+    fn a_matrix_beyond_the_work_limit_is_refused_before_the_pairs_run() {
+        // 30 columns are 435 pairs; over 100 000 rows that is 43 500 000
+        // pair-observations, past the 40 000 000 limit.
+        let columns: Vec<Column> = (0..30)
+            .map(|column| {
+                Column::new_f64(
+                    format!("c{column}"),
+                    (0..100_000).map(|row| (row + column) as f64).collect(),
+                )
+            })
+            .collect();
+        let df = DataFrame::new(columns).expect("frame");
+        let names: Vec<String> = (0..30).map(|column| format!("c{column}")).collect();
+        let error = correlate(&df, &names).expect_err("the work limit");
+        assert!(
+            error.to_string().contains("select fewer columns"),
+            "{error}"
+        );
     }
 }

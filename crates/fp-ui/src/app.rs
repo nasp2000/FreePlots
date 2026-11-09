@@ -945,12 +945,15 @@ pub struct FreePlotsApp {
     show_session: bool,
     selected: Option<String>,
     selected_cell: Option<(usize, usize)>,
+    selected_name_column: Option<usize>,
+    rename_target: Option<usize>,
     selection_anchor: Option<(usize, usize)>,
     edit_target: Option<(usize, usize)>,
     edit_buffer: String,
     edit_dirty: bool,
     formula_focused: bool,
     inline_edit: Option<(usize, usize)>,
+    inline_name: Option<usize>,
     inline_buffer: String,
     inline_request_focus: bool,
     column_summary: String,
@@ -1901,10 +1904,16 @@ impl FreePlotsApp {
 
     /// Opens the rename-column dialog for the selected column.
     pub fn begin_rename_column(&mut self) {
-        let Some((column, _)) = self.selected_cell else {
+        self.begin_rename_column_at(self.selected_cell.map(|(column, _)| column));
+    }
+
+    /// Opens the rename dialog for one column, chosen by the caller.
+    pub(crate) fn begin_rename_column_at(&mut self, column: Option<usize>) {
+        let Some(column) = column else {
             self.set_error("Select a column first");
             return;
         };
+        self.rename_target = Some(column);
         let Some(df) = self.data.as_ref() else {
             self.set_error("No worksheet open");
             return;
@@ -1919,13 +1928,18 @@ impl FreePlotsApp {
 
     /// Applies the rename dialog.
     pub fn commit_rename_column(&mut self) {
-        let Some((column, _)) = self.selected_cell else {
+        let Some(column) = self
+            .rename_target
+            .or(self.selected_cell.map(|(column, _)| column))
+        else {
             self.show_rename = false;
             self.show_sheet_rename = false;
+            self.rename_target = None;
             return;
         };
         let Some(df) = self.data.as_mut() else {
             self.show_rename = false;
+            self.rename_target = None;
             return;
         };
         let before = df
@@ -1934,10 +1948,12 @@ impl FreePlotsApp {
             .map(|c| c.name().to_owned())
             .unwrap_or_default();
         let after = self.rename_text.trim().to_owned();
+        let keep_name_line = self.selected_name_column == Some(column);
         match df.rename_column(column, &self.rename_text) {
             Ok(()) => {
                 self.error = None;
                 self.show_rename = false;
+                self.rename_target = None;
                 self.status = format!("Renamed column to {}", self.rename_text.trim());
                 self.push_undo(EditGroup {
                     actions: vec![EditAction::RenameColumn {
@@ -1947,6 +1963,9 @@ impl FreePlotsApp {
                     }],
                 });
                 self.select_cell(column, self.selected_cell.map_or(0, |(_, r)| r));
+                if keep_name_line {
+                    self.selected_name_column = Some(column);
+                }
             }
             Err(e) => self.set_error(e.to_string()),
         }

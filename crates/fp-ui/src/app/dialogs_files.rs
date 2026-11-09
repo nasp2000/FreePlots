@@ -328,10 +328,14 @@ impl FreePlotsApp {
                     }
                     if ui.help_button(self.catalog().label("Cancel")).clicked() {
                         self.show_rename = false;
+                        self.rename_target = None;
                     }
                 });
             });
         self.show_rename = open && self.show_rename;
+        if !self.show_rename {
+            self.rename_target = None;
+        }
     }
     pub(super) fn find_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_find_dialog {

@@ -573,4 +573,20 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn more_than_twenty_variables_are_refused() {
+        let columns: Vec<Column> = (0..21)
+            .map(|column| {
+                Column::new_f64(
+                    format!("c{column}"),
+                    (0..30).map(|row| (row * 7 + column) as f64).collect(),
+                )
+            })
+            .collect();
+        let df = DataFrame::new(columns).expect("frame");
+        let names: Vec<String> = (0..21).map(|column| format!("c{column}")).collect();
+        let error = fit(&df, &names, 2).expect_err("the variable limit");
+        assert!(error.to_string().contains("at most 20"), "{error}");
+    }
 }

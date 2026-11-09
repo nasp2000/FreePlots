@@ -14,6 +14,19 @@ use crate::dists::{
 use crate::error::{Error, Result};
 use crate::special::{normal_cdf, normal_quantile};
 
+/// Most points one plot draws for a series.
+///
+/// A million-point worksheet is normal, but a million SVG elements freeze the
+/// renderer. Larger series are thinned by a constant stride and the report
+/// states the sample; the statistics always use every observation.
+pub const MAX_PLOT_POINTS: usize = 5_000;
+
+/// Smallest stride that keeps `len` points at or below [`MAX_PLOT_POINTS`].
+#[must_use]
+pub fn plot_stride(len: usize) -> usize {
+    len.div_ceil(MAX_PLOT_POINTS).max(1)
+}
+
 /// Plotting position convention.
 ///
 /// All formulas belong to the family `(i − a) / (n + 1 − 2a)`, with `i` from 1
@@ -3002,6 +3015,16 @@ fn render_panels_svg(spec: &PlotSpec, overlay: &GraphOverlay) -> String {
 mod tests {
     use super::*;
     use crate::data::MissingPolicy;
+
+    #[test]
+    fn the_plot_stride_keeps_the_sample_bounded() {
+        assert_eq!(plot_stride(0), 1);
+        assert_eq!(plot_stride(1), 1);
+        assert_eq!(plot_stride(MAX_PLOT_POINTS), 1);
+        assert_eq!(plot_stride(MAX_PLOT_POINTS + 1), 2);
+        assert_eq!(plot_stride(1_000_000), 200);
+        assert!(plot_stride(usize::MAX) > 1);
+    }
 
     #[test]
     fn plotting_positions_stay_in_the_interval() {

@@ -67,6 +67,117 @@ impl FreePlotsApp {
         self.status = format!("Pasted {} × {} cells", lines.len(), width);
         self.select_cell(column, row);
     }
+
+    /// Pastes a table whose **first row is the column names**.
+    ///
+    /// The names go to the second header line of the columns starting at
+    /// `start_column`, and the remaining rows are the data, beginning at the
+    /// first worksheet row. An empty name keeps the current column name.
+    pub fn paste_names_and_data(&mut self, start_column: usize, text: &str) {
+        let mut lines: Vec<&str> = text.lines().collect();
+        while lines.last().is_some_and(|line| line.trim().is_empty()) {
+            lines.pop();
+        }
+        if lines.is_empty() {
+            return;
+        }
+        let width = lines
+            .iter()
+            .map(|line| line.split('\t').count())
+            .max()
+            .unwrap_or(1);
+        let Some(df) = self.data.as_mut() else {
+            self.set_error("No worksheet open");
+            return;
+        };
+        let before_rows = df.n_rows();
+        let data_lines = lines.len() - 1;
+        if let Err(e) = df.ensure_rows(data_lines) {
+            self.set_error(e.to_string());
+            return;
+        }
+        let first_new_column = df.n_columns();
+        while df.n_columns() < start_column.saturating_add(width) {
+            df.add_column(fp_core::data::DType::Float);
+        }
+        let mut actions: Vec<EditAction> = (first_new_column..df.n_columns())
+            .map(|index| add_column_action(df, index))
+            .collect();
+
+        // The first line names the columns; an empty field keeps the old name.
+        let mut renamed: Vec<(usize, String)> = Vec::new();
+        for (offset, raw) in lines[0].split('\t').enumerate() {
+            let name = raw.trim();
+            if name.is_empty() {
+                continue;
+            }
+            let column = start_column + offset;
+            let before = df.columns()[column].name().to_owned();
+            if before == name {
+                continue;
+            }
+            if let Err(e) = df.rename_column(column, name) {
+                for (index, old) in renamed.iter().rev() {
+                    let _ = df.rename_column(*index, old);
+                }
+                for action in actions.iter().rev() {
+                    let _ = undo_action(df, action);
+                }
+                self.set_error(e.to_string());
+                return;
+            }
+            renamed.push((column, before.clone()));
+            actions.push(EditAction::RenameColumn {
+                index: column,
+                before,
+                after: name.to_owned(),
+            });
+        }
+
+        // The rest is the data, starting at the first worksheet row.
+        let mut edits = Vec::new();
+        for (row, line) in lines[1..].iter().enumerate() {
+            for (offset, value) in line.split('\t').enumerate() {
+                let column = start_column + offset;
+                let before = cell_state(df, column, row);
+                if let Err(e) = df.set_cell(column, row, value) {
+                    rollback_cells(df, &edits, before_rows);
+                    for (index, old) in renamed.iter().rev() {
+                        let _ = df.rename_column(*index, old);
+                    }
+                    for action in actions.iter().rev() {
+                        let _ = undo_action(df, action);
+                    }
+                    self.set_error(e.to_string());
+                    return;
+                }
+                let after = cell_state(df, column, row);
+                edits.push(CellEdit {
+                    column,
+                    row,
+                    before,
+                    after,
+                    before_rows,
+                });
+            }
+        }
+        if !edits.is_empty() {
+            actions.push(EditAction::Cells(edits));
+        }
+        self.push_undo(EditGroup { actions });
+        self.edit_dirty = false;
+        self.error = None;
+        self.selected_name_column = Some(start_column);
+        self.status = if data_lines == 0 {
+            format!("Pasted {} column name(s)", renamed.len())
+        } else {
+            format!(
+                "Pasted {} column name(s) and {data_lines} row(s)",
+                renamed.len()
+            )
+        };
+    }
+
     pub fn commit_cell(&mut self) -> bool {
         let Some((column, row)) = self.edit_target else {
             self.set_error("Select a cell first");
@@ -357,6 +468,85 @@ impl FreePlotsApp {
             false
         }
     }
+
+    /// Starts editing the user name on the second header line.
+    pub(super) fn begin_inline_name_edit(&mut self, column: usize) {
+        let current = self
+            .data
+            .as_ref()
+            .and_then(|df| df.columns().get(column))
+            .map(|column| column.name().to_owned());
+        self.inline_edit = None;
+        self.inline_name = Some(column);
+        self.selected_name_column = Some(column);
+        self.inline_buffer = match current {
+            Some(name) if name != format!("C{}", column + 1) => name,
+            _ => String::new(),
+        };
+        self.inline_request_focus = true;
+        self.edit_dirty = false;
+    }
+
+    /// Starts editing the name line with the first typed character.
+    pub(super) fn begin_inline_name_edit_with(&mut self, column: usize, text: &str) {
+        self.begin_inline_name_edit(column);
+        self.inline_buffer = text.to_owned();
+    }
+
+    /// Commits the name line; an empty field returns the column to `C<n>`.
+    pub(super) fn commit_inline_name_edit(&mut self) -> bool {
+        let Some(column) = self.inline_name else {
+            return false;
+        };
+        let Some(df) = self.data.as_mut() else {
+            self.inline_name = None;
+            self.inline_request_focus = false;
+            return false;
+        };
+        let current = df
+            .columns()
+            .get(column)
+            .map(|column| column.name().to_owned())
+            .unwrap_or_default();
+        let typed = self.inline_buffer.trim();
+        let target = if typed.is_empty() {
+            format!("C{}", column + 1)
+        } else {
+            typed.to_owned()
+        };
+        if target == current {
+            self.inline_name = None;
+            self.inline_request_focus = false;
+            return true;
+        }
+        match df.rename_column(column, &target) {
+            Ok(()) => {
+                self.error = None;
+                self.inline_name = None;
+                self.inline_request_focus = false;
+                self.selected_name_column = Some(column);
+                self.status = format!("Renamed column to {target}");
+                self.push_undo(EditGroup {
+                    actions: vec![EditAction::RenameColumn {
+                        index: column,
+                        before: current,
+                        after: target,
+                    }],
+                });
+                true
+            }
+            Err(e) => {
+                self.set_error(e.to_string());
+                self.inline_request_focus = true;
+                false
+            }
+        }
+    }
+
+    pub(super) fn cancel_inline_name_edit(&mut self) {
+        self.inline_name = None;
+        self.inline_request_focus = false;
+    }
     /// Adds empty columns until the worksheet has at least `columns` of them.
     ///
     /// The grid shows spare columns on the right; writing in one first makes
@@ -394,7 +584,9 @@ impl FreePlotsApp {
 
     pub fn select_cell(&mut self, column: usize, row: usize) {
         self.inline_edit = None;
+        self.inline_name = None;
         self.inline_request_focus = false;
+        self.selected_name_column = None;
         let Some(df) = self.data.as_ref() else {
             self.selected_cell = None;
             self.selection_anchor = None;
@@ -459,7 +651,9 @@ impl FreePlotsApp {
     }
     pub fn extend_selection(&mut self, column: usize, row: usize) {
         self.inline_edit = None;
+        self.inline_name = None;
         self.inline_request_focus = false;
+        self.selected_name_column = None;
         let Some(df) = self.data.as_ref() else {
             return;
         };

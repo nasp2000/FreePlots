@@ -7,9 +7,11 @@
 
 #![cfg(not(debug_assertions))]
 
+use std::fmt::Write as _;
 use std::time::{Duration, Instant};
 
 use fp_core::data::{Column, DataFrame};
+use fp_core::io;
 use fp_core::spc::ControlChartKind;
 use fp_core::workflow::{AnalysisSpec, run_analysis};
 
@@ -22,6 +24,21 @@ fn budget() -> Duration {
         3000
     };
     let ms = std::env::var("FREEPLOTS_ANALYSIS_BUDGET_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(default_ms);
+    Duration::from_millis(ms)
+}
+
+/// Budget for reading one million rows from text.
+fn import_budget() -> Duration {
+    let default_ms = if cfg!(target_arch = "aarch64") {
+        20_000
+    } else {
+        10_000
+    };
+    let ms = std::env::var("FREEPLOTS_IMPORT_BUDGET_MS")
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
         .filter(|value| *value > 0)
@@ -63,6 +80,13 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             "regression",
             AnalysisSpec::regression("Y", vec!["X".to_owned()]),
         ),
+        ("one-sample t", AnalysisSpec::one_sample_t("C1", 500.0)),
+        (
+            "correlation",
+            AnalysisSpec::correlation(vec!["X".to_owned(), "Y".to_owned()]),
+        ),
+        ("normality", AnalysisSpec::normality_test("C1")),
+        ("run chart", AnalysisSpec::run_chart("C1")),
     ];
     for (name, spec) in cases {
         let started = Instant::now();
@@ -75,4 +99,27 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             "{name} took {elapsed:?}, budget {limit:?}"
         );
     }
+}
+
+#[test]
+fn one_million_rows_import_stays_inside_the_budget() {
+    let rows = 1_000_000usize;
+    let mut text = String::with_capacity(rows * 20);
+    text.push_str("X,Y\n");
+    for row in 0..rows {
+        let _ = writeln!(text, "{}.25,{}", row, row % 1_000);
+    }
+
+    let limit = import_budget();
+    let started = Instant::now();
+    let options = io::detect_options(&text);
+    let df = io::read_csv_str(&text, options).expect("import");
+    let elapsed = started.elapsed();
+    println!("1M rows import: {elapsed:?} (budget {limit:?})");
+    assert_eq!(df.n_rows(), rows);
+    assert_eq!(df.n_columns(), 2);
+    assert!(
+        elapsed <= limit,
+        "the million-row import took {elapsed:?}, budget {limit:?}"
+    );
 }

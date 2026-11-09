@@ -40,7 +40,7 @@ pub fn read_workbook_sheet(data: &[u8], sheet_name: Option<&str>) -> Result<Data
         None => read_first_sheet(&archive)?,
     };
     let date_styles = read_date_styles(&archive);
-    let table = parse_sheet(&sheet, &shared, &date_styles);
+    let table = parse_sheet(&sheet, &shared, &date_styles)?;
     build_frame(table)
 }
 
@@ -316,7 +316,7 @@ fn excel_serial_to_iso(serial: f64) -> Option<String> {
 }
 
 /// Reads the cells of a worksheet into a rectangular table of strings.
-fn parse_sheet(text: &str, shared: &[String], date_styles: &[bool]) -> Vec<Vec<String>> {
+fn parse_sheet(text: &str, shared: &[String], date_styles: &[bool]) -> Result<Vec<Vec<String>>> {
     let mut rows: Vec<Vec<String>> = Vec::new();
     let mut position = 0usize;
     let mut current: Vec<String> = Vec::new();
@@ -344,9 +344,14 @@ fn parse_sheet(text: &str, shared: &[String], date_styles: &[bool]) -> Vec<Vec<S
                 cell_style = attribute(&tag, "s")
                     .and_then(|value| value.parse::<usize>().ok())
                     .unwrap_or(0);
-                column = attribute(&tag, "r")
-                    .map(|reference| column_index(&reference))
-                    .unwrap_or(current.len());
+                column = match attribute(&tag, "r") {
+                    Some(reference) => column_index(&reference).ok_or_else(|| {
+                        Error::Unsupported(format!(
+                            "cell reference {reference} is outside the worksheet"
+                        ))
+                    })?,
+                    None => current.len(),
+                };
             }
             "c" => {
                 inside_cell = false;
@@ -395,7 +400,7 @@ fn parse_sheet(text: &str, shared: &[String], date_styles: &[bool]) -> Vec<Vec<S
     if !current.is_empty() {
         rows.push(current);
     }
-    rows
+    Ok(rows)
 }
 
 /// The text between a tag and its closing tag.
@@ -415,15 +420,28 @@ fn find_closing(text: &str, from: usize, name: &str) -> usize {
 }
 
 /// The zero-based column of a cell reference such as `AB12`.
-fn column_index(reference: &str) -> usize {
+///
+/// Returns `None` when the letters overflow or name a column past Excel's last
+/// column (`XFD`): a workbook can claim any string there, and a hostile one
+/// must not make the reader allocate gigabytes.
+fn column_index(reference: &str) -> Option<usize> {
+    /// One past the last column Excel allows (`XFD`, zero-based 16383).
+    const MAX_COLUMNS: usize = 16_384;
     let mut index = 0usize;
+    let mut letters = 0usize;
     for character in reference.chars() {
         if !character.is_ascii_alphabetic() {
             break;
         }
-        index = index * 26 + (character.to_ascii_uppercase() as usize - 'A' as usize + 1);
+        letters += 1;
+        index = index
+            .checked_mul(26)?
+            .checked_add(character.to_ascii_uppercase() as usize - 'A' as usize + 1)?;
+        if index > MAX_COLUMNS {
+            return None;
+        }
     }
-    index.saturating_sub(1)
+    if letters == 0 { None } else { Some(index - 1) }
 }
 
 /// Builds a worksheet from the raw cells.
@@ -536,7 +554,7 @@ fn next_tag(text: &str, from: usize) -> Option<(Tag, usize)> {
 pub fn sheet_dimensions(data: &[u8]) -> Result<(usize, usize)> {
     let archive = ZipArchive::new(data.to_vec())?;
     let sheet = read_first_sheet(&archive)?;
-    let table = parse_sheet(&sheet, &[], &[]);
+    let table = parse_sheet(&sheet, &[], &[])?;
     let width = table.iter().map(Vec::len).max().unwrap_or(0);
     Ok((table.len(), width))
 }
@@ -630,10 +648,19 @@ mod tests {
     #[test]
     fn a_cell_with_a_date_style_is_read_as_a_date() {
         let sheet = r#"<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>date</t></is></c></row><row r="2"><c r="A2" s="1"><v>45292</v></c><c r="B2"><v>42</v></c></row></sheetData></worksheet>"#;
-        let table = parse_sheet(sheet, &[], &[false, true]);
+        let table = parse_sheet(sheet, &[], &[false, true]).expect("sheet");
         assert_eq!(table[1][0], "2024-01-01");
         // The unformatted neighbour stays a number.
         assert_eq!(table[1][1], "42");
+    }
+
+    #[test]
+    fn absurd_cell_references_are_refused() {
+        let sheet = r#"<worksheet><sheetData><row r="1"><c r="ZZZZZZZZZZZZZZ1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>"#;
+        assert!(parse_sheet(sheet, &[], &[]).is_err());
+        let sheet = r#"<worksheet><sheetData><row r="1"><c r="XFD1"><v>1</v></c></row></sheetData></worksheet>"#;
+        let table = parse_sheet(sheet, &[], &[]).expect("a column inside the Excel limit");
+        assert_eq!(table[0].len(), 16_384);
     }
 
     #[test]
@@ -650,9 +677,13 @@ mod tests {
 
     #[test]
     fn cell_references_map_to_columns() {
-        assert_eq!(column_index("A1"), 0);
-        assert_eq!(column_index("B7"), 1);
-        assert_eq!(column_index("Z3"), 25);
-        assert_eq!(column_index("AA3"), 26);
+        assert_eq!(column_index("A1"), Some(0));
+        assert_eq!(column_index("B7"), Some(1));
+        assert_eq!(column_index("Z3"), Some(25));
+        assert_eq!(column_index("AA3"), Some(26));
+        assert_eq!(column_index("XFD1"), Some(16_383));
+        assert_eq!(column_index("XFE1"), None);
+        assert_eq!(column_index("ZZZZZZZZZZZZZZ1"), None);
+        assert_eq!(column_index("1"), None);
     }
 }

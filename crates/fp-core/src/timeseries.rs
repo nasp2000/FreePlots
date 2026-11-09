@@ -24,9 +24,16 @@
 
 use crate::data::{DataFrame, MissingPolicy};
 use crate::error::{Error, Result};
-use crate::plot::{PlotSpec, Point, Segment, Series, linear_axis};
+use crate::plot::{PlotSpec, Point, Segment, Series, linear_axis, plot_stride};
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::workflow::AnalysisOutput;
+
+/// Most rows one time-series table lists.
+///
+/// The table is a reading aid, not the data: a million-row worksheet is
+/// normal, and one row per observation would be tens of megabytes of text.
+/// Longer series are listed with a constant stride and the report states it.
+const MAX_REPORT_ROWS: usize = 500;
 
 /// Additive or multiplicative classical decomposition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,20 +105,33 @@ pub fn moving_average(values: &[f64], window: usize) -> Vec<Option<f64>> {
     }
     if window % 2 == 1 {
         let half = window / 2;
-        for index in half..(n - half) {
-            let sum: f64 = values[index - half..=index + half].iter().sum();
-            result[index] = Some(sum / window as f64);
+        if half >= n - half {
+            return result;
+        }
+        let mut sum: f64 = values[..window].iter().sum();
+        result[half] = Some(sum / window as f64);
+        // Slide the window: one addition and one subtraction per position
+        // instead of re-summing every window (O(n) instead of O(n·window)).
+        for (index, slot) in result.iter_mut().enumerate().take(n - half).skip(half + 1) {
+            sum += values[index + half] - values[index - half - 1];
+            *slot = Some(sum / window as f64);
         }
     } else {
         let half = window / 2;
+        if half >= n - half {
+            return result;
+        }
         let denominator = 2.0 * window as f64;
-        for index in half..(n - half) {
-            // Weights 1, 2, …, 2, 1 over the 2·w span centred on the position.
-            let mut sum = values[index - half] + values[index + half];
-            for value in &values[(index - half + 1)..(index + half)] {
-                sum += 2.0 * value;
-            }
-            result[index] = Some(sum / denominator);
+        // Weights 1, 2, …, 2, 1 over the 2·w + 1 span centred on the position.
+        let mut sum = values[0] + values[window] + 2.0 * values[1..window].iter().sum::<f64>();
+        result[half] = Some(sum / denominator);
+        for (index, slot) in result.iter_mut().enumerate().take(n - half).skip(half + 1) {
+            let left = index - half;
+            let right = index + half;
+            // The old left endpoint and its neighbour lose weight, while the
+            // old right endpoint and the new one gain it.
+            sum += (values[right] - values[left]) + (values[right - 1] - values[left - 1]);
+            *slot = Some(sum / denominator);
         }
     }
     result
@@ -497,12 +517,16 @@ fn line_plot(
         }
     }
     let pad = ((high - low).abs() * 0.05).max(1e-9);
+    let stride = plot_stride(x_len);
     let mut series = Vec::with_capacity(overlays.len() + 1);
     for (label, values) in overlays {
         let points: Vec<Point> = values
             .iter()
             .enumerate()
             .filter_map(|(index, value)| {
+                if !index.is_multiple_of(stride) {
+                    return None;
+                }
                 value.map(|y| Point {
                     x: index as f64 + 1.0,
                     y,
@@ -533,6 +557,7 @@ fn line_plot(
         points: main
             .iter()
             .enumerate()
+            .filter(|(index, _)| index.is_multiple_of(stride))
             .map(|(index, value)| Point {
                 x: index as f64 + 1.0,
                 y: *value,
@@ -544,7 +569,17 @@ fn line_plot(
         panels: Vec::new(),
         panel_columns: 0,
         secondary: None,
-        notes: Vec::new(),
+        notes: if stride > 1 {
+            vec![crate::plot::PlotNote {
+                rows: Vec::new(),
+                lines: vec![format!(
+                    "one in every {stride} observations is drawn ({} of {x_len})",
+                    x_len.div_ceil(stride)
+                )],
+            }]
+        } else {
+            Vec::new()
+        },
     }
 }
 
@@ -592,6 +627,7 @@ pub fn analyze(
                 ("MSD", accuracy.msd),
                 ("MAPE", accuracy.mape),
             ];
+            let table_stride = values.len().div_ceil(MAX_REPORT_ROWS).max(1);
             result.extra.push(Item::Table {
                 headers: vec![
                     "Observation".to_owned(),
@@ -602,6 +638,7 @@ pub fn analyze(
                 rows: values
                     .iter()
                     .enumerate()
+                    .step_by(table_stride)
                     .map(|(index, value)| {
                         vec![
                             format!("{}", index + 1),
@@ -627,6 +664,27 @@ pub fn analyze(
                     "non-finite values excluded and counted".to_owned(),
                 ),
             ];
+            if table_stride > 1 {
+                result.notes.push((
+                    "Table".to_owned(),
+                    format!(
+                        "lists one in every {table_stride} observations ({} of {})",
+                        values.len().div_ceil(table_stride),
+                        values.len()
+                    ),
+                ));
+            }
+            let stride = plot_stride(values.len());
+            if stride > 1 {
+                result.notes.push((
+                    "Plot".to_owned(),
+                    format!(
+                        "draws one in every {stride} observations ({} of {})",
+                        values.len().div_ceil(stride),
+                        values.len()
+                    ),
+                ));
+            }
             line_plot(
                 "Moving Average",
                 column_name,
@@ -857,6 +915,82 @@ mod tests {
             (even4[3].expect("average") - 4.0).abs() < 1e-12,
             "{even4:?}"
         );
+    }
+
+    #[test]
+    fn the_moving_average_matches_the_direct_sum() {
+        let values: Vec<f64> = (0..50)
+            .map(|index| ((index * 37) % 23) as f64 * 0.37 - 3.0)
+            .collect();
+        for window in 2..=12 {
+            let fast = moving_average(&values, window);
+            let half = window / 2;
+            for index in 0..values.len() {
+                let inside = index >= half && index + half < values.len();
+                let expected = if window % 2 == 1 {
+                    inside.then(|| {
+                        values[index - half..=index + half].iter().sum::<f64>() / window as f64
+                    })
+                } else {
+                    inside.then(|| {
+                        (values[index - half]
+                            + values[index + half]
+                            + 2.0 * values[index - half + 1..index + half].iter().sum::<f64>())
+                            / (2.0 * window as f64)
+                    })
+                };
+                match (fast[index], expected) {
+                    (None, None) => {}
+                    (Some(actual), Some(expected)) => assert!(
+                        (actual - expected).abs() < 1e-9,
+                        "window {window} index {index}: {actual} vs {expected}"
+                    ),
+                    (actual, expected) => {
+                        panic!("window {window} index {index}: {actual:?} vs {expected:?}")
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_long_window_does_not_take_quadratic_time() {
+        let n = 200_000usize;
+        let values: Vec<f64> = (0..n).map(|index| (index % 97) as f64).collect();
+        let started = std::time::Instant::now();
+        let average = moving_average(&values, 100_001);
+        assert!(average[100_000].is_some());
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(10),
+            "moving average took {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn a_large_moving_average_report_is_thinned_with_notes() {
+        let n = 6_000usize;
+        let values: Vec<f64> = (0..n).map(|index| (index % 97) as f64).collect();
+        let df = crate::data::DataFrame::new(vec![Column::new_f64("y", values)]).expect("frame");
+        let out =
+            analyze(&df, "y", TimeSeriesMethod::MovingAverage { window: 3 }).expect("analysis");
+        let result = &out.results[0];
+        let table = result
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { rows, .. } => Some(rows),
+                _ => None,
+            })
+            .expect("table");
+        assert!(table.len() <= MAX_REPORT_ROWS);
+        assert!(table.len() < n);
+        let text = result.to_session_text();
+        assert!(text.contains("lists one in every"), "{text}");
+        assert!(text.contains("draws one in every"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert!(plot.points.len() <= crate::plot::MAX_PLOT_POINTS);
+        assert!(plot.points.len() < n);
     }
 
     #[test]

@@ -17,6 +17,13 @@ use crate::hypothesis::Alternative;
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::special::{chi_square_cdf, normal_cdf};
 
+/// Largest number of Walsh averages the signed-rank interval will build.
+///
+/// The interval enumerates every pairwise average, so the buffer grows as
+/// `n(n+1)/2`. Above this limit the allocation would dwarf the data, and the
+/// report states that the interval was skipped instead of exhausting memory.
+const MAX_WALSH_PAIRS: usize = 4_000_000;
+
 /// Mid-ranks of a sample, with the average rank for tied values.
 ///
 /// Ranks are one-based; a tie group occupying the positions `first … last`
@@ -977,6 +984,7 @@ pub fn wilcoxon_signed_rank_columns(
     // d-th and (M − d)-th of the n(n+1)/2 pairwise averages, with
     // d = ceil(M/2 − 0.5 − z·√(n(n+1)(2n+1)/24)) and the achieved confidence
     // from the normal approximation with a continuity correction.
+    let mut walsh_note: Option<String> = None;
     if differences.len() >= 2 {
         let mut nonzero: Vec<f64> = differences
             .iter()
@@ -985,28 +993,36 @@ pub fn wilcoxon_signed_rank_columns(
             .collect();
         nonzero.sort_by(|a, b| a.total_cmp(b));
         let n = nonzero.len();
-        let mut walsh = Vec::with_capacity(n * (n + 1) / 2);
-        for (index, value) in nonzero.iter().enumerate() {
-            for other in &nonzero[index..] {
-                walsh.push((value + other) / 2.0);
+        let pairs = n.saturating_mul(n.saturating_add(1)) / 2;
+        if pairs <= MAX_WALSH_PAIRS {
+            let mut walsh = Vec::with_capacity(pairs);
+            for (index, value) in nonzero.iter().enumerate() {
+                for other in &nonzero[index..] {
+                    walsh.push((value + other) / 2.0);
+                }
             }
-        }
-        walsh.sort_by(|a, b| a.total_cmp(b));
-        let m = walsh.len();
-        let nf = n as f64;
-        let sd = (nf * (nf + 1.0) * (2.0 * nf + 1.0) / 24.0).sqrt();
-        let z = 1.959_963_984_540_054;
-        let d = (m as f64 / 2.0 - 0.5 - z * sd).ceil().max(0.0) as usize;
-        if d < m {
-            let lower = walsh[d];
-            let upper = walsh[m - d - 1];
-            let tail = crate::special::normal_cdf((d as f64 + 0.5 - m as f64 / 2.0) / sd);
-            let achieved = (1.0 - 2.0 * tail).clamp(0.0, 1.0);
-            analysis.statistics.push(("Median CI lower", lower));
-            analysis.statistics.push(("Median CI upper", upper));
-            analysis
-                .statistics
-                .push(("Achieved confidence", achieved * 100.0));
+            walsh.sort_by(|a, b| a.total_cmp(b));
+            let m = walsh.len();
+            let nf = n as f64;
+            let sd = (nf * (nf + 1.0) * (2.0 * nf + 1.0) / 24.0).sqrt();
+            let z = 1.959_963_984_540_054;
+            let d = (m as f64 / 2.0 - 0.5 - z * sd).ceil().max(0.0) as usize;
+            if d < m {
+                let lower = walsh[d];
+                let upper = walsh[m - d - 1];
+                let tail = crate::special::normal_cdf((d as f64 + 0.5 - m as f64 / 2.0) / sd);
+                let achieved = (1.0 - 2.0 * tail).clamp(0.0, 1.0);
+                analysis.statistics.push(("Median CI lower", lower));
+                analysis.statistics.push(("Median CI upper", upper));
+                analysis
+                    .statistics
+                    .push(("Achieved confidence", achieved * 100.0));
+            }
+        } else {
+            walsh_note = Some(format!(
+                "not computed for {n} non-zero differences: the Walsh averages grow as \
+                 n² and would need {pairs} values (limit {MAX_WALSH_PAIRS})"
+            ));
         }
     }
     analysis.notes = vec![
@@ -1035,6 +1051,9 @@ pub fn wilcoxon_signed_rank_columns(
             ),
         ),
     ];
+    if let Some(note) = walsh_note {
+        analysis.notes.push(("Median CI".to_owned(), note));
+    }
     analysis.warnings = standard_warnings(analysis.n, analysis.excluded, 0);
     Ok(analysis)
 }
@@ -1267,6 +1286,51 @@ mod tests {
             "W− {}",
             result.w_minus
         );
+    }
+
+    fn paired_frame(n: usize, shift: f64) -> DataFrame {
+        DataFrame::new(vec![
+            Column::new_f64("a", (0..n).map(|index| index as f64).collect()),
+            Column::new_f64("b", (0..n).map(|index| index as f64 + shift).collect()),
+        ])
+        .expect("frame")
+    }
+
+    #[test]
+    fn the_wilcoxon_interval_is_reported_for_a_small_sample() {
+        let df = paired_frame(20, 1.0);
+        let analysis =
+            wilcoxon_signed_rank_columns(&df, "a", "b", Alternative::TwoSided).expect("wilcoxon");
+        assert!(
+            analysis
+                .statistics
+                .iter()
+                .any(|(name, _)| *name == "Median CI lower")
+        );
+        assert!(analysis.notes.iter().all(|(name, _)| name != "Median CI"));
+    }
+
+    #[test]
+    fn the_wilcoxon_interval_is_skipped_when_the_walsh_set_is_too_large() {
+        // 3000 differences need 4 501 500 Walsh averages, past the 4 000 000
+        // limit: the test must report the omission instead of allocating them.
+        let df = paired_frame(3_000, 1.0);
+        let analysis =
+            wilcoxon_signed_rank_columns(&df, "a", "b", Alternative::TwoSided).expect("wilcoxon");
+        assert!(
+            analysis
+                .statistics
+                .iter()
+                .all(|(name, _)| *name != "Median CI lower")
+        );
+        let note = analysis
+            .notes
+            .iter()
+            .find(|(name, _)| name == "Median CI")
+            .map(|(_, note)| note.as_str())
+            .expect("the omission must be explained");
+        assert!(note.contains("Walsh"), "{note}");
+        assert!(note.contains("4501500"), "{note}");
     }
 
     #[test]

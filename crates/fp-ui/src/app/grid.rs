@@ -92,6 +92,8 @@ impl FreePlotsApp {
         let mut clicked: Option<(usize, usize, bool)> = None;
         let mut clicked_header_column: Option<usize> = None;
         let mut clicked_header_row: Option<usize> = None;
+        let mut clicked_name_column: Option<usize> = None;
+        let selected_name_column = self.selected_name_column;
         let mut select_all = false;
         let mut menu_action: Option<GridMenu> = None;
         let grid_lines = self.show_grid_lines;
@@ -144,10 +146,14 @@ impl FreePlotsApp {
         let hint = ui.visuals().text_color();
         let column_name = ui.visuals().text_color();
         let inline_cell = self.inline_edit;
+        let inline_name = self.inline_name;
         let mut inline_buffer = std::mem::take(&mut self.inline_buffer);
         let mut inline_focus = self.inline_request_focus;
         let mut inline_commit_cell: Option<(usize, usize)> = None;
+        let mut inline_name_commit: Option<usize> = None;
+        let mut inline_start_name: Option<usize> = None;
         let mut inline_cancel = false;
+        let mut inline_name_cancel = false;
         let mut inline_nav: Option<(isize, isize)> = None;
         let mut inline_start: Option<(usize, usize)> = None;
 
@@ -215,7 +221,7 @@ impl FreePlotsApp {
                         table.column(TableColumn::initial(*width).at_least(48.0).resizable(true));
                 }
                 table
-                    .header(36.0, |mut header| {
+                    .header(44.0, |mut header| {
                         header.col(|ui| {
                             ui.painter().rect_filled(ui.max_rect(), 0.0, header_bg);
                             let response = ui
@@ -242,6 +248,7 @@ impl FreePlotsApp {
                                 ui.painter().rect_filled(ui.max_rect(), 0.0, header_bg);
                                 if let Some(name) = names.get(index) {
                                     ui.vertical(|ui| {
+                                        ui.spacing_mut().item_spacing.y = 0.0;
                                         let is_selected = selected_cell
                                             .is_some_and(|(selected, _)| selected == index)
                                             || selection.is_some_and(|(c0, _, c1, _)| {
@@ -305,10 +312,85 @@ impl FreePlotsApp {
                                                 ui.close();
                                             }
                                         });
-                                        if name != &format!("C{}", index + 1) {
-                                            ui.label(
-                                                RichText::new(name).small().color(column_name),
+                                        // Second header line: the user name that
+                                        // reports and graphs use. It stays empty
+                                        // until the user renames the column or
+                                        // pastes a table whose first row has the
+                                        // names. Double-click edits it in place,
+                                        // like a worksheet cell.
+                                        if inline_name == Some(index) {
+                                            let response = ui.add(
+                                                egui::TextEdit::singleline(&mut inline_buffer)
+                                                    .id(egui::Id::new(("fp_inline_name", index)))
+                                                    .desired_width(ui.available_width()),
                                             );
+                                            if inline_focus {
+                                                response.request_focus();
+                                                inline_focus = false;
+                                            }
+                                            let submit = ui.input(|input| {
+                                                input.key_pressed(egui::Key::Enter)
+                                                    || input.key_pressed(egui::Key::Tab)
+                                                    || input.key_pressed(egui::Key::ArrowDown)
+                                            });
+                                            let escape = ui.input(|input| {
+                                                input.key_pressed(egui::Key::Escape)
+                                            });
+                                            if escape
+                                                && (response.has_focus() || response.lost_focus())
+                                            {
+                                                inline_name_cancel = true;
+                                            } else if submit
+                                                && (response.has_focus() || response.lost_focus())
+                                            {
+                                                response.surrender_focus();
+                                                inline_name_commit = Some(index);
+                                            } else if response.lost_focus() {
+                                                inline_name_commit = Some(index);
+                                            }
+                                        } else {
+                                            let (rect, response) = ui.allocate_exact_size(
+                                                egui::vec2(ui.available_width(), 15.0),
+                                                egui::Sense::click(),
+                                            );
+                                            if selected_name_column == Some(index) {
+                                                ui.painter().rect_filled(rect, 0.0, selected_bg);
+                                            }
+                                            let custom = name != &format!("C{}", index + 1);
+                                            if custom {
+                                                ui.painter().text(
+                                                    egui::pos2(rect.left() + 3.0, rect.center().y),
+                                                    egui::Align2::LEFT_CENTER,
+                                                    name,
+                                                    egui::FontId::proportional(11.0),
+                                                    column_name,
+                                                );
+                                            }
+                                            let description = if custom {
+                                                format!("Column name C{}: {name}", index + 1)
+                                            } else {
+                                                format!("Column name C{} (empty)", index + 1)
+                                            };
+                                            response.widget_info(|| {
+                                                egui::WidgetInfo::labeled(
+                                                    egui::WidgetType::Label,
+                                                    true,
+                                                    description.clone(),
+                                                )
+                                            });
+                                            let response = response
+                                                .on_hover_text(
+                                                    "Column name shown in reports and graphs — \
+                                                     double-click to edit; paste a table here to \
+                                                     use its first row as the names",
+                                                )
+                                                .on_hover_cursor(egui::CursorIcon::Text);
+                                            if response.clicked() {
+                                                clicked_name_column = Some(index);
+                                            }
+                                            if response.double_clicked() {
+                                                inline_start_name = Some(index);
+                                            }
                                         }
                                     });
                                 } else {
@@ -697,11 +779,26 @@ impl FreePlotsApp {
         if let Some(column) = clicked_header_column {
             self.select_column(column);
         }
+        if let Some(column) = clicked_name_column {
+            self.selected_name_column = Some(column);
+        }
         if let Some(row) = clicked_header_row {
             self.select_row(row);
         }
         if inline_cancel {
             self.cancel_inline_edit();
+        }
+        if inline_name_cancel {
+            self.cancel_inline_name_edit();
+        }
+        if let Some(column) = inline_name_commit {
+            self.inline_name = Some(column);
+            if !self.commit_inline_name_edit() {
+                return;
+            }
+            // The same Enter belongs to the editor; do not let the sheet
+            // handler reopen the editor or move the selection this frame.
+            return;
         }
         let mut moved_from_editor = false;
         if let Some(cell) = inline_commit_cell {
@@ -719,6 +816,10 @@ impl FreePlotsApp {
         if let Some((column, row)) = inline_start {
             self.ensure_columns(column + 1);
             self.begin_inline_edit(column, row);
+            return;
+        }
+        if let Some(column) = inline_start_name {
+            self.begin_inline_name_edit(column);
             return;
         }
         if let Some((column, row, extend)) = clicked {
@@ -742,9 +843,51 @@ impl FreePlotsApp {
         // an inline editor or any dialog field).
         if self.formula_focused
             || self.inline_edit.is_some()
+            || self.inline_name.is_some()
             || ui.ctx().egui_wants_keyboard_input()
         {
             return;
+        }
+        // When the second header line is selected, a paste carries the column
+        // names in its first row; the rest is the data.
+        if let Some(name_column) = self.selected_name_column {
+            let mut paste: Option<String> = None;
+            ui.input(|input| {
+                for event in &input.events {
+                    if let egui::Event::Paste(text) = event {
+                        paste = Some(text.clone());
+                    }
+                }
+            });
+            if let Some(text) = paste {
+                self.paste_names_and_data(name_column, &text);
+                return;
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+                self.selected_name_column = None;
+                return;
+            }
+            let mut typed: Option<String> = None;
+            ui.input(|input| {
+                if !input.modifiers.command && !input.modifiers.alt {
+                    for event in &input.events {
+                        if let egui::Event::Text(text) = event
+                            && !text.is_empty()
+                            && text.chars().all(|character| !character.is_control())
+                        {
+                            typed = Some(text.clone());
+                        }
+                    }
+                }
+            });
+            if let Some(text) = typed {
+                self.begin_inline_name_edit_with(name_column, &text);
+                return;
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::Enter)) {
+                self.begin_inline_name_edit(name_column);
+                return;
+            }
         }
         let Some((column, row)) = self.selected_cell else {
             return;

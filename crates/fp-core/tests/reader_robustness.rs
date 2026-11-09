@@ -23,6 +23,11 @@ fn csv_round_trip(bytes: &[u8]) {
     let _ = io::read_csv_str(&text, options);
 }
 
+/// Evaluates one formula; an error is fine, a panic is not.
+fn formula_round_trip(text: &str) {
+    let _ = fp_core::formula::evaluate(&frame(), text);
+}
+
 /// Parses one project byte string; an error is fine, a panic is not.
 fn project_round_trip(bytes: &[u8]) {
     let (text, _encoding) = io::decode_bytes(bytes);
@@ -117,6 +122,46 @@ fn every_single_byte_corruption_of_a_project_is_read_or_refused() {
 }
 
 #[test]
+fn hostile_formulas_are_evaluated_or_refused() {
+    let cases: Vec<String> = vec![
+        "=".to_owned(),
+        "=\u{0}\u{1}\u{202e}".to_owned(),
+        "=1e999999".to_owned(),
+        format!("={}", "(".repeat(10_000)),
+        format!("={}1{}", "(".repeat(10_000), ")".repeat(10_000)),
+        format!("={}", "-".repeat(10_000)),
+        format!("=1{}", "^1".repeat(10_000)),
+        format!("={}1{}", "SUM(".repeat(10_000), ")".repeat(10_000)),
+        "=SUM(C1R1:C1R1000000000)".to_owned(),
+        "=SUM(C1R1:C999999999R1)".to_owned(),
+        "=SUM(C1R1:C1R2".to_owned(),
+        "=\"unterminated".to_owned(),
+    ];
+    for formula in cases {
+        formula_round_trip(&formula);
+    }
+}
+
+#[test]
+fn hostile_project_json_is_read_or_refused() {
+    let cases: Vec<String> = vec![
+        "{}".to_owned(),
+        "null".to_owned(),
+        "[]".to_owned(),
+        r#"{"schema_version":4294967295,"name":"x"}"#.to_owned(),
+        r#"{"schema_version":1,"name":"x","data":{}}"#.to_owned(),
+        format!("{}{}", "[".repeat(100_000), "]".repeat(100_000)),
+        format!(
+            "{{\"schema_version\":1,\"name\":\"{0}\",\"data\":null}}",
+            "x".repeat(1_000_000)
+        ),
+    ];
+    for text in cases {
+        project_round_trip(text.as_bytes());
+    }
+}
+
+#[test]
 fn every_truncation_of_a_workbook_is_read_or_refused() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fp-app/tests/data/cli/normal.xlsx");
     let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
@@ -134,4 +179,39 @@ fn every_truncation_of_a_workbook_is_read_or_refused() {
     for length in 0..bytes.len().min(64) {
         let _ = xlsx_read::read_workbook(&bytes[..length]);
     }
+}
+
+#[test]
+fn every_single_byte_corruption_of_a_workbook_is_read_or_refused() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fp-app/tests/data/cli/normal.xlsx");
+    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    for index in 0..bytes.len() {
+        let mut copy = bytes.clone();
+        copy[index] ^= 0xFF;
+        let _ = xlsx_read::read_workbook(&copy);
+    }
+    // The name and dimension readers decompress and parse the same bytes; a
+    // stride keeps the extra coverage cheap.
+    for index in (0..bytes.len()).step_by(17) {
+        let mut copy = bytes.clone();
+        copy[index] ^= 0xFF;
+        let _ = xlsx_read::sheet_names(&copy);
+        let _ = xlsx_read::sheet_dimensions(&copy);
+    }
+}
+
+#[test]
+fn an_archive_that_claims_thousands_of_entries_is_refused() {
+    // End of central directory: signature, empty disk fields, 65535 entries,
+    // then a central-directory offset inside the record itself.
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(&0x0605_4b50u32.to_le_bytes());
+    bytes.extend_from_slice(&0u16.to_le_bytes());
+    bytes.extend_from_slice(&0u16.to_le_bytes());
+    bytes.extend_from_slice(&u16::MAX.to_le_bytes());
+    bytes.extend_from_slice(&u16::MAX.to_le_bytes());
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    bytes.extend_from_slice(&0u16.to_le_bytes());
+    assert!(xlsx_read::read_workbook(&bytes).is_err());
 }

@@ -95,7 +95,7 @@ pub enum Error {
     NoNumericColumn,
 
     /// Option is not implemented for this analysis.
-    #[error("unsupported option: {0}")]
+    #[error("{0}")]
     Unsupported(String),
 }
 
@@ -119,5 +119,11 @@ mod tests {
         let a = Error::EmptySample;
         let b = a.clone();
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn an_unsupported_error_shows_only_its_reason() {
+        let error = Error::Unsupported("division by zero".to_owned());
+        assert_eq!(error.to_string(), "division by zero");
     }
 }

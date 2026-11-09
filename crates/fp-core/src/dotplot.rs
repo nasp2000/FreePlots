@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 
 use crate::data::{Column, DataFrame, MissingPolicy};
 use crate::error::{Error, Result};
-use crate::plot::{AxisSpec, PlotSpec, Point, Scale, Segment, Tick, linear_axis};
+use crate::plot::{AxisSpec, PlotSpec, Point, Scale, Segment, Tick, linear_axis, plot_stride};
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::workflow::AnalysisOutput;
 
@@ -147,6 +147,7 @@ fn plot(model: &Dotplot) -> PlotSpec {
 
     let mut points = Vec::new();
     let mut lines = Vec::new();
+    let stride = plot_stride(model.n);
     for (index, group) in model.values.iter().enumerate() {
         let centre = index as f64 + 1.0;
         // Group the values that are close enough to share a stack.
@@ -164,7 +165,7 @@ fn plot(model: &Dotplot) -> PlotSpec {
             }
             stack.clear();
         };
-        for value in sorted {
+        for value in sorted.into_iter().step_by(stride) {
             if let Some(last) = stack.last()
                 && (value - last).abs() > tolerance
             {
@@ -288,7 +289,9 @@ pub fn analyze(df: &DataFrame, column_name: &str, factor: Option<&str>) -> Resul
     result.notes = vec![
         (
             "Dots".to_owned(),
-            "one dot per observation; coincident values are stacked side by side".to_owned(),
+            "one dot per observation, thinned for the plot when the series is very large; \
+             coincident values are stacked side by side"
+                .to_owned(),
         ),
         (
             "Mean".to_owned(),
@@ -300,6 +303,17 @@ pub fn analyze(df: &DataFrame, column_name: &str, factor: Option<&str>) -> Resul
                 .to_owned(),
         ),
     ];
+    let stride = plot_stride(model.n);
+    if stride > 1 {
+        result.notes.push((
+            "Plot".to_owned(),
+            format!(
+                "draws one in every {stride} observations ({} of {}); the mean and the table use all of them",
+                model.n.div_ceil(stride),
+                model.n
+            ),
+        ));
+    }
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the stacking rule is our own and has not been verified against documented output"
@@ -436,5 +450,27 @@ mod tests {
         assert!(text.contains("Dotplot"), "{text}");
         assert!(text.contains("Maximum"), "{text}");
         assert!(out.plot.is_some());
+    }
+
+    #[test]
+    fn a_large_dotplot_is_thinned_with_a_note() {
+        let n = 10_001usize;
+        let values: Vec<f64> = (0..n).map(|index| (index % 50) as f64).collect();
+        let groups: Vec<String> = (0..n)
+            .map(|index| if index % 2 == 0 { "A" } else { "B" }.to_owned())
+            .collect();
+        let df = DataFrame::new(vec![
+            Column::new_f64("y", values),
+            Column::new_text("g", groups),
+        ])
+        .expect("frame");
+        let out = analyze(&df, "y", Some("g")).expect("analysis");
+        let plot = out.plot.expect("plot");
+        assert!(plot.points.len() <= crate::plot::MAX_PLOT_POINTS + 1);
+        assert!(plot.points.len() < n);
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("one in every"), "{text}");
+        // The mean and the table still use every observation.
+        assert_eq!(out.results[0].n, n);
     }
 }

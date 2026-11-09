@@ -166,12 +166,29 @@ fn fixed_tables() -> (Huffman, Huffman) {
     (literals, distances)
 }
 
+/// The largest decompressed entry the reader accepts.
+///
+/// A workbook entry larger than this is not a realistic spreadsheet, and a
+/// hostile archive can otherwise expand a few kilobytes into gigabytes.
+pub const MAX_OUTPUT_BYTES: usize = 256 * 1024 * 1024;
+
 /// Decompresses a raw DEFLATE stream (without the zlib header).
 ///
 /// # Errors
 ///
-/// Returns [`Error`] when the stream is truncated or malformed.
+/// Returns [`Error`] when the stream is truncated, malformed or expands past
+/// [`MAX_OUTPUT_BYTES`].
 pub fn inflate(input: &[u8]) -> Result<Vec<u8>> {
+    inflate_with_limit(input, MAX_OUTPUT_BYTES)
+}
+
+/// Decompresses a raw DEFLATE stream, refusing more than `limit` bytes.
+///
+/// # Errors
+///
+/// Returns [`Error`] when the stream is truncated, malformed or exceeds the
+/// limit.
+pub fn inflate_with_limit(input: &[u8], limit: usize) -> Result<Vec<u8>> {
     let mut reader = BitReader::new(input);
     let mut out: Vec<u8> = Vec::new();
     loop {
@@ -185,17 +202,22 @@ pub fn inflate(input: &[u8]) -> Result<Vec<u8>> {
                 if !inverse != length as u16 {
                     return Err(Error::Csv("corrupt stored deflate block".to_owned()));
                 }
+                if out.len().saturating_add(length) > limit {
+                    return Err(Error::Csv(format!(
+                        "decompressed data exceeds {limit} bytes"
+                    )));
+                }
                 for _ in 0..length {
                     out.push(reader.read_byte()?);
                 }
             }
             1 => {
                 let (literals, distances) = fixed_tables();
-                inflate_block(&mut reader, &literals, &distances, &mut out)?;
+                inflate_block(&mut reader, &literals, &distances, &mut out, limit)?;
             }
             2 => {
                 let (literals, distances) = read_dynamic_tables(&mut reader)?;
-                inflate_block(&mut reader, &literals, &distances, &mut out)?;
+                inflate_block(&mut reader, &literals, &distances, &mut out, limit)?;
             }
             _ => return Err(Error::Csv("invalid deflate block type".to_owned())),
         }
@@ -264,10 +286,16 @@ fn inflate_block(
     literals: &Huffman,
     distances: &Huffman,
     out: &mut Vec<u8>,
+    limit: usize,
 ) -> Result<()> {
     loop {
         let symbol = literals.decode(reader)?;
         if symbol < 256 {
+            if out.len() >= limit {
+                return Err(Error::Csv(format!(
+                    "decompressed data exceeds {limit} bytes"
+                )));
+            }
             out.push(symbol as u8);
             continue;
         }
@@ -287,6 +315,11 @@ fn inflate_block(
             + reader.read_bits(u32::from(DISTANCE_EXTRA[distance_symbol]))? as usize;
         if distance == 0 || distance > out.len() {
             return Err(Error::Csv("invalid deflate back reference".to_owned()));
+        }
+        if out.len().saturating_add(length) > limit {
+            return Err(Error::Csv(format!(
+                "decompressed data exceeds {limit} bytes"
+            )));
         }
         let start = out.len() - distance;
         for offset in 0..length {
@@ -367,5 +400,21 @@ mod tests {
     fn truncated_streams_are_rejected() {
         assert!(inflate(&FIXED_STREAM[..4]).is_err());
         assert!(inflate(&[]).is_err());
+    }
+
+    #[test]
+    fn the_output_limit_is_enforced() {
+        assert!(inflate_with_limit(FIXED_STREAM, 5).is_err());
+        assert_eq!(
+            inflate_with_limit(FIXED_STREAM, 13).expect("exact limit"),
+            b"Hello, world!"
+        );
+        assert!(inflate_with_limit(STORED_STREAM, 100).is_err());
+        assert_eq!(
+            inflate_with_limit(STORED_STREAM, 256)
+                .expect("exact limit")
+                .len(),
+            256
+        );
     }
 }

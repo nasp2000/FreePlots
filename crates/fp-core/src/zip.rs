@@ -6,7 +6,7 @@
 //! no seek abstraction: the whole archive lives in memory.
 
 use crate::error::{Error, Result};
-use crate::inflate::inflate;
+use crate::inflate::{MAX_OUTPUT_BYTES, inflate_with_limit};
 
 /// The signature of the end-of-central-directory record.
 const EOCD_SIGNATURE: u32 = 0x0605_4b50;
@@ -139,7 +139,12 @@ impl ZipArchive {
             .ok_or_else(|| Error::Csv("truncated ZIP entry".to_owned()))?;
         match entry.method {
             0 => Ok(raw.to_vec()),
-            8 => inflate(raw),
+            8 => {
+                // Never let a malformed or hostile archive expand past the
+                // size it declares, nor past the absolute entry limit.
+                let limit = entry.uncompressed_size.min(MAX_OUTPUT_BYTES);
+                inflate_with_limit(raw, limit)
+            }
             other => Err(Error::Csv(format!(
                 "unsupported ZIP compression method {other}"
             ))),
@@ -265,6 +270,17 @@ mod tests {
         let data = archive("hello.txt", 8, DEFLATED, 13);
         let archive = ZipArchive::new(data).expect("archive");
         assert_eq!(archive.read("hello.txt").expect("entry"), b"Hello, world!");
+    }
+
+    #[test]
+    fn a_deflated_entry_larger_than_declared_is_refused() {
+        let data = archive("hello.txt", 8, DEFLATED, 5);
+        let zip = ZipArchive::new(data).expect("archive");
+        assert!(zip.read("hello.txt").is_err());
+        // A declaration larger than the payload is harmless.
+        let data = archive("hello.txt", 8, DEFLATED, 1_000);
+        let zip = ZipArchive::new(data).expect("archive");
+        assert_eq!(zip.read("hello.txt").expect("entry"), b"Hello, world!");
     }
 
     #[test]

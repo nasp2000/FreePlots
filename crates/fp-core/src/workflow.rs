@@ -4756,7 +4756,8 @@ fn p_value_parts_provisional(
             ))
         }
         PValueMethod::MonteCarlo { .. } => Err(Error::Unsupported(format!(
-            "Monte Carlo p-value is not implemented for the {family} distribution"
+            "Monte Carlo p-values are available for the Normal distribution only; \
+             use the AD approximation for {family}"
         ))),
     }
 }

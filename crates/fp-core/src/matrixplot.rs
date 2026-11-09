@@ -395,4 +395,20 @@ mod tests {
         }
         assert!(a.results[0].to_session_text().contains("1.000000"));
     }
+
+    #[test]
+    fn more_than_six_variables_are_refused() {
+        let columns: Vec<Column> = (0..7)
+            .map(|column| {
+                Column::new_f64(
+                    format!("c{column}"),
+                    (0..30).map(|row| (row + column) as f64).collect(),
+                )
+            })
+            .collect();
+        let df = DataFrame::new(columns).expect("frame");
+        let names: Vec<String> = (0..7).map(|column| format!("c{column}")).collect();
+        let error = analyze(&df, &names, 8).expect_err("the variable limit");
+        assert!(error.to_string().contains("at most 6"), "{error}");
+    }
 }

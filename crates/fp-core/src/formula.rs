@@ -13,6 +13,13 @@
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
 
+/// How deeply parentheses and function calls may nest.
+///
+/// The parser is recursive across nested expressions; a hostile formula such
+/// as ten thousand open parentheses must be refused instead of exhausting the
+/// stack.
+const MAX_FORMULA_DEPTH: usize = 128;
+
 /// Result of a formula: a number or a text.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -77,6 +84,7 @@ pub fn evaluate(df: &DataFrame, text: &str) -> Result<Value> {
     let mut parser = Parser {
         chars: body.chars().collect(),
         position: 0,
+        depth: 0,
         df,
     };
     let value = parser.comparison()?;
@@ -93,6 +101,7 @@ pub fn evaluate(df: &DataFrame, text: &str) -> Result<Value> {
 struct Parser<'a> {
     chars: Vec<char>,
     position: usize,
+    depth: usize,
     df: &'a DataFrame,
 }
 
@@ -212,27 +221,55 @@ impl Parser<'_> {
 
     fn unary(&mut self) -> Result<Value> {
         self.skip_spaces();
-        match self.peek() {
-            Some('-') => {
-                self.position += 1;
-                Ok(Value::Number(-self.unary()?.number()?))
+        // Signs are read iteratively: `--------1` is legal input, never a
+        // reason to recurse once per character.
+        let mut negative = false;
+        loop {
+            match self.peek() {
+                Some('-') => {
+                    negative = !negative;
+                    self.position += 1;
+                    self.skip_spaces();
+                }
+                Some('+') => {
+                    self.position += 1;
+                    self.skip_spaces();
+                }
+                _ => break,
             }
-            Some('+') => {
-                self.position += 1;
-                self.unary()
-            }
-            _ => self.primary(),
+        }
+        let value = self.primary()?;
+        if negative {
+            Ok(Value::Number(-value.number()?))
+        } else {
+            Ok(value)
         }
     }
 
     fn power(&mut self) -> Result<Value> {
         let base = self.unary()?;
         self.skip_spaces();
-        if self.eat('^') {
-            let exponent = self.power()?;
-            return Ok(Value::Number(base.number()?.powf(exponent.number()?)));
+        if !self.eat('^') {
+            return Ok(base);
         }
-        Ok(base)
+        // Exponentiation is right-associative: collect every factor and fold
+        // from the right, so `2^2^…^2` is a loop, not a recursion.
+        let mut exponents = Vec::new();
+        loop {
+            exponents.push(self.unary()?);
+            self.skip_spaces();
+            if !self.eat('^') {
+                break;
+            }
+        }
+        let mut result = exponents
+            .pop()
+            .expect("at least one exponent was read")
+            .number()?;
+        while let Some(value) = exponents.pop() {
+            result = value.number()?.powf(result);
+        }
+        Ok(Value::Number(base.number()?.powf(result)))
     }
 
     fn primary(&mut self) -> Result<Value> {
@@ -240,7 +277,16 @@ impl Parser<'_> {
         match self.peek() {
             Some('(') => {
                 self.position += 1;
-                let value = self.comparison()?;
+                self.depth += 1;
+                if self.depth > MAX_FORMULA_DEPTH {
+                    self.depth -= 1;
+                    return Err(Error::Unsupported(format!(
+                        "the formula nests more than {MAX_FORMULA_DEPTH} levels"
+                    )));
+                }
+                let value = self.comparison();
+                self.depth -= 1;
+                let value = value?;
                 if !self.eat(')') {
                     return Err(Error::Unsupported(
                         "missing a closing parenthesis".to_owned(),
@@ -318,7 +364,16 @@ impl Parser<'_> {
         self.skip_spaces();
         if self.peek() == Some('(') {
             self.position += 1;
-            return self.function(&name.to_ascii_uppercase());
+            self.depth += 1;
+            if self.depth > MAX_FORMULA_DEPTH {
+                self.depth -= 1;
+                return Err(Error::Unsupported(format!(
+                    "the formula nests more than {MAX_FORMULA_DEPTH} levels"
+                )));
+            }
+            let value = self.function(&name.to_ascii_uppercase());
+            self.depth -= 1;
+            return value;
         }
         self.reference(&name)
     }
@@ -381,11 +436,28 @@ impl Parser<'_> {
                 "a range must look like C1R1:C1R10".to_owned(),
             ));
         };
+        let columns = self.df.n_columns();
+        if c1 >= columns || c2 >= columns {
+            let outside = if c1 >= columns { c1 } else { c2 };
+            return Err(Error::Unsupported(format!(
+                "C{} is outside the worksheet",
+                outside.saturating_add(1)
+            )));
+        }
+        if c1 > c2 || r1 > r2 {
+            return Ok(Some(Vec::new()));
+        }
+        // Rows beyond the worksheet are simply empty; clamping keeps a hostile
+        // reference such as `C1R1:C1R1000000000` from looping for years.
+        let rows = self.df.n_rows();
         let mut values = Vec::new();
-        for column in c1..=c2 {
-            for row in r1..=r2 {
-                if let Some(Value::Number(value)) = self.cell(column, row)? {
-                    values.push(value);
+        if rows > 0 && r1 < rows {
+            let last_row = r2.min(rows - 1);
+            for column in c1..=c2 {
+                for row in r1..=last_row {
+                    if let Some(Value::Number(value)) = self.cell(column, row)? {
+                        values.push(value);
+                    }
                 }
             }
         }
@@ -625,6 +697,26 @@ mod tests {
         assert_eq!(number("=POWER(2,10)"), 1024.0);
         assert_eq!(number("=MOD(7,3)"), 1.0);
         assert_eq!(number("=IF(C1R1=1,10,20)"), 10.0);
+    }
+
+    #[test]
+    fn hostile_formulas_are_refused_instead_of_recursing() {
+        let frame = frame();
+        let nested = format!("={}1{}", "(".repeat(500), ")".repeat(500));
+        assert!(evaluate(&frame, &nested).is_err());
+        let functions = format!("={}1{}", "SUM(".repeat(500), ")".repeat(500));
+        assert!(evaluate(&frame, &functions).is_err());
+        // Long sign and exponent chains are legal and must stay loops.
+        assert_eq!(number(&format!("={}1", "-".repeat(10_001))), -1.0);
+        assert_eq!(number(&format!("=1{}", "^1".repeat(10_001))), 1.0);
+    }
+
+    #[test]
+    fn ranges_are_bounded_by_the_worksheet() {
+        let frame = frame();
+        assert!(evaluate(&frame, "=SUM(C1R1:C999999999R2)").is_err());
+        // Rows beyond the sheet are empty: no error and no long loop.
+        assert_eq!(number("=SUM(C1R1:C1R1000000000)"), 10.0);
     }
 
     #[test]

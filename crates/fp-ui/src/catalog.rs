@@ -429,6 +429,7 @@ impl UiCatalog {
             "Copy diagnostics" => "Copiar diagnósticos",
             "Open data folder" => "Abrir pasta de dados",
             "Visit the public FreePlots repository" => "Visite o repositório público do FreePlots",
+            "Check for updates" => "Verificar atualizações",
             // Help.
             "New worksheet, open and save as" => "Nova folha, abrir e guardar como",
             "Print the Session report" => "Imprimir o relatório da sessão",
