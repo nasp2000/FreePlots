@@ -273,6 +273,39 @@ fn probability_points<D: Distribution>(
     })
 }
 
+/// Plotted dots of a probability plot, thinned to [`MAX_PLOT_POINTS`].
+///
+/// The axis ranges, the fitted line and the confidence band still use every
+/// observation; only the dots are sampled.
+fn sampled_probability_points(
+    positions: &[f64],
+    observed: &[f64],
+    mut point: impl FnMut(f64, f64) -> Point,
+) -> Vec<Point> {
+    let stride = plot_stride(positions.len());
+    positions
+        .iter()
+        .zip(observed)
+        .step_by(stride)
+        .map(|(&p, &x)| point(p, x))
+        .collect()
+}
+
+/// A note that states the sampling, when the plot was thinned.
+pub(crate) fn sampling_notes(len: usize) -> Vec<PlotNote> {
+    let stride = plot_stride(len);
+    if stride == 1 {
+        return Vec::new();
+    }
+    vec![PlotNote {
+        rows: Vec::new(),
+        lines: vec![format!(
+            "one in every {stride} observations is drawn ({} of {len})",
+            len.div_ceil(stride)
+        )],
+    }]
+}
+
 /// A point in axis coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
@@ -819,15 +852,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Normal);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x,
-                y: normal_quantile(p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x,
+            y: normal_quantile(p),
+        });
 
         let z = |x: f64| (x - dist.mu()) / dist.sigma();
         let x_start = (dist.mu() + dist.sigma() * y_axis.min).max(x_min);
@@ -867,7 +895,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -913,15 +941,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Normal);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x: x.log10(),
-                y: normal_quantile(p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x: x.log10(),
+            y: normal_quantile(p),
+        });
 
         let ln10 = std::f64::consts::LN_10;
         let z = |u: f64| (u * ln10 - dist.mu()) / dist.sigma();
@@ -964,7 +987,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -1015,15 +1038,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Gumbel);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x: x.log10(),
-                y: probability_position(ProbabilityScale::Gumbel, p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x: x.log10(),
+            y: probability_position(ProbabilityScale::Gumbel, p),
+        });
 
         let ln10 = std::f64::consts::LN_10;
         let alpha = dist.shape();
@@ -1069,7 +1087,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -1105,15 +1123,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Gumbel);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x: x.log10(),
-                y: probability_position(ProbabilityScale::Gumbel, p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x: x.log10(),
+            y: probability_position(ProbabilityScale::Gumbel, p),
+        });
 
         let ln10 = std::f64::consts::LN_10;
         let offset = dist.theta().ln();
@@ -1148,7 +1161,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -1195,15 +1208,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Logit);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x,
-                y: probability_position(ProbabilityScale::Logit, p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x,
+            y: probability_position(ProbabilityScale::Logit, p),
+        });
 
         let z = |x: f64| (x - dist.mu()) / dist.sigma();
         let x_start = (dist.mu() + dist.sigma() * y_axis.min).max(x_min);
@@ -1246,7 +1254,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -1293,15 +1301,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Gumbel);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x: x.log10(),
-                y: probability_position(ProbabilityScale::Gumbel, p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x: x.log10(),
+            y: probability_position(ProbabilityScale::Gumbel, p),
+        });
 
         let ln10 = std::f64::consts::LN_10;
         let mu = dist.mu();
@@ -1347,7 +1350,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -1395,15 +1398,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Normal);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x,
-                y: normal_quantile(p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x,
+            y: normal_quantile(p),
+        });
 
         // F(x) maps the data range onto the probability axis; sample it where
         // the fitted curve is inside the visible frame.
@@ -1454,7 +1452,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -1486,15 +1484,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Normal);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x,
-                y: normal_quantile(p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x,
+            y: normal_quantile(p),
+        });
 
         let threshold = dist.threshold();
         let mu = dist.mu();
@@ -1532,7 +1525,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -1565,15 +1558,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Gumbel);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x,
-                y: probability_position(ProbabilityScale::Gumbel, p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x,
+            y: probability_position(ProbabilityScale::Gumbel, p),
+        });
 
         let threshold = dist.threshold();
         let shape = dist.shape();
@@ -1611,7 +1599,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -1658,15 +1646,10 @@ impl PlotSpec {
             .fold(f64::NEG_INFINITY, f64::max);
         let y_axis = probability_axis("Percent", p_lo, p_hi, ProbabilityScale::ExtremeValue);
 
-        let points = plot
-            .positions
-            .iter()
-            .zip(&plot.observed)
-            .map(|(&p, &x)| Point {
-                x,
-                y: probability_position(ProbabilityScale::ExtremeValue, p),
-            })
-            .collect();
+        let points = sampled_probability_points(&plot.positions, &plot.observed, |p, x| Point {
+            x,
+            y: probability_position(ProbabilityScale::ExtremeValue, p),
+        });
 
         let mu = dist.location();
         let sigma = dist.scale();
@@ -1709,7 +1692,7 @@ impl PlotSpec {
             panels: Vec::new(),
             panel_columns: 1,
             secondary: None,
-            notes: Vec::new(),
+            notes: sampling_notes(plot.positions.len()),
         }
     }
 
@@ -3948,5 +3931,21 @@ mod tests {
         let svg = render_svg(&spec);
         assert!(svg.contains("<svg"));
         assert!(!svg.contains("NaN"), "SVG contains NaN");
+    }
+
+    #[test]
+    fn a_large_probability_plot_is_thinned_with_a_note() {
+        let n = 10_001usize;
+        let values: Vec<f64> = (0..n).map(|index| (index % 97) as f64 + 0.25).collect();
+        let sample = Sample::new(values, MissingPolicy::Drop).expect("sample");
+        let dist = Normal::fit_moments(&sample).expect("fit");
+        let plot = normal_probability_plot(&sample, &dist, PlottingPosition::Benard).expect("plot");
+        let spec = PlotSpec::normal_probability(&plot, &dist, "Normal");
+        assert!(spec.points.len() <= MAX_PLOT_POINTS);
+        assert!(spec.points.len() < n);
+        assert!(!spec.notes.is_empty(), "the sample must be explained");
+        // The fit and the band keep the full sample size.
+        assert_eq!(plot.observed.len(), n);
+        assert_eq!(plot.positions.len(), n);
     }
 }

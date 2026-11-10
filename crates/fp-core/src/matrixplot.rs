@@ -123,6 +123,7 @@ fn scatter_panel(
         points: xs
             .iter()
             .zip(&ys)
+            .step_by(crate::plot::plot_stride(data.len()))
             .map(|(x, y)| Point { x: *x, y: *y })
             .collect(),
         lines: Vec::new(),
@@ -274,6 +275,17 @@ pub fn analyze(df: &DataFrame, columns: &[String], bins: usize) -> Result<Analys
                 .to_owned(),
         ),
     ];
+    let stride = crate::plot::plot_stride(data.len());
+    if stride > 1 {
+        result.notes.push((
+            "Plot".to_owned(),
+            format!(
+                "scatter panels draw one in every {stride} observations ({} of {})",
+                data.len().div_ceil(stride),
+                data.len()
+            ),
+        ));
+    }
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the panel layout and the bin rule are our own and have not been verified against \
@@ -410,5 +422,28 @@ mod tests {
         let names: Vec<String> = (0..7).map(|column| format!("c{column}")).collect();
         let error = analyze(&df, &names, 8).expect_err("the variable limit");
         assert!(error.to_string().contains("at most 6"), "{error}");
+    }
+
+    #[test]
+    fn a_large_matrix_plot_is_thinned_with_a_note() {
+        let n = 10_001usize;
+        let columns: Vec<Column> = (0..3)
+            .map(|column| {
+                Column::new_f64(
+                    format!("c{column}"),
+                    (0..n).map(|row| ((row + column) % 97) as f64).collect(),
+                )
+            })
+            .collect();
+        let df = DataFrame::new(columns).expect("frame");
+        let names: Vec<String> = (0..3).map(|column| format!("c{column}")).collect();
+        let out = analyze(&df, &names, 8).expect("matrix");
+        let plot = out.plot.expect("plot");
+        for panel in &plot.panels {
+            assert!(panel.points.len() <= crate::plot::MAX_PLOT_POINTS);
+        }
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("one in every"), "{text}");
+        assert_eq!(out.results[0].n, n);
     }
 }

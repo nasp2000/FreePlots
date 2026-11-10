@@ -2200,6 +2200,7 @@ fn control_panel(
         points: values
             .iter()
             .enumerate()
+            .step_by(crate::plot::plot_stride(values.len()))
             .map(|(index, value)| Point {
                 x: xs[index],
                 y: *value,
@@ -2211,14 +2212,18 @@ fn control_panel(
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
-        notes: if steps.is_empty() {
-            vec![PlotNote::new(vec![
-                ("UCL", format!("{:.4}", limits.ucl)),
-                ("CL", format!("{:.4}", limits.center)),
-                ("LCL", format!("{:.4}", limits.lcl)),
-            ])]
-        } else {
-            Vec::new()
+        notes: {
+            let mut notes = if steps.is_empty() {
+                vec![PlotNote::new(vec![
+                    ("UCL", format!("{:.4}", limits.ucl)),
+                    ("CL", format!("{:.4}", limits.center)),
+                    ("LCL", format!("{:.4}", limits.lcl)),
+                ])]
+            } else {
+                Vec::new()
+            };
+            notes.extend(crate::plot::sampling_notes(values.len()));
+            notes
         },
     }
 }
@@ -3042,6 +3047,26 @@ mod ewma_options {
                 }
             )
             .is_err()
+        );
+    }
+
+    #[test]
+    fn a_large_control_chart_is_thinned_with_a_note() {
+        let n = 10_001usize;
+        let values: Vec<f64> = (0..n)
+            .map(|index| 10.0 + (index % 7) as f64 * 0.1)
+            .collect();
+        let df = crate::data::DataFrame::new(vec![crate::data::Column::new_f64("weight", values)])
+            .expect("frame");
+        let out =
+            analyze(&df, "weight", ControlChartKind::IndividualsMovingRange, 1).expect("chart");
+        let plot = out.plot.expect("plot");
+        assert!(!plot.panels.is_empty());
+        assert!(plot.panels[0].points.len() <= crate::plot::MAX_PLOT_POINTS);
+        assert!(plot.panels[0].points.len() < n);
+        assert!(
+            !plot.panels[0].notes.is_empty(),
+            "the sample must be explained"
         );
     }
 }

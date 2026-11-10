@@ -46,9 +46,11 @@ All notable changes to FreePlots are recorded here. The format follows
   (column pairs × rows) with a message asking for fewer columns, instead of
   holding the worker for minutes on a wide selection.
 - Very large plots are thinned to a bounded sample (one in every k
-  observations) and the report says so; the scatterplot, dotplot, time-series
-  plots and moving-average table no longer carry a point or a row for every
-  one of a million observations. The statistics still use every observation.
+  observations) and the report says so: the scatterplot, dotplot, time-series,
+  probability and empirical-CDF plots, matrix panels, run chart and control
+  charts no longer carry a point for every one of a million observations, and
+  the moving-average table lists at most 500 rows. The statistics still use
+  every observation.
 
 ## [0.1.0] - 2026-11-08
 

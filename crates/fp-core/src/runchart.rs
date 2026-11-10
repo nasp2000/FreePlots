@@ -386,6 +386,7 @@ fn plot(column_name: &str, chart: &RunChart) -> PlotSpec {
             .values
             .iter()
             .enumerate()
+            .step_by(crate::plot::plot_stride(chart.values.len()))
             .map(|(index, &value)| Point {
                 x: (index + 1) as f64,
                 y: value,
@@ -407,7 +408,7 @@ fn plot(column_name: &str, chart: &RunChart) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
-        notes: Vec::new(),
+        notes: crate::plot::sampling_notes(chart.values.len()),
     }
 }
 
@@ -518,5 +519,20 @@ mod tests {
             analyze(&frame(vec![1.0]), "x"),
             Err(Error::SampleTooSmall { .. })
         ));
+    }
+
+    #[test]
+    fn a_large_run_chart_is_thinned_with_a_note() {
+        let n = 10_001usize;
+        let values: Vec<f64> = (0..n)
+            .map(|index| ((index % 97) as f64) + (index / 500) as f64 * 0.01)
+            .collect();
+        let df = crate::data::DataFrame::new(vec![crate::data::Column::new_f64("x", values)])
+            .expect("frame");
+        let out = analyze(&df, "x").expect("run chart");
+        let plot = out.plot.expect("plot");
+        assert!(plot.points.len() <= crate::plot::MAX_PLOT_POINTS);
+        assert!(plot.points.len() < n);
+        assert!(!plot.notes.is_empty(), "the sample must be explained");
     }
 }

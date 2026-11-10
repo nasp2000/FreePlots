@@ -102,18 +102,21 @@ fn plot(model: &Ecdf) -> PlotSpec {
     let low = model.values[0];
     let high = model.values[model.values.len() - 1];
     let pad = ((high - low).abs() * 0.05).max(1e-9);
-    let mut points = Vec::with_capacity(model.values.len());
-    let mut lines = Vec::with_capacity(model.values.len() * 2);
+    let n = model.values.len();
+    let stride = crate::plot::plot_stride(n);
+    let sampled = |index: usize| index.is_multiple_of(stride) || index + 1 == n;
+    let mut points = Vec::new();
+    let mut lines = Vec::new();
     let mut previous = 0.0;
-    for (value, probability) in model.values.iter().zip(&model.probabilities) {
+    let mut previous_x = low - pad;
+    for (index, (value, probability)) in model.values.iter().zip(&model.probabilities).enumerate() {
+        if !sampled(index) {
+            continue;
+        }
         // Horizontal run to the observation, then the vertical jump.
         lines.push(Segment {
             from: Point {
-                x: if points.is_empty() {
-                    low - pad
-                } else {
-                    points.last().map_or(low - pad, |point: &Point| point.x)
-                },
+                x: previous_x,
                 y: previous,
             },
             to: Point {
@@ -138,26 +141,24 @@ fn plot(model: &Ecdf) -> PlotSpec {
             y: *probability,
         });
         previous = *probability;
+        previous_x = *value;
     }
     // The band as a ribbon around the step, clipped to [0, 1].
-    let lower: Vec<Point> = model
-        .values
-        .iter()
-        .zip(&model.probabilities)
-        .map(|(value, probability)| Point {
+    let mut lower = Vec::new();
+    let mut upper = Vec::new();
+    for (index, (value, probability)) in model.values.iter().zip(&model.probabilities).enumerate() {
+        if !sampled(index) {
+            continue;
+        }
+        lower.push(Point {
             x: *value,
             y: (probability - model.epsilon).max(0.0),
-        })
-        .collect();
-    let upper: Vec<Point> = model
-        .values
-        .iter()
-        .zip(&model.probabilities)
-        .map(|(value, probability)| Point {
+        });
+        upper.push(Point {
             x: *value,
             y: (probability + model.epsilon).min(1.0),
-        })
-        .collect();
+        });
+    }
     PlotSpec {
         title: "Empirical CDF".to_owned(),
         x_axis: linear_axis("Data", low - pad, high + pad),
@@ -170,7 +171,7 @@ fn plot(model: &Ecdf) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 0,
         secondary: None,
-        notes: Vec::new(),
+        notes: crate::plot::sampling_notes(n),
     }
 }
 
@@ -310,5 +311,19 @@ mod tests {
         let text = out.results[0].to_session_text();
         assert!(text.contains("Empirical CDF"), "{text}");
         assert!(text.contains("Band half-width"), "{text}");
+    }
+
+    #[test]
+    fn a_large_ecdf_is_thinned_with_a_note() {
+        let n = 10_001usize;
+        let values: Vec<f64> = (0..n).map(|index| (index % 97) as f64).collect();
+        let model = from_values(&values, 0.95).expect("ecdf");
+        let plot = plot(&model);
+        assert!(plot.points.len() <= crate::plot::MAX_PLOT_POINTS + 1);
+        assert!(plot.points.len() < n);
+        assert!(plot.bands[0].lower.len() <= crate::plot::MAX_PLOT_POINTS + 1);
+        assert!(!plot.notes.is_empty(), "the sample must be explained");
+        // The statistics still use every observation.
+        assert_eq!(model.n, n);
     }
 }
