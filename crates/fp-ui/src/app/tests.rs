@@ -673,19 +673,17 @@ fn a_dark_start_still_applies_the_theme_and_installs_the_fonts() {
         .build_ui_state(|ui, app| app.show(ui), app);
     harness.run();
     harness.run();
-    let width = harness.ctx.fonts(|fonts| {
+    let proportional = harness.ctx.fonts(|fonts| {
         fonts
-            .layout_no_wrap(
-                "FreePlots".to_owned(),
-                egui::FontId::proportional(14.0),
-                egui::Color32::WHITE,
-            )
-            .size()
-            .x
+            .definitions()
+            .families
+            .get(&egui::FontFamily::Proportional)
+            .cloned()
     });
-    assert!(
-        width > 0.0,
-        "a dark start must install the bundled fonts, got a text width of {width}"
+    assert_eq!(
+        proportional,
+        Some(vec!["dejavu".to_owned()]),
+        "a dark start must apply the theme, which installs the bundled fonts"
     );
 }
 
