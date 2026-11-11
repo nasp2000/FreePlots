@@ -394,18 +394,28 @@ pub fn from_project_json_sheets(text: &str) -> Result<Vec<(String, DataFrame)>> 
             project.schema_version, PROJECT_SCHEMA_VERSION
         )));
     }
-    if let Some(sheets) = project.sheets.filter(|sheets| !sheets.is_empty()) {
-        return Ok(sheets
-            .into_iter()
-            .map(|sheet| (sheet.name, sheet.data))
-            .collect());
+    let sheets: Vec<(String, DataFrame)> =
+        if let Some(sheets) = project.sheets.filter(|sheets| !sheets.is_empty()) {
+            sheets
+                .into_iter()
+                .map(|sheet| (sheet.name, sheet.data))
+                .collect()
+        } else {
+            match project.data {
+                Some(data) => vec![(project.name, data)],
+                None => {
+                    return Err(Error::Project(
+                        "the project contains no worksheet".to_owned(),
+                    ));
+                }
+            }
+        };
+    // Columns are validated during deserialization; the table invariant (all
+    // columns the same length) is checked here.
+    for (_, data) in &sheets {
+        data.validate()?;
     }
-    match project.data {
-        Some(data) => Ok(vec![(project.name, data)]),
-        None => Err(Error::Project(
-            "the project contains no worksheet".to_owned(),
-        )),
-    }
+    Ok(sheets)
 }
 
 /// Serializes one table into a `.fpp` project (readable, diffable JSON).

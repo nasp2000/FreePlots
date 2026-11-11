@@ -265,3 +265,24 @@ fn random_formulas_are_evaluated_or_refused() {
         formula_round_trip(&text);
     }
 }
+
+#[test]
+fn a_project_with_a_mismatched_mask_is_refused() {
+    // One value but two mask entries used to deserialize and then panic when a
+    // cell was read past the value vector.
+    let text = r#"{"schema_version":1,"name":"x","data":{"columns":[
+        {"name":"a","data":{"kind":"f64","values":[1.0]},"missing":[false,false]}
+    ]}}"#;
+    let error = fp_core::io::from_project_json_sheets(text).expect_err("the mask is invalid");
+    assert!(error.to_string().contains("mask"), "{error}");
+}
+
+#[test]
+fn a_project_with_columns_of_different_lengths_is_refused() {
+    let text = r#"{"schema_version":1,"name":"x","data":{"columns":[
+        {"name":"a","data":{"kind":"f64","values":[1.0]},"missing":[false]},
+        {"name":"b","data":{"kind":"f64","values":[1.0,2.0]},"missing":[false,false]}
+    ]}}"#;
+    let error = fp_core::io::from_project_json_sheets(text).expect_err("the lengths differ");
+    assert!(error.to_string().contains("expected"), "{error}");
+}

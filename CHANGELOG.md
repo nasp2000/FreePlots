@@ -48,6 +48,9 @@ All notable changes to FreePlots are recorded here. The format follows
 - The correlation matrix refuses more than 40 000 000 pair-observations
   (column pairs × rows) with a message asking for fewer columns, instead of
   holding the worker for minutes on a wide selection.
+- A project whose missing-value mask or column lengths do not match is now
+  refused when it is read, instead of loading a table that could panic when a
+  cell was displayed.
 - Very large plots are thinned to a bounded sample (one in every k
   observations) and the report says so: the scatterplot, dotplot, time-series,
   probability and empirical-CDF plots, matrix panels, run chart and control

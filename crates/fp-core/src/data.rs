@@ -190,10 +190,27 @@ impl ColumnData {
 
 /// A data column, with a missing-value mask.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "ColumnRepr")]
 pub struct Column {
     name: String,
     data: ColumnData,
     missing: Vec<bool>,
+}
+
+/// Deserialization shape of [`Column`], validated before it becomes a column.
+#[derive(Deserialize)]
+struct ColumnRepr {
+    name: String,
+    data: ColumnData,
+    missing: Vec<bool>,
+}
+
+impl TryFrom<ColumnRepr> for Column {
+    type Error = String;
+
+    fn try_from(repr: ColumnRepr) -> std::result::Result<Self, String> {
+        Self::from_parts(repr.name, repr.data, repr.missing).map_err(|error| error.to_string())
+    }
 }
 
 impl Column {
@@ -651,8 +668,22 @@ pub struct DataFrame {
 impl DataFrame {
     /// Creates a table, checking that all columns have the same length.
     pub fn new(columns: Vec<Column>) -> Result<Self> {
+        let frame = Self { columns };
+        frame.validate()?;
+        Ok(frame)
+    }
+
+    /// Checks that every column has the same number of rows.
+    ///
+    /// A table read from a project file does not pass through [`Self::new`],
+    /// so the reader calls this before handing it to the rest of the program.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Project`] when the column lengths differ.
+    pub fn validate(&self) -> Result<()> {
         let mut n: Option<usize> = None;
-        for c in &columns {
+        for c in &self.columns {
             match n {
                 None => n = Some(c.len()),
                 Some(expected) if expected != c.len() => {
@@ -666,7 +697,7 @@ impl DataFrame {
                 Some(_) => {}
             }
         }
-        Ok(Self { columns })
+        Ok(())
     }
 
     /// Creates a blank worksheet with `C1..Cn` numeric columns and `rows` empty
