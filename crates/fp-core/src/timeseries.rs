@@ -713,6 +713,7 @@ pub fn analyze(
                     .map(|(index, value)| vec![format!("{}", index + 1), format!("{value:.6}")])
                     .collect(),
             });
+            let table_stride = values.len().div_ceil(MAX_REPORT_ROWS).max(1);
             result.extra.push(Item::Table {
                 headers: vec![
                     "Observation".to_owned(),
@@ -725,6 +726,7 @@ pub fn analyze(
                 rows: values
                     .iter()
                     .enumerate()
+                    .step_by(table_stride)
                     .map(|(index, value)| {
                         let trend = model_fit.trend[index];
                         let seasonal = model_fit.seasonal[index % period];
@@ -768,6 +770,16 @@ pub fn analyze(
                     "non-finite values excluded and counted".to_owned(),
                 ),
             ];
+            if table_stride > 1 {
+                result.notes.push((
+                    "Table".to_owned(),
+                    format!(
+                        "lists one in every {table_stride} observations ({} of {})",
+                        values.len().div_ceil(table_stride),
+                        values.len()
+                    ),
+                ));
+            }
             line_plot(
                 "Classical Decomposition",
                 column_name,
@@ -810,6 +822,7 @@ pub fn analyze(
                 ("MAPE", fit.accuracy.mape),
                 ("SSE", fit.accuracy.sse),
             ];
+            let table_stride = values.len().div_ceil(MAX_REPORT_ROWS).max(1);
             result.extra.push(Item::Table {
                 headers: vec![
                     "Observation".to_owned(),
@@ -820,6 +833,7 @@ pub fn analyze(
                 rows: values
                     .iter()
                     .enumerate()
+                    .step_by(table_stride)
                     .map(|(index, value)| {
                         vec![
                             format!("{}", index + 1),
@@ -871,6 +885,16 @@ pub fn analyze(
                     "non-finite values excluded and counted".to_owned(),
                 ),
             ];
+            if table_stride > 1 {
+                result.notes.push((
+                    "Table".to_owned(),
+                    format!(
+                        "lists one in every {table_stride} observations ({} of {})",
+                        values.len().div_ceil(table_stride),
+                        values.len()
+                    ),
+                ));
+            }
             line_plot(
                 "Exponential Smoothing",
                 column_name,
@@ -1086,5 +1110,69 @@ mod tests {
             let plot = out.plot.expect("plot");
             assert_eq!(plot.points.len(), 24);
         }
+    }
+
+    #[test]
+    fn a_large_decomposition_report_is_thinned_with_a_note() {
+        let n = 6_000usize;
+        let values: Vec<f64> = (0..n)
+            .map(|index| 10.0 + (index % 12) as f64 + (index / 500) as f64 * 0.01)
+            .collect();
+        let df = DataFrame::new(vec![Column::new_f64("y", values)]).expect("frame");
+        let out = analyze(
+            &df,
+            "y",
+            TimeSeriesMethod::Decomposition {
+                period: 12,
+                model: DecompositionModel::Additive,
+            },
+        )
+        .expect("decomposition");
+        let result = &out.results[0];
+        let table = result
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { headers, rows } if headers.len() == 6 => Some(rows),
+                _ => None,
+            })
+            .expect("observation table");
+        assert!(table.len() <= MAX_REPORT_ROWS);
+        assert!(table.len() < n);
+        let text = result.to_session_text();
+        assert!(text.contains("lists one in every"), "{text}");
+    }
+
+    #[test]
+    fn a_large_smoothing_report_is_thinned_with_a_note() {
+        let n = 6_000usize;
+        let values: Vec<f64> = (0..n)
+            .map(|index| 10.0 + (index % 7) as f64 * 0.1)
+            .collect();
+        let df = DataFrame::new(vec![Column::new_f64("y", values)]).expect("frame");
+        let out = analyze(
+            &df,
+            "y",
+            TimeSeriesMethod::ExponentialSmoothing {
+                season: 1,
+                horizon: 2,
+            },
+        )
+        .expect("smoothing");
+        let result = &out.results[0];
+        let table = result
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { headers, rows } if headers.iter().any(|h| h == "Fitted") => {
+                    Some(rows)
+                }
+                _ => None,
+            })
+            .expect("fitted table");
+        assert!(table.len() <= MAX_REPORT_ROWS);
+        assert!(table.len() < n);
+        let text = result.to_session_text();
+        assert!(text.contains("lists one in every"), "{text}");
     }
 }

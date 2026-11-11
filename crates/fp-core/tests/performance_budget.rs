@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 use fp_core::data::{Column, DataFrame};
 use fp_core::io;
 use fp_core::spc::ControlChartKind;
+use fp_core::timeseries::DecompositionModel;
 use fp_core::workflow::{AnalysisSpec, run_analysis};
 
 /// Per-analysis budget. `FREEPLOTS_ANALYSIS_BUDGET_MS` overrides it on a
@@ -112,6 +113,10 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             AnalysisSpec::kmeans(vec!["X".to_owned(), "Z".to_owned(), "W".to_owned()], 3),
         ),
         ("moving average", AnalysisSpec::moving_average("C1", 1_001)),
+        (
+            "decomposition",
+            AnalysisSpec::decomposition("C1", 12, DecompositionModel::Additive),
+        ),
         ("scatterplot", AnalysisSpec::scatterplot("X", "Y")),
         ("one-sample t", AnalysisSpec::one_sample_t("C1", 500.0)),
         ("two-sample t", AnalysisSpec::two_sample_t("X", "Y")),
