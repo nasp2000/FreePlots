@@ -87,7 +87,7 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
         ),
         (
             "Box-Cox capability",
-            AnalysisSpec::capability("T", Some(0.0), Some(1001.0)).with_capability_box_cox(true),
+            AnalysisSpec::capability("T", Some(0.5), Some(1001.0)).with_capability_box_cox(true),
         ),
         (
             "I-MR",

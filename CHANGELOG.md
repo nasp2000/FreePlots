@@ -58,6 +58,8 @@ All notable changes to FreePlots are recorded here. The format follows
 - The Kaplan–Meier fit no longer rescans the sample for every event time: the
   at-risk count advances with the sorted observations, so a million distinct
   times take linear time after the sort.
+- Box-Cox capability now says that the specification limits must be positive,
+  instead of reporting a non-positive observation when a limit is zero.
 - Very large plots are thinned to a bounded sample (one in every k
   observations) and the report says so: the scatterplot, dotplot, time-series,
   probability and empirical-CDF plots, matrix panels, run chart and control

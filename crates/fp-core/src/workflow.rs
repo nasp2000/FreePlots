@@ -5895,15 +5895,17 @@ pub fn capability_normal(
             .map(|&value| crate::boxcox::transform(value, lambda))
             .collect::<Result<Vec<_>>>()?;
         sample = Sample::from_valid(transformed, sample.excluded())?;
-        lsl = lsl
-            .map(|limit| crate::boxcox::transform(limit, lambda))
-            .transpose()?;
-        usl = usl
-            .map(|limit| crate::boxcox::transform(limit, lambda))
-            .transpose()?;
-        target = target
-            .map(|value| crate::boxcox::transform(value, lambda))
-            .transpose()?;
+        let transform_limit = |limit: f64| -> Result<f64> {
+            if limit <= 0.0 {
+                return Err(Error::Unsupported(
+                    "Box-Cox capability requires positive specification limits".to_owned(),
+                ));
+            }
+            crate::boxcox::transform(limit, lambda)
+        };
+        lsl = lsl.map(transform_limit).transpose()?;
+        usl = usl.map(transform_limit).transpose()?;
+        target = target.map(transform_limit).transpose()?;
         box_lambda = Some(lambda);
     }
     let n = sample.n();
@@ -10179,6 +10181,21 @@ mod tests {
             ),
             Err(Error::NonPositive { .. })
         ));
+    }
+
+    #[test]
+    fn box_cox_rejects_non_positive_limits() {
+        let df = DataFrame::new(vec![Column::new_f64("weight", vec![1.0, 2.0, 3.0, 4.0])])
+            .expect("frame");
+        let error = run_analysis(
+            &df,
+            &AnalysisSpec::capability("weight", Some(0.0), Some(4.0)).with_capability_box_cox(true),
+        )
+        .expect_err("the limit is not positive");
+        assert!(
+            error.to_string().contains("positive specification limits"),
+            "{error}"
+        );
     }
 
     #[test]
