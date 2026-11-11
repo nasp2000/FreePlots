@@ -23,8 +23,10 @@ All notable changes to FreePlots are recorded here. The format follows
   inventory, the third-party notices, the SPDX SBOM and a short README, and
   `SHA256SUMS` covers the archives.
 - Linux x86_64 is no longer published.
-- The million-row performance gate now covers the one-sample t test,
-  correlation, normality and run charts, and a one-million-row CSV import.
+- The million-row performance gate now covers descriptive statistics,
+  capability, I–MR, regression, the one- and two-sample t tests, histogram,
+  boxplot, probability plot, ECDF, correlation, normality and run charts, plus
+  a one-million-row CSV import.
 
 ### Fixed
 

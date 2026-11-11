@@ -81,6 +81,11 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             AnalysisSpec::regression("Y", vec!["X".to_owned()]),
         ),
         ("one-sample t", AnalysisSpec::one_sample_t("C1", 500.0)),
+        ("two-sample t", AnalysisSpec::two_sample_t("X", "Y")),
+        ("histogram", AnalysisSpec::histogram("C1")),
+        ("boxplot", AnalysisSpec::boxplot("C1")),
+        ("probability plot", AnalysisSpec::probability_plot("C1")),
+        ("ECDF", AnalysisSpec::ecdf("C1")),
         (
             "correlation",
             AnalysisSpec::correlation(vec!["X".to_owned(), "Y".to_owned()]),
