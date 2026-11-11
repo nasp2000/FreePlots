@@ -107,6 +107,10 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             "PCA",
             AnalysisSpec::pca(vec!["X".to_owned(), "Z".to_owned(), "W".to_owned()], 2),
         ),
+        (
+            "K-means",
+            AnalysisSpec::kmeans(vec!["X".to_owned(), "Z".to_owned(), "W".to_owned()], 3),
+        ),
         ("moving average", AnalysisSpec::moving_average("C1", 1_001)),
         ("scatterplot", AnalysisSpec::scatterplot("X", "Y")),
         ("one-sample t", AnalysisSpec::one_sample_t("C1", 500.0)),

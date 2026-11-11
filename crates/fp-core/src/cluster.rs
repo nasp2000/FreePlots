@@ -19,7 +19,7 @@
 
 use crate::data::DataFrame;
 use crate::error::{Error, Result};
-use crate::plot::{PlotSpec, Point, Series, linear_axis};
+use crate::plot::{PlotSpec, Point, Series, linear_axis, plot_stride, sampling_notes};
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::special::SplitMix64;
 use crate::workflow::AnalysisOutput;
@@ -306,12 +306,14 @@ fn plot(model: &Clusters) -> PlotSpec {
     let x_pad = ((x_max - x_min).abs() * 0.05).max(1e-9);
     let y_pad = ((y_max - y_min).abs() * 0.05).max(1e-9);
     let mut series = Vec::with_capacity(model.k);
+    let stride = plot_stride(model.data.len());
     for cluster in 0..model.k {
         let points: Vec<Point> = model
             .data
             .iter()
             .zip(&model.assignments)
             .filter(|(_, assignment)| **assignment == cluster)
+            .step_by(stride)
             .map(|(row, _)| Point {
                 x: row[0],
                 y: row[1],
@@ -337,7 +339,7 @@ fn plot(model: &Clusters) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 0,
         secondary: None,
-        notes: Vec::new(),
+        notes: sampling_notes(model.data.len()),
     }
 }
 
@@ -463,6 +465,17 @@ pub fn analyze(
                 .to_owned(),
         ),
     ];
+    let stride = plot_stride(model.data.len());
+    if stride > 1 {
+        result.notes.push((
+            "Plot".to_owned(),
+            format!(
+                "draws one in every {stride} observations ({} of {}); the clusters use all of them",
+                model.data.len().div_ceil(stride),
+                model.data.len()
+            ),
+        ));
+    }
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
         "the initialisation, distance and standardisation conventions are standard choices and \
@@ -587,5 +600,22 @@ mod tests {
                 assert!((x - y).abs() < 1e-9, "{:?} vs {:?}", a.means, b.means);
             }
         }
+    }
+
+    #[test]
+    fn a_large_cluster_plot_is_thinned_with_a_note() {
+        let n = 10_001usize;
+        let df = DataFrame::new(vec![
+            Column::new_f64("x", (0..n).map(|index| (index % 100) as f64).collect()),
+            Column::new_f64("y", (0..n).map(|index| (index % 97) as f64).collect()),
+        ])
+        .expect("frame");
+        let out = analyze(&df, &["x".to_owned(), "y".to_owned()], 3, true, 2026).expect("kmeans");
+        let plot = out.plot.expect("plot");
+        let points: usize = plot.series.iter().map(|series| series.points.len()).sum();
+        assert!(points <= crate::plot::MAX_PLOT_POINTS + 3, "{points}");
+        assert!(points < n);
+        assert!(!plot.notes.is_empty(), "the sample must be explained");
+        assert_eq!(out.results[0].n, n);
     }
 }

@@ -25,9 +25,9 @@ All notable changes to FreePlots are recorded here. The format follows
 - Linux x86_64 is no longer published.
 - The million-row performance gate now covers descriptive statistics,
   capability, I–MR, X̄–R, regression (one and two predictors), logistic
-  regression, ANOVA, PCA, moving average, scatterplot, the one- and two-sample
-  t tests, histogram, boxplot, probability plot, ECDF, correlation, normality
-  and run charts, plus a one-million-row CSV import.
+  regression, ANOVA, PCA, K-means, moving average, scatterplot, the one- and
+  two-sample t tests, histogram, boxplot, probability plot, ECDF, correlation,
+  normality and run charts, plus a one-million-row CSV import.
 
 ### Fixed
 
