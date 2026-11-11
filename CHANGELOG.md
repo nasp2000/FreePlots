@@ -27,8 +27,8 @@ All notable changes to FreePlots are recorded here. The format follows
   capability, I–MR, X̄–R, regression (one and two predictors), logistic
   regression, ANOVA, PCA, K-means, moving average, time-series decomposition,
   scatterplot, the one- and two-sample t tests, histogram, boxplot, probability
-  plot, ECDF, correlation, normality and run charts, plus a one-million-row CSV
-  import.
+  plot, ECDF, correlation, normality, run charts and Kaplan–Meier, plus a
+  one-million-row CSV import.
 
 ### Fixed
 
@@ -59,8 +59,8 @@ All notable changes to FreePlots are recorded here. The format follows
   observations) and the report says so: the scatterplot, dotplot, time-series,
   probability and empirical-CDF plots, matrix panels, run chart and control
   charts no longer carry a point for every one of a million observations, and
-  the time-series tables (moving average, decomposition and smoothing) list at
-  most 500 rows. The statistics still use every observation.
+  the time-series and survival tables list at most 500 rows. The statistics
+  still use every observation.
 
 ## [0.1.0] - 2026-11-08
 

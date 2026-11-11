@@ -25,15 +25,8 @@
 use crate::data::{DataFrame, MissingPolicy};
 use crate::error::{Error, Result};
 use crate::plot::{PlotSpec, Point, Segment, Series, linear_axis, plot_stride};
-use crate::report::{AnalysisResult, Item, standard_warnings};
+use crate::report::{AnalysisResult, Item, MAX_REPORT_ROWS, standard_warnings};
 use crate::workflow::AnalysisOutput;
-
-/// Most rows one time-series table lists.
-///
-/// The table is a reading aid, not the data: a million-row worksheet is
-/// normal, and one row per observation would be tens of megabytes of text.
-/// Longer series are listed with a constant stride and the report states it.
-const MAX_REPORT_ROWS: usize = 500;
 
 /// Additive or multiplicative classical decomposition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

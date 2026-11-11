@@ -130,6 +130,7 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
         ),
         ("normality", AnalysisSpec::normality_test("C1")),
         ("run chart", AnalysisSpec::run_chart("C1")),
+        ("Kaplan-Meier", AnalysisSpec::kaplan_meier("C1")),
     ];
     for (name, spec) in cases {
         let started = Instant::now();

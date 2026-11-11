@@ -8,6 +8,13 @@
 use crate::VERSION;
 use crate::i18n::Catalog;
 
+/// Most rows one report table lists.
+///
+/// A table is a reading aid, not the data: a million-row worksheet is normal,
+/// and one row per observation would be tens of megabytes of text. Longer
+/// tables are listed with a constant stride and the report states it.
+pub(crate) const MAX_REPORT_ROWS: usize = 500;
+
 fn escape_html(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")

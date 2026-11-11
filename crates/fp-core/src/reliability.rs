@@ -9,8 +9,8 @@
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
-use crate::plot::{PlotSpec, Point, Segment, linear_axis};
-use crate::report::{AnalysisResult, Item, standard_warnings};
+use crate::plot::{PlotSpec, Point, Segment, linear_axis, plot_stride, sampling_notes};
+use crate::report::{AnalysisResult, Item, MAX_REPORT_ROWS, standard_warnings};
 use crate::special::{ln_gamma, normal_quantile, normal_sf};
 use crate::workflow::AnalysisOutput;
 
@@ -296,6 +296,7 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
         result.statistics.push(("Median CI lower", lower));
         result.statistics.push(("Median CI upper", upper));
     }
+    let table_stride = model.points.len().div_ceil(MAX_REPORT_ROWS).max(1);
     result.extra.push(Item::Table {
         headers: vec![
             "Time".to_owned(),
@@ -309,6 +310,7 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
         rows: model
             .points
             .iter()
+            .step_by(table_stride)
             .map(|point| {
                 vec![
                     format!("{:.6}", point.time),
@@ -352,6 +354,16 @@ fn report(time_column: &str, model: &KaplanMeier) -> AnalysisResult {
             "independent censoring and non-informative censoring".to_owned(),
         ),
     ];
+    if table_stride > 1 {
+        result.notes.push((
+            "Table".to_owned(),
+            format!(
+                "lists one in every {table_stride} points ({} of {})",
+                model.points.len().div_ceil(table_stride),
+                model.points.len()
+            ),
+        ));
+    }
     result.warnings = standard_warnings(model.n, model.excluded, 0);
     result.warnings.push(
         "Kaplan–Meier survival and the normal interval reproduce the documented behaviour \
@@ -367,7 +379,13 @@ fn plot(time_column: &str, model: &KaplanMeier) -> PlotSpec {
     let mut lines = Vec::new();
     let mut previous_time = 0.0;
     let mut previous_survival = 1.0;
-    for point in &model.points {
+    let stride = plot_stride(model.points.len());
+    let last = model.points.len().saturating_sub(1);
+    let sampled = |index: usize| index.is_multiple_of(stride) || index == last;
+    for (index, point) in model.points.iter().enumerate() {
+        if !sampled(index) {
+            continue;
+        }
         if point.time > previous_time {
             lines.push(Segment {
                 from: Point {
@@ -413,8 +431,9 @@ fn plot(time_column: &str, model: &KaplanMeier) -> PlotSpec {
     let points = model
         .points
         .iter()
-        .filter(|point| point.censored > 0)
-        .map(|point| Point {
+        .enumerate()
+        .filter(|(index, point)| sampled(*index) && point.censored > 0)
+        .map(|(_, point)| Point {
             x: point.time,
             y: point.survival,
         })
@@ -432,7 +451,7 @@ fn plot(time_column: &str, model: &KaplanMeier) -> PlotSpec {
         panels: Vec::new(),
         panel_columns: 1,
         secondary: None,
-        notes: Vec::new(),
+        notes: sampling_notes(model.points.len()),
     }
 }
 
@@ -1771,5 +1790,28 @@ mod tests {
         assert!(text.contains("Median survival"), "{text}");
         let plot = out.plot.expect("plot");
         assert!(!plot.lines.is_empty());
+    }
+
+    #[test]
+    fn a_large_survival_report_is_thinned_with_a_note() {
+        let n = 10_001usize;
+        let times: Vec<f64> = (0..n).map(|index| index as f64 + 0.5).collect();
+        let df = DataFrame::new(vec![Column::new_f64("time", times)]).expect("frame");
+        let out = analyze(&df, "time", None, 0.0, 0.95).expect("kaplan-meier");
+        let result = &out.results[0];
+        let table = result
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { rows, .. } => Some(rows),
+                _ => None,
+            })
+            .expect("survival table");
+        assert!(table.len() <= MAX_REPORT_ROWS);
+        assert!(table.len() < n);
+        let plot = out.plot.expect("plot");
+        assert!(plot.lines.len() <= 2 * crate::plot::MAX_PLOT_POINTS + 2);
+        assert!(!plot.notes.is_empty(), "the sample must be explained");
+        assert_eq!(result.n, n);
     }
 }
