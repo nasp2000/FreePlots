@@ -30,7 +30,7 @@ impl FreePlotsApp {
             .resizable(false)
             .default_width(420.0)
             .show(ctx, |ui| {
-                ui.label(match kind {
+                let path_label = ui.label(match kind {
                     FileKind::Csv => "Path to a CSV file:",
                     FileKind::Project => "Path to a .fpp project:",
                     FileKind::Html => "Path to an HTML file:",
@@ -44,6 +44,7 @@ impl FreePlotsApp {
                 ui.horizontal(|ui| {
                     let response = ui
                         .text_edit_singleline(&mut self.open_path)
+                        .labelled_by(path_label.id)
                         .on_hover_text("Path of the file to open; Browse… opens the system dialog");
                     let submitted =
                         response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -135,7 +136,7 @@ impl FreePlotsApp {
             .resizable(false)
             .default_width(460.0)
             .show(ctx, |ui| {
-                ui.label(match kind {
+                let path_label = ui.label(match kind {
                     FileKind::Csv => "Destination CSV file:",
                     FileKind::Project => "Destination .fpp project:",
                     FileKind::Html => "Destination HTML file:",
@@ -149,6 +150,7 @@ impl FreePlotsApp {
                 ui.horizontal(|ui| {
                     let response = ui
                         .text_edit_singleline(&mut self.save_path)
+                        .labelled_by(path_label.id)
                         .on_hover_text("Destination file; Browse… opens the system dialog");
                     let submitted =
                         response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
