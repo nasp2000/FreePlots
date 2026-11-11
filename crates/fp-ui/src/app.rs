@@ -3873,6 +3873,11 @@ impl FreePlotsApp {
         self.show_step_stress_dialog = false;
         self.show_unstack_dialog = false;
         self.show_weibull_dialog = false;
+        self.show_open = false;
+        self.show_save = false;
+        self.show_find_dialog = false;
+        self.show_overwrite = false;
+        self.show_samples_dialog = false;
     }
 
     /// Opens a file dropped on the window, choosing the reader by extension.

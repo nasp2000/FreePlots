@@ -13,6 +13,7 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["File", "Open Project…"],
     &["File", "Save CSV As…"],
     &["File", "Save Project As…"],
+    &["File", "Sample projects…"],
     &["Assistant", "Choose an analysis…"],
     &["Help", "Keyboard shortcuts"],
     &["Graph", "Dotplot…"],
