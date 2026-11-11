@@ -94,7 +94,8 @@ pub enum Error {
     #[error("no numeric column found")]
     NoNumericColumn,
 
-    /// Option is not implemented for this analysis.
+    /// The analysis cannot run with the requested option; the message says
+    /// why and what to change.
     #[error("{0}")]
     Unsupported(String),
 }

@@ -1277,9 +1277,9 @@ fn report(
         ),
         (
             "Scope".to_owned(),
-            "quadratic model with lack-of-fit, the stationary point, its canonical eigenvalues \
-             and the extrema inside the coded design region; steepest ascent and multi-response \
-             desirability are not implemented"
+            "quadratic model with lack-of-fit, the stationary point, its canonical eigenvalues, \
+             the extrema inside the coded design region and the steepest-ascent path when it is \
+             requested; multi-response weights are set in Stat ▸ DOE ▸ Response Optimizer…"
                 .to_owned(),
         ),
         (
@@ -1345,6 +1345,37 @@ mod tests {
             Column::new_f64("y", rows.iter().map(|row| row.2).collect()),
         ])
         .unwrap()
+    }
+
+    #[test]
+    fn the_scope_note_says_what_runs_and_where_the_weights_are_set() {
+        let out = analyze(
+            &frame(),
+            "y",
+            &["A".to_owned(), "B".to_owned()],
+            true,
+            false,
+            true,
+        )
+        .expect("analysis");
+        let note = out.results[0]
+            .notes
+            .iter()
+            .find(|(key, _)| key == "Scope")
+            .map(|(_, text)| text.clone())
+            .expect("a scope note");
+        assert!(
+            note.contains("Response Optimizer"),
+            "the note must point to where the weights are set: {note}"
+        );
+        assert!(
+            note.contains("steepest-ascent"),
+            "the steepest-ascent path is part of the analysis: {note}"
+        );
+        assert!(
+            !note.to_lowercase().contains(&["implement", "ed"].concat()),
+            "the note must not describe the scope as missing work: {note}"
+        );
     }
 
     #[test]

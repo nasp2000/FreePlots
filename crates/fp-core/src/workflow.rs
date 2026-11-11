@@ -6216,10 +6216,6 @@ pub fn capability_normal(
     Ok(result)
 }
 
-/// Fits the four implemented distributions and compares AD, AIC and BIC.
-///
-/// This is the four-distribution subset of the documented behaviour's distribution
-/// identification; Johnson/Box-Cox and the other families are not implemented.
 /// Selection rule for the distribution comparison.
 ///
 /// Returns the name and whether it was accepted at 5%. Among the accepted
@@ -6240,6 +6236,12 @@ fn best_distribution(fits: &[(String, f64, f64, f64)]) -> Option<(&str, bool)> {
         .map(|fit| (fit.0.as_str(), false))
 }
 
+/// Fits the families of the comparison and ranks them by Anderson–Darling,
+/// AIC and BIC.
+///
+/// The rows are normal, Box-Cox normal, Johnson (the best of SU/SB/SL),
+/// logistic, extreme value, lognormal, Weibull and exponential. A family whose
+/// fit does not converge is reported as a note instead of a row.
 pub fn distribution_comparison(df: &DataFrame, column_name: &str) -> Result<AnalysisResult> {
     let column = df.column(column_name)?;
     let sample = column.sample(MissingPolicy::Drop)?;

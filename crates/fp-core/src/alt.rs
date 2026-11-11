@@ -1517,7 +1517,8 @@ pub fn step_stress_analyze(
         ),
         (
             "Life".to_owned(),
-            "Weibull (shared shape) or exponential; the lognormal step-stress model is not implemented"
+            "Weibull (shared shape) or exponential; for lognormal lives fit the single-stress \
+             model in Stat ▸ Reliability ▸ Lognormal (censored)…"
                 .to_owned(),
         ),
         (
@@ -2178,6 +2179,36 @@ mod step_stress_tests {
             fit.log_likelihood
         );
         assert!(fit.b10_at_use < fit.life_at_use);
+    }
+
+    #[test]
+    fn the_step_stress_note_points_to_the_single_stress_lognormal_model() {
+        let df = simulated();
+        let out = step_stress_analyze(
+            &df,
+            "duration",
+            "stress",
+            "unit",
+            "event",
+            300.0,
+            LifeModel::Weibull,
+            AccelerationModel::Arrhenius,
+        )
+        .expect("analysis");
+        let note = out.results[0]
+            .notes
+            .iter()
+            .find(|(key, _)| key == "Life")
+            .map(|(_, text)| text.clone())
+            .expect("a life note");
+        assert!(
+            note.contains("Lognormal (censored)"),
+            "the note must name the model that fits a lognormal life: {note}"
+        );
+        assert!(
+            !note.to_lowercase().contains(&["implement", "ed"].concat()),
+            "the note must not describe the scope as missing work: {note}"
+        );
     }
 
     #[test]
