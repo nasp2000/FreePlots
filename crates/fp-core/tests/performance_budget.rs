@@ -61,6 +61,7 @@ fn million_rows() -> DataFrame {
     let group: Vec<f64> = (0..rows).map(|row| (row % 3) as f64).collect();
     let binary: Vec<f64> = (0..rows).map(|row| (row % 2) as f64).collect();
     let w: Vec<f64> = (0..rows).map(|row| (row as f64 * 0.000_7).cos()).collect();
+    let survival: Vec<f64> = (0..rows).map(|row| 1.0 + row as f64 * 0.001).collect();
     DataFrame::new(vec![
         Column::new_f64("X", x.clone()),
         Column::new_f64("Y", y),
@@ -68,6 +69,7 @@ fn million_rows() -> DataFrame {
         Column::new_f64("W", w),
         Column::new_f64("G", group),
         Column::new_f64("B", binary),
+        Column::new_f64("T", survival),
         Column::new_f64("C1", x),
     ])
     .expect("frame")
@@ -130,7 +132,7 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
         ),
         ("normality", AnalysisSpec::normality_test("C1")),
         ("run chart", AnalysisSpec::run_chart("C1")),
-        ("Kaplan-Meier", AnalysisSpec::kaplan_meier("C1")),
+        ("Kaplan-Meier", AnalysisSpec::kaplan_meier("T")),
     ];
     for (name, spec) in cases {
         let started = Instant::now();
