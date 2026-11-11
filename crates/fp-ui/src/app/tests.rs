@@ -648,14 +648,45 @@ fn the_dark_mode_is_opt_in_and_applies_the_dark_theme() {
     harness.run();
     harness.run();
     assert!(harness.state().dark_mode);
-    assert!(!harness.state().light_visuals);
+    assert_eq!(harness.state().light_visuals, Some(false));
     harness.get_by_label("Tools").click();
     harness.run();
     harness.get_by_label("Dark mode").click();
     harness.run();
     harness.run();
     assert!(!harness.state().dark_mode);
-    assert!(harness.state().light_visuals);
+    assert_eq!(harness.state().light_visuals, Some(true));
+}
+
+/// The theme also installs the bundled fonts (the build has no default font
+/// set), so a start in the theme that is already active must still apply it:
+/// otherwise every label is laid out with no glyphs and the window shows no
+/// text at all.
+#[test]
+fn a_dark_start_still_applies_the_theme_and_installs_the_fonts() {
+    use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.set_dark_mode(true);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.run();
+    let width = harness.ctx.fonts(|fonts| {
+        fonts
+            .layout_no_wrap(
+                "FreePlots".to_owned(),
+                egui::FontId::proportional(14.0),
+                egui::Color32::WHITE,
+            )
+            .size()
+            .x
+    });
+    assert!(
+        width > 0.0,
+        "a dark start must install the bundled fonts, got a text width of {width}"
+    );
 }
 
 #[test]

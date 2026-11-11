@@ -87,9 +87,9 @@ impl FreePlotsApp {
             self.reset_dialog_defaults();
         }
         let want_light = !self.dark_mode;
-        if self.light_visuals != want_light {
+        if self.light_visuals != Some(want_light) {
             apply_theme(ui.ctx(), want_light);
-            self.light_visuals = want_light;
+            self.light_visuals = Some(want_light);
         }
 
         egui::Panel::top("fp_menu").show(ui, |ui| self.menu_bar(ui));

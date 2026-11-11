@@ -489,7 +489,7 @@ impl FreePlotsApp {
             show_about: false,
             status: "New worksheet — 8 columns".to_owned(),
             error: None,
-            light_visuals: false,
+            light_visuals: None,
             zoom: 1.0,
             date_format: DateFormat::Iso,
             native_plot_windows: true,

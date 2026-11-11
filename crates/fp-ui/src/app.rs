@@ -1404,7 +1404,9 @@ pub struct FreePlotsApp {
     show_about: bool,
     status: String,
     error: Option<String>,
-    light_visuals: bool,
+    /// Whether the light theme is applied; `None` until the first frame has
+    /// installed the theme and the bundled fonts.
+    light_visuals: Option<bool>,
     zoom: f32,
     date_format: DateFormat,
     native_plot_windows: bool,
