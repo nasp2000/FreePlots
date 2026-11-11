@@ -54,9 +54,17 @@ fn million_rows() -> DataFrame {
         .enumerate()
         .map(|(row, value)| 2.0 * value + ((row % 17) as f64) * 0.01)
         .collect();
+    let z: Vec<f64> = (0..rows)
+        .map(|row| ((row % 1_000) as f64 / 100.0).sin())
+        .collect();
+    let group: Vec<f64> = (0..rows).map(|row| (row % 3) as f64).collect();
+    let w: Vec<f64> = (0..rows).map(|row| (row as f64 * 0.000_7).cos()).collect();
     DataFrame::new(vec![
         Column::new_f64("X", x.clone()),
         Column::new_f64("Y", y),
+        Column::new_f64("Z", z),
+        Column::new_f64("W", w),
+        Column::new_f64("G", group),
         Column::new_f64("C1", x),
     ])
     .expect("frame")
@@ -80,6 +88,17 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             "regression",
             AnalysisSpec::regression("Y", vec!["X".to_owned()]),
         ),
+        (
+            "regression 2",
+            AnalysisSpec::regression("Y", vec!["X".to_owned(), "Z".to_owned()]),
+        ),
+        ("ANOVA", AnalysisSpec::anova("C1", "G")),
+        (
+            "PCA",
+            AnalysisSpec::pca(vec!["X".to_owned(), "Z".to_owned(), "W".to_owned()], 2),
+        ),
+        ("moving average", AnalysisSpec::moving_average("C1", 1_001)),
+        ("scatterplot", AnalysisSpec::scatterplot("X", "Y")),
         ("one-sample t", AnalysisSpec::one_sample_t("C1", 500.0)),
         ("two-sample t", AnalysisSpec::two_sample_t("X", "Y")),
         ("histogram", AnalysisSpec::histogram("C1")),

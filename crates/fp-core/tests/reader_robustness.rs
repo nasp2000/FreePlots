@@ -215,3 +215,53 @@ fn an_archive_that_claims_thousands_of_entries_is_refused() {
     bytes.extend_from_slice(&0u16.to_le_bytes());
     assert!(xlsx_read::read_workbook(&bytes).is_err());
 }
+
+/// Deterministic xorshift, so the generated corpus is reproducible.
+fn next_random(state: &mut u64) -> u64 {
+    let mut value = *state;
+    value ^= value << 13;
+    value ^= value >> 7;
+    value ^= value << 17;
+    *state = value;
+    value
+}
+
+#[test]
+fn random_csv_bytes_are_read_or_refused() {
+    let mut state = 0x9E37_79B9_7F4A_7C15u64;
+    for _ in 0..1_000 {
+        let len = (next_random(&mut state) % 96) as usize;
+        let bytes: Vec<u8> = (0..len)
+            .map(|_| (next_random(&mut state) & 0xFF) as u8)
+            .collect();
+        csv_round_trip(&bytes);
+    }
+}
+
+#[test]
+fn random_project_bytes_are_read_or_refused() {
+    let mut state = 0xD1B5_4A32_D192_ED03u64;
+    for _ in 0..500 {
+        let len = (next_random(&mut state) % 128) as usize;
+        let bytes: Vec<u8> = (0..len)
+            .map(|_| (next_random(&mut state) & 0xFF) as u8)
+            .collect();
+        project_round_trip(&bytes);
+    }
+}
+
+#[test]
+fn random_formulas_are_evaluated_or_refused() {
+    const ALPHABET: &[u8] = b"=+-*/^%(),.<>:\"' 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_\t";
+    let mut state = 0x2545_F491_4F6C_DD1Du64;
+    for _ in 0..1_000 {
+        let len = 1 + (next_random(&mut state) % 63) as usize;
+        let text: String = (0..len)
+            .map(|_| {
+                let index = (next_random(&mut state) as usize) % ALPHABET.len();
+                ALPHABET[index] as char
+            })
+            .collect();
+        formula_round_trip(&text);
+    }
+}
