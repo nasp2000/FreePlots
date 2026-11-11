@@ -319,7 +319,9 @@ fn excel_serial_to_iso(serial: f64) -> Option<String> {
     }
     let days = serial.floor() as i64;
     let offset = if days >= 60 { 25569 } else { 25568 };
-    let timestamp = (days - offset) * 86_400;
+    // A hostile or broken export can carry any number in a date-formatted
+    // cell; the day arithmetic must refuse it instead of overflowing.
+    let timestamp = (days - offset).checked_mul(86_400)?;
     let text = crate::data::format_date(timestamp / 86_400);
     if text.is_empty() { None } else { Some(text) }
 }
@@ -650,6 +652,16 @@ mod tests {
         assert!(is_date_format("dd/mm/yyyy"));
         assert!(is_date_format("mmm-yy"));
         assert!(is_date_format("hh:mm:ss"));
+    }
+
+    #[test]
+    fn absurd_serials_do_not_overflow_the_day_arithmetic() {
+        // A date-formatted cell can carry any number; the multiplication by
+        // the seconds of a day used to overflow (a panic in a debug build).
+        for serial in [1e15, 1e18, 1e300, f64::MAX] {
+            assert_eq!(excel_serial_to_iso(serial), None, "serial {serial}");
+        }
+        assert_eq!(excel_serial_to_iso(45292.0).as_deref(), Some("2024-01-01"));
     }
 
     #[test]
