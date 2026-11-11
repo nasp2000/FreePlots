@@ -24,11 +24,11 @@ All notable changes to FreePlots are recorded here. The format follows
   `SHA256SUMS` covers the archives.
 - Linux x86_64 is no longer published.
 - The million-row performance gate now covers descriptive statistics,
-  capability, I–MR, X̄–R, regression (one and two predictors), logistic
-  regression, ANOVA, PCA, K-means, moving average, time-series decomposition,
-  scatterplot, the one- and two-sample t tests, histogram, boxplot, probability
-  plot, ECDF, correlation, normality, run charts and Kaplan–Meier, plus a
-  one-million-row CSV import.
+  capability (plain and Box–Cox), I–MR, X̄–R, regression (one and two
+  predictors), logistic regression, ANOVA, PCA, K-means, moving average,
+  time-series decomposition and smoothing, scatterplot, the one- and two-sample
+  t tests, histogram, boxplot, probability plot, ECDF, correlation, normality,
+  run charts and Kaplan–Meier, plus a one-million-row CSV import.
 
 ### Fixed
 

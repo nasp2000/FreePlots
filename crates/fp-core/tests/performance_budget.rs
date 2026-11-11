@@ -86,6 +86,10 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             AnalysisSpec::capability("C1", Some(-10.0), Some(1010.0)),
         ),
         (
+            "Box-Cox capability",
+            AnalysisSpec::capability("T", Some(0.0), Some(1001.0)).with_capability_box_cox(true),
+        ),
+        (
             "I-MR",
             AnalysisSpec::control_chart("C1", ControlChartKind::IndividualsMovingRange, 1),
         ),
@@ -115,6 +119,10 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             AnalysisSpec::kmeans(vec!["X".to_owned(), "Z".to_owned(), "W".to_owned()], 3),
         ),
         ("moving average", AnalysisSpec::moving_average("C1", 1_001)),
+        (
+            "smoothing",
+            AnalysisSpec::exponential_smoothing("C1", 12, 12),
+        ),
         (
             "decomposition",
             AnalysisSpec::decomposition("C1", 12, DecompositionModel::Additive),
