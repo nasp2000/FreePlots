@@ -60,6 +60,9 @@ All notable changes to FreePlots are recorded here. The format follows
   times take linear time after the sort.
 - Box-Cox capability now says that the specification limits must be positive,
   instead of reporting a non-positive observation when a limit is zero.
+- Holt–Winters smoothing uses a coarser grid search above 100 000
+  observations, so a million-row series no longer spends ten seconds choosing
+  the constants; the report states it.
 - Very large plots are thinned to a bounded sample (one in every k
   observations) and the report says so: the scatterplot, dotplot, time-series,
   probability and empirical-CDF plots, matrix panels, run chart and control

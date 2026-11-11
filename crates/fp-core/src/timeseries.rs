@@ -28,6 +28,13 @@ use crate::plot::{PlotSpec, Point, Segment, Series, linear_axis, plot_stride};
 use crate::report::{AnalysisResult, Item, MAX_REPORT_ROWS, standard_warnings};
 use crate::workflow::AnalysisOutput;
 
+/// Longest series that still uses the full Holt–Winters grid.
+///
+/// The seasonal search evaluates hundreds of candidate constants; on a
+/// million-row series that is about ten seconds. Longer series use a coarser
+/// grid, and the report states it.
+const SMOOTHING_FULL_GRID_MAX: usize = 100_000;
+
 /// Additive or multiplicative classical decomposition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecompositionModel {
@@ -359,8 +366,13 @@ fn optimise_smoothing(values: &[f64], season: usize, horizon: usize) -> Smoothin
     let mut best = winters(values, season, 0.3, 0.1, 0.3, horizon);
     let mut start = 0.05;
     let mut end = 0.95;
-    for _ in 0..3 {
-        let step = (end - start) / 6.0;
+    let (rounds, divisions) = if values.len() > SMOOTHING_FULL_GRID_MAX {
+        (2usize, 3.0)
+    } else {
+        (3usize, 6.0)
+    };
+    for _ in 0..rounds {
+        let step = (end - start) / divisions;
         let mut alpha = start;
         while alpha <= end + 1e-9 {
             let mut beta = start;
@@ -888,6 +900,14 @@ pub fn analyze(
                     ),
                 ));
             }
+            if season >= 2 && values.len() > SMOOTHING_FULL_GRID_MAX {
+                result.notes.push((
+                    "Grid".to_owned(),
+                    "a long series uses a coarser search (three values per parameter, two \
+                     passes) for the smoothing constants"
+                        .to_owned(),
+                ));
+            }
             line_plot(
                 "Exponential Smoothing",
                 column_name,
@@ -1167,5 +1187,25 @@ mod tests {
         assert!(table.len() < n);
         let text = result.to_session_text();
         assert!(text.contains("lists one in every"), "{text}");
+    }
+
+    #[test]
+    fn a_long_seasonal_series_uses_the_coarse_search() {
+        let n = 200_001usize;
+        let values: Vec<f64> = (0..n)
+            .map(|index| 10.0 + (index % 12) as f64 + (index / 500) as f64 * 0.01)
+            .collect();
+        let df = DataFrame::new(vec![Column::new_f64("y", values)]).expect("frame");
+        let out = analyze(
+            &df,
+            "y",
+            TimeSeriesMethod::ExponentialSmoothing {
+                season: 12,
+                horizon: 2,
+            },
+        )
+        .expect("smoothing");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("coarser search"), "{text}");
     }
 }
