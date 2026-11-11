@@ -291,6 +291,21 @@ mod tests {
     }
 
     #[test]
+    fn a_central_directory_outside_the_archive_is_rejected() {
+        let mut bytes = archive("hello.txt", 0, b"hello", 5);
+        let eocd = bytes.len() - 22;
+        bytes[eocd + 16..eocd + 20].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(ZipArchive::new(bytes).is_err());
+    }
+
+    #[test]
+    fn a_deflated_entry_that_declares_no_output_is_refused() {
+        let data = archive("hello.txt", 8, DEFLATED, 0);
+        let zip = ZipArchive::new(data).expect("archive");
+        assert!(zip.read("hello.txt").is_err());
+    }
+
+    #[test]
     fn a_file_that_is_not_an_archive_is_rejected() {
         assert!(ZipArchive::new(b"not a zip".to_vec()).is_err());
     }

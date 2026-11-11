@@ -58,6 +58,7 @@ fn million_rows() -> DataFrame {
         .map(|row| ((row % 1_000) as f64 / 100.0).sin())
         .collect();
     let group: Vec<f64> = (0..rows).map(|row| (row % 3) as f64).collect();
+    let binary: Vec<f64> = (0..rows).map(|row| (row % 2) as f64).collect();
     let w: Vec<f64> = (0..rows).map(|row| (row as f64 * 0.000_7).cos()).collect();
     DataFrame::new(vec![
         Column::new_f64("X", x.clone()),
@@ -65,6 +66,7 @@ fn million_rows() -> DataFrame {
         Column::new_f64("Z", z),
         Column::new_f64("W", w),
         Column::new_f64("G", group),
+        Column::new_f64("B", binary),
         Column::new_f64("C1", x),
     ])
     .expect("frame")
@@ -85,12 +87,20 @@ fn one_million_rows_stay_inside_the_analysis_budgets() {
             AnalysisSpec::control_chart("C1", ControlChartKind::IndividualsMovingRange, 1),
         ),
         (
+            "Xbar-R",
+            AnalysisSpec::control_chart("C1", ControlChartKind::XbarR, 5),
+        ),
+        (
             "regression",
             AnalysisSpec::regression("Y", vec!["X".to_owned()]),
         ),
         (
             "regression 2",
             AnalysisSpec::regression("Y", vec!["X".to_owned(), "Z".to_owned()]),
+        ),
+        (
+            "logistic",
+            AnalysisSpec::logistic("B", vec!["X".to_owned(), "Z".to_owned()]),
         ),
         ("ANOVA", AnalysisSpec::anova("C1", "G")),
         (
