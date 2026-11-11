@@ -55,6 +55,9 @@ All notable changes to FreePlots are recorded here. The format follows
 - A workbook that claims millions of padded cells (a cell in the last Excel
   column on many rows) is refused once the five-million-cell budget is
   exceeded, instead of allocating until the process is killed.
+- The Kaplan–Meier fit no longer rescans the sample for every event time: the
+  at-risk count advances with the sorted observations, so a million distinct
+  times take linear time after the sort.
 - Very large plots are thinned to a bounded sample (one in every k
   observations) and the report says so: the scatterplot, dotplot, time-series,
   probability and empirical-CDF plots, matrix panels, run chart and control

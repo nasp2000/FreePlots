@@ -161,6 +161,11 @@ pub fn fit(
     let mut index = 0usize;
     while index < observations.len() {
         let time_value = observations[index].0;
+        // Everything from this position on is at this time or later: the
+        // sorted prefix before `index` has already left the risk set. This
+        // makes the fit O(n log n) (the sort) instead of rescanning the
+        // sample for every event time.
+        let at_risk = n - index;
         let mut event_count = 0usize;
         let mut censor_count = 0usize;
         while index < observations.len() && observations[index].0 == time_value {
@@ -171,11 +176,6 @@ pub fn fit(
             }
             index += 1;
         }
-        // At risk includes everything at this time or later.
-        let at_risk = n - observations
-            .iter()
-            .take_while(|(value, _)| *value < time_value)
-            .count();
         if event_count > 0 {
             survival *= 1.0 - event_count as f64 / at_risk as f64;
             if at_risk > event_count {
@@ -1813,5 +1813,18 @@ mod tests {
         assert!(plot.lines.len() <= 2 * crate::plot::MAX_PLOT_POINTS + 2);
         assert!(!plot.notes.is_empty(), "the sample must be explained");
         assert_eq!(result.n, n);
+    }
+
+    #[test]
+    fn the_at_risk_count_follows_the_sorted_times() {
+        let df =
+            DataFrame::new(vec![Column::new_f64("time", vec![1.0, 1.0, 2.0, 3.0])]).expect("frame");
+        let model = fit(&df, "time", None, 0.0, 0.95).expect("kaplan-meier");
+        let counts: Vec<(f64, usize)> = model
+            .points
+            .iter()
+            .map(|point| (point.time, point.at_risk))
+            .collect();
+        assert_eq!(counts, vec![(1.0, 4), (2.0, 2), (3.0, 1)]);
     }
 }
