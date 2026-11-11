@@ -12,6 +12,15 @@ use crate::data::{Column, DataFrame};
 use crate::error::{Error, Result};
 use crate::zip::ZipArchive;
 
+/// Largest number of worksheet cells one workbook may claim.
+///
+/// The XML scanner pads a row up to the column of every cell it sees. A small
+/// hostile sheet with one cell in the last Excel column on each row would
+/// otherwise allocate millions of empty strings and be killed. Five million
+/// cells is five times the one-million-cell worksheet the application budgets
+/// for, and a legitimate table of that size fits.
+const MAX_CELLS: usize = 5_000_000;
+
 /// Reads the first worksheet of an `.xlsx` workbook.
 ///
 /// # Errors
@@ -323,6 +332,7 @@ fn parse_sheet(text: &str, shared: &[String], date_styles: &[bool]) -> Result<Ve
     let mut cell_type = String::new();
     let mut cell_style = 0usize;
     let mut column = 0usize;
+    let mut cells = 0usize;
     let mut inside_cell = false;
     let mut inside_value = false;
     let mut value = String::new();
@@ -375,8 +385,15 @@ fn parse_sheet(text: &str, shared: &[String], date_styles: &[bool]) -> Result<Ve
                         .unwrap_or_else(|| value.clone()),
                     _ => value.clone(),
                 };
-                while current.len() <= column {
-                    current.push(String::new());
+                if current.len() <= column {
+                    let growth = column + 1 - current.len();
+                    if cells.saturating_add(growth) > MAX_CELLS {
+                        return Err(Error::Unsupported(format!(
+                            "the worksheet has more than {MAX_CELLS} cells"
+                        )));
+                    }
+                    cells += growth;
+                    current.resize_with(column + 1, String::new);
                 }
                 current[column] = text;
             }
@@ -661,6 +678,24 @@ mod tests {
         let sheet = r#"<worksheet><sheetData><row r="1"><c r="XFD1"><v>1</v></c></row></sheetData></worksheet>"#;
         let table = parse_sheet(sheet, &[], &[]).expect("a column inside the Excel limit");
         assert_eq!(table[0].len(), 16_384);
+    }
+
+    #[test]
+    fn a_worksheet_with_too_many_cells_is_refused() {
+        // One cell in the last Excel column on each row pads every row to
+        // 16 384 cells; past the budget the reader must stop instead of
+        // allocating until the process is killed.
+        let mut sheet = String::from("<worksheet><sheetData>");
+        for row in 0..306 {
+            sheet.push_str(&format!(
+                "<row r=\"{}\"><c r=\"XFD{}\"><v>1</v></c></row>",
+                row + 1,
+                row + 1
+            ));
+        }
+        sheet.push_str("</sheetData></worksheet>");
+        let error = parse_sheet(&sheet, &[], &[]).expect_err("the cell budget");
+        assert!(error.to_string().contains("cells"), "{error}");
     }
 
     #[test]

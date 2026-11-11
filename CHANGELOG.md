@@ -51,6 +51,9 @@ All notable changes to FreePlots are recorded here. The format follows
 - A project whose missing-value mask or column lengths do not match is now
   refused when it is read, instead of loading a table that could panic when a
   cell was displayed.
+- A workbook that claims millions of padded cells (a cell in the last Excel
+  column on many rows) is refused once the five-million-cell budget is
+  exceeded, instead of allocating until the process is killed.
 - Very large plots are thinned to a bounded sample (one in every k
   observations) and the report says so: the scatterplot, dotplot, time-series,
   probability and empirical-CDF plots, matrix panels, run chart and control
