@@ -1,13 +1,29 @@
 // SPDX-License-Identifier: MIT
 //! Guards the messages a user can read against claiming that a feature is
-//! missing.
+//! missing, and against placeholder markers left in the sources.
 //!
 //! Every analysis either runs or refuses with an actionable reason; a report
-//! note never says a capability does not exist. The phrases are assembled from
-//! fragments so that this file does not contain them itself.
+//! note never says a capability does not exist and no user-facing text carries
+//! a to-do marker. The phrases are assembled from fragments so that this file
+//! does not contain them itself.
 
 use std::fs;
 use std::path::{Path, PathBuf};
+
+/// Upper-case marker words that must not appear in the sources: a note left
+/// for later is a placeholder the user can run into. They are matched as whole
+/// words and in upper case, so Portuguese words such as "método" or "todos"
+/// never match. They are assembled from fragments like the phrases above, so
+/// this file does not contain them itself.
+fn markers() -> Vec<String> {
+    vec![["TO", "DO"].concat(), ["FIX", "ME"].concat()]
+}
+
+/// Whether `line` carries `marker` as a whole upper-case word.
+fn has_marker(line: &str, marker: &str) -> bool {
+    line.split(|character: char| !character.is_alphanumeric() && character != '_')
+        .any(|token| token == marker)
+}
 
 /// Phrases that must not appear in the sources or the documentation.
 fn banned() -> Vec<String> {
@@ -65,6 +81,7 @@ fn no_message_claims_a_feature_is_missing() {
     files.extend(documentation);
 
     let banned = banned();
+    let markers = markers();
     let mut hits = Vec::new();
     for path in files {
         let Ok(text) = fs::read_to_string(&path) else {
@@ -77,10 +94,17 @@ fn no_message_claims_a_feature_is_missing() {
                 hits.push(format!("{}:{line}: {phrase}", path.display()));
             }
         }
+        for (number, line) in text.lines().enumerate() {
+            for marker in &markers {
+                if has_marker(line, marker) {
+                    hits.push(format!("{}:{}: {marker}", path.display(), number + 1));
+                }
+            }
+        }
     }
     assert!(
         hits.is_empty(),
-        "a user-facing message claims a feature is missing:\n{}",
+        "a user-facing message claims a feature is missing or leaves a placeholder:\n{}",
         hits.join("\n")
     );
 }
