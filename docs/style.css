@@ -48,7 +48,6 @@ body {
       rgba(255, 255, 255, 0.014) 0 26px,
       transparent 26px 52px
     );
-  background-attachment: fixed;
   color: var(--ink);
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 16px;
