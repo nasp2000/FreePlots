@@ -3855,6 +3855,81 @@ fn grid_100k_by_20_stays_inside_the_frame_budget() {
 }
 
 #[test]
+#[ignore = "million-row grid budget; run on the target machine"]
+fn grid_million_rows_stay_inside_the_frame_budget() {
+    use std::time::{Duration, Instant};
+
+    let rows = 1_000_000;
+    let columns = 8;
+    let values: Vec<Vec<f64>> = (0..columns)
+        .map(|column| {
+            (0..rows)
+                .map(|row| (row as f64) * 0.001 + column as f64)
+                .collect()
+        })
+        .collect();
+    let df = DataFrame::new(
+        values
+            .into_iter()
+            .enumerate()
+            .map(|(index, values)| Column::new_f64(format!("C{}", index + 1), values))
+            .collect(),
+    )
+    .expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "million.csv".to_owned());
+
+    let ctx = egui::Context::default();
+    let input = || egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::pos2(0.0, 0.0),
+            egui::vec2(1320.0, 840.0),
+        )),
+        ..Default::default()
+    };
+    // Warm up fonts and layout caches.
+    let mut output = ctx.run_ui(input(), |ui| app.show(ui));
+    output.textures_delta.clear();
+
+    let started = Instant::now();
+    for _ in 0..3 {
+        let mut output = ctx.run_ui(input(), |ui| app.show(ui));
+        output.textures_delta.clear();
+    }
+    let frame = started.elapsed() / 3;
+    let frame_budget_ms = std::env::var("FREEPLOTS_FRAME_BUDGET_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(if cfg!(target_arch = "aarch64") {
+            60
+        } else {
+            20
+        });
+    let frame_budget = Duration::from_millis(frame_budget_ms);
+    println!("1M×8 frame: {frame:?} (budget {frame_budget:?})");
+    assert!(frame <= frame_budget, "frame took {frame:?}");
+
+    app.select_cell(0, 900_000);
+    app.set_edit_buffer("42");
+    let started = Instant::now();
+    assert!(app.commit_cell());
+    let edit = started.elapsed();
+    let edit_budget_ms = std::env::var("FREEPLOTS_EDIT_BUDGET_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(if cfg!(target_arch = "aarch64") {
+            40
+        } else {
+            16
+        });
+    let edit_budget = Duration::from_millis(edit_budget_ms);
+    println!("million-row cell edit: {edit:?} (budget {edit_budget:?})");
+    assert!(edit <= edit_budget, "edit took {edit:?}");
+}
+
+#[test]
 fn headless_frame_paints_worksheet_and_session() {
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());

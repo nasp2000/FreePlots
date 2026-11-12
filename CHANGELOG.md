@@ -25,10 +25,21 @@ All notable changes to FreePlots are recorded here. The format follows
 - Linux x86_64 is no longer published.
 - The million-row performance gate now covers descriptive statistics,
   capability (plain and Box–Cox), I–MR, X̄–R, regression (one and two
-  predictors), logistic regression, ANOVA, PCA, K-means, moving average,
-  time-series decomposition and smoothing, scatterplot, the one- and two-sample
-  t tests, histogram, boxplot, probability plot, ECDF, correlation, normality,
-  run charts and Kaplan–Meier, plus a one-million-row CSV import.
+  predictors), logistic regression, ANOVA, two-way ANOVA, PCA, K-means, moving
+  average, time-series decomposition and smoothing, scatterplot, the one- and
+  two-sample and paired t tests, one-sample equivalence, histogram, boxplot,
+  probability plot, ECDF, correlation and its matrix, partial correlation,
+  normality, run charts, Kaplan–Meier, tolerance intervals, Mann–Whitney,
+  Wilcoxon, Kruskal–Wallis, Friedman, Mood's median, the sign test, Levene,
+  Bartlett, the chi-square test of independence, Grubbs, a curve fit, the
+  interval plot, dotplot, matrix plot, series plot, Hotelling T², acceptance
+  sampling and the exponential and Weibull reliability fits, plus a
+  one-million-row CSV import.
+- A second gate measures the analyses dominated by an iterative fit
+  (distribution comparison, Box–Cox transformation, stepwise regression,
+  ordinal and Poisson regression, accelerated life) at a hundred thousand rows
+  with its own budget, and the worksheet frame and the cell edit are budgeted
+  with a million rows as well as a hundred thousand.
 
 ### Fixed
 
