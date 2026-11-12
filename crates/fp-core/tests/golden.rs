@@ -28,8 +28,10 @@ fn assert_golden(name: &str, actual: &str) {
         )
     });
     // Git may check text files out with CRLF on Windows; compare canonical LF.
-    let expected = expected.replace("\r\n", "\n");
-    let actual = actual.replace("\r\n", "\n");
+    // The report header names the engine version, which changes with a
+    // release and is not behaviour: it is normalised on both sides.
+    let expected = without_engine_version(&expected.replace("\r\n", "\n"));
+    let actual = without_engine_version(&actual.replace("\r\n", "\n"));
     if expected != actual {
         let first_diff = expected
             .lines()
@@ -43,6 +45,20 @@ fn assert_golden(name: &str, actual: &str) {
             actual.lines().nth(first_diff).unwrap_or("<end>")
         );
     }
+}
+
+/// Drops the version from the `FreePlots engine …` header line.
+fn without_engine_version(text: &str) -> String {
+    text.lines()
+        .map(|line| {
+            if line.starts_with("FreePlots engine ") {
+                "FreePlots engine <version>"
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn fixed_sample() -> fp_core::Sample {
