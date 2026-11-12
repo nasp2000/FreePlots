@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FreePlots — open-source statistical software in Rust</title>
+    <meta
+      name="description"
+      content="FreePlots is a free, open-source desktop statistics package in Rust: an editable worksheet, quality and control-chart tools, reports and one-file portability on Windows and Linux."
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f8f80'/%3E%3Cpath d='M8 22V10h4v12zm6 0V14h4v8zm6 0V7h4v15z' fill='%23fff'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="./">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="26" height="26" role="img">
+              <rect width="32" height="32" rx="7" fill="currentColor" />
+              <path d="M8 22V10h4v12zm6 0V14h4v8zm6 0V7h4v15z" fill="#0b1214" />
+            </svg>
+          </span>
+          <span>FreePlots</span>
+        </a>
+        <nav class="desktop-nav" aria-label="Main">
+          <a href="#demos">Demos</a>
+          <a href="#features">Features</a>
+          <a href="#analyses">Analyses</a>
+          <a href="#download">Download</a>
+          <a href="https://github.com/nasp2000/FreePlots">GitHub</a>
+        </nav>
+        <div class="header-actions">
+          <a class="button primary" href="#download">Download</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="container hero-inner">
+          <p class="kicker">DESKTOP · WINDOWS AND LINUX</p>
+          <h1>Open-source<br />statistics. Built in Rust.</h1>
+          <p class="lede">
+            An editable worksheet, quality and process tools, control charts and
+            reports in one small executable. No installer, no account, no
+            network calls.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#download">Download FreePlots</a>
+            <a class="button secondary" href="https://github.com/nasp2000/FreePlots">View on GitHub</a>
+          </div>
+          <p class="meta">
+            MIT licensed · portable single file · Windows x86_64 and Raspberry Pi
+            (aarch64)
+          </p>
+
+          <figure class="hero-media">
+            <video
+              src="media/freeplots-graficos.mp4"
+              poster="media/freeplots-graficos.jpg"
+              controls
+              preload="none"
+              aria-label="The graphs of FreePlots in one film: capability histogram, I-MR and X-bar/R charts, P chart, probability plots, regression and the three-variable matrix plot."
+            ></video>
+            <figcaption>
+              <strong>The graphs, in one film (2:49).</strong> Capability
+              histogram, I‑MR, X̄‑R and P charts, probability plots, regression,
+              the two- and three-panel probability plots and the matrix plot —
+              ten analyses, recorded from the application.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="demos" class="section">
+        <div class="container">
+          <p class="kicker">FOUR SHORT DEMONSTRATIONS</p>
+          <h2>Watch it work.</h2>
+          <p class="section-lede">
+            Silent screen recordings of the desktop application, 13 to 19
+            seconds each. Nothing is staged: the data, the menus and the reports
+            are the real ones.
+          </p>
+
+          <div class="demos">
+            <article class="demo">
+              <div class="demo-media">
+                <video
+                  src="media/freeplots-1-sheet-csv.mp4"
+                  poster="media/freeplots-1-sheet-csv.jpg"
+                  controls
+                  preload="none"
+                  aria-label="Opening a CSV file in FreePlots and editing a cell of the worksheet."
+                ></video>
+              </div>
+              <p class="demo-index">01 / DATA</p>
+              <h3>Open a CSV and edit the sheet.</h3>
+              <p>
+                File ▸ Open CSV… previews the encoding, the delimiter and the
+                header, then fills an editable grid. Type in a cell and the
+                Session records the edit.
+              </p>
+              <p class="demo-links">
+                <a href="media/freeplots-1-sheet-csv.mp4">1080p video</a>
+                <a href="media/freeplots-1-sheet-csv.gif">GIF</a>
+              </p>
+            </article>
+
+            <article class="demo">
+              <div class="demo-media">
+                <video
+                  src="media/freeplots-2-descriptive-statistics.mp4"
+                  poster="media/freeplots-2-descriptive-statistics.jpg"
+                  controls
+                  preload="none"
+                  aria-label="Descriptive statistics of a column in FreePlots, written to the Session report."
+                ></video>
+              </div>
+              <p class="demo-index">02 / DESCRIBE</p>
+              <h3>Summarise a column.</h3>
+              <p>
+                Stat ▸ Basic Statistics ▸ Display Descriptive Statistics writes
+                the count, mean, quartiles, standard deviation and confidence
+                intervals to the Session.
+              </p>
+              <p class="demo-links">
+                <a href="media/freeplots-2-descriptive-statistics.mp4">1080p video</a>
+                <a href="media/freeplots-2-descriptive-statistics.gif">GIF</a>
+              </p>
+            </article>
+
+            <article class="demo">
+              <div class="demo-media">
+                <video
+                  src="media/freeplots-3-capability.mp4"
+                  poster="media/freeplots-3-capability.jpg"
+                  controls
+                  preload="none"
+                  aria-label="Capability analysis with specification limits in FreePlots, showing the histogram and the capability indices."
+                ></video>
+              </div>
+              <p class="demo-index">03 / CAPABILITY</p>
+              <h3>Check a process against its limits.</h3>
+              <p>
+                With the specification limits entered, the histogram, the fitted
+                distribution and Cp, Cpk and Ppk appear beside the full report.
+              </p>
+              <p class="demo-links">
+                <a href="media/freeplots-3-capability.mp4">1080p video</a>
+                <a href="media/freeplots-3-capability.gif">GIF</a>
+              </p>
+            </article>
+
+            <article class="demo">
+              <div class="demo-media">
+                <video
+                  src="media/freeplots-4-control-chart.mp4"
+                  poster="media/freeplots-4-control-chart.jpg"
+                  controls
+                  preload="none"
+                  aria-label="An individuals and moving-range control chart in FreePlots with points outside the control limits and the list of signals."
+                ></video>
+              </div>
+              <p class="demo-index">04 / CONTROL</p>
+              <h3>Watch a process over time.</h3>
+              <p>
+                The I-MR chart draws three-sigma limits and applies the tests for
+                special causes; every signal is listed with its point and chart.
+              </p>
+              <p class="demo-links">
+                <a href="media/freeplots-4-control-chart.mp4">1080p video</a>
+                <a href="media/freeplots-4-control-chart.gif">GIF</a>
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" class="section alt">
+        <div class="container">
+          <p class="kicker">WHAT IT DOES</p>
+          <h2>A worksheet, the analyses, and the report.</h2>
+
+          <div class="cards">
+            <article class="card">
+              <h3>An editable worksheet</h3>
+              <p>
+                Paste or import CSV, Excel and FreePlots projects. Sort, stack,
+                subset, format cells, rename columns and undo; dates are typed
+                as dates, missing values stay missing.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Quality and process tools</h3>
+              <p>
+                Capability with normal and non-normal fits, gauge R&amp;R,
+                linearity, attribute agreement, Pareto, tolerance intervals and
+                distribution comparison.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Control charts</h3>
+              <p>
+                I-MR, X̄-R, X̄-S, EWMA, CUSUM, P/NP/C/U and G charts, with the
+                tests for special causes and the signals listed in the report.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Design of experiments</h3>
+              <p>
+                Two-level factorials, Plackett–Burman, Box–Behnken and central
+                composite designs; factorial, response-surface and Taguchi
+                analyses with a response optimizer.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Reports you can hand over</h3>
+              <p>
+                Every analysis writes a typed report to the Session. Export the
+                Session as PDF or HTML, or copy the graph as SVG, PNG or JPEG.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Small and portable</h3>
+              <p>
+                One executable, no installer and no administrator rights. No
+                account, no telemetry and no network access; settings live next
+                to the program.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="analyses" class="section">
+        <div class="container">
+          <p class="kicker">THE ANALYSIS SET</p>
+          <h2>What is inside today.</h2>
+          <div class="columns">
+            <div>
+              <h3>Statistics</h3>
+              <ul>
+                <li>Descriptive statistics, by group</li>
+                <li>Probability plots: 10 distributions</li>
+                <li>Normality tests: Anderson–Darling, Kolmogorov–Smirnov, Ryan–Joiner, D'Agostino–Pearson</li>
+                <li>t tests, equivalence, proportions and variances</li>
+                <li>Nonparametrics: Mann–Whitney, Wilcoxon, Kruskal–Wallis, Friedman, Mood, sign</li>
+                <li>Correlation, correlation matrix, partial correlation</li>
+                <li>Chi-square, Grubbs, tolerance intervals, Box–Cox</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Modelling</h3>
+              <ul>
+                <li>Regression: multiple, stepwise, ordinal, Poisson, binary logistic</li>
+                <li>ANOVA: one-way, two-way, equal-variance tests</li>
+                <li>PCA, k-means, Hotelling T²</li>
+                <li>Time series: moving average, decomposition, Holt–Winters</li>
+                <li>Reliability: ALT, step-stress, Kaplan–Meier, censored fits</li>
+                <li>Curve fitting and distribution comparison</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Quality</h3>
+              <ul>
+                <li>Capability: normal and non-normal, Box–Cox, stability</li>
+                <li>Control charts with the special-cause tests</li>
+                <li>Gauge R&amp;R, linearity, type 1, attribute agreement</li>
+                <li>Pareto, interval plots, run charts</li>
+                <li>Sampling plans with the OC curve</li>
+                <li>Design of experiments and response surfaces</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" class="section alt">
+        <div class="container download">
+          <div>
+            <p class="kicker">DOWNLOAD</p>
+            <h2>Get FreePlots.</h2>
+            <p class="section-lede">
+              Every release is built and tested by the continuous integration
+              workflow; the archives carry the executable, the licence
+              inventory, the third-party notices and the SBOM.
+            </p>
+            <p class="hero-actions">
+              <a class="button primary" href="https://github.com/nasp2000/FreePlots/releases">Latest release</a>
+              <a class="button secondary" href="https://github.com/nasp2000/FreePlots">Source code</a>
+            </p>
+          </div>
+          <div class="download-facts">
+            <dl>
+              <dt>Platforms</dt>
+              <dd>Windows x86_64 · Raspberry Pi 4 (aarch64)</dd>
+              <dt>Licence</dt>
+              <dd>MIT</dd>
+              <dt>Install</dt>
+              <dd>Unzip and run; no installer, no administrator rights</dd>
+              <dt>Data</dt>
+              <dd>Stays on the machine; no account, no telemetry</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container contribute">
+          <p class="kicker">CONTRIBUTE</p>
+          <h2>Help build it.</h2>
+          <p class="section-lede">
+            Report a bug, propose an analysis or send a patch. The contribution
+            guide explains the workspace layout, the tests and the conventions.
+          </p>
+          <p class="hero-actions">
+            <a class="button secondary" href="https://github.com/nasp2000/FreePlots/blob/main/CONTRIBUTING.md">Contribution guide</a>
+            <a class="button secondary" href="https://github.com/nasp2000/FreePlots/issues">Issues</a>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div>
+          <p class="brand footer-brand">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 32 32" width="22" height="22">
+                <rect width="32" height="32" rx="7" fill="currentColor" />
+                <path d="M8 22V10h4v12zm6 0V14h4v8zm6 0V7h4v15z" fill="#0b1214" />
+              </svg>
+            </span>
+            <span>FreePlots</span>
+          </p>
+          <p class="footer-note">
+            Open-source statistical software for the desktop, written in Rust.
+          </p>
+          <p class="footer-note">
+            Independent project, MIT licensed. Not affiliated with any
+            commercial statistics package.
+          </p>
+        </div>
+        <div class="footer-columns">
+          <div>
+            <h3>Product</h3>
+            <a href="#demos">Demos</a>
+            <a href="#features">Features</a>
+            <a href="#download">Download</a>
+          </div>
+          <div>
+            <h3>Project</h3>
+            <a href="https://github.com/nasp2000/FreePlots">GitHub</a>
+            <a href="https://github.com/nasp2000/FreePlots/releases">Releases</a>
+            <a href="https://github.com/nasp2000/FreePlots/blob/main/CONTRIBUTING.md">Contribute</a>
+          </div>
+          <div>
+            <h3>Legal</h3>
+            <a href="https://github.com/nasp2000/FreePlots/blob/main/LICENSE">Licence</a>
+            <a href="https://github.com/nasp2000/FreePlots/blob/main/THIRD-PARTY.md">Third-party notices</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+  </body>
+</html>
