@@ -9,7 +9,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Phrases that must not appear in the crate sources.
+/// Phrases that must not appear in the sources or the documentation.
 fn banned() -> Vec<String> {
     vec![
         ["not ", "implemented"].concat(),
@@ -19,7 +19,8 @@ fn banned() -> Vec<String> {
     ]
 }
 
-fn sources(root: &Path, out: &mut Vec<PathBuf>) {
+/// Collects the files of `root` with one of `extensions`.
+fn sources(root: &Path, extensions: &[&str], out: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(root) else {
         return;
     };
@@ -29,8 +30,12 @@ fn sources(root: &Path, out: &mut Vec<PathBuf>) {
             if path.file_name().and_then(|name| name.to_str()) == Some("target") {
                 continue;
             }
-            sources(&path, out);
-        } else if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+            sources(&path, extensions, out);
+        } else if path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| extensions.contains(&ext))
+        {
             out.push(path);
         }
     }
@@ -42,9 +47,22 @@ fn no_message_claims_a_feature_is_missing() {
         .parent()
         .expect("the crate lives under crates/")
         .to_path_buf();
+    let root = crates.parent().expect("crates/ lives in the repository");
+
     let mut files = Vec::new();
-    sources(&crates, &mut files);
-    assert!(files.len() > 20, "the crate sources were found");
+    sources(&crates, &["rs"], &mut files);
+    assert!(files.len() > 40, "the crate sources were found");
+
+    // The documentation and the plan make the same promise, so a stale claim
+    // is caught there too. A checkout that does not carry them (the published
+    // tree keeps the sources only) still checks the sources.
+    let mut documentation = Vec::new();
+    sources(&root.join("docs"), &["md"], &mut documentation);
+    let plan = root.join("PLAN.md");
+    if plan.is_file() {
+        documentation.push(plan);
+    }
+    files.extend(documentation);
 
     let banned = banned();
     let mut hits = Vec::new();
