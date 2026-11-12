@@ -193,9 +193,29 @@ li + li {
   text-transform: uppercase;
 }
 
-.hero h1 {
-  font-size: clamp(2.4rem, 6.2vw, 4.2rem);
-  margin: 1rem 0 1.1rem;
+.hero h1.wordmark {
+  font-size: clamp(3.2rem, 9vw, 6.4rem);
+  margin: 0.6rem 0 0.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.tagline {
+  font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 1rem;
+}
+
+.tagline-sub {
+  color: var(--muted);
+  font-size: 1.02rem;
+  max-width: 60ch;
+  margin: -0.2rem 0 1.1rem;
+}
+
+.tagline-sub strong {
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -222,11 +242,13 @@ li + li {
   margin: 2.6rem 0 0;
 }
 
-.hero-media video,
-.demo-media video {
+.hero-media img,
+.demo-media img {
   width: 100%;
+  height: auto;
   display: block;
   aspect-ratio: 16 / 9;
+  object-fit: cover;
   background: #000;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -442,6 +464,7 @@ figcaption {
 .platforms {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   list-style: none;
   padding: 0;
@@ -449,6 +472,8 @@ figcaption {
 }
 
 .platforms li {
+  margin: 0;
+  line-height: 1.2;
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 0.28rem 0.8rem;
