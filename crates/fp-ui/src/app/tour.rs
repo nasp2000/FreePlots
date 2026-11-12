@@ -400,12 +400,10 @@ fn sample_capability() -> DataFrame {
 
 /// Positive, right-skewed lifetimes for a Weibull capability study.
 fn sample_weibull_life() -> DataFrame {
+    use fp_core::dists::{Distribution, Weibull};
+    let weibull = Weibull::new(1.8, 3.0).expect("valid sample distribution");
     let values = (1..=80)
-        .map(|index| {
-            let u = f64::from(index) / 81.0;
-            let shape = 1.8;
-            4.0 + 3.0 * (-(1.0 - u).ln()).powf(1.0 / shape)
-        })
+        .map(|index| 4.0 + weibull.quantile(f64::from(index) / 81.0))
         .collect();
     DataFrame::new(vec![Column::new_f64("life", values)]).expect("sample")
 }

@@ -235,6 +235,48 @@ pub fn write_text(path: &Path, text: &str) -> Result<(), String> {
     fs::write(path, text).map_err(|e| format!("{}: {e}", path.display()))
 }
 
+/// Reads a whole file, or `None` when it is missing or unreadable.
+#[cfg(feature = "desktop")]
+pub fn read_text(path: &Path) -> Option<String> {
+    fs::read_to_string(path).ok()
+}
+
+/// Creates a directory and every missing parent.
+#[cfg(feature = "desktop")]
+pub fn create_dir(path: &Path) -> Result<(), String> {
+    fs::create_dir_all(path).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Directory for temporary files.
+#[cfg(feature = "desktop")]
+pub fn temp_dir() -> PathBuf {
+    std::env::temp_dir()
+}
+
+/// Path of the running executable.
+#[cfg(feature = "desktop")]
+pub fn current_exe() -> Option<PathBuf> {
+    std::env::current_exe().ok()
+}
+
+/// Name of the operating system, as the reports print it.
+#[cfg(feature = "desktop")]
+pub const fn os_name() -> &'static str {
+    std::env::consts::OS
+}
+
+/// Environment variable, when the desktop set it.
+#[cfg(feature = "desktop")]
+pub fn env_var(name: &str) -> Option<String> {
+    std::env::var(name).ok()
+}
+
+/// The file helpers the interface uses; the UI itself touches no file.
+#[cfg(feature = "desktop")]
+pub fn storage() -> fp_ui::Storage {
+    fp_ui::Storage::new(read_text, write_text, create_dir, temp_dir)
+}
+
 /// Writes raw bytes (used by the PDF export).
 #[cfg(feature = "desktop")]
 pub fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {

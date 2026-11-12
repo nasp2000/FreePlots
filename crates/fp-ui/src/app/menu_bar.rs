@@ -115,8 +115,9 @@ impl FreePlotsApp {
                 .on_hover_text("Open the Session report in the system PDF viewer to print")
                 .clicked()
                 {
-                    let path = std::env::temp_dir().join("FreePlots-session.pdf");
-                    self.print_request = Some(path);
+                    if let Some(directory) = self.storage.temp_dir() {
+                        self.print_request = Some(directory.join("FreePlots-session.pdf"));
+                    }
                     ui.close();
                 }
                 if menu_icon_item(

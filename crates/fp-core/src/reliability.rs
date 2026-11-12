@@ -486,17 +486,24 @@ pub struct CensoredWeibull {
     pub excluded: usize,
 }
 
+/// Profile log-likelihood of the shape, with the scale concentrated out.
+///
+/// The times arrive as logarithms: the sum of `t^α` is then one `exp` per
+/// observation instead of a `powf`, which is what makes a million-row fit
+/// affordable. The search below evaluates this function a few hundred times.
 fn weibull_profile(
     alpha: f64,
-    times: &[f64],
-    events: &[bool],
+    log_times: &[f64],
     event_logs: f64,
     event_count: usize,
 ) -> (f64, f64) {
     if !alpha.is_finite() || alpha <= 0.0 {
         return (f64::NEG_INFINITY, f64::NAN);
     }
-    let sum_power = times.iter().map(|time| time.powf(alpha)).sum::<f64>();
+    let sum_power = log_times
+        .iter()
+        .map(|log_time| (alpha * log_time).exp())
+        .sum::<f64>();
     if !sum_power.is_finite() || sum_power <= 0.0 {
         return (f64::NEG_INFINITY, f64::NAN);
     }
@@ -504,22 +511,22 @@ fn weibull_profile(
     if !beta.is_finite() || beta <= 0.0 {
         return (f64::NEG_INFINITY, f64::NAN);
     }
-    let _ = events;
     let log_likelihood = event_count as f64 * alpha.ln() - event_count as f64 * alpha * beta.ln()
         + (alpha - 1.0) * event_logs
         - event_count as f64;
     (log_likelihood, beta)
 }
 
-fn weibull_log_likelihood(alpha: f64, beta: f64, times: &[f64], events: &[bool]) -> f64 {
+fn weibull_log_likelihood(alpha: f64, beta: f64, log_times: &[f64], events: &[bool]) -> f64 {
     if !alpha.is_finite() || alpha <= 0.0 || !beta.is_finite() || beta <= 0.0 {
         return f64::NEG_INFINITY;
     }
+    let log_beta = beta.ln();
     let mut total = 0.0;
-    for (time, event) in times.iter().zip(events) {
-        let z = (time / beta).powf(alpha);
+    for (log_time, event) in log_times.iter().zip(events) {
+        let z = (alpha * (log_time - log_beta)).exp();
         if *event {
-            total += alpha.ln() - alpha * beta.ln() + (alpha - 1.0) * time.ln() - z;
+            total += alpha.ln() - alpha * log_beta + (alpha - 1.0) * log_time - z;
         } else {
             total -= z;
         }
@@ -530,10 +537,10 @@ fn weibull_log_likelihood(alpha: f64, beta: f64, times: &[f64], events: &[bool])
 fn weibull_log_covariance(
     alpha: f64,
     beta: f64,
-    times: &[f64],
+    log_times: &[f64],
     events: &[bool],
 ) -> Option<((f64, f64), (f64, f64))> {
-    let f = |x: f64, y: f64| weibull_log_likelihood(x.exp(), y.exp(), times, events);
+    let f = |x: f64, y: f64| weibull_log_likelihood(x.exp(), y.exp(), log_times, events);
     let x0 = alpha.ln();
     let y0 = beta.ln();
     let h = 1e-4;
@@ -633,31 +640,39 @@ pub fn fit_weibull(
     if max_time <= min_time {
         return Err(Error::ConstantSample);
     }
-    let event_logs = times
+    let log_times: Vec<f64> = times.iter().map(|time| time.ln()).collect();
+    let event_logs = log_times
         .iter()
         .zip(&events)
         .filter(|(_, event)| **event)
-        .map(|(time, _)| time.ln())
+        .map(|(log_time, _)| *log_time)
         .sum::<f64>();
 
+    // A coarse scan of the log shape locates the neighbourhood of the
+    // maximum; the golden-section search then refines it inside one step of
+    // that grid. Both brackets are the same, so the scan only has to be fine
+    // enough to leave the optimum inside one step.
+    const STEPS: usize = 80;
+    const SPAN: f64 = 10.0;
+    let step = 2.0 * SPAN / STEPS as f64;
     let mut best_log = 0.0;
     let mut best_value = f64::NEG_INFINITY;
-    for step in 0..=400 {
-        let log_alpha = -10.0 + 20.0 * step as f64 / 400.0;
-        let (value, _) = weibull_profile(log_alpha.exp(), &times, &events, event_logs, event_count);
+    for index in 0..=STEPS {
+        let log_alpha = -SPAN + step * index as f64;
+        let (value, _) = weibull_profile(log_alpha.exp(), &log_times, event_logs, event_count);
         if value > best_value {
             best_value = value;
             best_log = log_alpha;
         }
     }
-    let mut low = (best_log - 0.05).max(-10.0);
-    let mut high = (best_log + 0.05).min(10.0);
+    let mut low = (best_log - step).max(-SPAN);
+    let mut high = (best_log + step).min(SPAN);
     const PHI: f64 = 0.618_033_988_749_894_9;
     for _ in 0..80 {
         let a = high - PHI * (high - low);
         let b = low + PHI * (high - low);
-        let (fa, _) = weibull_profile(a.exp(), &times, &events, event_logs, event_count);
-        let (fb, _) = weibull_profile(b.exp(), &times, &events, event_logs, event_count);
+        let (fa, _) = weibull_profile(a.exp(), &log_times, event_logs, event_count);
+        let (fb, _) = weibull_profile(b.exp(), &log_times, event_logs, event_count);
         if fa > fb {
             high = b;
         } else {
@@ -668,7 +683,7 @@ pub fn fit_weibull(
         }
     }
     let shape = (0.5 * (low + high)).exp();
-    let (log_likelihood, scale) = weibull_profile(shape, &times, &events, event_logs, event_count);
+    let (log_likelihood, scale) = weibull_profile(shape, &log_times, event_logs, event_count);
     if !log_likelihood.is_finite() || !scale.is_finite() || scale <= 0.0 {
         return Err(Error::NotConverged {
             detail: "censored Weibull profile likelihood".to_owned(),
@@ -676,7 +691,7 @@ pub fn fit_weibull(
     }
     let mean_life = scale * ln_gamma(1.0 + 1.0 / shape).exp();
     let b10 = scale * (-0.9f64.ln()).powf(1.0 / shape);
-    let covariance = weibull_log_covariance(shape, scale, &times, &events);
+    let covariance = weibull_log_covariance(shape, scale, &log_times, &events);
     let z = normal_quantile(0.975);
     let (shape_ci, scale_ci, b10_ci) = match covariance {
         Some(((v11, v12), (_, v22))) if v11 >= 0.0 && v22 >= 0.0 => {

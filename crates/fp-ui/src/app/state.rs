@@ -55,6 +55,7 @@ impl FreePlotsApp {
             format_bold: false,
             format_align: CellAlign::Left,
             print_request: None,
+            storage: super::storage::default_storage(),
             show_assistant_dialog: false,
             dark_mode: false,
             show_shortcuts: false,

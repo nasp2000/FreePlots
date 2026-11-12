@@ -46,7 +46,10 @@ mod licences;
 mod menu_bar;
 mod session;
 mod state;
+mod storage;
 mod tour;
+
+pub use storage::Storage;
 
 /// File format of a worksheet request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1283,6 +1286,8 @@ pub struct FreePlotsApp {
     csv_header: bool,
     show_save: bool,
     show_overwrite: bool,
+    /// File helpers the desktop installed; the interface opens no file.
+    storage: Storage,
     /// Where the preferences are written, when the desktop resolved one.
     preferences_path: Option<PathBuf>,
     /// Last preferences known to be on disk, to avoid rewriting every frame.
@@ -3736,8 +3741,9 @@ impl FreePlotsApp {
     /// A missing or malformed file is not an error: the defaults stay and the
     /// next save replaces it.
     pub fn set_preferences_path(&mut self, path: PathBuf) {
-        let loaded = std::fs::read_to_string(&path)
-            .ok()
+        let loaded = self
+            .storage
+            .read(&path)
             .and_then(|text| serde_json::from_str::<Preferences>(&text).ok());
         if let Some(preferences) = &loaded {
             self.apply_preferences(preferences);
@@ -3750,6 +3756,17 @@ impl FreePlotsApp {
             .parent()
             .map(|directory| directory.join("autosave.fpp"));
         self.preferences_path = Some(path);
+    }
+
+    /// Installs the file helpers the desktop provides.
+    pub fn set_storage(&mut self, storage: Storage) {
+        self.storage = storage;
+    }
+
+    /// The file helpers in use.
+    #[must_use]
+    pub fn storage(&self) -> Storage {
+        self.storage
     }
 
     /// File that keeps the preferences, when the desktop resolved one.
@@ -3774,14 +3791,14 @@ impl FreePlotsApp {
             return;
         }
         if let Some(parent) = path.parent()
-            && let Err(error) = std::fs::create_dir_all(parent)
+            && let Err(error) = self.storage.create_dir(parent)
         {
             self.preferences_error = Some(format!("{}: {error}", parent.display()));
             return;
         }
         match serde_json::to_string_pretty(&current)
             .map_err(|error| error.to_string())
-            .and_then(|text| std::fs::write(&path, text).map_err(|error| error.to_string()))
+            .and_then(|text| self.storage.write(&path, &text))
         {
             Ok(()) => {
                 self.saved_preferences = Some(current);

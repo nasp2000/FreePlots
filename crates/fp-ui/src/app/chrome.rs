@@ -68,8 +68,8 @@ impl FreePlotsApp {
             if save {
                 self.begin_save(FileKind::Csv);
             }
-            if print {
-                self.print_request = Some(std::env::temp_dir().join("FreePlots-session.pdf"));
+            if print && let Some(directory) = self.storage.temp_dir() {
+                self.print_request = Some(directory.join("FreePlots-session.pdf"));
             }
             if select_all {
                 self.select_all_cells();

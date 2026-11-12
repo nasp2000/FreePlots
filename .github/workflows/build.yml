@@ -74,6 +74,30 @@ jobs:
           FREEPLOTS_EDIT_BUDGET_MS: 40
         run: cargo test --release --locked -p fp-ui --lib grid_million -- --ignored
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Line coverage
+        run: cargo llvm-cov --workspace --locked --summary-only --fail-under-lines 78
+
+  architecture:
+    name: Architecture guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the guards
+        run: |
+          python3 scripts/check-architecture.py --self-test
+          python3 scripts/check-architecture.py
+
   linux-gui:
     name: Linux GUI smoke
     needs: test

@@ -16,4 +16,4 @@ pub mod app;
 pub mod catalog;
 pub mod plot_view;
 
-pub use app::{FileKind, FreePlotsApp, OpenRequest, SaveRequest};
+pub use app::{FileKind, FreePlotsApp, OpenRequest, SaveRequest, Storage};

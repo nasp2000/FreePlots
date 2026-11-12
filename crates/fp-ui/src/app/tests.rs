@@ -8972,3 +8972,21 @@ fn the_grid_remembers_its_column_widths() {
     assert_eq!(widths.len(), 26);
     assert!(widths.iter().all(|width| *width > 0.0));
 }
+
+#[test]
+fn the_interface_touches_no_file_without_a_desktop() {
+    let mut app = FreePlotsApp::new();
+    // The desktop installs the helpers; without them the interface must not
+    // write anything (and says so instead of pretending it saved).
+    app.set_storage(crate::Storage::none());
+    assert!(!app.storage().is_installed());
+    assert!(app.storage().temp_dir().is_none());
+    app.set_preferences_path(std::path::PathBuf::from("/nowhere/freeplots/settings.json"));
+    app.dark_mode = true;
+    app.persist_preferences();
+    let error = app.preferences_error().unwrap_or_default();
+    assert!(
+        error.contains("no file access"),
+        "unexpected error: {error}"
+    );
+}

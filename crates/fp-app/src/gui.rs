@@ -375,7 +375,7 @@ impl eframe::App for Desktop {
                     image.height() as u32,
                     image.as_raw(),
                 );
-                let ok = std::fs::write(&path, &png).is_ok();
+                let ok = crate::platform::write_bytes(&path, &png).is_ok();
                 let mut answer = json!({
                     "ok": ok,
                     "path": path.display().to_string(),
@@ -593,7 +593,7 @@ impl Desktop {
             },
             "screenshot" => {
                 let path = request.get("path").and_then(Value::as_str).map_or_else(
-                    || std::env::temp_dir().join("freeplots-bridge.png"),
+                    || crate::platform::temp_dir().join("freeplots-bridge.png"),
                     PathBuf::from,
                 );
                 ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
@@ -762,10 +762,10 @@ pub fn run(args: &[String]) -> Result<(), String> {
     }
 
     let mut app = FreePlotsApp::new();
+    app.set_storage(crate::platform::storage());
     // Preferences and the diagnostic log live in the data directory (next to
     // the executable when it is writable, otherwise the user data directory).
-    let data_dir = std::env::current_exe()
-        .ok()
+    let data_dir = crate::platform::current_exe()
         .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
         .and_then(|dir| crate::platform::resolve_data_dir(&dir).ok())
         .map(|data| data.path);
@@ -779,7 +779,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
             &format!(
                 "FreePlots {} starting on {}",
                 fp_core::VERSION,
-                std::env::consts::OS
+                crate::platform::os_name()
             ),
         );
     }
@@ -822,8 +822,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
 
     let renderer = match renderer {
         Some(renderer) => renderer,
-        None => match std::env::var("FREEPLOTS_RENDERER") {
-            Ok(raw) => match raw.as_str() {
+        None => match crate::platform::env_var("FREEPLOTS_RENDERER") {
+            Some(raw) => match raw.as_str() {
                 "glow" => eframe::Renderer::Glow,
                 "wgpu" => eframe::Renderer::Wgpu,
                 other => {
@@ -832,8 +832,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
                     ));
                 }
             },
-            Err(_) if cfg!(windows) => eframe::Renderer::Wgpu,
-            Err(_) => eframe::Renderer::Glow,
+            None if cfg!(windows) => eframe::Renderer::Wgpu,
+            None => eframe::Renderer::Glow,
         },
     };
     if let (Some(dir), Some(log)) = (&data_dir, &log_path) {
@@ -845,7 +845,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
             format!(
                 "FreePlots {}\nOS: {}\nRenderer: {}\nData folder: {}\nLog: {}",
                 fp_core::VERSION,
-                std::env::consts::OS,
+                crate::platform::os_name(),
                 renderer_name,
                 dir.display(),
                 log.display()
