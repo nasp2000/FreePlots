@@ -41,7 +41,7 @@
     <main id="main">
       <section class="hero">
         <div class="container hero-inner">
-          <p class="kicker">DESKTOP · WINDOWS AND LINUX</p>
+          <p class="kicker">OPEN SOURCE · MIT LICENCE</p>
           <h1>Open-source<br />statistics. Built in Rust.</h1>
           <p class="lede">
             An editable worksheet, quality and process tools, control charts and
@@ -52,10 +52,11 @@
             <a class="button primary" href="#download">Download FreePlots</a>
             <a class="button secondary" href="https://github.com/nasp2000/FreePlots">View on GitHub</a>
           </div>
-          <p class="meta">
-            MIT licensed · portable single file · Windows x86_64 and Raspberry Pi
-            (aarch64)
-          </p>
+          <ul class="platforms" aria-label="Supported platforms">
+            <li>Windows x86_64</li>
+            <li>Raspberry Pi (aarch64)</li>
+            <li>Portable single file</li>
+          </ul>
 
           <figure class="hero-media">
             <video
@@ -278,6 +279,99 @@
         </div>
       </section>
 
+      <section id="formats" class="section">
+        <div class="container">
+          <p class="kicker">FORMATS</p>
+          <h2>Bring your data with you.</h2>
+          <p class="section-lede">
+            Import a CSV or an Excel workbook, keep the work in a FreePlots
+            project, and hand the results over as a PDF, an HTML page or an
+            image.
+          </p>
+
+          <table class="formats">
+            <thead>
+              <tr>
+                <th scope="col">Format</th>
+                <th scope="col">Import</th>
+                <th scope="col">Export</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">CSV <span>.csv</span></th>
+                <td>yes, with encoding, delimiter and header preview</td>
+                <td>yes, comma or semicolon, dot or decimal comma</td>
+              </tr>
+              <tr>
+                <th scope="row">Excel <span>.xlsx</span></th>
+                <td>first sheet or a named one, shared and inline strings, booleans, date-formatted cells</td>
+                <td>single-sheet workbook</td>
+              </tr>
+              <tr>
+                <th scope="row">FreePlots project <span>.fpp</span></th>
+                <td>yes, every worksheet in order</td>
+                <td>yes, readable JSON</td>
+              </tr>
+              <tr>
+                <th scope="row">Session report</th>
+                <td>—</td>
+                <td>PDF and HTML</td>
+              </tr>
+              <tr>
+                <th scope="row">Graph</th>
+                <td>—</td>
+                <td>SVG, PDF, PNG and JPEG</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="table-note">
+            A formula cell in an Excel workbook is read through the value the
+            file cached, and the import says how many it met.
+          </p>
+        </div>
+      </section>
+
+      <section id="why" class="section alt">
+        <div class="container">
+          <p class="kicker">WHY FREEPLOTS</p>
+          <h2>Small, portable, and checked.</h2>
+          <div class="cards">
+            <article class="card">
+              <h3>Rust engine, egui interface</h3>
+              <p>
+                The statistics live in a pure engine with no UI or file-system
+                code; the desktop window sits on top of it. The same engine
+                runs in the tests and in the command line.
+              </p>
+            </article>
+            <article class="card">
+              <h3>One file, no installer</h3>
+              <p>
+                Unzip and run. No administrator rights, no registry, no
+                background service; the settings and the autosave live next to
+                the program.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Budgets in continuous integration</h3>
+              <p>
+                Every push runs the tests, the lints and a timing gate: fifty
+                analyses on a million rows, the import of a million rows and a
+                million-row grid frame all have a budget.
+              </p>
+            </article>
+            <article class="card">
+              <h3>No account, no telemetry</h3>
+              <p>
+                The application makes no network calls. Your data stays on the
+                machine, in the files you choose.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section id="download" class="section alt">
         <div class="container download">
           <div>
@@ -290,8 +384,18 @@
             </p>
             <p class="hero-actions">
               <a class="button primary" href="https://github.com/nasp2000/FreePlots/releases">Latest release</a>
-              <a class="button secondary" href="https://github.com/nasp2000/FreePlots">Source code</a>
+              <a class="button secondary" href="https://github.com/nasp2000/FreePlots/releases">All releases</a>
             </p>
+            <div class="platform-cards">
+              <a class="platform-card" href="https://github.com/nasp2000/FreePlots/releases">
+                <strong>Windows</strong>
+                <span>x86_64 · zip archive</span>
+              </a>
+              <a class="platform-card" href="https://github.com/nasp2000/FreePlots/releases">
+                <strong>Raspberry Pi</strong>
+                <span>aarch64 · zip archive</span>
+              </a>
+            </div>
           </div>
           <div class="download-facts">
             <dl>

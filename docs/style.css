@@ -436,3 +436,102 @@ figcaption {
     scroll-behavior: auto;
   }
 }
+
+/* Platform chips */
+
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 1.4rem 0 0;
+}
+
+.platforms li {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.28rem 0.8rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Formats table */
+
+.formats {
+  width: 100%;
+  margin-top: 2.2rem;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.formats th,
+.formats td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.formats thead th {
+  color: var(--subtle);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.formats tbody th {
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.formats tbody th span {
+  color: var(--subtle);
+  font-weight: 400;
+}
+
+.formats td {
+  color: var(--muted);
+}
+
+.table-note {
+  color: var(--subtle);
+  font-size: 0.88rem;
+  margin-top: 0.9rem;
+  max-width: 70ch;
+}
+
+/* Platform download cards */
+
+.platform-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.9rem;
+  margin-top: 1.6rem;
+}
+
+.platform-card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.platform-card:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.platform-card strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.platform-card span {
+  color: var(--subtle);
+  font-size: 0.85rem;
+}
