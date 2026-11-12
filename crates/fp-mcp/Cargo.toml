@@ -13,7 +13,7 @@ authors.workspace = true
 headless-screenshots = ["fp-automation/wgpu-render"]
 
 [dependencies]
-fp-automation = { path = "../fp-automation", version = "0.1.0" }
+fp-automation = { path = "../fp-automation", version = "0.1.1" }
 fp-core.workspace = true
 egui.workspace = true
 serde.workspace = true

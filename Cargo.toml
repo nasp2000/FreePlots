@@ -4,15 +4,15 @@ resolver = "3"
 members = ["crates/fp-core", "crates/fp-app", "crates/fp-ui", "crates/fp-automation", "crates/fp-mcp"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
 authors = ["FreePlots contributors"]
 
 [workspace.dependencies]
-fp-core = { path = "crates/fp-core", version = "0.1.0" }
-fp-ui = { path = "crates/fp-ui", version = "0.1.0" }
+fp-core = { path = "crates/fp-core", version = "0.1.1" }
+fp-ui = { path = "crates/fp-ui", version = "0.1.1" }
 
 # Núcleo: dependências mínimas, todas permissivas.
 libm = "=0.2.15"

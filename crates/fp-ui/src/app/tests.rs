@@ -772,7 +772,7 @@ fn the_about_dialog_has_no_clear_button() {
     );
     assert!(
         harness
-            .get_by_label("FreePlots Engine 0.1.0")
+            .get_by_label(&format!("FreePlots Engine {}", fp_core::VERSION))
             .rect()
             .width()
             > 0.0
@@ -8141,9 +8141,11 @@ fn the_about_and_help_follow_the_language() {
     );
     harness.get_by_label("Licença MIT");
     harness.get_by_label("Visite o repositório público do FreePlots");
-    harness.get_by_label("Motor FreePlots 0.1.0");
+    harness.get_by_label(&format!("Motor FreePlots {}", fp_core::VERSION));
     assert_eq!(
-        harness.query_all_by_label("FreePlots Engine 0.1.0").count(),
+        harness
+            .query_all_by_label(&format!("FreePlots Engine {}", fp_core::VERSION))
+            .count(),
         0
     );
     assert_eq!(harness.query_all_by_label("MIT license").count(), 0);

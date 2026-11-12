@@ -4,7 +4,7 @@ All notable changes to FreePlots are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.1] - 2026-11-12
 
 ### Added
 
@@ -23,6 +23,10 @@ All notable changes to FreePlots are recorded here. The format follows
   inventory, the third-party notices, the SPDX SBOM and a short README, and
   `SHA256SUMS` covers the archives.
 - Linux x86_64 is no longer published.
+- The continuous integration workflow runs the 78 % line-coverage gate and
+  the architecture guards on every push, so the layering rules and the
+  coverage floor are enforced instead of being documented only. The guards
+  live in `scripts/check-architecture.py` and skip test code.
 - The million-row performance gate now covers descriptive statistics,
   capability (plain and Box–Cox), I–MR, X̄–R, regression (one and two
   predictors), logistic regression, ANOVA, two-way ANOVA, PCA, K-means, moving
@@ -35,6 +39,16 @@ All notable changes to FreePlots are recorded here. The format follows
   interval plot, dotplot, matrix plot, series plot, Hotelling T², acceptance
   sampling and the exponential and Weibull reliability fits, plus a
   one-million-row CSV import.
+- The censored Weibull fit computes the logarithms of the times once and
+  scans eighty shapes instead of four hundred and one, with the
+  golden-section search refining inside one step of that grid. A million-row
+  fit no longer spends its whole budget in the profile likelihood, and the
+  estimate is the same.
+- The interface no longer opens files, reads the environment or starts a
+  process: `fp-app/src/platform.rs` installs the four helpers in
+  `fp_ui::Storage`, and the preferences, the temporary print path and the
+  diagnostics log go through them. Without a desktop, the interface reports
+  that nothing was written instead of failing silently.
 - A second gate measures the analyses dominated by an iterative fit
   (distribution comparison, Box–Cox transformation, stepwise regression,
   ordinal and Poisson regression, accelerated life) at a hundred thousand rows
