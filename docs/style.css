@@ -25,13 +25,30 @@ html {
 body {
   margin: 0;
   background-color: var(--canvas);
-  /* A worksheet: cells outlined by faint rules, fixed behind the content. */
+  /* A worksheet: cell rules, a banded row every other line and a stronger
+     rule every fifth column, fixed behind the content. */
   background-image:
-    linear-gradient(to right, rgba(148, 172, 190, 0.055) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 172, 190, 0.055) 1px, transparent 1px);
-  background-size: 72px 26px;
+    repeating-linear-gradient(
+      to right,
+      rgba(148, 172, 190, 0.075) 0 1px,
+      transparent 1px 72px
+    ),
+    repeating-linear-gradient(
+      to right,
+      rgba(148, 172, 190, 0.12) 0 1px,
+      transparent 1px 360px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(148, 172, 190, 0.075) 0 1px,
+      transparent 1px 26px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.014) 0 26px,
+      transparent 26px 52px
+    );
   background-attachment: fixed;
-  background-position: -1px -1px;
   color: var(--ink);
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 16px;
