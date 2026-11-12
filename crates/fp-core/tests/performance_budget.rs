@@ -78,7 +78,9 @@ fn frame_with_rows(rows: usize) -> DataFrame {
     let z: Vec<f64> = (0..rows)
         .map(|row| ((row % 1_000) as f64 / 100.0).sin())
         .collect();
-    let group: Vec<f64> = (0..rows).map(|row| (row % 3) as f64).collect();
+    // Five groups, so the two-way design with the binary factor has ten cells
+    // and a million rows divides evenly (a balanced design is required).
+    let group: Vec<f64> = (0..rows).map(|row| (row % 5) as f64).collect();
     let binary: Vec<f64> = (0..rows).map(|row| (row % 2) as f64).collect();
     let w: Vec<f64> = (0..rows).map(|row| (row as f64 * 0.000_7).cos()).collect();
     let survival: Vec<f64> = (0..rows).map(|row| 1.0 + row as f64 * 0.001).collect();
