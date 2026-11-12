@@ -68,6 +68,11 @@ jobs:
           FREEPLOTS_FRAME_BUDGET_MS: 60
           FREEPLOTS_EDIT_BUDGET_MS: 40
         run: cargo test --release --locked -p fp-ui --lib grid_100k -- --ignored
+      - name: Grid frame budget with a million rows
+        env:
+          FREEPLOTS_FRAME_BUDGET_MS: 60
+          FREEPLOTS_EDIT_BUDGET_MS: 40
+        run: cargo test --release --locked -p fp-ui --lib grid_million -- --ignored
 
   linux-gui:
     name: Linux GUI smoke
