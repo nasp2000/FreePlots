@@ -272,10 +272,11 @@ pub(crate) fn rows(
     if counts.is_empty() {
         return Err(Error::EmptySample);
     }
+    let excluded = rows - counts.len();
     Ok(AttributeRows {
         counts,
         sizes: denominators,
-        excluded: rows - counts.len(),
+        excluded,
     })
 }
 
