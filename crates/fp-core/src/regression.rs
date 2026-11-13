@@ -114,6 +114,240 @@ pub(crate) fn fit_saturated(
     fit_impl(df, response, predictors, confidence, true)
 }
 
+/// Predicts the response at new points from an ordinary least squares model.
+///
+/// The model is the one identified by `response` and `predictors` and fitted to
+/// the current worksheet. Each point holds one value per predictor. The report
+/// gives the fitted value, its standard error, the confidence interval of the
+/// mean response and the prediction interval of a single observation.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for no points, a point with the wrong number
+/// of values or a predictor that is not numeric, and the fitting errors of
+/// [`fit`].
+pub fn predict_points(
+    df: &DataFrame,
+    response: &str,
+    predictors: &[String],
+    confidence: f64,
+    points: &[Vec<f64>],
+) -> Result<AnalysisResult> {
+    validate_confidence(confidence)?;
+    if points.is_empty() {
+        return Err(Error::Unsupported(
+            "the prediction needs at least one new point".to_owned(),
+        ));
+    }
+    let response_column = df.column(response)?;
+    let predictor_columns = predictors
+        .iter()
+        .map(|name| df.column(name))
+        .collect::<Result<Vec<_>>>()?;
+    for (name, column) in predictors.iter().zip(&predictor_columns) {
+        if matches!(
+            column.data(),
+            ColumnData::Text(_) | ColumnData::Bool(_) | ColumnData::Date(_)
+        ) {
+            return Err(Error::Unsupported(format!(
+                "prediction needs numeric predictors; {name} is not numeric"
+            )));
+        }
+    }
+    let model = fit(df, response, predictors, confidence)?;
+    let p = predictors.len() + 1;
+    for (index, point) in points.iter().enumerate() {
+        if point.len() != predictors.len() {
+            return Err(Error::Unsupported(format!(
+                "point {} has {} value(s); {} predictor(s) were requested",
+                index + 1,
+                point.len(),
+                predictors.len()
+            )));
+        }
+        if point.iter().any(|value| !value.is_finite()) {
+            return Err(Error::Unsupported(format!(
+                "point {} has a non-finite value",
+                index + 1
+            )));
+        }
+    }
+
+    // `XᵀX` over the complete rows, with the same listwise filter as the fit.
+    let mut xx = vec![vec![0.0; p]; p];
+    let mut rows = 0usize;
+    for row in 0..df.n_rows() {
+        if cell(response_column, row).is_none() {
+            continue;
+        }
+        let mut design = Vec::with_capacity(p);
+        design.push(1.0);
+        let mut complete = true;
+        for column in &predictor_columns {
+            match cell(column, row) {
+                Some(value) => design.push(value),
+                None => {
+                    complete = false;
+                    break;
+                }
+            }
+        }
+        if !complete {
+            continue;
+        }
+        for (i, left) in design.iter().enumerate() {
+            for (j, right) in design.iter().enumerate() {
+                xx[i][j] += left * right;
+            }
+        }
+        rows += 1;
+    }
+    if rows != model.n {
+        return Err(Error::NotConverged {
+            detail: "the prediction design does not match the fitted rows".to_owned(),
+        });
+    }
+    let critical = student_t_quantile(1.0 - (1.0 - confidence) / 2.0, model.df_residual);
+
+    let mut table = Vec::with_capacity(points.len());
+    for (index, point) in points.iter().enumerate() {
+        let mut design = Vec::with_capacity(p);
+        design.push(1.0);
+        design.extend(point.iter().copied());
+        let solved = solve(&xx, &design).ok_or_else(|| Error::NotConverged {
+            detail: "the predictor matrix is singular at a new point".to_owned(),
+        })?;
+        let leverage = design
+            .iter()
+            .zip(&solved)
+            .map(|(value, solution)| value * solution)
+            .sum::<f64>()
+            .max(0.0);
+        let fitted = design
+            .iter()
+            .zip(&model.coefficients)
+            .map(|(value, coefficient)| value * coefficient)
+            .sum::<f64>();
+        let se_fit = model.s * leverage.sqrt();
+        let half_ci = critical * se_fit;
+        let half_pi = critical * model.s * (1.0 + leverage).sqrt();
+        let mut row = Vec::with_capacity(predictors.len() + 6);
+        row.push((index + 1).to_string());
+        row.extend(point.iter().map(|value| format!("{value:.6}")));
+        row.push(format!("{fitted:.6}"));
+        row.push(format!("{se_fit:.6}"));
+        row.push(format!("{:.6}", fitted - half_ci));
+        row.push(format!("{:.6}", fitted + half_ci));
+        row.push(format!("{:.6}", fitted - half_pi));
+        row.push(format!("{:.6}", fitted + half_pi));
+        table.push(row);
+    }
+
+    let mut headers = Vec::with_capacity(predictors.len() + 6);
+    headers.push("Point".to_owned());
+    headers.extend(predictors.iter().cloned());
+    for name in [
+        "Fit", "SE fit", "CI lower", "CI upper", "PI lower", "PI upper",
+    ] {
+        headers.push(name.to_owned());
+    }
+
+    let mut result = AnalysisResult::new(
+        format!("Prediction — response {response}"),
+        format!(
+            "Ordinary least squares with {} predictor(s); {:.1}% confidence and prediction \
+             intervals",
+            predictors.len(),
+            confidence * 100.0
+        ),
+    );
+    result.n = model.n;
+    result.excluded = model.excluded;
+    result.statistics = vec![
+        ("Residual standard error", model.s),
+        ("Residual degrees of freedom", model.df_residual),
+        ("R²", model.r_squared),
+        ("Confidence", confidence),
+    ];
+    result.extra.push(Item::Message(format!(
+        "Model equation: {}",
+        equation(&model)
+    )));
+    result.extra.push(Item::Table {
+        headers,
+        rows: table,
+    });
+    result.notes = vec![
+        (
+            "Intervals".to_owned(),
+            "the confidence interval is for the mean response at the point; the prediction \
+             interval is for a single new observation"
+                .to_owned(),
+        ),
+        (
+            "Model".to_owned(),
+            "the model is identified by the response and the predictors and fitted to every \
+             complete row of the worksheet when the command runs"
+                .to_owned(),
+        ),
+        (
+            "Data policy".to_owned(),
+            "rows with a missing value in the response or a predictor are excluded listwise and \
+             counted"
+                .to_owned(),
+        ),
+    ];
+    result.warnings = standard_warnings(result.n, result.excluded, 0);
+    result.warnings.push(
+        "prediction outside the range of the fitted data is an extrapolation; the intervals \
+         assume the model is correct"
+            .to_owned(),
+    );
+    Ok(result)
+}
+
+/// Solves `A·x = b` by Gaussian elimination with partial pivoting.
+#[allow(clippy::needless_range_loop)]
+fn solve(matrix: &[Vec<f64>], rhs: &[f64]) -> Option<Vec<f64>> {
+    let n = rhs.len();
+    if matrix.len() != n {
+        return None;
+    }
+    let mut a = matrix.to_vec();
+    let mut b = rhs.to_vec();
+    let scale = matrix
+        .iter()
+        .flat_map(|row| row.iter())
+        .fold(0.0_f64, |largest, value| largest.max(value.abs()))
+        .max(1.0);
+    let tolerance = 1e-12 * scale;
+    for column in 0..n {
+        let pivot =
+            (column..n).max_by(|&i, &j| a[i][column].abs().total_cmp(&a[j][column].abs()))?;
+        if a[pivot][column].abs() < tolerance {
+            return None;
+        }
+        a.swap(column, pivot);
+        b.swap(column, pivot);
+        for row in (column + 1)..n {
+            let factor = a[row][column] / a[column][column];
+            for k in column..n {
+                a[row][k] -= factor * a[column][k];
+            }
+            b[row] -= factor * b[column];
+        }
+    }
+    let mut x = vec![0.0; n];
+    for row in (0..n).rev() {
+        let mut sum = b[row];
+        for k in (row + 1)..n {
+            sum -= a[row][k] * x[k];
+        }
+        x[row] = sum / a[row][row];
+    }
+    Some(x)
+}
+
 fn fit_impl(
     df: &DataFrame,
     response: &str,
@@ -1194,5 +1428,116 @@ mod unusual_observations {
         ])
         .expect("frame");
         assert!(fit(&df, "y", &["x".to_owned()], 0.95).is_err());
+    }
+
+    fn prediction_frame() -> DataFrame {
+        let x: Vec<f64> = (0..10).map(|index| (index + 1) as f64).collect();
+        let noise = [0.1, -0.1, 0.05, -0.05, 0.1, -0.1, 0.05, -0.05, 0.1, -0.1];
+        let y: Vec<f64> = x
+            .iter()
+            .zip(noise)
+            .map(|(value, error)| 10.0 + 2.0 * value + error)
+            .collect();
+        DataFrame::new(vec![Column::new_f64("y", y), Column::new_f64("x", x)]).expect("frame")
+    }
+
+    #[test]
+    fn the_prediction_uses_the_equation_and_both_intervals() {
+        let df = prediction_frame();
+        let model = fit(&df, "y", &["x".to_owned()], 0.95).expect("fit");
+        let result = predict_points(&df, "y", &["x".to_owned()], 0.95, &[vec![5.0], vec![12.0]])
+            .expect("prediction");
+        assert!(result.title.contains("Prediction"), "{}", result.title);
+        assert_eq!(result.n, 10);
+        let (headers, rows) = result
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { headers, rows } => Some((headers, rows)),
+                _ => None,
+            })
+            .expect("table");
+        assert_eq!(
+            headers,
+            &vec![
+                "Point".to_owned(),
+                "x".to_owned(),
+                "Fit".to_owned(),
+                "SE fit".to_owned(),
+                "CI lower".to_owned(),
+                "CI upper".to_owned(),
+                "PI lower".to_owned(),
+                "PI upper".to_owned(),
+            ]
+        );
+        assert_eq!(rows.len(), 2);
+        let row = &rows[0];
+        let fitted: f64 = row[2].parse().expect("fit");
+        let expected = model.coefficients[0] + model.coefficients[1] * 5.0;
+        assert!((fitted - expected).abs() < 1e-6, "{fitted} vs {expected}");
+        let ci_low: f64 = row[4].parse().expect("ci low");
+        let ci_high: f64 = row[5].parse().expect("ci high");
+        let pi_low: f64 = row[6].parse().expect("pi low");
+        let pi_high: f64 = row[7].parse().expect("pi high");
+        assert!(ci_low < fitted && fitted < ci_high);
+        // The prediction interval is wider than the confidence interval.
+        assert!(pi_low < ci_low && ci_high < pi_high);
+        // Extrapolation still returns a finite fit.
+        let far: f64 = rows[1][2].parse().expect("far fit");
+        assert!(far.is_finite());
+    }
+
+    #[test]
+    fn the_prediction_rejects_bad_points_and_non_numeric_predictors() {
+        let df = prediction_frame();
+        let error = predict_points(&df, "y", &["x".to_owned()], 0.95, &[]).expect_err("no points");
+        assert!(
+            error.to_string().contains("at least one new point"),
+            "{error}"
+        );
+        let error = predict_points(&df, "y", &["x".to_owned()], 0.95, &[vec![1.0, 2.0]])
+            .expect_err("too many values");
+        assert!(error.to_string().contains("value(s)"), "{error}");
+        let error = predict_points(&df, "y", &["x".to_owned()], 0.95, &[vec![f64::NAN]])
+            .expect_err("non-finite");
+        assert!(error.to_string().contains("non-finite"), "{error}");
+        let categorical = DataFrame::new(vec![
+            Column::new_f64("y", vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+            Column::new_text(
+                "g",
+                vec!["a", "a", "a", "b", "b", "b"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+        let error = predict_points(&categorical, "y", &["g".to_owned()], 0.95, &[vec![1.0]])
+            .expect_err("categorical predictor");
+        assert!(error.to_string().contains("numeric predictors"), "{error}");
+    }
+
+    #[test]
+    fn the_prediction_counts_the_listwise_excluded_rows() {
+        let mut df = prediction_frame();
+        // A missing predictor keeps the row out of the fit and the design.
+        df.insert_column(
+            df.n_columns(),
+            Column::new_f64(
+                "z",
+                vec![1.0, 2.0, 3.0, f64::NAN, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+            ),
+        )
+        .expect("column");
+        let result = predict_points(
+            &df,
+            "y",
+            &["x".to_owned(), "z".to_owned()],
+            0.95,
+            &[vec![2.0, 2.0]],
+        )
+        .expect("prediction");
+        assert_eq!(result.n, 9);
+        assert_eq!(result.excluded, 1);
     }
 }

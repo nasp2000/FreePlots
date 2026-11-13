@@ -545,6 +545,264 @@ impl FreePlotsApp {
         self.execute_spec(spec, format!("Regression: {}", self.reg_response));
         self.show_reg_dialog = false;
     }
+    /// Opens the prediction dialog with the regression model preselected.
+    pub fn open_predict_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.len() < 2 {
+            self.set_error("Prediction needs a numeric response and at least one predictor");
+            return;
+        }
+        self.predict_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.predict_predictors = numeric
+            .into_iter()
+            .filter(|name| *name != self.predict_response)
+            .collect();
+        self.predict_points.clear();
+        self.show_predict_dialog = true;
+    }
+
+    /// Predicts the response at the points of the dialog.
+    pub fn run_predict_dialog(&mut self) {
+        if self.predict_response.is_empty() {
+            self.set_error("Select the response column");
+            return;
+        }
+        let predictors: Vec<String> = self
+            .predict_predictors
+            .iter()
+            .filter(|name| **name != self.predict_response)
+            .cloned()
+            .collect();
+        if predictors.is_empty() {
+            self.set_error("Select at least one predictor");
+            return;
+        }
+        let points = match parse_prediction_points(&self.predict_points) {
+            Ok(points) => points,
+            Err(error) => {
+                self.set_error(&error);
+                return;
+            }
+        };
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::regression::predict_points(
+            &df,
+            &self.predict_response,
+            &predictors,
+            self.predict_confidence / 100.0,
+            &points,
+        ) {
+            Ok(result) => {
+                self.append_session(&format!("{}\n", result.to_session_text()));
+                self.status = format!("Predicted {} point(s)", points.len());
+                self.show_predict_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Prediction dialog: the model and the new points.
+    pub(super) fn predict_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_predict_dialog {
+            return;
+        }
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_predict_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Predict"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(440.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Response:");
+                    egui::ComboBox::from_id_salt("predict_response")
+                        .selected_text(if self.predict_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.predict_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.predict_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.help_label("Predictors:");
+                egui::ScrollArea::vertical()
+                    .max_height(140.0)
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            if *name == self.predict_response {
+                                continue;
+                            }
+                            let mut selected = self.predict_predictors.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.predict_predictors.push(name.clone());
+                                } else {
+                                    self.predict_predictors.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Confidence:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.predict_confidence)
+                            .range(50.0..=99.9)
+                            .speed(0.5)
+                            .suffix(" %"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                let points_label = ui.help_label("New points:");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.predict_points)
+                        .desired_rows(4)
+                        .desired_width(f32::INFINITY)
+                        .hint_text("one row per point, values in predictor order"),
+                )
+                .labelled_by(points_label.id)
+                .hover_from(&points_label);
+                ui.small(
+                    "One row per new point, with one number per predictor in the order of the \
+                     list, separated by commas or spaces. The model is fitted to the worksheet \
+                     when the command runs.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About prediction…"))
+                        .clicked()
+                    {
+                        self.show_predict_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.predict_response.is_empty()
+                                && !self.predict_points.trim().is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_predict_dialog = open && !run && !cancel;
+        if run {
+            self.run_predict_dialog();
+        }
+    }
+
+    /// Help page of the prediction dialog.
+    pub(super) fn predict_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_predict_help {
+            return;
+        }
+        let mut open = self.show_predict_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Prediction help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "Predict evaluates a fitted linear model at new predictor values. It reports \
+                     the fitted response, the confidence interval for the mean response and the \
+                     prediction interval for a single new observation.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose the response and at least one numeric predictor — the same model the \
+                     regression report describes. Enter one or more new points, one row per \
+                     point, with one value per predictor in the order of the list, separated by \
+                     commas or spaces. The model is fitted to every complete row when the command \
+                     runs; rows with a missing value are excluded listwise and counted.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A model of weight on height and pressure predicts the weight at height 12 \
+                     and pressure 105. Enter 12, 105 as one row. The report gives the fitted \
+                     weight and both intervals; values far outside the fitted range are \
+                     extrapolations.",
+                ));
+                egui::Grid::new("predict_help_example")
+                    .num_columns(3)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("weight");
+                        ui.strong("height");
+                        ui.strong("pressure");
+                        ui.end_row();
+                        for (weight, height, pressure) in [
+                            ("12.1", "10", "100"),
+                            ("12.4", "11", "102"),
+                            ("12.9", "12", "105"),
+                        ] {
+                            ui.monospace(weight);
+                            ui.monospace(height);
+                            ui.monospace(pressure);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_predict_help = open && !close;
+    }
+
     pub(super) fn regression_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_reg_dialog {
             return;
@@ -1028,4 +1286,36 @@ impl FreePlotsApp {
             self.run_anova_dialog();
         }
     }
+}
+
+/// Parses one new point per non-empty line, values separated by commas,
+/// semicolons or spaces.
+fn parse_prediction_points(text: &str) -> Result<Vec<Vec<f64>>, String> {
+    let mut points = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut values = Vec::new();
+        for token in line.split(|character: char| {
+            character == ',' || character == ';' || character.is_whitespace()
+        }) {
+            let token = token.trim();
+            if token.is_empty() {
+                continue;
+            }
+            let value = token
+                .parse::<f64>()
+                .map_err(|_| format!("point {}: invalid number {token}", index + 1))?;
+            values.push(value);
+        }
+        if !values.is_empty() {
+            points.push(values);
+        }
+    }
+    if points.is_empty() {
+        return Err("Enter at least one new point".to_owned());
+    }
+    Ok(points)
 }

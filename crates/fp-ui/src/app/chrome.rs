@@ -188,6 +188,8 @@ impl FreePlotsApp {
         self.power_dialog(&ctx);
         self.test2_dialog(&ctx);
         self.regression_dialog(&ctx);
+        self.predict_dialog(&ctx);
+        self.predict_help_window(&ctx);
         self.stepwise_dialog(&ctx);
         self.anova_dialog(&ctx);
         self.kaplan_meier_dialog(&ctx);

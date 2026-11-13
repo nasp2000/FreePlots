@@ -1226,6 +1226,13 @@ pub struct FreePlotsApp {
     reg_response: String,
     reg_predictors: Vec<String>,
     reg_confidence: f64,
+    /// Predict dialog: model (response and predictors) and new points.
+    show_predict_dialog: bool,
+    show_predict_help: bool,
+    predict_response: String,
+    predict_predictors: Vec<String>,
+    predict_confidence: f64,
+    predict_points: String,
     show_step_dialog: bool,
     step_response: String,
     step_candidates: Vec<String>,
@@ -3893,6 +3900,8 @@ impl FreePlotsApp {
         self.show_box_cox_dialog = false;
         self.show_johnson_dialog = false;
         self.show_johnson_help = false;
+        self.show_predict_dialog = false;
+        self.show_predict_help = false;
         self.show_calc_dialog = false;
         self.show_cap_dialog = false;
         self.show_cap_help = false;

@@ -3024,6 +3024,41 @@ fn the_capability_help_explains_the_subgroup_column() {
 }
 
 #[test]
+fn the_prediction_help_explains_the_intervals() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_predict_dialog = true;
+    app.predict_response = "weight".to_owned();
+    app.predict_predictors = vec!["weight".to_owned()];
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About prediction…").click();
+    harness.run();
+    assert!(harness.state().show_predict_help);
+    harness.get_by_label("Prediction help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("evaluates a fitted linear model at new predictor values");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da previsão");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_predict_help);
+}
+
+#[test]
 fn the_johnson_help_explains_the_transformation() {
     use egui_kittest::{Harness, kittest::Queryable};
 

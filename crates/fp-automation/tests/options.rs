@@ -4007,6 +4007,28 @@ fn the_attribute_capability_dialog_reports_ppm_defects() {
 }
 
 #[test]
+fn the_predict_dialog_reports_the_intervals() {
+    let mut ui = Automation::new();
+    let x: Vec<f64> = (0..10).map(|index| (index + 1) as f64).collect();
+    let noise = [0.1, -0.1, 0.05, -0.05, 0.1, -0.1, 0.05, -0.05, 0.1, -0.1];
+    let y: Vec<f64> = x
+        .iter()
+        .zip(noise)
+        .map(|(value, error)| 10.0 + 2.0 * value + error)
+        .collect();
+    let df = DataFrame::new(vec![Column::new_f64("y", y), Column::new_f64("x", x)]).expect("frame");
+    ui.load_frame(df, "line.csv");
+    open(&mut ui, &["Stat", "Regression", "Predict…"]);
+    ui.set_text("New points:", "12").expect("points");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Prediction"), "{session}");
+    assert!(session.contains("CI lower"), "{session}");
+    assert!(session.contains("PI upper"), "{session}");
+    assert!(ui.status().contains("Predicted 1 point"), "{}", ui.status());
+}
+
+#[test]
 fn the_johnson_transformation_writes_a_column() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

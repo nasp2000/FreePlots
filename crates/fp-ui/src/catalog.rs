@@ -789,6 +789,38 @@ impl UiCatalog {
                  acrescenta a coluna weight_J e reporta o A² antes e depois. A nova coluna fica \
                  pronta para a análise de capacidade ou para as cartas de controlo."
             }
+            "Predict" => "Prever",
+            "Predict…" => "Prever…",
+            "Prediction help" => "Ajuda da previsão",
+            "About prediction…" => "Acerca da previsão…",
+            "Predict evaluates a fitted linear model at new predictor values. It reports \
+             the fitted response, the confidence interval for the mean response and the \
+             prediction interval for a single new observation." => {
+                "Prever avalia um modelo linear ajustado em valores novos dos preditores. \
+                 Reporta a resposta ajustada, o intervalo de confiança da resposta média e o \
+                 intervalo de previsão de uma nova observação."
+            }
+            "Choose the response and at least one numeric predictor — the same model the \
+             regression report describes. Enter one or more new points, one row per \
+             point, with one value per predictor in the order of the list, separated by \
+             commas or spaces. The model is fitted to every complete row when the command \
+             runs; rows with a missing value are excluded listwise and counted." => {
+                "Escolha a resposta e pelo menos um preditor numérico — o mesmo modelo que o \
+                 relatório de regressão descreve. Introduza um ou mais pontos novos, uma linha \
+                 por ponto, com um valor por preditor pela ordem da lista, separados por \
+                 vírgulas ou espaços. O modelo é ajustado a todas as linhas completas quando o \
+                 comando corre; as linhas com um valor em falta são excluídas em lista e \
+                 contadas."
+            }
+            "A model of weight on height and pressure predicts the weight at height 12 \
+             and pressure 105. Enter 12, 105 as one row. The report gives the fitted \
+             weight and both intervals; values far outside the fitted range are \
+             extrapolations." => {
+                "Um modelo do peso em função da altura e da pressão prevê o peso para altura 12 \
+                 e pressão 105. Introduza 12, 105 numa linha. O relatório dá o peso ajustado e \
+                 ambos os intervalos; valores muito fora do intervalo ajustado são \
+                 extrapolações."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

@@ -883,6 +883,13 @@ impl FreePlotsApp {
                         self.open_regression_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Predict…"), None, self.data.is_some())
+                        .on_hover_text("Predict the response at new points with confidence and prediction intervals")
+                        .clicked()
+                    {
+                        self.open_predict_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Stepwise Regression…"),
                         None,
                         self.data.is_some(),
