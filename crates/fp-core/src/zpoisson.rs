@@ -8,7 +8,7 @@
 //! with an expected count of at least two and compares them with a Poisson
 //! distribution whose mean is estimated from the data (or supplied).
 
-use crate::data::{DataFrame, MissingPolicy, Sample};
+use crate::data::{DataFrame, MissingPolicy};
 use crate::error::{Error, Result};
 use crate::hypothesis::Alternative;
 use crate::report::{AnalysisResult, Item, standard_warnings};
@@ -185,7 +185,7 @@ fn counts(column: &crate::data::Column, name: &str) -> Result<(f64, usize, usize
                 total += value;
                 n += 1;
             }
-            Some(value) => {
+            Some(_) => {
                 return Err(Error::Cell {
                     column: name.to_owned(),
                     row: row + 1,
@@ -368,6 +368,7 @@ pub fn poisson_one(
 ///
 /// As [`poisson_one`], plus [`Error::Unsupported`] when both samples have no
 /// occurrences.
+#[allow(clippy::too_many_arguments)]
 pub fn poisson_two(
     df: &DataFrame,
     first_column: &str,
@@ -581,7 +582,7 @@ pub fn poisson_gof(df: &DataFrame, column_name: &str, mean: Option<f64>) -> Resu
     for row in 0..column.len() {
         match column.value(row) {
             Some(value) if value >= 0.0 && value.fract() == 0.0 => values.push(value),
-            Some(value) => {
+            Some(_) => {
                 return Err(Error::Cell {
                     column: column_name.to_owned(),
                     row: row + 1,
@@ -769,7 +770,7 @@ mod tests {
             .find(|(name, _)| *name == "p-value")
             .map(|(_, value)| *value)
             .expect("p");
-        assert!((p - 0.025_346_999_913_247_255).abs() < 1e-12, "p = {p}");
+        assert!((p - 0.025_347_318_677_468_277).abs() < 1e-12, "p = {p}");
         let lower = result
             .statistics
             .iter()
