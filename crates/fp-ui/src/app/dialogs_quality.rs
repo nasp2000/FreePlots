@@ -278,6 +278,7 @@ impl FreePlotsApp {
             return;
         }
         let mut open = self.show_cap_help;
+        let mut close = false;
         dialog_window(self.catalog().label("Capability help"))
             .without_clear()
             .open(&mut open)
@@ -334,11 +335,11 @@ impl FreePlotsApp {
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
                     if ui.help_button(self.catalog().label("Close")).clicked() {
-                        open = false;
+                        close = true;
                     }
                 });
             });
-        self.show_cap_help = open;
+        self.show_cap_help = open && !close;
     }
 
     pub(super) fn control_chart_dialog(&mut self, ctx: &egui::Context) {
@@ -681,6 +682,7 @@ impl FreePlotsApp {
             return;
         }
         let mut open = self.show_chart_help;
+        let mut close = false;
         dialog_window(self.catalog().label("Control chart help"))
             .without_clear()
             .open(&mut open)
@@ -740,12 +742,13 @@ impl FreePlotsApp {
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
                     if ui.help_button(self.catalog().label("Close")).clicked() {
-                        open = false;
+                        close = true;
                     }
                 });
             });
-        self.show_chart_help = open;
+        self.show_chart_help = open && !close;
     }
+
     pub(super) fn attribute_chart_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_attr_dialog {
             return;
