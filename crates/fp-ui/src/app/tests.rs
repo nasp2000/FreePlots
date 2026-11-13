@@ -3043,7 +3043,7 @@ fn the_z_and_poisson_help_explains_the_tests() {
     harness.get_by_label("Z and Poisson Tests help");
     harness.get_by_label("Overview");
     harness.get_by_label_contains("compares a mean with a known standard deviation");
-    harness.get_by_label("Examples");
+    harness.get_by_label_contains("35 counts with an estimated mean of 2.4");
 
     harness
         .state_mut()
@@ -3051,7 +3051,7 @@ fn the_z_and_poisson_help_explains_the_tests() {
     harness.run();
     harness.get_by_label("Ajuda dos testes Z e de Poisson");
     harness.get_by_label("Visão geral");
-    harness.get_by_label("Exemplos");
+    harness.get_by_label_contains("35 contagens com média estimada de 2,4");
 
     harness.get_by_label("Fechar").click();
     harness.run();
