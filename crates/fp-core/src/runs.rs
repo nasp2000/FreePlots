@@ -195,7 +195,8 @@ mod tests {
             4.0, 6.0, 3.0, 2.0, 2.0, 1.0, 6.0, 4.0, 4.0, 5.0, 1.0, 1.0, 4.0, 5.0, 3.0, 1.0, 5.0,
             6.0, 6.0, 3.0, 4.0, 4.0, 5.0, 2.0, 3.0,
         ];
-        let result = test(&frame(values), "x", Some(3.5)).expect("runs test");
+        let df = frame(values);
+        let result = test(&df, "x", Some(3.5)).expect("runs test");
         assert_eq!(result.n, 25);
         assert_eq!(result.above, 14);
         assert_eq!(result.below_or_equal, 11);
@@ -204,7 +205,7 @@ mod tests {
         assert!((result.variance - 5.810_933_333_333_334).abs() < 1e-12);
         assert!((result.z + 1.377_257_472_002_954).abs() < 1e-12);
         assert!((result.p_value - 0.168_432_658_683_235_76).abs() < 1e-12);
-        let text = analyze(&frame(values), "x", Some(3.5))
+        let text = analyze(&df, "x", Some(3.5))
             .expect("analysis")
             .to_session_text();
         assert!(text.contains("Runs Test"), "{text}");
