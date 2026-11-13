@@ -3042,7 +3042,7 @@ fn the_sixpack_help_explains_the_six_panels() {
     assert!(harness.state().show_sixpack_help);
     harness.get_by_label("Capability Sixpack help");
     harness.get_by_label("Overview");
-    harness.get_by_label_contains("six panels");
+    harness.get_by_label_contains("shows one normal capability study as six panels");
     harness.get_by_label("Example");
 
     harness
