@@ -856,6 +856,56 @@ impl UiCatalog {
                  Z = −1,38 e p = 0,168, pelo que não há evidência contra a aleatoriedade. Uma \
                  sequência alternada 1, 10, 1, 10 dá 20 runs e um p-valor muito pequeno."
             }
+            "1-Sample Z" => "Z de 1 amostra",
+            "1-Sample Z…" => "Z de 1 amostra…",
+            "1-Sample Poisson Rate" => "Taxa de Poisson de 1 amostra",
+            "1-Sample Poisson Rate…" => "Taxa de Poisson de 1 amostra…",
+            "2-Sample Poisson Rate" => "Taxa de Poisson de 2 amostras",
+            "2-Sample Poisson Rate…" => "Taxa de Poisson de 2 amostras…",
+            "Poisson Goodness-of-Fit" => "Ajuste à distribuição de Poisson",
+            "Poisson Goodness-of-Fit…" => "Ajuste à distribuição de Poisson…",
+            "Z and Poisson Tests help" => "Ajuda dos testes Z e de Poisson",
+            "About these tests…" => "Acerca destes testes…",
+            "The 1-sample Z test compares a mean with a known standard deviation. The \
+             Poisson rate tests compare occurrence rates with a null rate or between two \
+             samples. The goodness-of-fit test compares integer counts with a Poisson \
+             distribution." => {
+                "O teste Z de 1 amostra compara uma média com um desvio padrão conhecido. Os \
+                 testes de taxa de Poisson comparam taxas de ocorrência com uma taxa nula ou \
+                 entre duas amostras. O teste de ajuste compara contagens inteiras com uma \
+                 distribuição de Poisson."
+            }
+            "One numeric column: measurements for the Z test, non-negative integer counts \
+             for the Poisson tests. The rate tests need the total length of observation; \
+             the two-sample test also needs a second counts column and its length. The \
+             goodness-of-fit test takes an optional Poisson mean and estimates it from the \
+             counts when it is blank. Missing values are excluded and counted." => {
+                "Uma coluna numérica: medições para o teste Z, contagens inteiras não negativas \
+                 para os testes de Poisson. Os testes de taxa precisam do comprimento total de \
+                 observação; o teste de duas amostras precisa também de uma segunda coluna de \
+                 contagens e do respectivo comprimento. O teste de ajuste aceita uma média de \
+                 Poisson opcional e estima-a a partir das contagens quando está em branco. Os \
+                 valores em falta são excluídos e contados."
+            }
+            "Examples" => "Exemplos",
+            "Overview, data and examples" => "Visão geral, dados e exemplos",
+            "1-Sample Z: weights with a known sigma of 2 tested against a mean of 10." => {
+                "Z de 1 amostra: pesos com sigma conhecido de 2 testados contra uma média de 10."
+            }
+            "1-Sample Poisson Rate: 12 defects over a length of 4 tested against a rate \
+             of 2." => {
+                "Taxa de Poisson de 1 amostra: 12 defeitos num comprimento de 4 testados contra \
+                 uma taxa de 2."
+            }
+            "2-Sample Poisson Rate: 12 occurrences in 3 units compared with 5 in 3 units." => {
+                "Taxa de Poisson de 2 amostras: 12 ocorrências em 3 unidades comparadas com 5 em \
+                 3 unidades."
+            }
+            "Poisson Goodness-of-Fit: 35 counts with an estimated mean of 2.4 give a \
+             chi-square of 1.916 and p = 0.590." => {
+                "Ajuste à distribuição de Poisson: 35 contagens com média estimada de 2,4 dão um \
+                 qui-quadrado de 1,916 e p = 0,590."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

@@ -49,6 +49,11 @@ All notable changes to FreePlots are recorded here. The format follows
   randomness about an optional comparison value (the mean by default), with
   the observed and expected runs, Z and the two-sided p-value. It has its own
   help page in both interface languages.
+- Basic Statistics has four more entries: *1-Sample Z…* (known standard
+  deviation), *1-Sample Poisson Rate…*, *2-Sample Poisson Rate…* (exact or
+  normal approximation) and *Poisson Goodness-of-Fit…* (chi-square with
+  estimated or given mean), with a shared help page in both interface
+  languages.
 
 ### Changed
 
@@ -70,7 +75,9 @@ All notable changes to FreePlots are recorded here. The format follows
   listwise excluded row and the invalid points and predictors. The runs test
   covers the published die sequence, the alternating sequence, the default
   comparison value, the one-sided and short samples and the removed missing
-  row.
+  row. The Z and Poisson tests cover the known sigma, the exact Poisson tails,
+  the conditional two-sample test, the published goodness-of-fit example and
+  the invalid inputs.
 
 ## [0.1.1] - 2026-11-12
 

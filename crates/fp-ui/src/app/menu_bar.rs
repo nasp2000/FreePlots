@@ -678,6 +678,34 @@ impl FreePlotsApp {
                         self.open_runs_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("1-Sample Z…"), None, ready)
+                        .on_hover_text("Test a mean with a known standard deviation")
+                        .clicked()
+                    {
+                        self.open_zp_dialog(ZpKind::Z);
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("1-Sample Poisson Rate…"), None, ready)
+                        .on_hover_text("Compare an occurrence rate with a null rate")
+                        .clicked()
+                    {
+                        self.open_zp_dialog(ZpKind::PoissonOne);
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("2-Sample Poisson Rate…"), None, ready)
+                        .on_hover_text("Compare the occurrence rates of two samples")
+                        .clicked()
+                    {
+                        self.open_zp_dialog(ZpKind::PoissonTwo);
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Poisson Goodness-of-Fit…"), None, ready)
+                        .on_hover_text("Chi-square test of integer counts against a Poisson distribution")
+                        .clicked()
+                    {
+                        self.open_zp_dialog(ZpKind::PoissonGof);
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Chi-Square Test…"), None, ready)
                         .on_hover_text("Cross-tabulation and test of independence")
                         .clicked()

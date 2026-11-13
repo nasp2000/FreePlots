@@ -145,6 +145,8 @@ impl FreePlotsApp {
         self.rank_test_dialog(&ctx);
         self.runs_dialog(&ctx);
         self.runs_help_window(&ctx);
+        self.zp_dialog(&ctx);
+        self.zp_help_window(&ctx);
         self.correlation_dialog(&ctx);
         self.curve_dialog(&ctx);
         self.two_way_dialog(&ctx);

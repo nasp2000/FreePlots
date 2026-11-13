@@ -4007,6 +4007,88 @@ fn the_attribute_capability_dialog_reports_ppm_defects() {
 }
 
 #[test]
+fn the_one_sample_z_dialog_uses_the_known_sigma() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![Column::new_f64(
+        "x",
+        vec![10.0, 11.0, 12.0, 13.0, 14.0],
+    )])
+    .expect("frame");
+    ui.load_frame(df, "z.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "1-Sample Z…"]);
+    ui.set_text("Null mean:", "10").expect("null");
+    ui.set_text("Known sigma:", "2").expect("sigma");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("1-Sample Z"), "{session}");
+    assert!(session.contains("Z"), "{session}");
+    assert!(session.contains("p-value"), "{session}");
+}
+
+#[test]
+fn the_one_sample_poisson_rate_dialog_reports_the_rate() {
+    let mut ui = Automation::new();
+    let df =
+        DataFrame::new(vec![Column::new_f64("counts", vec![3.0, 3.0, 2.0, 4.0])]).expect("frame");
+    ui.load_frame(df, "counts.csv");
+    open(
+        &mut ui,
+        &["Stat", "Basic Statistics", "1-Sample Poisson Rate…"],
+    );
+    ui.set_text("Length of observation:", "4").expect("length");
+    ui.set_text("Null rate:", "2").expect("rate");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("1-Sample Poisson Rate"), "{session}");
+    assert!(session.contains("Rate"), "{session}");
+    assert!(session.contains("p-value"), "{session}");
+}
+
+#[test]
+fn the_two_sample_poisson_rate_dialog_compares_the_rates() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("first", vec![4.0, 5.0, 3.0]),
+        Column::new_f64("second", vec![1.0, 2.0, 2.0]),
+    ])
+    .expect("frame");
+    ui.load_frame(df, "rates.csv");
+    open(
+        &mut ui,
+        &["Stat", "Basic Statistics", "2-Sample Poisson Rate…"],
+    );
+    ui.select("Second counts column:", "second")
+        .expect("second");
+    ui.set_text("First length:", "3").expect("first length");
+    ui.set_text("Second length:", "3").expect("second length");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("2-Sample Poisson Rate"), "{session}");
+    assert!(session.contains("Rate difference"), "{session}");
+    assert!(session.contains("p-value"), "{session}");
+}
+
+#[test]
+fn the_poisson_goodness_of_fit_dialog_reports_the_chi_square() {
+    let mut ui = Automation::new();
+    let values = vec![
+        2.0, 2.0, 3.0, 3.0, 2.0, 4.0, 4.0, 2.0, 1.0, 1.0, 1.0, 4.0, 4.0, 3.0, 0.0, 4.0, 3.0, 2.0,
+        3.0, 3.0, 4.0, 1.0, 3.0, 1.0, 4.0, 3.0, 2.0, 2.0, 1.0, 2.0, 0.0, 2.0, 3.0, 2.0, 3.0,
+    ];
+    let df = DataFrame::new(vec![Column::new_f64("counts", values)]).expect("frame");
+    ui.load_frame(df, "counts.csv");
+    open(
+        &mut ui,
+        &["Stat", "Basic Statistics", "Poisson Goodness-of-Fit…"],
+    );
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Poisson Goodness-of-Fit"), "{session}");
+    assert!(session.contains("Chi-square"), "{session}");
+    assert!(session.contains("2.400000"), "{session}");
+}
+
+#[test]
 fn the_runs_test_dialog_reports_the_runs() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

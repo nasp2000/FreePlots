@@ -3024,6 +3024,41 @@ fn the_capability_help_explains_the_subgroup_column() {
 }
 
 #[test]
+fn the_z_and_poisson_help_explains_the_tests() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_zp_dialog = true;
+    app.zp_kind = ZpKind::Z;
+    app.zp_column = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About these tests…").click();
+    harness.run();
+    assert!(harness.state().show_zp_help);
+    harness.get_by_label("Z and Poisson Tests help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("compares a mean with a known standard deviation");
+    harness.get_by_label("Examples");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda dos testes Z e de Poisson");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplos");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_zp_help);
+}
+
+#[test]
 fn the_runs_help_explains_the_test() {
     use egui_kittest::{Harness, kittest::Queryable};
 

@@ -88,6 +88,7 @@ pub mod workflow;
 pub mod xlsx;
 pub mod xlsx_read;
 pub mod zip;
+pub mod zpoisson;
 
 pub use data::{Column, ColumnSummary, DataFrame, Descriptives, MissingPolicy, Sample};
 pub use dists::{Distribution, Normal};

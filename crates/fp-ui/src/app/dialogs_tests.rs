@@ -878,6 +878,384 @@ impl FreePlotsApp {
         self.show_runs_help = open && !close;
     }
 
+    /// Opens the Z and Poisson dialog for one test.
+    pub fn open_zp_dialog(&mut self, kind: ZpKind) {
+        self.zp_kind = kind;
+        self.zp_column = self.selected.clone().unwrap_or_default();
+        self.zp_column2.clear();
+        self.zp_null.clear();
+        self.zp_sigma.clear();
+        self.zp_length = "1".to_owned();
+        self.zp_length1 = "1".to_owned();
+        self.zp_length2 = "1".to_owned();
+        self.show_zp_dialog = true;
+    }
+
+    /// Runs the test selected in the Z and Poisson dialog.
+    pub fn run_zp_dialog(&mut self) {
+        let number = |text: &str| {
+            text.trim()
+                .parse::<f64>()
+                .ok()
+                .filter(|value| value.is_finite())
+        };
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        if self.zp_column.is_empty() {
+            self.set_error("Select the column to analyse");
+            return;
+        }
+        let outcome = match self.zp_kind {
+            ZpKind::Z => {
+                let Some(null_mean) = number(&self.zp_null) else {
+                    self.set_error("Enter the null mean");
+                    return;
+                };
+                let Some(sigma) = number(&self.zp_sigma) else {
+                    self.set_error("Enter the known standard deviation");
+                    return;
+                };
+                fp_core::zpoisson::z_test(
+                    &df,
+                    &self.zp_column,
+                    null_mean,
+                    sigma,
+                    self.zp_alternative,
+                    self.zp_confidence / 100.0,
+                )
+            }
+            ZpKind::PoissonOne => {
+                let Some(length) = number(&self.zp_length) else {
+                    self.set_error("Enter the length of observation");
+                    return;
+                };
+                let Some(null_rate) = number(&self.zp_null) else {
+                    self.set_error("Enter the null rate");
+                    return;
+                };
+                fp_core::zpoisson::poisson_one(
+                    &df,
+                    &self.zp_column,
+                    length,
+                    null_rate,
+                    self.zp_alternative,
+                    self.zp_method,
+                    self.zp_confidence / 100.0,
+                )
+            }
+            ZpKind::PoissonTwo => {
+                if self.zp_column2.is_empty() {
+                    self.set_error("Select the second counts column");
+                    return;
+                }
+                let Some(first_length) = number(&self.zp_length1) else {
+                    self.set_error("Enter the first length of observation");
+                    return;
+                };
+                let Some(second_length) = number(&self.zp_length2) else {
+                    self.set_error("Enter the second length of observation");
+                    return;
+                };
+                fp_core::zpoisson::poisson_two(
+                    &df,
+                    &self.zp_column,
+                    first_length,
+                    &self.zp_column2,
+                    second_length,
+                    self.zp_alternative,
+                    self.zp_method,
+                    self.zp_confidence / 100.0,
+                )
+            }
+            ZpKind::PoissonGof => {
+                let mean = if self.zp_null.trim().is_empty() {
+                    None
+                } else {
+                    match number(&self.zp_null) {
+                        Some(value) => Some(value),
+                        None => {
+                            self.set_error("The Poisson mean must be a number or blank");
+                            return;
+                        }
+                    }
+                };
+                fp_core::zpoisson::poisson_gof(&df, &self.zp_column, mean)
+            }
+        };
+        match outcome {
+            Ok(result) => {
+                self.append_session(&format!("{}\n", result.to_session_text()));
+                self.status = format!("{}: {}", self.zp_kind.name(), self.zp_column);
+                self.show_zp_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Dialog of the four Z and Poisson tests.
+    pub(super) fn zp_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_zp_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_zp_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label(self.zp_kind.name()))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(430.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(if self.zp_kind == ZpKind::PoissonGof {
+                        "Counts column:"
+                    } else {
+                        "Column:"
+                    });
+                    egui::ComboBox::from_id_salt("zp_column")
+                        .selected_text(if self.zp_column.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.zp_column.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.zp_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                if self.zp_kind == ZpKind::PoissonTwo {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label("Second counts column:");
+                        egui::ComboBox::from_id_salt("zp_column2")
+                            .selected_text(if self.zp_column2.is_empty() {
+                                "—".to_owned()
+                            } else {
+                                self.zp_column2.clone()
+                            })
+                            .show_ui(ui, |ui| {
+                                for name in &names {
+                                    ui.selectable_value(
+                                        &mut self.zp_column2,
+                                        name.clone(),
+                                        name.as_str(),
+                                    );
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                match self.zp_kind {
+                    ZpKind::Z => {
+                        for (label_text, field) in [
+                            ("Null mean:", &mut self.zp_null),
+                            ("Known sigma:", &mut self.zp_sigma),
+                        ] {
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(label_text);
+                                ui.text_edit_singleline(field)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                        }
+                    }
+                    ZpKind::PoissonOne => {
+                        for (label_text, field) in [
+                            ("Length of observation:", &mut self.zp_length),
+                            ("Null rate:", &mut self.zp_null),
+                        ] {
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(label_text);
+                                ui.text_edit_singleline(field)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                        }
+                    }
+                    ZpKind::PoissonTwo => {
+                        for (label_text, field) in [
+                            ("First length:", &mut self.zp_length1),
+                            ("Second length:", &mut self.zp_length2),
+                        ] {
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(label_text);
+                                ui.text_edit_singleline(field)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                        }
+                    }
+                    ZpKind::PoissonGof => {
+                        ui.horizontal(|ui| {
+                            let label = ui.help_label("Poisson mean (optional):");
+                            ui.text_edit_singleline(&mut self.zp_null)
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                        });
+                    }
+                }
+                if self.zp_kind != ZpKind::PoissonGof {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label("Alternative:");
+                        egui::ComboBox::from_id_salt("zp_alternative")
+                            .selected_text(self.zp_alternative.as_str())
+                            .show_ui(ui, |ui| {
+                                for alternative in [
+                                    Alternative::TwoSided,
+                                    Alternative::Less,
+                                    Alternative::Greater,
+                                ] {
+                                    ui.selectable_value(
+                                        &mut self.zp_alternative,
+                                        alternative,
+                                        alternative.as_str(),
+                                    );
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                if matches!(self.zp_kind, ZpKind::PoissonOne | ZpKind::PoissonTwo) {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label("Method:");
+                        egui::ComboBox::from_id_salt("zp_method")
+                            .selected_text(self.zp_method.name())
+                            .show_ui(ui, |ui| {
+                                for method in [
+                                    fp_core::zpoisson::PoissonMethod::Exact,
+                                    fp_core::zpoisson::PoissonMethod::Normal,
+                                ] {
+                                    ui.selectable_value(&mut self.zp_method, method, method.name());
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                if self.zp_kind != ZpKind::PoissonGof {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label("Confidence:");
+                        ui.add(
+                            egui::DragValue::new(&mut self.zp_confidence)
+                                .range(50.0..=99.9)
+                                .speed(0.5)
+                                .suffix(" %"),
+                        )
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About these tests…"))
+                        .clicked()
+                    {
+                        self.show_zp_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and examples"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.zp_column.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_zp_dialog = open && !run && !cancel;
+        if run {
+            self.run_zp_dialog();
+        }
+    }
+
+    /// Help page of the Z and Poisson tests.
+    pub(super) fn zp_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_zp_help {
+            return;
+        }
+        let mut open = self.show_zp_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Z and Poisson Tests help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The 1-sample Z test compares a mean with a known standard deviation. The \
+                     Poisson rate tests compare occurrence rates with a null rate or between two \
+                     samples. The goodness-of-fit test compares integer counts with a Poisson \
+                     distribution.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column: measurements for the Z test, non-negative integer counts \
+                     for the Poisson tests. The rate tests need the total length of observation; \
+                     the two-sample test also needs a second counts column and its length. The \
+                     goodness-of-fit test takes an optional Poisson mean and estimates it from the \
+                     counts when it is blank. Missing values are excluded and counted.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Examples"));
+                ui.label(self.catalog().label(
+                    "1-Sample Z: weights with a known sigma of 2 tested against a mean of 10.",
+                ));
+                ui.label(self.catalog().label(
+                    "1-Sample Poisson Rate: 12 defects over a length of 4 tested against a rate \
+                     of 2.",
+                ));
+                ui.label(self.catalog().label(
+                    "2-Sample Poisson Rate: 12 occurrences in 3 units compared with 5 in 3 units.",
+                ));
+                ui.label(self.catalog().label(
+                    "Poisson Goodness-of-Fit: 35 counts with an estimated mean of 2.4 give a \
+                     chi-square of 1.916 and p = 0.590.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_zp_help = open && !close;
+    }
+
     pub fn open_test2_dialog(&mut self, kind: Test2Kind) {
         let Some(df) = self.data.as_ref() else {
             self.set_error("No worksheet open: use File → Open CSV…");

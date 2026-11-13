@@ -813,6 +813,30 @@ impl OneWayKind {
     }
 }
 
+/// Kind of test offered by the Z and Poisson dialog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ZpKind {
+    /// One-sample Z with a known standard deviation.
+    Z,
+    /// One-sample Poisson rate.
+    PoissonOne,
+    /// Two-sample Poisson rate.
+    PoissonTwo,
+    /// Poisson goodness-of-fit.
+    PoissonGof,
+}
+
+impl ZpKind {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Z => "1-Sample Z",
+            Self::PoissonOne => "1-Sample Poisson Rate",
+            Self::PoissonTwo => "2-Sample Poisson Rate",
+            Self::PoissonGof => "Poisson Goodness-of-Fit",
+        }
+    }
+}
+
 /// Kind of non-parametric rank test offered by the dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RankTestKind {
@@ -1026,6 +1050,20 @@ pub struct FreePlotsApp {
     show_runs_help: bool,
     runs_column: String,
     runs_reference: String,
+    /// Z and Poisson test dialog.
+    show_zp_dialog: bool,
+    show_zp_help: bool,
+    zp_kind: ZpKind,
+    zp_column: String,
+    zp_column2: String,
+    zp_null: String,
+    zp_sigma: String,
+    zp_length: String,
+    zp_length1: String,
+    zp_length2: String,
+    zp_alternative: Alternative,
+    zp_method: fp_core::zpoisson::PoissonMethod,
+    zp_confidence: f64,
     show_correlation_dialog: bool,
     language: fp_core::i18n::Lang,
     show_curve_dialog: bool,
@@ -3959,6 +3997,8 @@ impl FreePlotsApp {
         self.show_rank_dialog = false;
         self.show_runs_dialog = false;
         self.show_runs_help = false;
+        self.show_zp_dialog = false;
+        self.show_zp_help = false;
         self.show_reg_dialog = false;
         self.show_rename = false;
         self.show_rsm_dialog = false;
