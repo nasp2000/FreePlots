@@ -1525,7 +1525,7 @@ mod unusual_observations {
             df.n_columns(),
             Column::new_f64(
                 "z",
-                vec![1.0, 2.0, 3.0, f64::NAN, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+                vec![1.5, 4.2, 5.8, f64::NAN, 10.1, 12.4, 13.8, 16.2, 17.9, 20.3],
             ),
         )
         .expect("column");
