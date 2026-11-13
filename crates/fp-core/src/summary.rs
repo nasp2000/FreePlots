@@ -216,8 +216,11 @@ pub fn graphical_summary(df: &DataFrame, column_name: &str) -> Result<AnalysisOu
     })
 }
 
+/// One row of the interval panel: label, estimate and optional interval.
+type IntervalEntry<'a> = (&'a str, f64, Option<(f64, f64)>);
+
 fn interval_plot(summary: &ColumnSummary) -> PlotSpec {
-    let mut entries: Vec<(&str, f64, Option<(f64, f64)>)> = vec![
+    let mut entries: Vec<IntervalEntry> = vec![
         ("Mean", summary.mean, summary.ci_mean),
         ("Median", summary.median, summary.ci_median),
     ];

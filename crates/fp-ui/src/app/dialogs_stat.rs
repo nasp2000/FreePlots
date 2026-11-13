@@ -989,6 +989,7 @@ impl FreePlotsApp {
                 ui.help_label("Variables:");
                 egui::ScrollArea::vertical()
                     .max_height(120.0)
+                    .auto_shrink([false, false])
                     .show(ui, |ui| {
                         for name in &numeric {
                             let mut selected = self.store_columns.contains(name);
@@ -1004,6 +1005,7 @@ impl FreePlotsApp {
                 ui.help_label("Statistics:");
                 egui::ScrollArea::vertical()
                     .max_height(150.0)
+                    .auto_shrink([false, false])
                     .show(ui, |ui| {
                         for stat in [
                             fp_core::summary::StoreStat::N,
@@ -1315,6 +1317,7 @@ impl FreePlotsApp {
                 ui.help_label("Candidate predictors:");
                 egui::ScrollArea::vertical()
                     .max_height(150.0)
+                    .auto_shrink([false, false])
                     .show(ui, |ui| {
                         for name in &numeric {
                             if *name == self.step_response {
