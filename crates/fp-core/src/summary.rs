@@ -227,13 +227,13 @@ fn interval_plot(summary: &ColumnSummary) -> PlotSpec {
     let mut x_min = entries
         .iter()
         .map(|(_, estimate, interval)| {
-            interval.map_or(*estimate, |(lower, upper)| lower.min(estimate).min(upper))
+            interval.map_or(*estimate, |(lower, upper)| lower.min(*estimate).min(upper))
         })
         .fold(f64::INFINITY, f64::min);
     let mut x_max = entries
         .iter()
         .map(|(_, estimate, interval)| {
-            interval.map_or(*estimate, |(lower, upper)| upper.max(estimate).max(lower))
+            interval.map_or(*estimate, |(lower, upper)| upper.max(*estimate).max(lower))
         })
         .fold(f64::NEG_INFINITY, f64::max);
     if !x_min.is_finite() || !x_max.is_finite() {
