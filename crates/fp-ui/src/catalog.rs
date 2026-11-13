@@ -625,6 +625,41 @@ impl UiCatalog {
                  como coluna de subgrupos. Cp e Cpk vêm do desvio-padrão agrupado dentro dos \
                  subgrupos (n − g graus de liberdade); Pp e Ppk vêm do desvio-padrão global."
             }
+            "Capability Sixpack" => "Sixpack de capacidade",
+            "Capability Sixpack…" => "Sixpack de capacidade…",
+            "Capability Sixpack help" => "Ajuda do Sixpack de capacidade",
+            "About the six panels…" => "Acerca dos seis painéis…",
+            "The Sixpack shows one normal capability study as six panels. The control \
+             chart and the histogram describe the process, the probability plot checks \
+             the normal model, and the capability panel compares the spread with the \
+             specification limits." => {
+                "O Sixpack mostra um estudo de capacidade normal em seis painéis. A carta \
+                 de controlo e o histograma descrevem o processo, o gráfico de probabilidade \
+                 verifica o modelo normal e o painel de capacidade compara a dispersão com os \
+                 limites de especificação."
+            }
+            "One numeric column holds the measurements. Set a constant subgroup size, or \
+             choose a column whose labels say which subgroup each row belongs to. The \
+             control chart uses individuals when the subgroup size is 1 and the subgroup \
+             means otherwise. The Sixpack uses the normal model and does not apply \
+             Box-Cox." => {
+                "Uma coluna numérica contém as medições. Defina um tamanho de subgrupo \
+                 constante ou escolha uma coluna cujas etiquetas dizem a que subgrupo \
+                 pertence cada linha. A carta usa observações individuais quando o tamanho do \
+                 subgrupo é 1 e, caso contrário, as médias dos subgrupos. O Sixpack usa o \
+                 modelo normal e não aplica Box-Cox."
+            }
+            "A line measures three parts twice. Put the measurements in weight and the \
+             part name in part, choose Capability Sixpack, set the specification limits \
+             and part as the subgroup column. The panels show the histogram, the normal \
+             probability plot, the X̄ and R charts, the last 25 points and the capability \
+             indices." => {
+                "Uma linha mede três peças duas vezes. Coloque as medições em weight e o \
+                 nome da peça em part, escolha Sixpack de capacidade, defina os limites de \
+                 especificação e part como coluna de subgrupos. Os painéis mostram o \
+                 histograma, o gráfico de probabilidade normal, as cartas X̄ e R, os últimos \
+                 25 pontos e os índices de capacidade."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

@@ -262,6 +262,8 @@ pub enum AnalysisSpec {
         subgroup: usize,
         /// Optional column whose labels define the subgroups (normal model).
         subgroup_column: Option<String>,
+        /// Draw the six-panel capability Sixpack instead of one plot.
+        sixpack: bool,
         /// Apply the `c4` unbiasing constant to the within estimate.
         unbiasing_within: bool,
         /// Apply the `c4` unbiasing constant to the overall estimate.
@@ -1003,6 +1005,7 @@ impl AnalysisSpec {
             distribution: DistributionKind::Normal,
             subgroup: 1,
             subgroup_column: None,
+            sixpack: false,
             unbiasing_within: true,
             unbiasing_overall: false,
             confidence: 0.95,
@@ -1010,6 +1013,24 @@ impl AnalysisSpec {
             box_cox: false,
             require_stability: false,
         }
+    }
+
+    /// Draws the six-panel capability Sixpack (normal model only).
+    #[must_use]
+    pub fn with_capability_sixpack(mut self, enabled: bool) -> Self {
+        if let Self::Capability { sixpack, .. } = &mut self {
+            *sixpack = enabled;
+        }
+        self
+    }
+
+    /// Replaces the capability subgroup size.
+    #[must_use]
+    pub fn with_capability_subgroup(mut self, subgroup: usize) -> Self {
+        if let Self::Capability { subgroup: slot, .. } = &mut self {
+            *slot = subgroup;
+        }
+        self
     }
 
     /// Uses a column of subgroup labels instead of the numeric subgroup size
@@ -3976,6 +3997,7 @@ impl AnalysisSpec {
                 distribution,
                 confidence,
                 subgroup_column,
+                sixpack,
                 ..
             } => {
                 let model = if *distribution == DistributionKind::Normal {
@@ -3983,12 +4005,17 @@ impl AnalysisSpec {
                 } else {
                     "MLE fit, expected PPM, AD gate, bootstrap CI".to_owned()
                 };
+                let heading = if *sixpack {
+                    "Capability Sixpack"
+                } else {
+                    "Capability Analysis"
+                };
                 match subgroup_column {
                     Some(column) => format!(
-                        "Capability Analysis — {}, {model}, subgroup column {column}",
+                        "{heading} — {}, {model}, subgroup column {column}",
                         distribution.name()
                     ),
-                    None => format!("Capability Analysis — {}, {model}", distribution.name()),
+                    None => format!("{heading} — {}, {model}", distribution.name()),
                 }
             }
         }
@@ -5838,59 +5865,17 @@ pub fn capability_non_normal(
     Ok(result)
 }
 
-/// Normal process capability with within/overall sigma and ppm.
+/// Clean numeric sample of a normal capability study.
 ///
-/// This is a documented standard implementation, not yet verified against a
-/// documented capability report: the exact unbiasing and
-/// confidence-interval conventions remain pending.
-pub fn capability_normal(
+/// With a subgroup column, a row without a label cannot enter a subgroup, so it
+/// is excluded from every estimate and counted in [`Sample::excluded`].
+pub(crate) fn capability_sample(
     df: &DataFrame,
     column_name: &str,
-    lsl: Option<f64>,
-    usl: Option<f64>,
-    options: CapabilityOptions,
     subgroup_column: Option<&str>,
-) -> Result<AnalysisResult> {
-    let CapabilityOptions {
-        target,
-        bootstrap_reps: _,
-        box_cox,
-        subgroup,
-        unbiasing_within,
-        unbiasing_overall,
-        confidence,
-        require_stability,
-    } = options;
-    if !confidence.is_finite() || !(0.5..1.0).contains(&confidence) {
-        return Err(Error::InvalidParameter {
-            name: "capability confidence level",
-            value: confidence,
-        });
-    }
-    if lsl.is_none() && usl.is_none() {
-        return Err(Error::Unsupported(
-            "capability needs at least one specification limit".to_owned(),
-        ));
-    }
-    if let (Some(lsl), Some(usl)) = (lsl, usl)
-        && lsl >= usl
-    {
-        return Err(Error::Unsupported(
-            "lower specification limit must be below the upper limit".to_owned(),
-        ));
-    }
-    if subgroup == 0 {
-        return Err(Error::Unsupported(
-            "subgroup size must be at least 1".to_owned(),
-        ));
-    }
-
-    let column = df.column(column_name)?;
-    let mut sample = match subgroup_column {
+) -> Result<Sample> {
+    match subgroup_column {
         Some(label) => {
-            // A subgroup column defines the analysis rows: a row without a
-            // label cannot enter a subgroup, so it is excluded from every
-            // estimate, not only from the within-subgroup one.
             let values = df.column(column_name)?;
             let labels = df.column(label)?;
             let mut kept = Vec::with_capacity(df.n_rows());
@@ -5901,68 +5886,49 @@ pub fn capability_normal(
                     _ => excluded += 1,
                 }
             }
-            Sample::from_valid(kept, excluded)?
+            Sample::from_valid(kept, excluded)
         }
-        None => column.sample(MissingPolicy::Drop)?,
-    };
-    let stability = crate::spc::individuals_moving_range(&sample).ok();
-    if require_stability {
-        let chart = stability.as_ref().ok_or_else(|| {
-            Error::Unsupported("the capability stability screen could not be computed".to_owned())
-        })?;
-        if !chart.signals.is_empty() {
-            return Err(Error::Unsupported(format!(
-                "the process shows {} I–MR special-cause signal(s); capability was not computed",
-                chart.signals.len()
-            )));
-        }
+        None => df.column(column_name)?.sample(MissingPolicy::Drop),
     }
-    let original_lsl = lsl;
-    let original_usl = usl;
-    let mut lsl = lsl;
-    let mut usl = usl;
-    let mut target = target;
-    let mut box_lambda: Option<f64> = None;
-    if box_cox {
-        if sample.n() < 3 {
-            return Err(Error::SampleTooSmall {
-                n: sample.n(),
-                min: 3,
-            });
-        }
-        let lambda = crate::boxcox::lambda(&sample)?;
-        let transformed = sample
-            .values()
-            .iter()
-            .map(|&value| crate::boxcox::transform(value, lambda))
-            .collect::<Result<Vec<_>>>()?;
-        sample = Sample::from_valid(transformed, sample.excluded())?;
-        let transform_limit = |limit: f64| -> Result<f64> {
-            if limit <= 0.0 {
-                return Err(Error::Unsupported(
-                    "Box-Cox capability requires positive specification limits".to_owned(),
-                ));
-            }
-            crate::boxcox::transform(limit, lambda)
-        };
-        lsl = lsl.map(transform_limit).transpose()?;
-        usl = usl.map(transform_limit).transpose()?;
-        target = target.map(transform_limit).transpose()?;
-        box_lambda = Some(lambda);
-    }
+}
+
+/// Spread estimates of a normal capability study.
+pub(crate) struct SigmaEstimates {
+    /// Pooled within-subgroup standard deviation.
+    pub within: f64,
+    /// Degrees of freedom of the within estimate.
+    pub within_df: f64,
+    /// Overall sample standard deviation.
+    pub overall: f64,
+    /// Number of label subgroups, when a subgroup column supplied them.
+    pub groups: Option<usize>,
+}
+
+/// Computes the within and overall spread of a normal capability study.
+///
+/// The label groups keep their first-appearance order; the values arrive on the
+/// original scale and are Box-Cox transformed with `box_lambda` when it is set.
+pub(crate) fn sigma_estimates(
+    sample: &Sample,
+    df: &DataFrame,
+    column_name: &str,
+    subgroup: usize,
+    subgroup_column: Option<&str>,
+    unbiasing_within: bool,
+    unbiasing_overall: bool,
+    box_lambda: Option<f64>,
+) -> Result<SigmaEstimates> {
     let n = sample.n();
     if n < 2 {
         return Err(Error::SampleTooSmall { n, min: 2 });
     }
-    let mean = sample.mean()?;
-    let overall = sample.sd()?;
+    let mut overall = sample.sd()?;
     if overall <= 0.0 {
         return Err(Error::ConstantSample);
     }
 
     // Subgroups from a label column: the pooled within estimate uses each
-    // subgroup's own mean. The values stay on the original scale here and are
-    // Box-Cox transformed below with the same lambda as the whole sample.
+    // subgroup's own mean.
     let grouped: Option<Vec<Vec<f64>>> = match subgroup_column {
         Some(label) => Some(
             crate::spc::group_samples(df, column_name, label)?
@@ -6040,20 +6006,138 @@ pub fn capability_normal(
                 .map(|value| (value - group_mean).powi(2))
                 .sum::<f64>();
         }
-        let df = n - groups;
-        let pooled = (ss / df as f64).sqrt();
+        let degrees = n - groups;
+        let pooled = (ss / degrees as f64).sqrt();
         let within = if unbiasing_within {
-            pooled / c4(df + 1)
+            pooled / c4(degrees + 1)
         } else {
             pooled
         };
-        (within, df as f64)
+        (within, degrees as f64)
     };
-    let overall = if unbiasing_overall {
-        overall / c4(n)
-    } else {
-        overall
-    };
+    if unbiasing_overall {
+        overall /= c4(n);
+    }
+    Ok(SigmaEstimates {
+        within,
+        within_df,
+        overall,
+        groups: grouped.as_ref().map(Vec::len),
+    })
+}
+
+/// Normal process capability with within/overall sigma and ppm.
+///
+/// This is a documented standard implementation, not yet verified against a
+/// documented capability report: the exact unbiasing and
+/// confidence-interval conventions remain pending.
+pub fn capability_normal(
+    df: &DataFrame,
+    column_name: &str,
+    lsl: Option<f64>,
+    usl: Option<f64>,
+    options: CapabilityOptions,
+    subgroup_column: Option<&str>,
+) -> Result<AnalysisResult> {
+    let CapabilityOptions {
+        target,
+        bootstrap_reps: _,
+        box_cox,
+        subgroup,
+        unbiasing_within,
+        unbiasing_overall,
+        confidence,
+        require_stability,
+    } = options;
+    if !confidence.is_finite() || !(0.5..1.0).contains(&confidence) {
+        return Err(Error::InvalidParameter {
+            name: "capability confidence level",
+            value: confidence,
+        });
+    }
+    if lsl.is_none() && usl.is_none() {
+        return Err(Error::Unsupported(
+            "capability needs at least one specification limit".to_owned(),
+        ));
+    }
+    if let (Some(lsl), Some(usl)) = (lsl, usl)
+        && lsl >= usl
+    {
+        return Err(Error::Unsupported(
+            "lower specification limit must be below the upper limit".to_owned(),
+        ));
+    }
+    if subgroup == 0 {
+        return Err(Error::Unsupported(
+            "subgroup size must be at least 1".to_owned(),
+        ));
+    }
+
+    let mut sample = capability_sample(df, column_name, subgroup_column)?;
+    let stability = crate::spc::individuals_moving_range(&sample).ok();
+    if require_stability {
+        let chart = stability.as_ref().ok_or_else(|| {
+            Error::Unsupported("the capability stability screen could not be computed".to_owned())
+        })?;
+        if !chart.signals.is_empty() {
+            return Err(Error::Unsupported(format!(
+                "the process shows {} I–MR special-cause signal(s); capability was not computed",
+                chart.signals.len()
+            )));
+        }
+    }
+    let original_lsl = lsl;
+    let original_usl = usl;
+    let mut lsl = lsl;
+    let mut usl = usl;
+    let mut target = target;
+    let mut box_lambda: Option<f64> = None;
+    if box_cox {
+        if sample.n() < 3 {
+            return Err(Error::SampleTooSmall {
+                n: sample.n(),
+                min: 3,
+            });
+        }
+        let lambda = crate::boxcox::lambda(&sample)?;
+        let transformed = sample
+            .values()
+            .iter()
+            .map(|&value| crate::boxcox::transform(value, lambda))
+            .collect::<Result<Vec<_>>>()?;
+        sample = Sample::from_valid(transformed, sample.excluded())?;
+        let transform_limit = |limit: f64| -> Result<f64> {
+            if limit <= 0.0 {
+                return Err(Error::Unsupported(
+                    "Box-Cox capability requires positive specification limits".to_owned(),
+                ));
+            }
+            crate::boxcox::transform(limit, lambda)
+        };
+        lsl = lsl.map(transform_limit).transpose()?;
+        usl = usl.map(transform_limit).transpose()?;
+        target = target.map(transform_limit).transpose()?;
+        box_lambda = Some(lambda);
+    }
+    let n = sample.n();
+    if n < 2 {
+        return Err(Error::SampleTooSmall { n, min: 2 });
+    }
+    let mean = sample.mean()?;
+    let estimates = sigma_estimates(
+        &sample,
+        df,
+        column_name,
+        subgroup,
+        subgroup_column,
+        unbiasing_within,
+        unbiasing_overall,
+        box_lambda,
+    )?;
+    let within = estimates.within;
+    let within_df = estimates.within_df;
+    let overall = estimates.overall;
+    let grouped = estimates.groups;
 
     let normal_fit = Normal::fit_moments(&sample)?;
     let fit_a2 = anderson_darling(&normal_fit, &sample)?;
@@ -6199,7 +6283,7 @@ pub fn capability_normal(
             );
         }
     }
-    result.extra.push(Item::Message(match (&grouped, subgroup) {
+    result.extra.push(Item::Message(match (grouped, subgroup) {
         (Some(_), _) => {
             "Within = pooled standard deviation over the subgroups (n − g degrees of freedom); \
              overall = sample standard deviation."
@@ -6249,9 +6333,9 @@ pub fn capability_normal(
                 "Subgroup size"
             }
             .to_owned(),
-            match (subgroup_column, &grouped) {
+            match (subgroup_column, grouped) {
                 (Some(label), Some(groups)) => {
-                    format!("column {label}; {} subgroups", groups.len())
+                    format!("column {label}; {groups} subgroups")
                 }
                 _ => subgroup.to_string(),
             },
@@ -8083,6 +8167,7 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
             distribution,
             subgroup,
             subgroup_column,
+            sixpack,
             unbiasing_within,
             unbiasing_overall,
             confidence,
@@ -8099,6 +8184,16 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
                 return Err(Error::Unsupported(
                     "a subgroup column is only available for the normal capability model"
                         .to_owned(),
+                ));
+            }
+            if *sixpack && *distribution != DistributionKind::Normal {
+                return Err(Error::Unsupported(
+                    "the capability Sixpack is only available for the normal model".to_owned(),
+                ));
+            }
+            if *sixpack && *box_cox {
+                return Err(Error::Unsupported(
+                    "the capability Sixpack does not apply a Box-Cox transformation".to_owned(),
                 ));
             }
             let mut result = if *distribution == DistributionKind::Normal {
@@ -8133,14 +8228,35 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
             result
                 .notes
                 .push(("Analysis".to_owned(), spec.description()));
-            let mut plot = crate::histogram::capability_plot(
-                df,
-                column,
-                *lsl,
-                *usl,
-                *distribution == DistributionKind::Normal && !*box_cox,
-            )?;
-            plot.notes.push(capability_note(&result));
+            if *sixpack {
+                result.title = format!("Capability Sixpack: Normal — column {column}");
+                result.notes.push((
+                    "Panels".to_owned(),
+                    "histogram, normal probability plot, control chart, last 25 and capability"
+                        .to_owned(),
+                ));
+            }
+            let mut plot = if *sixpack {
+                crate::sixpack::sixpack_plot(
+                    df,
+                    column,
+                    *lsl,
+                    *usl,
+                    *subgroup,
+                    subgroup_column.as_deref(),
+                )?
+            } else {
+                crate::histogram::capability_plot(
+                    df,
+                    column,
+                    *lsl,
+                    *usl,
+                    *distribution == DistributionKind::Normal && !*box_cox,
+                )?
+            };
+            if !*sixpack {
+                plot.notes.push(capability_note(&result));
+            }
             Ok(AnalysisOutput {
                 results: vec![result],
                 plot: Some(plot),
@@ -10162,6 +10278,164 @@ mod tests {
         )
         .expect_err("an unknown column");
         assert!(matches!(error, Error::ColumnNotFound(_)), "{error}");
+    }
+
+    #[test]
+    fn capability_sixpack_has_the_six_panels() {
+        let values: Vec<f64> = (0..40)
+            .map(|index| 10.0 + 0.3 * f64::from(index % 4) / 1.5 + 0.02 * f64::from(index))
+            .collect();
+        let df = DataFrame::new(vec![Column::new_f64("weight", values)]).expect("frame");
+        let spec =
+            AnalysisSpec::capability("weight", Some(8.0), Some(12.0)).with_capability_sixpack(true);
+        let out = run_analysis(&df, &spec).expect("sixpack");
+
+        let result = &out.results[0];
+        assert!(
+            result.title.contains("Capability Sixpack"),
+            "{}",
+            result.title
+        );
+        let text = result.to_session_text();
+        assert!(text.contains("Capability Sixpack"), "{text}");
+        assert!(text.contains("histogram"), "{text}");
+
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.panels.len(), 6);
+        assert_eq!(plot.panel_columns, 2);
+        let titles: Vec<&str> = plot
+            .panels
+            .iter()
+            .map(|panel| panel.title.as_str())
+            .collect();
+        assert_eq!(
+            titles,
+            vec![
+                "Histogram",
+                "Normal probability plot",
+                "Individuals",
+                "Moving range",
+                "Last 25 observations",
+                "Capability",
+            ]
+        );
+        // The control chart keeps every point; the last panel keeps the last 25.
+        assert_eq!(plot.panels[2].points.len(), 40);
+        assert_eq!(plot.panels[3].points.len(), 39);
+        assert_eq!(plot.panels[4].points.len(), 25);
+        assert!(!plot.panels[0].lines.is_empty(), "the histogram has bars");
+        assert!(
+            !plot.panels[1].lines.is_empty(),
+            "the probability plot has a fit"
+        );
+
+        // The capability panel reports the same within estimate as the report.
+        let sample = capability_sample(&df, "weight", None).expect("sample");
+        let estimates =
+            sigma_estimates(&sample, &df, "weight", 1, None, true, false, None).expect("sigma");
+        let cp = format!("{:.2}", (12.0 - 8.0) / (6.0 * estimates.within));
+        let note = &plot.panels[5].notes[0];
+        let labels: Vec<&str> = note.rows.iter().map(|row| row.label.as_str()).collect();
+        assert_eq!(labels, vec!["Cp", "Cpk", "Pp", "Ppk"]);
+        let cp_row = note.rows.iter().find(|row| row.label == "Cp").expect("Cp");
+        assert_eq!(cp_row.value, cp);
+    }
+
+    #[test]
+    fn the_sixpack_control_chart_follows_the_subgroup_size() {
+        let values: Vec<f64> = (0..40)
+            .map(|index| 10.0 + 0.2 * f64::from(index % 5) + 0.01 * f64::from(index))
+            .collect();
+        let df = DataFrame::new(vec![Column::new_f64("weight", values)]).expect("frame");
+
+        let two = AnalysisSpec::capability("weight", Some(8.0), Some(12.0))
+            .with_capability_sixpack(true)
+            .with_capability_subgroup(2);
+        let plot = run_analysis(&df, &two)
+            .expect("xbar-r sixpack")
+            .plot
+            .expect("plot");
+        assert_eq!(plot.panels[2].title, "Subgroup mean");
+        assert_eq!(plot.panels[3].title, "Sample range");
+        assert_eq!(plot.panels[4].title, "Last 25 subgroups");
+        assert_eq!(plot.panels[2].points.len(), 20);
+
+        let wide = AnalysisSpec::capability("weight", Some(8.0), Some(12.0))
+            .with_capability_sixpack(true)
+            .with_capability_subgroup(10);
+        let plot = run_analysis(&df, &wide)
+            .expect("xbar-s sixpack")
+            .plot
+            .expect("plot");
+        assert_eq!(plot.panels[3].title, "Sample standard deviation");
+
+        let short =
+            AnalysisSpec::capability("weight", Some(8.0), Some(12.0)).with_capability_sixpack(true);
+        let ten = DataFrame::new(vec![Column::new_f64(
+            "weight",
+            (0..10).map(|index| 10.0 + 0.1 * f64::from(index)).collect(),
+        )])
+        .expect("frame");
+        let plot = run_analysis(&ten, &short)
+            .expect("short sixpack")
+            .plot
+            .expect("plot");
+        assert_eq!(plot.panels[4].points.len(), 10);
+    }
+
+    #[test]
+    fn the_sixpack_reads_the_subgroup_column() {
+        let df = DataFrame::new(vec![
+            Column::new_f64(
+                "weight",
+                vec![10.0, 10.4, 10.2, 10.2, 10.6, 10.3, 9.9, 10.5, 10.7],
+            ),
+            Column::new_text(
+                "part",
+                vec!["A", "B", "C", "A", "B", "C", "A", "B", "C"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+        let spec = AnalysisSpec::capability("weight", Some(8.0), Some(12.0))
+            .with_capability_sixpack(true)
+            .with_capability_subgroup_column(Some("part".to_owned()));
+        let out = run_analysis(&df, &spec).expect("sixpack from labels");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("subgroup column part"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.panels.len(), 6);
+        assert_eq!(plot.panels[2].title, "Subgroup mean");
+        assert_eq!(plot.panels[3].title, "Sample range");
+        assert_eq!(plot.panels[2].points.len(), 3);
+    }
+
+    #[test]
+    fn the_sixpack_rejects_models_and_sizes_it_cannot_draw() {
+        let values: Vec<f64> = (0..40)
+            .map(|index| 10.0 + 0.2 * f64::from(index % 5))
+            .collect();
+        let df = DataFrame::new(vec![Column::new_f64("weight", values)]).expect("frame");
+
+        let non_normal = AnalysisSpec::capability("weight", Some(8.0), Some(12.0))
+            .with_capability_sixpack(true)
+            .with_capability_distribution(DistributionKind::Weibull);
+        let error = run_analysis(&df, &non_normal).expect_err("non-normal Sixpack");
+        assert!(error.to_string().contains("normal model"), "{error}");
+
+        let box_cox = AnalysisSpec::capability("weight", Some(8.0), Some(12.0))
+            .with_capability_sixpack(true)
+            .with_capability_box_cox(true);
+        let error = run_analysis(&df, &box_cox).expect_err("Box-Cox Sixpack");
+        assert!(error.to_string().contains("Box-Cox"), "{error}");
+
+        let wide = AnalysisSpec::capability("weight", Some(8.0), Some(12.0))
+            .with_capability_sixpack(true)
+            .with_capability_subgroup(26);
+        let error = run_analysis(&df, &wide).expect_err("26-observation subgroups");
+        assert!(error.to_string().contains("2 to 25"), "{error}");
     }
 
     #[test]

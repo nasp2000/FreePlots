@@ -86,6 +86,7 @@ impl FreePlotsApp {
             dialog_same_y: false,
             show_cap_dialog: false,
             show_cap_help: false,
+            show_sixpack_help: false,
             cap_column: String::new(),
             cap_distribution: DistributionKind::Normal,
             cap_lsl: String::new(),
@@ -97,6 +98,7 @@ impl FreePlotsApp {
             cap_bootstrap: 0,
             cap_box_cox: false,
             cap_require_stability: false,
+            cap_sixpack: false,
             show_chart_dialog: false,
             show_chart_help: false,
             chart_column: String::new(),
@@ -517,6 +519,7 @@ impl FreePlotsApp {
         self.cap_usl.clear();
         self.cap_target.clear();
         self.cap_subgroup_column.clear();
+        self.cap_sixpack = false;
         // The capability options are user preferences now.
         self.chart_column = self.selected.clone().unwrap_or_default();
         // The chart family and subgroup size are user preferences now.

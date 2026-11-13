@@ -1111,6 +1111,18 @@ impl FreePlotsApp {
                         if let Some(column) = &self.selected {
                             self.cap_column = column.clone();
                         }
+                        self.cap_sixpack = false;
+                        self.show_cap_dialog = true;
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Capability Sixpack…"), None, ready)
+                        .on_hover_text("Six panels: histogram, probability plot, control chart, last 25 and capability")
+                        .clicked()
+                    {
+                        if let Some(column) = &self.selected {
+                            self.cap_column = column.clone();
+                        }
+                        self.cap_sixpack = true;
                         self.show_cap_dialog = true;
                         ui.close();
                     }
@@ -1309,6 +1321,7 @@ impl FreePlotsApp {
                     if let Some(column) = &self.selected {
                         self.cap_column = column.clone();
                     }
+                    self.cap_sixpack = false;
                     self.show_cap_dialog = true;
                     ui.close();
                 }

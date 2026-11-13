@@ -18,13 +18,20 @@ All notable changes to FreePlots are recorded here. The format follows
   pooled within-subgroup standard deviation uses each label group's own mean
   and `n − g` degrees of freedom, so Cp/Cpk no longer require consecutive
   equal-size groups. It has its own *How to choose subgroups…* help page.
+- Quality Tools has a *Capability Sixpack…* entry: six panels (histogram,
+  normal probability plot, control chart, last 25 points and capability with
+  Cp/Cpk/Pp/Ppk) over one normal capability study, with its own help page in
+  both interface languages. It accepts the same subgroup size or label column
+  and uses individuals, X̄–R or X̄–S as the subgroup size requires.
 
 ### Changed
 
 - The tests for the label column cover interleaved labels, rows with a missing
   measurement or label, a chart family that does not accept the column and a
   singleton subgroup. Capability adds the pooled grouped estimate, the dropped
-  rows, a singleton group, a single group and a non-normal model.
+  rows, a singleton group, a single group and a non-normal model. The Sixpack
+  covers the six titles and their contents, the I–MR/X̄–R/X̄–S choice, the
+  label column, a short study and the models and sizes it refuses.
 
 ## [0.1.1] - 2026-11-12
 

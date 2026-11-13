@@ -3024,6 +3024,41 @@ fn the_capability_help_explains_the_subgroup_column() {
 }
 
 #[test]
+fn the_sixpack_help_explains_the_six_panels() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_cap_dialog = true;
+    app.cap_column = "weight".to_owned();
+    app.cap_sixpack = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About the six panels…").click();
+    harness.run();
+    assert!(harness.state().show_sixpack_help);
+    harness.get_by_label("Capability Sixpack help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("six panels");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do Sixpack de capacidade");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_sixpack_help);
+}
+
+#[test]
 fn the_control_chart_help_explains_the_subgroup_column() {
     use egui_kittest::{Harness, kittest::Queryable};
 

@@ -597,6 +597,7 @@ impl FreePlotsApp {
                 if let Some(column) = &self.selected {
                     self.cap_column = column.clone();
                 }
+                self.cap_sixpack = false;
                 self.show_cap_dialog = true;
             }
             Some(6) => self.open_regression_dialog(),

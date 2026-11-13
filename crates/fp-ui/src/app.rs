@@ -972,6 +972,8 @@ pub struct FreePlotsApp {
     show_cap_dialog: bool,
     /// Help page of the capability dialog (overview, data and example).
     show_cap_help: bool,
+    /// Help page of the capability Sixpack (overview, data and example).
+    show_sixpack_help: bool,
     cap_column: String,
     cap_distribution: DistributionKind,
     cap_lsl: String,
@@ -984,6 +986,8 @@ pub struct FreePlotsApp {
     cap_bootstrap: usize,
     cap_box_cox: bool,
     cap_require_stability: bool,
+    /// Draw the six-panel Sixpack instead of the single capability plot.
+    cap_sixpack: bool,
     show_chart_dialog: bool,
     /// Help page of the control-chart dialog (overview, data and example).
     show_chart_help: bool,
@@ -3833,6 +3837,7 @@ impl FreePlotsApp {
         self.show_calc_dialog = false;
         self.show_cap_dialog = false;
         self.show_cap_help = false;
+        self.show_sixpack_help = false;
         self.show_chart_dialog = false;
         self.show_chart_help = false;
         self.show_csv_options = false;

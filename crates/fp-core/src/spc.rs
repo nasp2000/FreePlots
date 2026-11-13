@@ -2061,7 +2061,7 @@ fn tests_note(chart: &ControlChart) -> String {
     note
 }
 
-fn plot(column: &str, chart: &ControlChart) -> PlotSpec {
+pub(crate) fn plot(column: &str, chart: &ControlChart) -> PlotSpec {
     let title = format!("{} Chart — {}", chart.kind.name(), column);
     let (location_label, dispersion_label) = match chart.kind {
         ControlChartKind::IndividualsMovingRange => ("Individuals", "Moving range"),
@@ -2125,7 +2125,7 @@ fn plot(column: &str, chart: &ControlChart) -> PlotSpec {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn control_panel(
+pub(crate) fn control_panel(
     values: &[f64],
     start: usize,
     positions: &[usize],

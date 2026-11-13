@@ -3912,6 +3912,39 @@ fn the_capability_dialog_reads_the_subgroup_column() {
     assert!(session.contains("Cp"), "{session}");
 }
 
+#[test]
+fn the_capability_sixpack_menu_draws_six_panels() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Quality Tools", "Capability Sixpack…"]);
+    assert!(
+        ui.window_titles()
+            .iter()
+            .any(|title| title == "Capability Sixpack"),
+        "{:?}",
+        ui.window_titles()
+    );
+    ui.set_text("LSL:", "20").expect("lsl");
+    ui.set_text("USL:", "30").expect("usl");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Capability Sixpack"), "{session}");
+    assert!(session.contains("histogram"), "{session}");
+    assert_eq!(ui.plot().expect("plot").panels.len(), 6);
+}
+
+#[test]
+fn the_capability_dialog_sixpack_checkbox_draws_six_panels() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Quality Tools", "Capability Analysis…"]);
+    ui.click("Sixpack (six panels)").expect("sixpack");
+    ui.set_text("LSL:", "20").expect("lsl");
+    ui.set_text("USL:", "30").expect("usl");
+    ui.click("OK").expect("ok");
+    assert_eq!(ui.plot().expect("plot").panels.len(), 6);
+}
+
 /// Two responses with a common interior optimum, for the response optimizer.
 fn desirability_frame() -> DataFrame {
     let mut a = Vec::new();

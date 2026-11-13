@@ -71,6 +71,7 @@ pub mod runchart;
 pub mod sampling;
 pub mod scatter;
 pub mod seriesplot;
+pub mod sixpack;
 pub mod spc;
 pub mod special;
 pub mod stemleaf;

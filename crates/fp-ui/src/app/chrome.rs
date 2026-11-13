@@ -133,6 +133,7 @@ impl FreePlotsApp {
         self.probability_plot_dialog(&ctx);
         self.capability_dialog(&ctx);
         self.capability_help_window(&ctx);
+        self.sixpack_help_window(&ctx);
         self.control_chart_dialog(&ctx);
         self.chart_help_window(&ctx);
         self.attribute_chart_dialog(&ctx);

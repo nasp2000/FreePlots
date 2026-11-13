@@ -30,7 +30,12 @@ impl FreePlotsApp {
         let mut open = self.show_cap_dialog;
         let mut close = false;
         let mut pending: Option<AnalysisSpec> = None;
-        dialog_window(self.catalog().label("Capability Analysis"))
+        let title = if self.cap_sixpack {
+            self.catalog().label("Capability Sixpack")
+        } else {
+            self.catalog().label("Capability Analysis")
+        };
+        dialog_window(title)
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
@@ -156,12 +161,21 @@ impl FreePlotsApp {
                 });
                 ui.horizontal(|ui| {
                     ui.add_enabled(
-                        self.cap_distribution == DistributionKind::Normal,
+                        self.cap_distribution == DistributionKind::Normal && !self.cap_sixpack,
                         egui::Checkbox::new(&mut self.cap_box_cox, "Box-Cox transformation"),
                     )
                     .on_hover_text(checkbox_help("Box-Cox transformation"));
                     ui.small("positive data; Normal model only");
                 });
+                ui.help_checkbox(&mut self.cap_sixpack, "Sixpack (six panels)");
+                if self.cap_sixpack {
+                    self.cap_box_cox = false;
+                    ui.small(
+                        "The Sixpack is a normal-model view: histogram, probability plot, \
+                         control chart, last 25 and capability indices. Box-Cox and other \
+                         distributions are not available.",
+                    );
+                }
                 ui.help_checkbox(
                     &mut self.cap_require_stability,
                     "Require a stable I–MR screen",
@@ -185,7 +199,14 @@ impl FreePlotsApp {
                 }
                 ui.small("At least one specification limit is required.");
                 ui.horizontal(|ui| {
-                    if ui
+                    if self.cap_sixpack {
+                        if ui
+                            .help_button(self.catalog().label("About the six panels…"))
+                            .clicked()
+                        {
+                            self.show_sixpack_help = true;
+                        }
+                    } else if ui
                         .help_button(self.catalog().label("How to choose subgroups…"))
                         .clicked()
                     {
@@ -227,10 +248,12 @@ impl FreePlotsApp {
                                             .with_capability_bootstrap(self.cap_bootstrap)
                                             .with_capability_box_cox(
                                                 self.cap_box_cox
+                                                    && !self.cap_sixpack
                                                     && self.cap_distribution
                                                         == DistributionKind::Normal,
                                             )
                                             .with_capability_stability(self.cap_require_stability)
+                                            .with_capability_sixpack(self.cap_sixpack)
                                             .with_capability_subgroup_column(
                                                 (self.cap_distribution == DistributionKind::Normal
                                                     && !self.cap_subgroup_column.is_empty())
@@ -340,6 +363,77 @@ impl FreePlotsApp {
                 });
             });
         self.show_cap_help = open && !close;
+    }
+
+    /// Help page of the capability Sixpack.
+    ///
+    /// The overview, the data shapes and a worked example of the six panels.
+    pub(super) fn sixpack_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_sixpack_help {
+            return;
+        }
+        let mut open = self.show_sixpack_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Capability Sixpack help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The Sixpack shows one normal capability study as six panels. The control \
+                     chart and the histogram describe the process, the probability plot checks \
+                     the normal model, and the capability panel compares the spread with the \
+                     specification limits.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column holds the measurements. Set a constant subgroup size, or \
+                     choose a column whose labels say which subgroup each row belongs to. The \
+                     control chart uses individuals when the subgroup size is 1 and the subgroup \
+                     means otherwise. The Sixpack uses the normal model and does not apply \
+                     Box-Cox.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A line measures three parts twice. Put the measurements in weight and the \
+                     part name in part, choose Capability Sixpack, set the specification limits \
+                     and part as the subgroup column. The panels show the histogram, the normal \
+                     probability plot, the X̄ and R charts, the last 25 points and the capability \
+                     indices.",
+                ));
+                egui::Grid::new("sixpack_help_example")
+                    .num_columns(2)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("weight");
+                        ui.strong("part");
+                        ui.end_row();
+                        for (weight, part) in [
+                            ("10.02", "A"),
+                            ("10.05", "A"),
+                            ("9.98", "B"),
+                            ("10.01", "B"),
+                            ("10.04", "C"),
+                            ("10.00", "C"),
+                        ] {
+                            ui.monospace(weight);
+                            ui.monospace(part);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_sixpack_help = open && !close;
     }
 
     pub(super) fn control_chart_dialog(&mut self, ctx: &egui::Context) {
