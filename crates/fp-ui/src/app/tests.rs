@@ -3024,6 +3024,40 @@ fn the_capability_help_explains_the_subgroup_column() {
 }
 
 #[test]
+fn the_runs_help_explains_the_test() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_runs_dialog = true;
+    app.runs_column = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About the runs test…").click();
+    harness.run();
+    assert!(harness.state().show_runs_help);
+    harness.get_by_label("Runs Test help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("checks whether a sequence is random");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do teste de runs");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_runs_help);
+}
+
+#[test]
 fn the_prediction_help_explains_the_intervals() {
     use egui_kittest::{Harness, kittest::Queryable};
 

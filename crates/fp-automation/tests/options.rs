@@ -4007,6 +4007,31 @@ fn the_attribute_capability_dialog_reports_ppm_defects() {
 }
 
 #[test]
+fn the_runs_test_dialog_reports_the_runs() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "Runs Test…"]);
+    ui.set_text("Comparison value:", "22").expect("comparison");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Runs Test"), "{session}");
+    assert!(session.contains("Observed runs"), "{session}");
+    assert!(session.contains("Expected runs"), "{session}");
+    assert!(session.contains("p-value"), "{session}");
+}
+
+#[test]
+fn the_runs_test_dialog_uses_the_mean_by_default() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "Runs Test…"]);
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Comparison value (K)"), "{session}");
+    assert!(session.contains("p-value"), "{session}");
+}
+
+#[test]
 fn the_predict_dialog_reports_the_intervals() {
     let mut ui = Automation::new();
     let x: Vec<f64> = (0..10).map(|index| (index + 1) as f64).collect();

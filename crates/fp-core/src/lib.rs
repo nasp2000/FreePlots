@@ -69,6 +69,7 @@ pub mod report;
 pub mod reshape;
 pub mod rsm;
 pub mod runchart;
+pub mod runs;
 pub mod sampling;
 pub mod scatter;
 pub mod seriesplot;

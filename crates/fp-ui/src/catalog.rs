@@ -821,6 +821,41 @@ impl UiCatalog {
                  ambos os intervalos; valores muito fora do intervalo ajustado são \
                  extrapolações."
             }
+            "Runs Test" => "Teste de runs",
+            "Runs Test…" => "Teste de runs…",
+            "Runs Test help" => "Ajuda do teste de runs",
+            "About the runs test…" => "Acerca do teste de runs…",
+            "The runs test checks whether a sequence is random. A run is a group of \
+             consecutive observations on the same side of the comparison value. Too few \
+             runs suggest clustering; too many suggest an alternating pattern. The \
+             p-value is two-sided." => {
+                "O teste de runs verifica se uma sequência é aleatória. Um run é um grupo de \
+                 observações consecutivas do mesmo lado do valor de comparação. Poucos runs \
+                 sugerem agrupamento; demasiados sugerem um padrão alternado. O p-valor é \
+                 bilateral."
+            }
+            "One numeric column, read in worksheet order. The comparison value is \
+             optional: blank uses the mean of the observations. Values above it and \
+             values below or equal to it form the two sides, so a value equal to the \
+             comparison value joins the lower side. Rows with a missing value are \
+             removed and counted. The normal approximation is reliable with at least 11 \
+             observations on each side." => {
+                "Uma coluna numérica, lida pela ordem da folha. O valor de comparação é \
+                 opcional: em branco usa a média das observações. Os valores acima dele e os \
+                 valores abaixo ou iguais formam os dois lados, pelo que um valor igual ao de \
+                 comparação junta-se ao lado inferior. As linhas com um valor em falta são \
+                 removidas e contadas. A aproximação normal é fiável com pelo menos 11 \
+                 observações de cada lado."
+            }
+            "A die is rolled 25 times and the scores are compared with 3.5: 4 and 6 are \
+             above, 3, 2 and 1 below. The sequence has 10 runs against 13.32 expected, \
+             Z = −1.38 and p = 0.168, so there is no evidence against randomness. An \
+             alternating 1, 10, 1, 10 sequence gives 20 runs and a very small p-value." => {
+                "Um dado é lançado 25 vezes e os resultados são comparados com 3,5: 4 e 6 \
+                 ficam acima, 3, 2 e 1 abaixo. A sequência tem 10 runs contra 13,32 esperados, \
+                 Z = −1,38 e p = 0,168, pelo que não há evidência contra a aleatoriedade. Uma \
+                 sequência alternada 1, 10, 1, 10 dá 20 runs e um p-valor muito pequeno."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

@@ -671,6 +671,13 @@ impl FreePlotsApp {
                         self.open_rank_test_dialog(RankTestKind::KruskalWallis);
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Runs Test…"), None, ready)
+                        .on_hover_text("Wald–Wolfowitz test of randomness about a comparison value")
+                        .clicked()
+                    {
+                        self.open_runs_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Chi-Square Test…"), None, ready)
                         .on_hover_text("Cross-tabulation and test of independence")
                         .clicked()

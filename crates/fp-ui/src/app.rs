@@ -1021,6 +1021,11 @@ pub struct FreePlotsApp {
     show_equivalence_dialog: bool,
     rank_median: String,
     show_rank_dialog: bool,
+    /// Runs test dialog (Wald–Wolfowitz).
+    show_runs_dialog: bool,
+    show_runs_help: bool,
+    runs_column: String,
+    runs_reference: String,
     show_correlation_dialog: bool,
     language: fp_core::i18n::Lang,
     show_curve_dialog: bool,
@@ -3952,6 +3957,8 @@ impl FreePlotsApp {
         self.show_power_dialog = false;
         self.show_probability_plot_dialog = false;
         self.show_rank_dialog = false;
+        self.show_runs_dialog = false;
+        self.show_runs_help = false;
         self.show_reg_dialog = false;
         self.show_rename = false;
         self.show_rsm_dialog = false;

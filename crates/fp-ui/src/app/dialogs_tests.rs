@@ -686,6 +686,198 @@ impl FreePlotsApp {
             self.run_rank_test_dialog();
         }
     }
+    /// Opens the runs test dialog with the selected column.
+    pub fn open_runs_dialog(&mut self) {
+        self.runs_column = self.selected.clone().unwrap_or_default();
+        self.runs_reference.clear();
+        self.show_runs_dialog = true;
+    }
+
+    /// Runs the Wald–Wolfowitz test with the dialog settings.
+    pub fn run_runs_dialog(&mut self) {
+        if self.runs_column.is_empty() {
+            self.set_error("Select the column to test");
+            return;
+        }
+        let reference = match self.runs_reference.trim() {
+            "" => None,
+            raw => match raw.parse::<f64>() {
+                Ok(value) if value.is_finite() => Some(value),
+                _ => {
+                    self.set_error("The comparison value must be a number");
+                    return;
+                }
+            },
+        };
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::runs::analyze(&df, &self.runs_column, reference) {
+            Ok(result) => {
+                self.append_session(&format!("{}\n", result.to_session_text()));
+                self.status = format!("Runs test: {}", self.runs_column);
+                self.show_runs_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Runs test dialog: the column and the optional comparison value.
+    pub(super) fn runs_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_runs_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_runs_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Runs Test"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(400.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Column:");
+                    egui::ComboBox::from_id_salt("runs_column")
+                        .selected_text(if self.runs_column.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.runs_column.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.runs_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Comparison value:");
+                    ui.text_edit_singleline(&mut self.runs_reference)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "Blank uses the mean of the observations. Values above the comparison value \
+                     and values below or equal to it form the runs.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About the runs test…"))
+                        .clicked()
+                    {
+                        self.show_runs_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.runs_column.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_runs_dialog = open && !run && !cancel;
+        if run {
+            self.run_runs_dialog();
+        }
+    }
+
+    /// Help page of the runs test.
+    pub(super) fn runs_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_runs_help {
+            return;
+        }
+        let mut open = self.show_runs_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Runs Test help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The runs test checks whether a sequence is random. A run is a group of \
+                     consecutive observations on the same side of the comparison value. Too few \
+                     runs suggest clustering; too many suggest an alternating pattern. The \
+                     p-value is two-sided.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column, read in worksheet order. The comparison value is \
+                     optional: blank uses the mean of the observations. Values above it and \
+                     values below or equal to it form the two sides, so a value equal to the \
+                     comparison value joins the lower side. Rows with a missing value are \
+                     removed and counted. The normal approximation is reliable with at least 11 \
+                     observations on each side.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A die is rolled 25 times and the scores are compared with 3.5: 4 and 6 are \
+                     above, 3, 2 and 1 below. The sequence has 10 runs against 13.32 expected, \
+                     Z = −1.38 and p = 0.168, so there is no evidence against randomness. An \
+                     alternating 1, 10, 1, 10 sequence gives 20 runs and a very small p-value.",
+                ));
+                egui::Grid::new("runs_help_example")
+                    .num_columns(2)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("roll");
+                        ui.strong("score");
+                        ui.end_row();
+                        for (roll, score) in [
+                            ("1", "4"),
+                            ("2", "6"),
+                            ("3", "3"),
+                            ("4", "2"),
+                            ("5", "2"),
+                            ("6", "1"),
+                        ] {
+                            ui.monospace(roll);
+                            ui.monospace(score);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_runs_help = open && !close;
+    }
+
     pub fn open_test2_dialog(&mut self, kind: Test2Kind) {
         let Some(df) = self.data.as_ref() else {
             self.set_error("No worksheet open: use File → Open CSV…");

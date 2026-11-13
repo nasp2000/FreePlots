@@ -143,6 +143,8 @@ impl FreePlotsApp {
         self.t_test_dialog(&ctx);
         self.equivalence_dialog(&ctx);
         self.rank_test_dialog(&ctx);
+        self.runs_dialog(&ctx);
+        self.runs_help_window(&ctx);
         self.correlation_dialog(&ctx);
         self.curve_dialog(&ctx);
         self.two_way_dialog(&ctx);

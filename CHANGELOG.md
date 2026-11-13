@@ -45,6 +45,10 @@ All notable changes to FreePlots are recorded here. The format follows
   response and the numeric predictors and evaluates it at new points, with the
   confidence interval of the mean response and the prediction interval of a
   single observation. It has its own help page in both interface languages.
+- Basic Statistics has a *Runs Test…* entry: the Wald–Wolfowitz test of
+  randomness about an optional comparison value (the mean by default), with
+  the observed and expected runs, Z and the two-sided p-value. It has its own
+  help page in both interface languages.
 
 ### Changed
 
@@ -63,7 +67,10 @@ All notable changes to FreePlots are recorded here. The format follows
   page. The Johnson command covers the written scores (mean 0, variance 1),
   an explicit family with a missing row, a duplicate name and a short sample.
   Prediction covers the fitted equation, the two nested intervals, the
-  listwise excluded row and the invalid points and predictors.
+  listwise excluded row and the invalid points and predictors. The runs test
+  covers the published die sequence, the alternating sequence, the default
+  comparison value, the one-sided and short samples and the removed missing
+  row.
 
 ## [0.1.1] - 2026-11-12
 
