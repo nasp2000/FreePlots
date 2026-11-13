@@ -321,7 +321,7 @@ mod tests {
         .expect("store");
         assert_eq!(added, vec!["Variable", "N", "Mean", "StDev"]);
         assert_eq!(df.n_rows(), 7);
-        assert_eq!(df.n_columns(), 5);
+        assert_eq!(df.n_columns(), 6);
         let variable = df.column("Variable").expect("variable");
         assert_eq!(variable.label(5).as_deref(), Some("weight"));
         assert_eq!(variable.label(6).as_deref(), Some("height"));
