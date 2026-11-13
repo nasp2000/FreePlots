@@ -1147,6 +1147,13 @@ impl FreePlotsApp {
                         self.open_attrcap_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Johnson Transformation…"), None, ready)
+                        .on_hover_text("Fit Johnson SU/SB/SL and write the normal scores as a column")
+                        .clicked()
+                    {
+                        self.open_johnson_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Distribution Comparison…"), None, ready)
                         .on_hover_text("Normal, Lognormal, Weibull, Exponential, Logistic, Loglogistic, Gamma, Extreme Value, Weibull (3-parameter), Lognormal (3-parameter)")
                         .clicked()

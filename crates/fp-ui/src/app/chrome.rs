@@ -152,6 +152,8 @@ impl FreePlotsApp {
         self.t_chart_help_window(&ctx);
         self.partial_dialog(&ctx);
         self.box_cox_dialog(&ctx);
+        self.johnson_dialog(&ctx);
+        self.johnson_help_window(&ctx);
         self.tolerance_dialog(&ctx);
         self.linearity_dialog(&ctx);
         self.logistic_dialog(&ctx);

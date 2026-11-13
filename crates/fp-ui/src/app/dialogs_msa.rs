@@ -173,6 +173,224 @@ impl FreePlotsApp {
             self.run_box_cox_dialog();
         }
     }
+    /// Opens the Johnson transformation dialog with the selected column.
+    pub fn open_johnson_dialog(&mut self) {
+        self.johnson_column = self.selected.clone().unwrap_or_default();
+        self.johnson_name = if self.johnson_column.is_empty() {
+            "Johnson".to_owned()
+        } else {
+            format!("{}_J", self.johnson_column)
+        };
+        self.show_johnson_dialog = true;
+    }
+
+    /// Fits the Johnson transformation and writes the transformed column.
+    pub fn run_johnson_dialog(&mut self) {
+        if self.johnson_column.is_empty() {
+            self.set_error("Select the column to transform");
+            return;
+        }
+        if self.johnson_name.trim().is_empty() {
+            self.set_error("Name the transformed column");
+            return;
+        }
+        let Some(mut df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::johnson::add_transformation(
+            &mut df,
+            &self.johnson_column,
+            self.johnson_choice,
+            &self.johnson_name,
+        ) {
+            Ok(result) => {
+                let name = self.johnson_name.trim().to_owned();
+                self.set_data(df, "Johnson transformation".to_owned());
+                self.append_session(&format!("{}\n", result.to_session_text()));
+                self.status = format!("Column {name} added");
+                self.show_johnson_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Johnson transformation dialog: family, output name and help.
+    pub(super) fn johnson_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_johnson_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_johnson_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Johnson Transformation"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Column:");
+                    egui::ComboBox::from_id_salt("johnson_column")
+                        .selected_text(if self.johnson_column.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.johnson_column.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.johnson_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Family:");
+                    egui::ComboBox::from_id_salt("johnson_choice")
+                        .selected_text(self.johnson_choice.name())
+                        .width(130.0)
+                        .show_ui(ui, |ui| {
+                            for choice in [
+                                fp_core::johnson::JohnsonChoice::Best,
+                                fp_core::johnson::JohnsonChoice::Su,
+                                fp_core::johnson::JohnsonChoice::Sb,
+                                fp_core::johnson::JohnsonChoice::Sl,
+                            ] {
+                                ui.selectable_value(
+                                    &mut self.johnson_choice,
+                                    choice,
+                                    choice.name(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("New column:");
+                    ui.add(egui::TextEdit::singleline(&mut self.johnson_name).desired_width(160.0))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "Fits Johnson SU, SB or SL and writes the standard-normal scores as a new \
+                     column; missing rows stay missing.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About the Johnson transformation…"))
+                        .clicked()
+                    {
+                        self.show_johnson_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.johnson_column.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_johnson_dialog = open && !run && !cancel;
+        if run {
+            self.run_johnson_dialog();
+        }
+    }
+
+    /// Help page of the Johnson transformation.
+    pub(super) fn johnson_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_johnson_help {
+            return;
+        }
+        let mut open = self.show_johnson_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Johnson Transformation help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The Johnson transformation maps a non-normal measurement to a \
+                     standard-normal score. Three families cover different shapes: SL for data \
+                     bounded below, SU for unbounded data, and SB for data between two limits. \
+                     Choose Best (AIC) to fit all three and keep the best.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column with at least five values. Missing values are excluded \
+                     from the fit and stay missing in the new column. The new column holds the \
+                     score z and must have a name the worksheet does not use yet. The report \
+                     shows the fitted parameters and the Anderson–Darling test before and after.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Six measurements that rise steeply give a skewed histogram. Choose Johnson \
+                     Transformation with Best (AIC): the command fits the best family, adds the \
+                     column weight_J and reports the A² before and after. The new column is ready \
+                     for the capability analysis or the control charts.",
+                ));
+                egui::Grid::new("johnson_help_example")
+                    .num_columns(2)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("observation");
+                        ui.strong("weight");
+                        ui.end_row();
+                        for (index, weight) in [
+                            ("1", "10.1"),
+                            ("2", "10.3"),
+                            ("3", "10.2"),
+                            ("4", "10.6"),
+                            ("5", "10.4"),
+                            ("6", "11.0"),
+                        ] {
+                            ui.monospace(index);
+                            ui.monospace(weight);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_johnson_help = open && !close;
+    }
+
     pub fn open_diagnostic_dialog(&mut self, kind: DiagnosticKind) {
         self.diagnostic_kind = kind;
         self.diagnostic_column = self.selected.clone().unwrap_or_default();

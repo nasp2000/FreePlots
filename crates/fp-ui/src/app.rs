@@ -1030,6 +1030,12 @@ pub struct FreePlotsApp {
     show_partial_dialog: bool,
     show_box_cox_dialog: bool,
     box_cox_column: String,
+    /// Johnson transformation dialog and help.
+    show_johnson_dialog: bool,
+    show_johnson_help: bool,
+    johnson_column: String,
+    johnson_choice: fp_core::johnson::JohnsonChoice,
+    johnson_name: String,
     show_tolerance_dialog: bool,
     show_sort_dialog: bool,
     sort_keys: String,
@@ -3885,6 +3891,8 @@ impl FreePlotsApp {
         self.show_attrcap_help = false;
         self.show_bb_dialog = false;
         self.show_box_cox_dialog = false;
+        self.show_johnson_dialog = false;
+        self.show_johnson_help = false;
         self.show_calc_dialog = false;
         self.show_cap_dialog = false;
         self.show_cap_help = false;

@@ -4007,6 +4007,24 @@ fn the_attribute_capability_dialog_reports_ppm_defects() {
 }
 
 #[test]
+fn the_johnson_transformation_writes_a_column() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(
+        &mut ui,
+        &["Stat", "Quality Tools", "Johnson Transformation…"],
+    );
+    ui.select("Column:", "weight").expect("column");
+    ui.set_text("New column:", "weight_j").expect("name");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Johnson Transformation"), "{session}");
+    assert!(session.contains("weight_j"), "{session}");
+    let data = ui.app().data().expect("worksheet");
+    assert!(data.column("weight_j").is_ok(), "column missing");
+}
+
+#[test]
 fn the_t_chart_dialog_reports_the_exponential_limits() {
     let mut ui = Automation::new();
     let df = DataFrame::new(vec![Column::new_f64(

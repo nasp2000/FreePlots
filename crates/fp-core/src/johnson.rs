@@ -13,12 +13,12 @@
 //! exact Johnson log-likelihood, Jacobian included, so the three families and
 //! the other distributions are compared on the same scale.
 
-use crate::data::Sample;
+use crate::data::{Column, DataFrame, MissingPolicy, Sample};
 use crate::dists::Distribution;
 use crate::error::{Error, Result};
 use crate::optimize::nelder_mead;
+use crate::report::{AnalysisResult, standard_warnings};
 use crate::special::{normal_cdf, normal_quantile};
-
 /// Johnson family.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JohnsonFamily {
@@ -140,7 +140,11 @@ impl Johnson {
 
     /// The standard-normal score of one observation, when it is inside the
     /// support.
-    fn score(&self, x: f64) -> Option<f64> {
+    ///
+    /// This is the Johnson transformation itself: the value of `z` that the
+    /// fitted family assigns to `x`.
+    #[must_use]
+    pub fn score(&self, x: f64) -> Option<f64> {
         match self.family {
             JohnsonFamily::Sl => {
                 if x <= self.epsilon {
@@ -457,6 +461,153 @@ impl Distribution for Johnson {
     }
 }
 
+/// Family chosen by the Johnson transformation command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JohnsonChoice {
+    /// Compare SU, SB and SL by AIC and keep the best.
+    Best,
+    /// Unbounded, `sinh` transformation.
+    Su,
+    /// Bounded, logistic transformation.
+    Sb,
+    /// Unbounded below, logarithmic transformation.
+    Sl,
+}
+
+impl JohnsonChoice {
+    /// Name used by the interface and the report.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Best => "Best (AIC)",
+            Self::Su => "Johnson SU",
+            Self::Sb => "Johnson SB",
+            Self::Sl => "Johnson SL",
+        }
+    }
+
+    /// Family to fit, or `None` to compare all three by AIC.
+    #[must_use]
+    pub fn family(self) -> Option<JohnsonFamily> {
+        match self {
+            Self::Best => None,
+            Self::Su => Some(JohnsonFamily::Su),
+            Self::Sb => Some(JohnsonFamily::Sb),
+            Self::Sl => Some(JohnsonFamily::Sl),
+        }
+    }
+}
+
+/// Fits a Johnson distribution and writes the transformed column.
+///
+/// The new column holds the standard-normal score `z` of every row; rows with a
+/// missing value stay missing. The returned report carries the fitted
+/// parameters and the Anderson–Darling test before and after the
+/// transformation.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for an empty or duplicate output name and the
+/// fitting errors of [`Johnson::fit`] / [`Johnson::fit_best`].
+pub fn add_transformation(
+    df: &mut DataFrame,
+    column: &str,
+    choice: JohnsonChoice,
+    output: &str,
+) -> Result<AnalysisResult> {
+    let name = output.trim();
+    if name.is_empty() {
+        return Err(Error::Unsupported(
+            "the transformed column needs a name".to_owned(),
+        ));
+    }
+    if df.column(name).is_ok() {
+        return Err(Error::Unsupported(format!(
+            "the worksheet already has a column named {name}"
+        )));
+    }
+    let source = df.column(column)?;
+    let sample = source.sample(MissingPolicy::Drop)?;
+    let fitted = match choice.family() {
+        Some(family) => Johnson::fit(&sample, family)?,
+        None => Johnson::fit_best(&sample)?,
+    };
+    let normal_before = crate::dists::Normal::fit_moments(&sample)?;
+    let a2_before = crate::gof::anderson_darling(&normal_before, &sample)?;
+    let p_before = crate::gof::ad_p_value(sample.n(), a2_before)?;
+
+    let mut transformed_column = Vec::with_capacity(df.n_rows());
+    let mut transformed = Vec::with_capacity(sample.n());
+    for row in 0..df.n_rows() {
+        match source.value(row).and_then(|value| fitted.score(value)) {
+            Some(score) => {
+                transformed_column.push(score);
+                transformed.push(score);
+            }
+            None => transformed_column.push(f64::NAN),
+        }
+    }
+    let after = Sample::new(transformed, MissingPolicy::Drop)?;
+    let normal_after = crate::dists::Normal::fit_moments(&after)?;
+    let a2_after = crate::gof::anderson_darling(&normal_after, &after)?;
+    let p_after = crate::gof::ad_p_value(after.n(), a2_after)?;
+
+    let index = df.n_columns();
+    df.insert_column(index, Column::new_f64(name, transformed_column))?;
+
+    let mut result = AnalysisResult::new(
+        format!("Johnson Transformation — column {column}"),
+        format!(
+            "Maximum-likelihood {}; transformed column {name}",
+            fitted.name()
+        ),
+    );
+    result.n = sample.n();
+    result.excluded = sample.excluded();
+    result.statistics = vec![
+        ("Gamma", fitted.gamma()),
+        ("Eta", fitted.eta()),
+        ("Epsilon", fitted.epsilon()),
+        ("Lambda", fitted.lambda()),
+        ("A2 before", a2_before),
+        ("p-value before", p_before),
+        ("A2 after", a2_after),
+        ("p-value after", p_after),
+    ];
+    result.notes = vec![
+        (
+            "Transformation".to_owned(),
+            match fitted.family() {
+                JohnsonFamily::Su => "z = γ + η·asinh((x − ε)/λ)".to_owned(),
+                JohnsonFamily::Sb => "z = γ + η·ln((x − ε)/(ε + λ − x))".to_owned(),
+                JohnsonFamily::Sl => "z = γ + η·ln(x − ε)".to_owned(),
+            },
+        ),
+        (
+            "Output".to_owned(),
+            format!(
+                "column {name} holds the standard-normal scores z; rows with a missing value \
+                 stay missing"
+            ),
+        ),
+        (
+            "Fit".to_owned(),
+            "maximum likelihood; the automatic choice compares SU, SB and SL by AIC".to_owned(),
+        ),
+        (
+            "Normality".to_owned(),
+            "Anderson–Darling test before and after the transformation".to_owned(),
+        ),
+    ];
+    result.warnings = standard_warnings(result.n, result.excluded, 0);
+    result.warnings.push(
+        "the Johnson fit conventions are published choices; they have not been verified against \
+         documented output"
+            .to_owned(),
+    );
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -546,5 +697,87 @@ mod tests {
         assert!(Johnson::fit(&constant, JohnsonFamily::Su).is_err());
         let tiny = sample(vec![1.0, 2.0, 3.0]);
         assert!(Johnson::fit(&tiny, JohnsonFamily::Su).is_err());
+    }
+
+    #[test]
+    fn the_transformation_writes_the_normal_scores() {
+        let values: Vec<f64> = (0..100)
+            .map(|index| 1.0 + (0.05 * f64::from(index)).exp())
+            .collect();
+        let mut df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
+        let result =
+            add_transformation(&mut df, "x", JohnsonChoice::Best, "x_j").expect("transformation");
+        assert!(
+            result.title.contains("Johnson Transformation"),
+            "{result:?}"
+        );
+        assert_eq!(result.n, 100);
+        assert_eq!(df.n_columns(), 2);
+        let column = df.column("x_j").expect("transformed column");
+        let scores: Vec<f64> = (0..df.n_rows())
+            .filter_map(|row| column.value(row))
+            .collect();
+        assert_eq!(scores.len(), 100);
+        let mean = scores.iter().sum::<f64>() / scores.len() as f64;
+        let variance = scores
+            .iter()
+            .map(|value| (value - mean).powi(2))
+            .sum::<f64>()
+            / (scores.len() - 1) as f64;
+        // The fitted gamma and eta make the scores standard normal.
+        assert!(mean.abs() < 1e-6, "mean = {mean}");
+        assert!((variance - 1.0).abs() < 1e-4, "variance = {variance}");
+        let gamma = result
+            .statistics
+            .iter()
+            .find(|(name, _)| *name == "Gamma")
+            .map(|(_, value)| *value)
+            .expect("gamma");
+        assert!(gamma.is_finite());
+        let p_after = result
+            .statistics
+            .iter()
+            .find(|(name, _)| *name == "p-value after")
+            .map(|(_, value)| *value)
+            .expect("p after");
+        assert!(p_after.is_finite());
+    }
+
+    #[test]
+    fn the_transformation_uses_the_chosen_family_and_keeps_missing_rows() {
+        let mut values: Vec<f64> = (0..20).map(|index| 2.0 + 0.1 * f64::from(index)).collect();
+        values.push(f64::NAN);
+        let mut df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
+        let result =
+            add_transformation(&mut df, "x", JohnsonChoice::Sl, "x_sl").expect("transformation");
+        assert!(result.method.contains("Johnson SL"), "{}", result.method);
+        assert_eq!(result.n, 20);
+        assert_eq!(result.excluded, 1);
+        let column = df.column("x_sl").expect("column");
+        assert!(column.is_missing(20));
+        assert!(column.value(0).is_some());
+    }
+
+    #[test]
+    fn the_transformation_rejects_names_and_short_samples() {
+        let mut df = DataFrame::new(vec![
+            Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+            Column::new_f64("taken", vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        ])
+        .expect("frame");
+        let error = add_transformation(&mut df, "x", JohnsonChoice::Best, "taken")
+            .expect_err("duplicate name");
+        assert!(
+            error.to_string().contains("already has a column"),
+            "{error}"
+        );
+        let error =
+            add_transformation(&mut df, "x", JohnsonChoice::Best, "  ").expect_err("empty name");
+        assert!(error.to_string().contains("needs a name"), "{error}");
+        let mut short =
+            DataFrame::new(vec![Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0])]).expect("frame");
+        let error =
+            add_transformation(&mut short, "x", JohnsonChoice::Best, "x_j").expect_err("too short");
+        assert!(error.to_string().contains("minimum=5"), "{error}");
     }
 }

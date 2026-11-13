@@ -758,6 +758,37 @@ impl UiCatalog {
                  cada ponto acrescenta cerca de 1 − 0,5 = 0,5 à soma superior, que atravessa o \
                  intervalo de decisão ao fim de oito pontos; a soma inferior fica em zero."
             }
+            "Johnson Transformation" => "Transformação de Johnson",
+            "Johnson Transformation…" => "Transformação de Johnson…",
+            "Johnson Transformation help" => "Ajuda da transformação de Johnson",
+            "About the Johnson transformation…" => "Acerca da transformação de Johnson…",
+            "The Johnson transformation maps a non-normal measurement to a \
+             standard-normal score. Three families cover different shapes: SL for data \
+             bounded below, SU for unbounded data, and SB for data between two limits. \
+             Choose Best (AIC) to fit all three and keep the best." => {
+                "A transformação de Johnson converte uma medição não normal num score normal \
+                 padrão. Três famílias cobrem formas diferentes: SL para dados limitados \
+                 inferiormente, SU para dados ilimitados e SB para dados entre dois limites. \
+                 Escolha Best (AIC) para ajustar as três e ficar com a melhor."
+            }
+            "One numeric column with at least five values. Missing values are excluded \
+             from the fit and stay missing in the new column. The new column holds the \
+             score z and must have a name the worksheet does not use yet. The report \
+             shows the fitted parameters and the Anderson–Darling test before and after." => {
+                "Uma coluna numérica com pelo menos cinco valores. Os valores em falta são \
+                 excluídos do ajuste e ficam em falta na nova coluna. A nova coluna contém o \
+                 score z e tem de ter um nome que a folha ainda não use. O relatório mostra os \
+                 parâmetros ajustados e o teste de Anderson–Darling antes e depois."
+            }
+            "Six measurements that rise steeply give a skewed histogram. Choose Johnson \
+             Transformation with Best (AIC): the command fits the best family, adds the \
+             column weight_J and reports the A² before and after. The new column is ready \
+             for the capability analysis or the control charts." => {
+                "Seis medições que sobem depressa dão um histograma assimétrico. Escolha \
+                 Transformação de Johnson com Best (AIC): o comando ajusta a melhor família, \
+                 acrescenta a coluna weight_J e reporta o A² antes e depois. A nova coluna fica \
+                 pronta para a análise de capacidade ou para as cartas de controlo."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

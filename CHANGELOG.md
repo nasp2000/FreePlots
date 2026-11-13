@@ -36,6 +36,11 @@ All notable changes to FreePlots are recorded here. The format follows
   dialog pre-set to the cumulative-sum chart. The CUSUM has its own help page
   (overview, data and example) in both interface languages, and the entry
   clears a leftover phase or subgroup column from a variable chart.
+- Quality Tools has a *Johnson Transformation…* command: it fits Johnson SU,
+  SB or SL (or the best of the three by AIC), writes the standard-normal
+  scores as a new worksheet column and reports the parameters with the
+  Anderson–Darling test before and after. It has its own help page in both
+  interface languages.
 
 ### Changed
 
@@ -51,7 +56,8 @@ All notable changes to FreePlots are recorded here. The format follows
   the gamma moments, zero and negative intervals, a single observation, a
   missing row and a point outside the lower limit. The CUSUM menu entry
   covers the pre-set chart, the cleared variable-chart columns and the help
-  page.
+  page. The Johnson command covers the written scores (mean 0, variance 1),
+  an explicit family with a missing row, a duplicate name and a short sample.
 
 ## [0.1.1] - 2026-11-12
 

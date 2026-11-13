@@ -3024,6 +3024,43 @@ fn the_capability_help_explains_the_subgroup_column() {
 }
 
 #[test]
+fn the_johnson_help_explains_the_transformation() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_johnson_dialog = true;
+    app.johnson_column = "weight".to_owned();
+    app.johnson_name = "weight_J".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness
+        .get_by_label("About the Johnson transformation…")
+        .click();
+    harness.run();
+    assert!(harness.state().show_johnson_help);
+    harness.get_by_label("Johnson Transformation help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("maps a non-normal measurement to a standard-normal score");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da transformação de Johnson");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_johnson_help);
+}
+
+#[test]
 fn the_cusum_menu_entry_clears_the_variable_chart_columns() {
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());
