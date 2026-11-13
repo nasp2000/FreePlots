@@ -723,10 +723,11 @@ mod tests {
             .iter()
             .map(|value| (value - mean).powi(2))
             .sum::<f64>()
-            / (scores.len() - 1) as f64;
-        // The fitted gamma and eta make the scores standard normal.
+            / scores.len() as f64;
+        // The fitted gamma and eta make the scores standard normal (the fit
+        // uses the population variance, so the sample variance is n/(n−1)).
         assert!(mean.abs() < 1e-6, "mean = {mean}");
-        assert!((variance - 1.0).abs() < 1e-4, "variance = {variance}");
+        assert!((variance - 1.0).abs() < 1e-6, "variance = {variance}");
         let gamma = result
             .statistics
             .iter()
