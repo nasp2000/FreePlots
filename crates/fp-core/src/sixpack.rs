@@ -73,7 +73,7 @@ pub(crate) fn sixpack_plot(
                 "the Sixpack control charts need subgroups of 2 to 25 observations".to_owned(),
             ));
         }
-        if sample.n() % subgroup != 0 {
+        if !sample.n().is_multiple_of(subgroup) {
             return Err(Error::Unsupported(
                 "the sample size must be divisible by the subgroup size".to_owned(),
             ));

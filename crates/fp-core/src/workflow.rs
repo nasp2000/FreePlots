@@ -5908,6 +5908,7 @@ pub(crate) struct SigmaEstimates {
 ///
 /// The label groups keep their first-appearance order; the values arrive on the
 /// original scale and are Box-Cox transformed with `box_lambda` when it is set.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn sigma_estimates(
     sample: &Sample,
     df: &DataFrame,
@@ -5987,7 +5988,7 @@ pub(crate) fn sigma_estimates(
         // uses; 2/sqrt(pi) differs by 0.03 % and was visible in the record.
         (moving / 1.128, (n - 1) as f64)
     } else {
-        if n % subgroup != 0 {
+        if !n.is_multiple_of(subgroup) {
             return Err(Error::Unsupported(
                 "the sample size must be divisible by the subgroup size".to_owned(),
             ));
@@ -10414,7 +10415,7 @@ mod tests {
 
     #[test]
     fn the_sixpack_rejects_models_and_sizes_it_cannot_draw() {
-        let values: Vec<f64> = (0..40)
+        let values: Vec<f64> = (0..52)
             .map(|index| 10.0 + 0.2 * f64::from(index % 5))
             .collect();
         let df = DataFrame::new(vec![Column::new_f64("weight", values)]).expect("frame");
