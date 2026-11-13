@@ -4005,7 +4005,7 @@ fn the_t_chart_dialog_reports_the_exponential_limits() {
     ui.load_frame(df, "gaps.csv");
     open(
         &mut ui,
-        &["Stat", "Quality Tools", "T Chart (Rare Events)…"],
+        &["Stat", "Control Charts", "T Chart (Rare Events)…"],
     );
     ui.select("Time column:", "gap").expect("column");
     ui.click("OK").expect("ok");
@@ -4027,7 +4027,7 @@ fn the_t_chart_dialog_reads_the_gamma_model() {
     ui.load_frame(df, "gaps.csv");
     open(
         &mut ui,
-        &["Stat", "Quality Tools", "T Chart (Rare Events)…"],
+        &["Stat", "Control Charts", "T Chart (Rare Events)…"],
     );
     ui.select("Model:", "Gamma").expect("model");
     ui.select("Time column:", "gap").expect("column");
