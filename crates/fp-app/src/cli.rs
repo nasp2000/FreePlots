@@ -36,7 +36,7 @@ Usage:
   FreePlots describe <file.csv> [--column <name>] [--by <name>]
   FreePlots normality <file.csv> [--column <name>] [--test <ad|ks|rj|k2>]
   FreePlots distcompare <file.csv> [--column <name>]
-  FreePlots capability <file.csv> [--column <name>] --lsl <x> --usl <x> [--target <x>] [--distribution <normal|lognormal|loglogistic|weibull|exponential|logistic|gamma|extremevalue|weibull3>] [--subgroup <n>] [--confidence <pct>] [--bootstrap <n>] [--box-cox]
+  FreePlots capability <file.csv> [--column <name>] --lsl <x> --usl <x> [--target <x>] [--distribution <normal|lognormal|loglogistic|weibull|exponential|logistic|gamma|extremevalue|weibull3>] [--subgroup <n>] [--subgroup-column <name>] [--confidence <pct>] [--bootstrap <n>] [--box-cox]
   FreePlots controlchart <file.csv> --column <name> --chart <imr|xbar-r|xbar-s|ewma|cusum> [--subgroup <n>] [--subgroup-column <name>] [--phase <name>] [--tests <1:8|1,3,5>] [--sensitivity <test=K,...>] [--cusum-k <k>] [--cusum-h <h>] [--ewma-lambda <λ>] [--ewma-l <L>] [--svg <file>]
   FreePlots attrchart <file.csv> --column <defects> --chart <p|np|c|u> [--sizes <name>] [--size <n>] [--svg <file>]
   FreePlots runchart <file.csv> [--column <name>] [--svg <file>]
@@ -770,6 +770,7 @@ fn capability(args: &[String]) -> Result<(), String> {
     let mut usl: Option<f64> = None;
     let mut target: Option<f64> = None;
     let mut subgroup = 1usize;
+    let mut subgroup_column: Option<String> = None;
     let mut confidence = 0.95;
     let mut bootstrap = 0usize;
     let mut box_cox = false;
@@ -822,6 +823,13 @@ fn capability(args: &[String]) -> Result<(), String> {
                 subgroup = raw
                     .parse::<usize>()
                     .map_err(|_| format!("invalid --subgroup: {raw}"))?;
+            }
+            "--subgroup-column" | "--group" => {
+                subgroup_column = Some(
+                    it.next()
+                        .ok_or_else(|| format!("{arg} requires a name"))?
+                        .clone(),
+                );
             }
             "--distribution" => {
                 let raw = it
@@ -884,7 +892,8 @@ fn capability(args: &[String]) -> Result<(), String> {
         .with_capability_target(target)
         .with_capability_bootstrap(bootstrap)
         .with_capability_box_cox(box_cox)
-        .with_capability_stability(require_stability);
+        .with_capability_stability(require_stability)
+        .with_capability_subgroup_column(subgroup_column);
     if let AnalysisSpec::Capability {
         subgroup: size,
         confidence: level,

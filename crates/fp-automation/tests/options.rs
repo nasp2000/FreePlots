@@ -3897,6 +3897,21 @@ fn the_subgroup_column_rejects_singleton_subgroups() {
     assert!(ui.session().is_empty(), "{}", ui.session());
 }
 
+#[test]
+fn the_capability_dialog_reads_the_subgroup_column() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Quality Tools", "Capability Analysis…"]);
+    ui.set_text("LSL:", "20").expect("lsl");
+    ui.set_text("USL:", "30").expect("usl");
+    ui.select("Subgroup column:", "part").expect("column");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("subgroup column part"), "{session}");
+    assert!(session.contains("6 subgroups"), "{session}");
+    assert!(session.contains("Cp"), "{session}");
+}
+
 /// Two responses with a common interior optimum, for the response optimizer.
 fn desirability_frame() -> DataFrame {
     let mut a = Vec::new();

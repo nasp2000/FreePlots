@@ -970,17 +970,23 @@ pub struct FreePlotsApp {
     dialog_same_x: bool,
     dialog_same_y: bool,
     show_cap_dialog: bool,
+    /// Help page of the capability dialog (overview, data and example).
+    show_cap_help: bool,
     cap_column: String,
     cap_distribution: DistributionKind,
     cap_lsl: String,
     cap_usl: String,
     cap_target: String,
     cap_subgroup: usize,
+    /// Optional column whose labels define the capability subgroups.
+    cap_subgroup_column: String,
     cap_confidence: f64,
     cap_bootstrap: usize,
     cap_box_cox: bool,
     cap_require_stability: bool,
     show_chart_dialog: bool,
+    /// Help page of the control-chart dialog (overview, data and example).
+    show_chart_help: bool,
     chart_column: String,
     chart_kind: ControlChartKind,
     chart_subgroup: usize,
@@ -3826,7 +3832,9 @@ impl FreePlotsApp {
         self.show_box_cox_dialog = false;
         self.show_calc_dialog = false;
         self.show_cap_dialog = false;
+        self.show_cap_help = false;
         self.show_chart_dialog = false;
+        self.show_chart_help = false;
         self.show_csv_options = false;
         self.show_correlation_dialog = false;
         self.show_crosstab_dialog = false;

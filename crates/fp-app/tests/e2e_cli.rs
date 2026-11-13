@@ -2296,6 +2296,40 @@ fn unequal_subgroups_come_from_a_column() {
 }
 
 #[test]
+fn capability_reads_the_subgroup_column() {
+    let dir = temp_dir("capability-subgroups");
+    let csv = dir.join("parts.csv");
+    fs::write(&csv, "weight;part\n10,0;A\n20,0;B\n10,2;A\n20,4;B\n9,8;A\n").expect("write csv");
+
+    let out = Command::new(bin())
+        .args([
+            "capability",
+            csv.to_str().expect("utf8"),
+            "--column",
+            "weight",
+            "--lsl",
+            "0",
+            "--usl",
+            "30",
+            "--subgroup-column",
+            "part",
+        ])
+        .output()
+        .expect("run binary");
+
+    assert!(
+        out.status.success(),
+        "failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("subgroup column part"), "{session}");
+    assert!(session.contains("2 subgroups"), "{session}");
+    assert!(session.contains("Cp"), "{session}");
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn date_tools_add_difference_and_shift_columns() {
     let dir = temp_dir("dates");
     let csv = dir.join("dates.csv");

@@ -85,17 +85,20 @@ impl FreePlotsApp {
             dialog_same_x: false,
             dialog_same_y: false,
             show_cap_dialog: false,
+            show_cap_help: false,
             cap_column: String::new(),
             cap_distribution: DistributionKind::Normal,
             cap_lsl: String::new(),
             cap_usl: String::new(),
             cap_target: String::new(),
             cap_subgroup: 1,
+            cap_subgroup_column: String::new(),
             cap_confidence: 95.0,
             cap_bootstrap: 0,
             cap_box_cox: false,
             cap_require_stability: false,
             show_chart_dialog: false,
+            show_chart_help: false,
             chart_column: String::new(),
             chart_kind: ControlChartKind::IndividualsMovingRange,
             chart_subgroup: 5,
@@ -513,6 +516,7 @@ impl FreePlotsApp {
         self.cap_lsl.clear();
         self.cap_usl.clear();
         self.cap_target.clear();
+        self.cap_subgroup_column.clear();
         // The capability options are user preferences now.
         self.chart_column = self.selected.clone().unwrap_or_default();
         // The chart family and subgroup size are user preferences now.

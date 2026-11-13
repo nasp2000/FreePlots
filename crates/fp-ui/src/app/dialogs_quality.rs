@@ -21,6 +21,11 @@ impl FreePlotsApp {
                     .collect()
             })
             .unwrap_or_default();
+        let all_columns: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| df.columns().iter().map(|c| c.name().to_owned()).collect())
+            .unwrap_or_default();
 
         let mut open = self.show_cap_dialog;
         let mut close = false;
@@ -100,9 +105,12 @@ impl FreePlotsApp {
                 });
                 ui.horizontal(|ui| {
                     let subgroup = ui.help_label("Subgroup size:");
-                    ui.add(egui::DragValue::new(&mut self.cap_subgroup).range(1..=100))
-                        .labelled_by(subgroup.id)
-                        .hover_from(&subgroup);
+                    ui.add_enabled(
+                        self.cap_subgroup_column.is_empty(),
+                        egui::DragValue::new(&mut self.cap_subgroup).range(1..=100),
+                    )
+                    .labelled_by(subgroup.id)
+                    .hover_from(&subgroup);
                     let confidence = ui.help_label("Confidence:");
                     ui.add(
                         egui::DragValue::new(&mut self.cap_confidence)
@@ -112,6 +120,39 @@ impl FreePlotsApp {
                     )
                     .labelled_by(confidence.id)
                     .hover_from(&confidence);
+                });
+                if self.cap_distribution != DistributionKind::Normal {
+                    self.cap_subgroup_column.clear();
+                }
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Subgroup column:");
+                    let enabled = self.cap_distribution == DistributionKind::Normal;
+                    ui.add_enabled_ui(enabled, |ui| {
+                        egui::ComboBox::from_id_salt("cap_subgroup_column")
+                            .selected_text(if self.cap_subgroup_column.is_empty() {
+                                "None".to_owned()
+                            } else {
+                                self.cap_subgroup_column.clone()
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut self.cap_subgroup_column,
+                                    String::new(),
+                                    "None",
+                                );
+                                for name in &all_columns {
+                                    ui.selectable_value(
+                                        &mut self.cap_subgroup_column,
+                                        name.clone(),
+                                        name.as_str(),
+                                    );
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                    ui.small("groups the rows by label");
                 });
                 ui.horizontal(|ui| {
                     ui.add_enabled(
@@ -143,6 +184,15 @@ impl FreePlotsApp {
                     );
                 }
                 ui.small("At least one specification limit is required.");
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("How to choose subgroups…"))
+                        .clicked()
+                    {
+                        self.show_cap_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
                 ui.separator();
                 ui.horizontal(|ui| {
                     let ready = !self.cap_column.is_empty();
@@ -180,14 +230,23 @@ impl FreePlotsApp {
                                                     && self.cap_distribution
                                                         == DistributionKind::Normal,
                                             )
-                                            .with_capability_stability(self.cap_require_stability);
+                                            .with_capability_stability(self.cap_require_stability)
+                                            .with_capability_subgroup_column(
+                                                (self.cap_distribution == DistributionKind::Normal
+                                                    && !self.cap_subgroup_column.is_empty())
+                                                .then(|| self.cap_subgroup_column.clone()),
+                                            );
                                     if let AnalysisSpec::Capability {
                                         subgroup: size,
                                         confidence,
                                         ..
                                     } = &mut spec
                                     {
-                                        *size = self.cap_subgroup;
+                                        *size = if self.cap_subgroup_column.is_empty() {
+                                            self.cap_subgroup
+                                        } else {
+                                            1
+                                        };
                                         *confidence = self.cap_confidence / 100.0;
                                     }
                                     pending = Some(spec);
@@ -210,6 +269,78 @@ impl FreePlotsApp {
             self.execute_spec(spec, label);
         }
     }
+    /// Help page of the capability dialog.
+    ///
+    /// The same three parts as the chart help: an overview, the data shapes the
+    /// analysis accepts and a worked example with a label column.
+    pub(super) fn capability_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_cap_help {
+            return;
+        }
+        let mut open = self.show_cap_help;
+        dialog_window(self.catalog().label("Capability help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "Capability compares the spread of the process with the specification limits. \
+                     The within estimate uses the variation inside the subgroups, so the indices \
+                     describe what the process could do once the shifts between subgroups are \
+                     removed.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column holds the measurements. Either set a constant subgroup \
+                     size, which takes consecutive rows, or choose a column whose labels say \
+                     which subgroup each row belongs to. Rows with a missing measurement or \
+                     label are not used. Each subgroup needs at least two observations and the \
+                     analysis needs at least two subgroups. The subgroup column applies to the \
+                     normal model.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A line measures three parts twice. Put the measurements in weight and the \
+                     part name in part, set the specification limits, and choose part as the \
+                     subgroup column. Cp and Cpk come from the pooled within-subgroup standard \
+                     deviation (n − g degrees of freedom); Pp and Ppk come from the overall \
+                     standard deviation.",
+                ));
+                egui::Grid::new("capability_help_example")
+                    .num_columns(2)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("weight");
+                        ui.strong("part");
+                        ui.end_row();
+                        for (weight, part) in [
+                            ("10.02", "A"),
+                            ("10.05", "A"),
+                            ("9.98", "B"),
+                            ("10.01", "B"),
+                            ("10.04", "C"),
+                            ("10.00", "C"),
+                        ] {
+                            ui.monospace(weight);
+                            ui.monospace(part);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        open = false;
+                    }
+                });
+            });
+        self.show_cap_help = open;
+    }
+
     pub(super) fn control_chart_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_chart_dialog {
             return;
@@ -435,6 +566,15 @@ impl FreePlotsApp {
                     });
                 }
                 ui.small("Control limits use the published Shewhart constants.");
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("How to choose subgroups…"))
+                        .clicked()
+                    {
+                        self.show_chart_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
                 ui.separator();
                 ui.help_label("Tests for special causes:");
                 let descriptions = [
@@ -530,6 +670,81 @@ impl FreePlotsApp {
         if let Some((column, kind, subgroup, tests, cusum, ewma)) = pending {
             self.run_control_chart_with_options(column, kind, subgroup, tests, cusum, ewma);
         }
+    }
+    /// Help page of the control-chart dialog.
+    ///
+    /// A short overview, the data shapes the chart accepts and a worked example
+    /// with a label column. It sits beside the dialog so the explanation of the
+    /// subgroup column is one click away from the field.
+    pub(super) fn chart_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_chart_help {
+            return;
+        }
+        let mut open = self.show_chart_help;
+        dialog_window(self.catalog().label("Control chart help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The X̄–R and X̄–S charts follow the mean and the spread of each subgroup. \
+                     The limits come from the variation inside the subgroups, so a slow drift \
+                     does not widen them.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column holds the measurements. Either set a constant subgroup \
+                     size, which takes consecutive rows, or choose a column whose labels say \
+                     which subgroup each row belongs to. Labels may repeat in any order: the \
+                     chart keeps the order in which each label first appears. Rows with a \
+                     missing measurement or label are not used. Each subgroup needs 2 to 25 \
+                     observations, and the chart needs at least two subgroups.",
+                ));
+                ui.label(self.catalog().label(
+                    "The phase column and the subgroup column are alternatives: a phase gives \
+                     each consecutive run its own limits, a subgroup column groups the rows \
+                     before the limits are computed.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A line measures three parts twice. Put the measurements in weight and the \
+                     part name in part, choose X̄–R as the chart and part as the subgroup \
+                     column. The Session reports one point per part, the size of each subgroup \
+                     and the limits computed from the pooled within-subgroup variation.",
+                ));
+                egui::Grid::new("chart_help_example")
+                    .num_columns(2)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("weight");
+                        ui.strong("part");
+                        ui.end_row();
+                        for (weight, part) in [
+                            ("10.02", "A"),
+                            ("10.05", "A"),
+                            ("9.98", "B"),
+                            ("10.01", "B"),
+                            ("10.04", "C"),
+                            ("10.00", "C"),
+                        ] {
+                            ui.monospace(weight);
+                            ui.monospace(part);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        open = false;
+                    }
+                });
+            });
+        self.show_chart_help = open;
     }
     pub(super) fn attribute_chart_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_attr_dialog {

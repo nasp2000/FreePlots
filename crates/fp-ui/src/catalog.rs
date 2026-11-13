@@ -550,6 +550,81 @@ impl UiCatalog {
             // Help.
             "User Guide" => "Guia do utilizador",
             "About" => "Acerca",
+            "Control chart help" => "Ajuda da carta de controlo",
+            "Overview" => "Visão geral",
+            "Example" => "Exemplo",
+            "How to choose subgroups…" => "Como escolher os subgrupos…",
+            "Overview, data and an example" => "Visão geral, dados e um exemplo",
+            "The X̄–R and X̄–S charts follow the mean and the spread of each subgroup. \
+             The limits come from the variation inside the subgroups, so a slow drift \
+             does not widen them." => {
+                "As cartas X̄–R e X̄–S acompanham a média e a dispersão de cada subgrupo. \
+                 Os limites vêm da variação dentro dos subgrupos, por isso uma deriva lenta \
+                 não os alarga."
+            }
+            "One numeric column holds the measurements. Either set a constant subgroup \
+             size, which takes consecutive rows, or choose a column whose labels say \
+             which subgroup each row belongs to. Labels may repeat in any order: the \
+             chart keeps the order in which each label first appears. Rows with a \
+             missing measurement or label are not used. Each subgroup needs 2 to 25 \
+             observations, and the chart needs at least two subgroups." => {
+                "Uma coluna numérica contém as medições. Defina um tamanho de subgrupo \
+                 constante, que usa linhas consecutivas, ou escolha uma coluna cujas \
+                 etiquetas dizem a que subgrupo pertence cada linha. As etiquetas podem \
+                 repetir-se em qualquer ordem: a carta mantém a ordem em que cada etiqueta \
+                 aparece pela primeira vez. As linhas com uma medição ou etiqueta em falta \
+                 não são usadas. Cada subgrupo precisa de 2 a 25 observações e a carta \
+                 precisa de pelo menos dois subgrupos."
+            }
+            "The phase column and the subgroup column are alternatives: a phase gives \
+             each consecutive run its own limits, a subgroup column groups the rows \
+             before the limits are computed." => {
+                "A coluna de fases e a coluna de subgrupos são alternativas: uma fase dá \
+                 limites próprios a cada sequência consecutiva; uma coluna de subgrupos \
+                 agrupa as linhas antes de calcular os limites."
+            }
+            "A line measures three parts twice. Put the measurements in weight and the \
+             part name in part, choose X̄–R as the chart and part as the subgroup \
+             column. The Session reports one point per part, the size of each subgroup \
+             and the limits computed from the pooled within-subgroup variation." => {
+                "Uma linha mede três peças duas vezes. Coloque as medições em weight e o \
+                 nome da peça em part, escolha X̄–R como carta e part como coluna de \
+                 subgrupos. A Sessão reporta um ponto por peça, o tamanho de cada subgrupo \
+                 e os limites calculados a partir da variação agrupada dentro dos subgrupos."
+            }
+            "Capability help" => "Ajuda da capacidade",
+            "Capability compares the spread of the process with the specification limits. \
+             The within estimate uses the variation inside the subgroups, so the indices \
+             describe what the process could do once the shifts between subgroups are \
+             removed." => {
+                "A capacidade compara a dispersão do processo com os limites de \
+                 especificação. A estimativa dentro usa a variação dentro dos subgrupos, por \
+                 isso os índices descrevem o que o processo poderia fazer depois de removidas \
+                 as mudanças entre subgrupos."
+            }
+            "One numeric column holds the measurements. Either set a constant subgroup \
+             size, which takes consecutive rows, or choose a column whose labels say \
+             which subgroup each row belongs to. Rows with a missing measurement or \
+             label are not used. Each subgroup needs at least two observations and the \
+             analysis needs at least two subgroups. The subgroup column applies to the \
+             normal model." => {
+                "Uma coluna numérica contém as medições. Defina um tamanho de subgrupo \
+                 constante, que usa linhas consecutivas, ou escolha uma coluna cujas \
+                 etiquetas dizem a que subgrupo pertence cada linha. As linhas com uma \
+                 medição ou etiqueta em falta não são usadas. Cada subgrupo precisa de pelo \
+                 menos duas observações e a análise precisa de pelo menos dois subgrupos. A \
+                 coluna de subgrupos aplica-se ao modelo normal."
+            }
+            "A line measures three parts twice. Put the measurements in weight and the \
+             part name in part, set the specification limits, and choose part as the \
+             subgroup column. Cp and Cpk come from the pooled within-subgroup standard \
+             deviation (n − g degrees of freedom); Pp and Ppk come from the overall \
+             standard deviation." => {
+                "Uma linha mede três peças duas vezes. Coloque as medições em weight e o \
+                 nome da peça em part, defina os limites de especificação e escolha part \
+                 como coluna de subgrupos. Cp e Cpk vêm do desvio-padrão agrupado dentro dos \
+                 subgrupos (n − g graus de liberdade); Pp e Ppk vêm do desvio-padrão global."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

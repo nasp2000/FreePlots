@@ -686,7 +686,7 @@ pub fn analyze_with_phase(
     })
 }
 
-fn group_samples(df: &DataFrame, column: &str, group: &str) -> Result<Vec<Sample>> {
+pub(crate) fn group_samples(df: &DataFrame, column: &str, group: &str) -> Result<Vec<Sample>> {
     let values = df.column(column)?;
     let labels = df.column(group)?;
     let mut order: Vec<String> = Vec::new();
@@ -2490,6 +2490,135 @@ mod tests {
             ),
             Err(Error::ColumnNotFound(_))
         ));
+    }
+
+    #[test]
+    fn subgroup_labels_group_rows_and_keep_first_appearance_order() {
+        // Rows arrive interleaved: A, B, A, C, B, C, A, C, B.
+        let df = DataFrame::new(vec![
+            Column::new_f64(
+                "weight",
+                vec![10.0, 10.4, 10.2, 10.1, 10.6, 10.3, 9.9, 10.5, 10.7],
+            ),
+            Column::new_text(
+                "part",
+                vec!["A", "B", "A", "C", "B", "C", "A", "C", "B"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+
+        let groups = group_samples(&df, "weight", "part").expect("groups");
+        assert_eq!(groups.len(), 3);
+        let sizes: Vec<usize> = groups.iter().map(Sample::n).collect();
+        assert_eq!(sizes, vec![3, 3, 3]);
+        // The first group is A (10.0, 10.2, 9.9), then B, then C.
+        let means: Vec<f64> = groups
+            .iter()
+            .map(|group| group.mean().expect("mean"))
+            .collect();
+        assert!(
+            (means[0] - 10.033_333_333_333_3).abs() < 1e-9,
+            "{}",
+            means[0]
+        );
+        assert!(
+            (means[1] - 10.566_666_666_666_7).abs() < 1e-9,
+            "{}",
+            means[1]
+        );
+        assert!((means[2] - 10.3).abs() < 1e-9, "{}", means[2]);
+
+        let out = analyze_variable_subgroups(
+            &df,
+            "weight",
+            "part",
+            ControlChartKind::XbarR,
+            TestSet::default(),
+        )
+        .expect("chart");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("variable sizes (3–3)"), "{text}");
+        assert!(text.contains("one point per subgroup"), "{text}");
+    }
+
+    #[test]
+    fn subgroup_labels_skip_rows_with_a_missing_value_or_label() {
+        let df = DataFrame::new(vec![
+            Column::new_f64(
+                "weight",
+                vec![10.0, 10.2, f64::NAN, 10.1, 10.3, 10.1, 10.0, 9.9],
+            ),
+            Column::new_text(
+                "part",
+                vec!["A", "A", "A", "", "B", "B", "B", "A"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+
+        let groups = group_samples(&df, "weight", "part").expect("groups");
+        let sizes: Vec<usize> = groups.iter().map(Sample::n).collect();
+        // The missing measurement and the missing label are both dropped.
+        assert_eq!(sizes, vec![3, 3]);
+        let chart = variable_subgroup_chart(&groups, ControlChartKind::XbarS, TestSet::default())
+            .expect("chart");
+        assert_eq!(chart.location.len(), 2);
+        assert_eq!(chart.subgroup_sizes, vec![3, 3]);
+    }
+
+    #[test]
+    fn a_subgroup_column_is_only_valid_for_the_variable_charts() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", vec![10.0, 10.2, 9.9, 10.1, 10.3, 10.0]),
+            Column::new_text(
+                "part",
+                vec!["A", "A", "A", "B", "B", "B"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+
+        let error = analyze_variable_subgroups(
+            &df,
+            "weight",
+            "part",
+            ControlChartKind::IndividualsMovingRange,
+            TestSet::default(),
+        )
+        .expect_err("only the subgroup charts accept a label column");
+        assert!(error.to_string().contains("X̄–R and X̄–S"), "{error}");
+
+        // One observation in a subgroup is outside the supported size range.
+        let singleton = DataFrame::new(vec![
+            Column::new_f64("weight", vec![10.0, 10.2, 9.9, 10.1, 10.3]),
+            Column::new_text(
+                "part",
+                vec!["A", "A", "A", "A", "B"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+        let error = analyze_variable_subgroups(
+            &singleton,
+            "weight",
+            "part",
+            ControlChartKind::XbarR,
+            TestSet::default(),
+        )
+        .expect_err("a singleton subgroup is not a chart point");
+        assert!(
+            error.to_string().contains("outside the supported range"),
+            "{error}"
+        );
     }
 
     #[test]

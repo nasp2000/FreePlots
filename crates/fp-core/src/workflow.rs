@@ -260,6 +260,8 @@ pub enum AnalysisSpec {
         distribution: DistributionKind,
         /// Subgroup size (1 = individual observations / moving range).
         subgroup: usize,
+        /// Optional column whose labels define the subgroups (normal model).
+        subgroup_column: Option<String>,
         /// Apply the `c4` unbiasing constant to the within estimate.
         unbiasing_within: bool,
         /// Apply the `c4` unbiasing constant to the overall estimate.
@@ -1000,6 +1002,7 @@ impl AnalysisSpec {
             target: None,
             distribution: DistributionKind::Normal,
             subgroup: 1,
+            subgroup_column: None,
             unbiasing_within: true,
             unbiasing_overall: false,
             confidence: 0.95,
@@ -1007,6 +1010,19 @@ impl AnalysisSpec {
             box_cox: false,
             require_stability: false,
         }
+    }
+
+    /// Uses a column of subgroup labels instead of the numeric subgroup size
+    /// (normal capability only).
+    #[must_use]
+    pub fn with_capability_subgroup_column(mut self, column: Option<String>) -> Self {
+        if let Self::Capability {
+            subgroup_column, ..
+        } = &mut self
+        {
+            *subgroup_column = column;
+        }
+        self
     }
 
     /// Enables or disables an automatic Box-Cox transformation (Normal model only).
@@ -3959,6 +3975,7 @@ impl AnalysisSpec {
             Self::Capability {
                 distribution,
                 confidence,
+                subgroup_column,
                 ..
             } => {
                 let model = if *distribution == DistributionKind::Normal {
@@ -3966,7 +3983,13 @@ impl AnalysisSpec {
                 } else {
                     "MLE fit, expected PPM, AD gate, bootstrap CI".to_owned()
                 };
-                format!("Capability Analysis — {}, {model}", distribution.name())
+                match subgroup_column {
+                    Some(column) => format!(
+                        "Capability Analysis — {}, {model}, subgroup column {column}",
+                        distribution.name()
+                    ),
+                    None => format!("Capability Analysis — {}, {model}", distribution.name()),
+                }
             }
         }
     }
@@ -5826,6 +5849,7 @@ pub fn capability_normal(
     lsl: Option<f64>,
     usl: Option<f64>,
     options: CapabilityOptions,
+    subgroup_column: Option<&str>,
 ) -> Result<AnalysisResult> {
     let CapabilityOptions {
         target,
@@ -5862,7 +5886,25 @@ pub fn capability_normal(
     }
 
     let column = df.column(column_name)?;
-    let mut sample = column.sample(MissingPolicy::Drop)?;
+    let mut sample = match subgroup_column {
+        Some(label) => {
+            // A subgroup column defines the analysis rows: a row without a
+            // label cannot enter a subgroup, so it is excluded from every
+            // estimate, not only from the within-subgroup one.
+            let values = df.column(column_name)?;
+            let labels = df.column(label)?;
+            let mut kept = Vec::with_capacity(df.n_rows());
+            let mut excluded = 0usize;
+            for row in 0..df.n_rows() {
+                match (values.value(row), labels.label(row)) {
+                    (Some(value), Some(_)) => kept.push(value),
+                    _ => excluded += 1,
+                }
+            }
+            Sample::from_valid(kept, excluded)?
+        }
+        None => column.sample(MissingPolicy::Drop)?,
+    };
     let stability = crate::spc::individuals_moving_range(&sample).ok();
     if require_stability {
         let chart = stability.as_ref().ok_or_else(|| {
@@ -5918,7 +5960,57 @@ pub fn capability_normal(
         return Err(Error::ConstantSample);
     }
 
-    let (within, within_df) = if subgroup == 1 {
+    // Subgroups from a label column: the pooled within estimate uses each
+    // subgroup's own mean. The values stay on the original scale here and are
+    // Box-Cox transformed below with the same lambda as the whole sample.
+    let grouped: Option<Vec<Vec<f64>>> = match subgroup_column {
+        Some(label) => Some(
+            crate::spc::group_samples(df, column_name, label)?
+                .iter()
+                .map(|group| group.values().to_vec())
+                .collect(),
+        ),
+        None => None,
+    };
+
+    let (within, within_df) = if let Some(groups) = &grouped {
+        // One subgroup per distinct label, in first-appearance order.
+        if groups.len() < 2 {
+            return Err(Error::Unsupported(
+                "subgroup capability needs at least two subgroups".to_owned(),
+            ));
+        }
+        let mut total = 0usize;
+        let mut ss = 0.0;
+        for group in groups {
+            let values: Vec<f64> = match box_lambda {
+                Some(lambda) => group
+                    .iter()
+                    .map(|&value| crate::boxcox::transform(value, lambda))
+                    .collect::<Result<Vec<_>>>()?,
+                None => group.clone(),
+            };
+            if values.len() < 2 {
+                return Err(Error::Unsupported(
+                    "every subgroup needs at least two observations".to_owned(),
+                ));
+            }
+            let group_mean = values.iter().sum::<f64>() / values.len() as f64;
+            ss += values
+                .iter()
+                .map(|value| (value - group_mean).powi(2))
+                .sum::<f64>();
+            total += values.len();
+        }
+        let degrees = total - groups.len();
+        let pooled = (ss / degrees as f64).sqrt();
+        let within = if unbiasing_within {
+            pooled / c4(degrees + 1)
+        } else {
+            pooled
+        };
+        (within, degrees as f64)
+    } else if subgroup == 1 {
         let moving = sample
             .values()
             .windows(2)
@@ -6107,10 +6199,23 @@ pub fn capability_normal(
             );
         }
     }
-    result.extra.push(Item::Message(
-        "Within = average moving range / d2(2) for subgroup 1; overall = sample standard deviation."
-            .to_owned(),
-    ));
+    result.extra.push(Item::Message(match (&grouped, subgroup) {
+        (Some(_), _) => {
+            "Within = pooled standard deviation over the subgroups (n − g degrees of freedom); \
+             overall = sample standard deviation."
+                .to_owned()
+        }
+        (None, 1) => {
+            "Within = average moving range / d2(2) for subgroup 1; overall = sample standard \
+             deviation."
+                .to_owned()
+        }
+        (None, _) => {
+            "Within = pooled standard deviation over consecutive subgroups (n − g degrees of \
+             freedom); overall = sample standard deviation."
+                .to_owned()
+        }
+    }));
     result.extra.push(Item::Table {
         headers: vec![
             "Metric".to_owned(),
@@ -6137,7 +6242,20 @@ pub fn capability_normal(
             .push(expected_ppm_table(overall_ppm, within_ppm, confidence));
     }
     result.notes = vec![
-        ("Subgroup size".to_owned(), subgroup.to_string()),
+        (
+            if grouped.is_some() {
+                "Subgroups"
+            } else {
+                "Subgroup size"
+            }
+            .to_owned(),
+            match (subgroup_column, &grouped) {
+                (Some(label), Some(groups)) => {
+                    format!("column {label}; {} subgroups", groups.len())
+                }
+                _ => subgroup.to_string(),
+            },
+        ),
         (
             "Specification".to_owned(),
             format!(
@@ -7964,6 +8082,7 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
             target,
             distribution,
             subgroup,
+            subgroup_column,
             unbiasing_within,
             unbiasing_overall,
             confidence,
@@ -7974,6 +8093,12 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
             if *box_cox && *distribution != DistributionKind::Normal {
                 return Err(Error::Unsupported(
                     "Box-Cox is only available for the normal capability model".to_owned(),
+                ));
+            }
+            if subgroup_column.is_some() && *distribution != DistributionKind::Normal {
+                return Err(Error::Unsupported(
+                    "a subgroup column is only available for the normal capability model"
+                        .to_owned(),
                 ));
             }
             let mut result = if *distribution == DistributionKind::Normal {
@@ -7992,6 +8117,7 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
                         confidence: *confidence,
                         require_stability: *require_stability,
                     },
+                    subgroup_column.as_deref(),
                 )?
             } else {
                 capability_non_normal(
@@ -9923,6 +10049,119 @@ mod tests {
             .expect("StDev row");
         // Average moving range 1.0 divided by the published d2(2) = 1.128.
         assert!(line.contains("0.886525"), "{line}");
+    }
+
+    #[test]
+    fn capability_groups_the_rows_by_a_label_column() {
+        // A: 10.0, 10.2, 9.8  →  ss = 0.08
+        // B: 20.0, 20.4       →  ss = 0.08
+        // n = 5, g = 2, df = 3, pooled = sqrt(0.16 / 3), c4(4) = 0.9213177.
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", vec![10.0, 20.0, 10.2, 20.4, 9.8]),
+            Column::new_text(
+                "part",
+                vec!["A", "B", "A", "B", "A"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+        let spec = AnalysisSpec::capability("weight", Some(0.0), Some(30.0))
+            .with_capability_subgroup_column(Some("part".to_owned()));
+        let out = run_analysis(&df, &spec).expect("grouped capability");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("subgroup column part"), "{text}");
+        assert!(text.contains("column part; 2 subgroups"), "{text}");
+        let line = text
+            .lines()
+            .find(|line| line.trim_start().starts_with("StDev "))
+            .expect("StDev row");
+        assert!(line.contains("0.250663"), "{line}");
+        assert!(
+            text.contains("pooled standard deviation over the subgroups"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn capability_drops_rows_with_a_missing_value_or_a_missing_label() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("weight", vec![10.0, 10.2, f64::NAN, 10.1, 10.4, 10.0, 10.2]),
+            Column::new_text(
+                "part",
+                vec!["A", "A", "A", "", "B", "B", "B"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+        let spec = AnalysisSpec::capability("weight", Some(0.0), Some(30.0))
+            .with_capability_subgroup_column(Some("part".to_owned()));
+        let out = run_analysis(&df, &spec).expect("grouped capability");
+        assert_eq!(out.results[0].n, 5);
+        assert_eq!(out.results[0].excluded, 2);
+        assert!(out.results[0].to_session_text().contains("2 subgroups"));
+    }
+
+    #[test]
+    fn a_capability_subgroup_column_rejects_degenerate_groups() {
+        let singleton = DataFrame::new(vec![
+            Column::new_f64("weight", vec![10.0, 10.2, 9.9, 10.1, 10.3]),
+            Column::new_text(
+                "part",
+                vec!["A", "A", "A", "A", "B"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            ),
+        ])
+        .expect("frame");
+        let spec = AnalysisSpec::capability("weight", Some(0.0), Some(30.0))
+            .with_capability_subgroup_column(Some("part".to_owned()));
+        let error = run_analysis(&singleton, &spec).expect_err("a singleton subgroup");
+        assert!(
+            error
+                .to_string()
+                .contains("every subgroup needs at least two"),
+            "{error}"
+        );
+
+        // A single label is not a subgroup study.
+        let single = DataFrame::new(vec![
+            Column::new_f64("weight", vec![10.0, 10.2, 9.9, 10.1]),
+            Column::new_text(
+                "part",
+                vec!["A"; 4].into_iter().map(str::to_owned).collect(),
+            ),
+        ])
+        .expect("frame");
+        let error = run_analysis(&single, &spec).expect_err("a single subgroup");
+        assert!(
+            error.to_string().contains("at least two subgroups"),
+            "{error}"
+        );
+
+        // The column is a normal-model option.
+        let error = run_analysis(
+            &single,
+            &AnalysisSpec::capability("weight", Some(0.0), Some(30.0))
+                .with_capability_distribution(DistributionKind::Weibull)
+                .with_capability_subgroup_column(Some("part".to_owned())),
+        )
+        .expect_err("a subgroup column on a non-normal model");
+        assert!(
+            error.to_string().contains("only available for the normal"),
+            "{error}"
+        );
+        let error = run_analysis(
+            &single,
+            &AnalysisSpec::capability("weight", Some(0.0), Some(30.0))
+                .with_capability_subgroup_column(Some("missing".to_owned())),
+        )
+        .expect_err("an unknown column");
+        assert!(matches!(error, Error::ColumnNotFound(_)), "{error}");
     }
 
     #[test]

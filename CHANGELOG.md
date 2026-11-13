@@ -4,6 +4,28 @@ All notable changes to FreePlots are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- The control-chart dialog has a *How to choose subgroups…* page with an
+  overview, the data shapes the chart accepts and a worked example of a label
+  column. It is available in both interface languages.
+- The method notes describe the X̄–R and X̄–S charts built from a label column:
+  first-appearance order, dropped rows, 2–25 observations per subgroup and
+  per-point limits.
+- Normal capability accepts a *Subgroup column* (CLI `--subgroup-column`): the
+  pooled within-subgroup standard deviation uses each label group's own mean
+  and `n − g` degrees of freedom, so Cp/Cpk no longer require consecutive
+  equal-size groups. It has its own *How to choose subgroups…* help page.
+
+### Changed
+
+- The tests for the label column cover interleaved labels, rows with a missing
+  measurement or label, a chart family that does not accept the column and a
+  singleton subgroup. Capability adds the pooled grouped estimate, the dropped
+  rows, a singleton group, a single group and a non-normal model.
+
 ## [0.1.1] - 2026-11-12
 
 ### Added

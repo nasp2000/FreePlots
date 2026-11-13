@@ -132,7 +132,9 @@ impl FreePlotsApp {
         self.sheet_rename_window(&ctx);
         self.probability_plot_dialog(&ctx);
         self.capability_dialog(&ctx);
+        self.capability_help_window(&ctx);
         self.control_chart_dialog(&ctx);
+        self.chart_help_window(&ctx);
         self.attribute_chart_dialog(&ctx);
         self.t_test_dialog(&ctx);
         self.equivalence_dialog(&ctx);

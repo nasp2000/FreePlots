@@ -265,6 +265,20 @@ fn process_frame() -> DataFrame {
     DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame")
 }
 
+/// Three parts measured three times each, in interleaved rows.
+fn subgroup_frame() -> DataFrame {
+    let weight = vec![10.0, 10.4, 10.2, 10.2, 10.6, 10.3, 9.9, 10.5, 10.7];
+    let part: Vec<String> = ["A", "B", "C", "A", "B", "C", "A", "B", "C"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    DataFrame::new(vec![
+        Column::new_f64("weight", weight),
+        Column::new_text("part", part),
+    ])
+    .expect("frame")
+}
+
 /// Two 0/1 columns for the proportion tests.
 fn proportion_frame() -> DataFrame {
     DataFrame::new(vec![
@@ -2933,6 +2947,114 @@ fn control_chart_reaches_the_session_and_plot() {
     assert_eq!(app.plot().expect("plot").panels.len(), 2);
     app.run_control_chart("weight", ControlChartKind::XbarR, 2);
     assert!(app.session_text().contains("Control Chart: X̄–R"));
+}
+
+#[test]
+fn a_subgroup_column_groups_the_rows_by_label() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.chart_subgroup_column = "part".to_owned();
+    app.run_control_chart("weight", ControlChartKind::XbarR, 5);
+    let text = app.session_text();
+    assert!(text.contains("subgroup column part"), "{text}");
+    assert!(text.contains("variable sizes (3–3)"), "{text}");
+    assert!(text.contains("one point per subgroup"), "{text}");
+    // The table lists the three subgroups in first-appearance order.
+    assert!(text.contains("Subgroup"), "{text}");
+    let plot = app.plot().expect("plot");
+    assert_eq!(plot.panels[0].points.len(), 3);
+
+    // A singleton subgroup is not a chart point: the status says why and the
+    // Session is not touched.
+    let mut short = FreePlotsApp::new();
+    let one = DataFrame::new(vec![
+        Column::new_f64("weight", vec![10.0, 10.2, 9.9, 10.1, 10.3]),
+        Column::new_text(
+            "part",
+            vec!["A", "A", "A", "A", "B"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        ),
+    ])
+    .expect("frame");
+    short.set_data(one, "parts.csv".to_owned());
+    short.chart_subgroup_column = "part".to_owned();
+    short.run_control_chart("weight", ControlChartKind::XbarR, 5);
+    assert!(
+        short.status.contains("outside the supported range"),
+        "{}",
+        short.status
+    );
+    assert!(short.session_text().is_empty(), "{}", short.session_text());
+}
+
+#[test]
+fn the_capability_help_explains_the_subgroup_column() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_cap_dialog = true;
+    app.cap_column = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("How to choose subgroups…").click();
+    harness.run();
+    assert!(harness.state().show_cap_help);
+    harness.get_by_label("Capability help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("pooled within-subgroup standard deviation");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da capacidade");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_cap_help);
+}
+
+#[test]
+fn the_control_chart_help_explains_the_subgroup_column() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_chart_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("How to choose subgroups…").click();
+    harness.run();
+    assert!(harness.state().show_chart_help);
+    harness.get_by_label("Control chart help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("Rows with a missing measurement or label are not used");
+    harness.get_by_label("Example");
+
+    // The same page follows the language of the interface.
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da carta de controlo");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_chart_help);
 }
 
 #[test]
