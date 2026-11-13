@@ -694,6 +694,41 @@ impl UiCatalog {
                  proporção média é 3 %, ou 30 000 PPM defeituoso, e o process Z é 1,88. Para \
                  defeitos, 24 defeitos em 40 unidades dão DPU 0,60 e 600 000 PPM de defeitos."
             }
+            "T Chart (Rare Events)" => "Carta T (eventos raros)",
+            "T Chart (Rare Events)…" => "Carta T (eventos raros)…",
+            "T Chart help" => "Ajuda da carta T",
+            "About the T chart…" => "Acerca da carta T…",
+            "The T chart monitors the time between successive events. When the events \
+             are rare the intervals are skewed, so the limits are the 0.135 % and \
+             99.865 % quantiles of the fitted distribution and the centre line is its \
+             median. A short interval means the events are clustering; a long one means \
+             the process slowed." => {
+                "A carta T acompanha o tempo entre eventos sucessivos. Quando os eventos são \
+                 raros os intervalos são assimétricos, por isso os limites são os quantis de \
+                 0,135 % e 99,865 % da distribuição ajustada e a linha central é a sua mediana. \
+                 Um intervalo curto significa que os eventos se estão a agrupar; um intervalo \
+                 longo significa que o processo abrandou."
+            }
+            "One numeric column holds the positive time between successive events, in \
+             order. Rows with a missing time are excluded and counted. The exponential \
+             model uses the mean interval; the gamma model estimates the shape and scale \
+             from the mean and the n−1 variance, so it needs intervals that are not all \
+             equal." => {
+                "Uma coluna numérica contém o tempo positivo entre eventos sucessivos, pela \
+                 ordem. As linhas com um tempo em falta são excluídas e contadas. O modelo \
+                 exponencial usa o intervalo médio; o modelo gama estima a forma e a escala a \
+                 partir da média e da variância com n−1, por isso precisa de intervalos que não \
+                 sejam todos iguais."
+            }
+            "Five failures arrive 10, 12, 8, 15 and 9 days apart. The mean is 10.8 days, \
+             so the median is 7.49 days and the exponential limits are 0.015 and 71.36 \
+             days. Choose the gamma model when the intervals vary less than an \
+             exponential distribution would." => {
+                "Cinco falhas chegam com 10, 12, 8, 15 e 9 dias de intervalo. A média é 10,8 \
+                 dias, pelo que a mediana é 7,49 dias e os limites exponenciais são 0,015 e \
+                 71,36 dias. Escolha o modelo gama quando os intervalos variam menos do que uma \
+                 distribuição exponencial faria."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

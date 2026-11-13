@@ -614,6 +614,13 @@ pub enum AnalysisSpec {
         /// Optional column with the time of every interval.
         times: Option<String>,
     },
+    /// T chart (time between rare events).
+    TimeBetweenEvents {
+        /// Column with the time between successive events.
+        times: String,
+        /// Distribution fitted to the intervals.
+        model: crate::rare::TChartDistribution,
+    },
     /// Tolerance interval of a column (normal or distribution-free).
     ToleranceInterval {
         /// Column to analyse.
@@ -1734,6 +1741,24 @@ impl AnalysisSpec {
         }
     }
 
+    /// T chart (time between rare events) with the exponential model.
+    #[must_use]
+    pub fn t_chart(times: impl Into<String>) -> Self {
+        Self::TimeBetweenEvents {
+            times: times.into(),
+            model: crate::rare::TChartDistribution::Exponential,
+        }
+    }
+
+    /// Replaces the distribution fitted to the intervals.
+    #[must_use]
+    pub fn with_t_chart_model(mut self, model: crate::rare::TChartDistribution) -> Self {
+        if let Self::TimeBetweenEvents { model: slot, .. } = &mut self {
+            *slot = model;
+        }
+        self
+    }
+
     /// Normal tolerance interval of a column.
     #[must_use]
     pub fn tolerance_interval(column: impl Into<String>) -> Self {
@@ -2689,6 +2714,7 @@ impl AnalysisSpec {
             Self::Boxplot { column, .. } | Self::Histogram { column, .. } => column,
             Self::Scatterplot { x, .. } => x,
             Self::AttributeChart { defects, .. } => defects,
+            Self::TimeBetweenEvents { times, .. } => times,
             Self::Friedman { columns } | Self::Correlation { columns } => {
                 columns.first().map_or("", String::as_str)
             }
@@ -2761,6 +2787,7 @@ impl AnalysisSpec {
             | Self::BoxCox { .. }
             | Self::ToleranceInterval { .. }
             | Self::RareEvents { .. }
+            | Self::TimeBetweenEvents { .. }
             | Self::Levene { .. }
             | Self::Bartlett { .. }
             | Self::ChiSquareGoodnessOfFit { .. }
@@ -2840,6 +2867,7 @@ impl AnalysisSpec {
             | Self::BoxCox { .. }
             | Self::ToleranceInterval { .. }
             | Self::RareEvents { .. }
+            | Self::TimeBetweenEvents { .. }
             | Self::Levene { .. }
             | Self::Bartlett { .. }
             | Self::ChiSquareGoodnessOfFit { .. }
@@ -2922,6 +2950,7 @@ impl AnalysisSpec {
             | Self::BoxCox { .. }
             | Self::ToleranceInterval { .. }
             | Self::RareEvents { .. }
+            | Self::TimeBetweenEvents { .. }
             | Self::Levene { .. }
             | Self::Bartlett { .. }
             | Self::ChiSquareGoodnessOfFit { .. }
@@ -3002,6 +3031,7 @@ impl AnalysisSpec {
             | Self::BoxCox { .. }
             | Self::ToleranceInterval { .. }
             | Self::RareEvents { .. }
+            | Self::TimeBetweenEvents { .. }
             | Self::Levene { .. }
             | Self::Bartlett { .. }
             | Self::ChiSquareGoodnessOfFit { .. }
@@ -3084,6 +3114,7 @@ impl AnalysisSpec {
             | Self::BoxCox { .. }
             | Self::ToleranceInterval { .. }
             | Self::RareEvents { .. }
+            | Self::TimeBetweenEvents { .. }
             | Self::Levene { .. }
             | Self::Bartlett { .. }
             | Self::ChiSquareGoodnessOfFit { .. }
@@ -3164,6 +3195,7 @@ impl AnalysisSpec {
             | Self::BoxCox { .. }
             | Self::ToleranceInterval { .. }
             | Self::RareEvents { .. }
+            | Self::TimeBetweenEvents { .. }
             | Self::Levene { .. }
             | Self::Bartlett { .. }
             | Self::ChiSquareGoodnessOfFit { .. }
@@ -3244,6 +3276,7 @@ impl AnalysisSpec {
             | Self::BoxCox { .. }
             | Self::ToleranceInterval { .. }
             | Self::RareEvents { .. }
+            | Self::TimeBetweenEvents { .. }
             | Self::Levene { .. }
             | Self::Bartlett { .. }
             | Self::ChiSquareGoodnessOfFit { .. }
@@ -3331,6 +3364,7 @@ impl AnalysisSpec {
             | Self::BoxCox { .. }
             | Self::ToleranceInterval { .. }
             | Self::RareEvents { .. }
+            | Self::TimeBetweenEvents { .. }
             | Self::Levene { .. }
             | Self::Bartlett { .. }
             | Self::ChiSquareGoodnessOfFit { .. }
@@ -3636,6 +3670,12 @@ impl AnalysisSpec {
             ),
             Self::RareEvents { counts, .. } => {
                 format!("G chart (rare events) — {counts}")
+            }
+            Self::TimeBetweenEvents { times, model } => {
+                format!(
+                    "T chart (time between events) — {times}, {} model",
+                    model.name()
+                )
             }
             Self::CurveFit {
                 x_column,
@@ -7597,6 +7637,19 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
         }
         AnalysisSpec::RareEvents { counts, times } => {
             let out = crate::rare::analyze(df, counts, times.as_deref())?;
+            let mut results = out.results;
+            if let Some(result) = results.first_mut() {
+                result
+                    .notes
+                    .push(("Analysis".to_owned(), spec.description()));
+            }
+            Ok(AnalysisOutput {
+                results,
+                plot: out.plot,
+            })
+        }
+        AnalysisSpec::TimeBetweenEvents { times, model } => {
+            let out = crate::rare::analyze_times(df, times, *model)?;
             let mut results = out.results;
             if let Some(result) = results.first_mut() {
                 result

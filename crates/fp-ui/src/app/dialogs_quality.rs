@@ -1335,6 +1335,191 @@ impl FreePlotsApp {
             self.run_g_chart_dialog();
         }
     }
+    /// Opens the T chart dialog with the selected column.
+    pub fn open_t_chart_dialog(&mut self) {
+        self.t_chart_times = self.selected.clone().unwrap_or_default();
+        self.show_t_chart_dialog = true;
+    }
+
+    /// Runs the T chart selected in the dialog.
+    pub fn run_t_chart_dialog(&mut self) {
+        if self.t_chart_times.is_empty() {
+            self.set_error("Select the column with the time between events");
+            return;
+        }
+        let spec = AnalysisSpec::t_chart(self.t_chart_times.clone())
+            .with_t_chart_model(self.t_chart_model);
+        let label = format!("T Chart (Rare Events): {}", self.t_chart_times);
+        self.execute_spec(spec, label);
+        self.show_t_chart_dialog = false;
+    }
+
+    /// T chart dialog: intervals between rare events.
+    pub(super) fn t_chart_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_t_chart_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_t_chart_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("T Chart (Rare Events)"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Time column:");
+                    egui::ComboBox::from_id_salt("t_chart_times")
+                        .selected_text(if self.t_chart_times.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.t_chart_times.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.t_chart_times,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Model:");
+                    egui::ComboBox::from_id_salt("t_chart_model")
+                        .selected_text(self.t_chart_model.name())
+                        .width(120.0)
+                        .show_ui(ui, |ui| {
+                            for model in [
+                                fp_core::rare::TChartDistribution::Exponential,
+                                fp_core::rare::TChartDistribution::Gamma,
+                            ] {
+                                ui.selectable_value(&mut self.t_chart_model, model, model.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "The time between successive events; the limits are the 0.135 % and \
+                     99.865 % quantiles of the fitted distribution and the centre line is its \
+                     median.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About the T chart…"))
+                        .clicked()
+                    {
+                        self.show_t_chart_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.t_chart_times.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_t_chart_dialog = open && !run && !cancel;
+        if run {
+            self.run_t_chart_dialog();
+        }
+    }
+
+    /// Help page of the T chart dialog.
+    pub(super) fn t_chart_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_t_chart_help {
+            return;
+        }
+        let mut open = self.show_t_chart_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("T Chart help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The T chart monitors the time between successive events. When the events \
+                     are rare the intervals are skewed, so the limits are the 0.135 % and \
+                     99.865 % quantiles of the fitted distribution and the centre line is its \
+                     median. A short interval means the events are clustering; a long one means \
+                     the process slowed.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column holds the positive time between successive events, in \
+                     order. Rows with a missing time are excluded and counted. The exponential \
+                     model uses the mean interval; the gamma model estimates the shape and scale \
+                     from the mean and the n−1 variance, so it needs intervals that are not all \
+                     equal.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Five failures arrive 10, 12, 8, 15 and 9 days apart. The mean is 10.8 days, \
+                     so the median is 7.49 days and the exponential limits are 0.015 and 71.36 \
+                     days. Choose the gamma model when the intervals vary less than an \
+                     exponential distribution would.",
+                ));
+                egui::Grid::new("t_chart_help_example")
+                    .num_columns(2)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("interval");
+                        ui.strong("days");
+                        ui.end_row();
+                        for (interval, days) in [
+                            ("1", "10"),
+                            ("2", "12"),
+                            ("3", "8"),
+                            ("4", "15"),
+                            ("5", "9"),
+                        ] {
+                            ui.monospace(interval);
+                            ui.monospace(days);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_t_chart_help = open && !close;
+    }
+
     pub fn open_tolerance_dialog(&mut self) {
         self.tolerance_column = self.selected.clone().unwrap_or_default();
         self.show_tolerance_dialog = true;

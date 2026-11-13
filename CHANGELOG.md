@@ -28,6 +28,10 @@ All notable changes to FreePlots are recorded here. The format follows
   exact confidence interval and the normal-equivalent process Z, over the same
   defect and size columns as the attribute charts. It has its own help page in
   both interface languages.
+- Quality Tools has a *T Chart (Rare Events)…* entry: the time between
+  successive events with the exponential or gamma model, limits at the
+  0.135 %/99.865 % quantiles and the median as the centre line, with its own
+  help page in both interface languages.
 
 ### Changed
 
@@ -39,6 +43,9 @@ All notable changes to FreePlots are recorded here. The format follows
   label column, a short study and the models and sizes it refuses. The
   attribute capability covers the pooled binomial and Poisson estimates, the
   exact intervals, zero counts and the invalid counts, sizes and confidence.
+  The T chart covers the exponential limits against the closed-form values,
+  the gamma moments, zero and negative intervals, a single observation, a
+  missing row and a point outside the lower limit.
 
 ## [0.1.1] - 2026-11-12
 

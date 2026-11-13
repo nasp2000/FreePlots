@@ -285,6 +285,273 @@ fn plot(counts_column: &str, chart: &RareEventsChart) -> PlotSpec {
     }
 }
 
+/// Distribution fitted to the time between events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TChartDistribution {
+    /// Exponential distribution (a gamma with shape 1).
+    Exponential,
+    /// Gamma distribution with the shape and scale estimated by moments.
+    Gamma,
+}
+
+impl TChartDistribution {
+    /// Short name used in titles and menus.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Exponential => "Exponential",
+            Self::Gamma => "Gamma",
+        }
+    }
+}
+
+/// The t chart of the time between rare events.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TimeBetweenEventsChart {
+    /// The time between successive events, in order.
+    pub times: Vec<f64>,
+    /// Fitted distribution.
+    pub distribution: TChartDistribution,
+    /// Mean time between events.
+    pub mean: f64,
+    /// Shape of the fitted gamma (1 for the exponential model).
+    pub shape: f64,
+    /// Scale of the fitted gamma (the mean for the exponential model).
+    pub scale: f64,
+    /// The centre line and the control limits.
+    pub limits: Limits,
+    /// The intervals outside the limits.
+    pub signals: Vec<usize>,
+    /// Observations used.
+    pub n: usize,
+    /// Rows excluded because the time was missing.
+    pub excluded: usize,
+}
+
+/// Builds the t chart from a column of times between events.
+///
+/// # Errors
+///
+/// Returns [`Error::Cell`] for a zero or negative interval,
+/// [`Error::ConstantSample`] when the gamma model is asked for a constant
+/// sample, and the usual errors for an empty or single-observation column.
+pub fn build_times(
+    df: &DataFrame,
+    times_column: &str,
+    distribution: TChartDistribution,
+) -> Result<TimeBetweenEventsChart> {
+    let source = df.column(times_column)?;
+    let mut times = Vec::new();
+    let mut excluded = 0;
+    for row in 0..df.n_rows() {
+        let Some(value) = numeric(source, row) else {
+            excluded += 1;
+            continue;
+        };
+        if value <= 0.0 {
+            return Err(Error::Cell {
+                column: times_column.to_owned(),
+                row: row + 1,
+                message: "the time between events must be positive".to_owned(),
+            });
+        }
+        times.push(value);
+    }
+    let n = times.len();
+    if n == 0 {
+        return Err(Error::EmptySample);
+    }
+    if n < 2 {
+        return Err(Error::SampleTooSmall { n, min: 2 });
+    }
+    let mean = times.iter().sum::<f64>() / n as f64;
+    let (shape, scale) = match distribution {
+        TChartDistribution::Exponential => (1.0, mean),
+        TChartDistribution::Gamma => {
+            let variance =
+                times.iter().map(|time| (time - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
+            if variance <= 0.0 {
+                return Err(Error::ConstantSample);
+            }
+            (mean * mean / variance, variance / mean)
+        }
+    };
+    // Gamma(k, θ) is θ/2 times a chi-square with 2k degrees of freedom, so the
+    // exponential (k = 1) is the same expression with the shape fixed at one.
+    let quantile = |probability: f64| {
+        scale * crate::special::chi_square_quantile(probability, 2.0 * shape) / 2.0
+    };
+    let limits = Limits {
+        center: quantile(0.5),
+        lcl: quantile(0.00135),
+        ucl: quantile(0.99865),
+    };
+    let signals = times
+        .iter()
+        .enumerate()
+        .filter(|(_, time)| **time > limits.ucl || **time < limits.lcl)
+        .map(|(index, _)| index + 1)
+        .collect();
+    Ok(TimeBetweenEventsChart {
+        times,
+        distribution,
+        mean,
+        shape,
+        scale,
+        limits,
+        signals,
+        n,
+        excluded,
+    })
+}
+
+/// Runs the t chart analysis and builds the plot.
+pub fn analyze_times(
+    df: &DataFrame,
+    times_column: &str,
+    distribution: TChartDistribution,
+) -> Result<crate::workflow::AnalysisOutput> {
+    let chart = build_times(df, times_column, distribution)?;
+    let result = report_times(times_column, &chart);
+    let plot = plot_times(times_column, &chart);
+    Ok(crate::workflow::AnalysisOutput {
+        results: vec![result],
+        plot: Some(plot),
+    })
+}
+
+fn report_times(times_column: &str, chart: &TimeBetweenEventsChart) -> AnalysisResult {
+    let mut result = AnalysisResult::new(
+        format!("T Chart (Rare Events) — {times_column}"),
+        format!(
+            "{} model; limits at the 0.135 % and 99.865 % quantiles",
+            chart.distribution.name()
+        ),
+    );
+    result.n = chart.n;
+    result.excluded = chart.excluded;
+    result.statistics = vec![
+        ("Intervals", chart.n as f64),
+        ("Mean time between events", chart.mean),
+        ("Center line (median)", chart.limits.center),
+        ("Lower control limit", chart.limits.lcl),
+        ("Upper control limit", chart.limits.ucl),
+        ("Shape", chart.shape),
+        ("Scale", chart.scale),
+    ];
+    result.extra.push(Item::Table {
+        headers: vec![
+            "Interval".to_owned(),
+            "Time".to_owned(),
+            "Signal".to_owned(),
+        ],
+        rows: chart
+            .times
+            .iter()
+            .enumerate()
+            .map(|(index, time)| {
+                vec![
+                    (index + 1).to_string(),
+                    format!("{time:.6}"),
+                    if chart.signals.contains(&(index + 1)) {
+                        "outside the limits".to_owned()
+                    } else {
+                        String::new()
+                    },
+                ]
+            })
+            .collect(),
+    });
+    result.notes = vec![
+        (
+            "Chart".to_owned(),
+            "the t chart plots the time between successive events; it is meant for rare events"
+                .to_owned(),
+        ),
+        (
+            "Limits".to_owned(),
+            "the control limits are the 0.135 % and 99.865 % quantiles of the fitted \
+             distribution; the centre line is its median"
+                .to_owned(),
+        ),
+        (
+            "Model".to_owned(),
+            match chart.distribution {
+                TChartDistribution::Exponential => {
+                    "exponential (a gamma with shape 1 and scale equal to the mean interval)"
+                        .to_owned()
+                }
+                TChartDistribution::Gamma => {
+                    "gamma with the shape and scale estimated by moments (n−1 variance)".to_owned()
+                }
+            },
+        ),
+        (
+            "Data policy".to_owned(),
+            "rows with a missing time are excluded and counted; zero or negative intervals are \
+             an error"
+                .to_owned(),
+        ),
+    ];
+    result.warnings = standard_warnings(result.n, result.excluded, 0);
+    if !chart.signals.is_empty() {
+        result.warnings.push(format!(
+            "{} interval(s) outside the control limits",
+            chart.signals.len()
+        ));
+    }
+    result.warnings.push(
+        "the rare-events conventions are standard choices; they have not been verified against \
+         documented output"
+            .to_owned(),
+    );
+    result
+}
+
+fn plot_times(times_column: &str, chart: &TimeBetweenEventsChart) -> PlotSpec {
+    let x_min = 1.0;
+    let x_max = chart.n.max(2) as f64;
+    let mut y_min = chart.limits.lcl;
+    let mut y_max = chart.limits.ucl;
+    for time in &chart.times {
+        y_min = y_min.min(*time);
+        y_max = y_max.max(*time);
+    }
+    let pad = ((y_max - y_min).abs() * 0.05).max(1e-9);
+    y_min = (y_min - pad).max(0.0);
+    y_max += pad;
+    let lines = [chart.limits.center, chart.limits.lcl, chart.limits.ucl]
+        .into_iter()
+        .map(|y| Segment {
+            from: Point { x: x_min, y },
+            to: Point { x: x_max, y },
+            width: 1.5,
+        })
+        .collect();
+    PlotSpec {
+        title: format!("T Chart (Rare Events) — {times_column}"),
+        x_axis: linear_axis("Event", x_min, x_max),
+        y_axis: linear_axis("Time between events", y_min, y_max),
+        size: (900, 400),
+        points: chart
+            .times
+            .iter()
+            .enumerate()
+            .map(|(index, time)| Point {
+                x: (index + 1) as f64,
+                y: *time,
+            })
+            .collect(),
+        lines,
+        bands: Vec::new(),
+        series: Vec::new(),
+        panels: Vec::new(),
+        panel_columns: 1,
+        secondary: None,
+        notes: Vec::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -292,6 +559,89 @@ mod tests {
 
     fn frame(counts: Vec<f64>) -> DataFrame {
         DataFrame::new(vec![Column::new_f64("events", counts)]).expect("frame")
+    }
+
+    fn times_frame(times: Vec<f64>) -> DataFrame {
+        DataFrame::new(vec![Column::new_f64("gap", times)]).expect("frame")
+    }
+
+    #[test]
+    fn the_t_chart_limits_follow_the_exponential_model() {
+        let df = times_frame(vec![10.0, 12.0, 8.0, 15.0, 9.0]);
+        let chart = build_times(&df, "gap", TChartDistribution::Exponential).expect("chart");
+        // Mean 10.8: median = mean·ln 2 and limits at the 0.135 %/99.865 %
+        // exponential quantiles.
+        assert!((chart.mean - 10.8).abs() < 1e-12);
+        assert!((chart.limits.center - 7.485_989_550_047_409).abs() < 1e-9);
+        assert!((chart.limits.lcl - 0.014_589_850_366_327).abs() < 1e-9);
+        assert!((chart.limits.ucl - 71.362_627_414_543_44).abs() < 1e-6);
+        assert!(chart.signals.is_empty(), "{:?}", chart.signals);
+        assert_eq!(chart.shape, 1.0);
+        assert!((chart.scale - 10.8).abs() < 1e-12);
+        let text = report_times("gap", &chart).to_session_text();
+        assert!(text.contains("T Chart"), "{text}");
+        assert!(text.contains("Exponential"), "{text}");
+        assert!(text.contains("Center line"), "{text}");
+    }
+
+    #[test]
+    fn the_t_chart_gamma_model_uses_the_moments() {
+        let df = times_frame(vec![10.0, 12.0, 8.0, 15.0, 9.0]);
+        let chart = build_times(&df, "gap", TChartDistribution::Gamma).expect("chart");
+        // Mean 10.8, n−1 variance 7.7: shape = mean²/variance, scale = variance/mean.
+        assert!((chart.shape - 15.148_051_948_051_95).abs() < 1e-9);
+        assert!((chart.scale - 0.712_962_962_962_963).abs() < 1e-12);
+        assert!(chart.limits.lcl < chart.limits.center);
+        assert!(chart.limits.center < chart.limits.ucl);
+        let expected_center =
+            chart.scale * crate::special::chi_square_quantile(0.5, 2.0 * chart.shape) / 2.0;
+        assert!((chart.limits.center - expected_center).abs() < 1e-12);
+
+        let constant = times_frame(vec![5.0, 5.0, 5.0]);
+        assert!(matches!(
+            build_times(&constant, "gap", TChartDistribution::Gamma),
+            Err(Error::ConstantSample)
+        ));
+        // The exponential model accepts a constant sample; every point sits on
+        // the centre line.
+        let chart = build_times(&constant, "gap", TChartDistribution::Exponential).expect("chart");
+        assert!((chart.mean - 5.0).abs() < 1e-12);
+        assert!(chart.signals.is_empty());
+    }
+
+    #[test]
+    fn the_t_chart_rejects_invalid_intervals() {
+        let zero = times_frame(vec![10.0, 0.0, 12.0]);
+        let error = build_times(&zero, "gap", TChartDistribution::Exponential)
+            .expect_err("a zero interval");
+        assert!(error.to_string().contains("must be positive"), "{error}");
+
+        let negative = times_frame(vec![10.0, -1.0]);
+        assert!(matches!(
+            build_times(&negative, "gap", TChartDistribution::Exponential),
+            Err(Error::Cell { .. })
+        ));
+
+        let single = times_frame(vec![10.0]);
+        assert!(matches!(
+            build_times(&single, "gap", TChartDistribution::Exponential),
+            Err(Error::SampleTooSmall { .. })
+        ));
+
+        let missing = times_frame(vec![10.0, f64::NAN, 12.0, 9.0]);
+        let chart = build_times(&missing, "gap", TChartDistribution::Exponential).expect("chart");
+        assert_eq!(chart.n, 3);
+        assert_eq!(chart.excluded, 1);
+    }
+
+    #[test]
+    fn an_interval_below_the_t_chart_limit_is_a_signal() {
+        // Mean 8.0002: LCL 0.0108, so the 0.001 interval is outside.
+        let df = times_frame(vec![10.0, 10.0, 10.0, 10.0, 0.001]);
+        let chart = build_times(&df, "gap", TChartDistribution::Exponential).expect("chart");
+        assert_eq!(chart.signals, vec![5]);
+        let text = report_times("gap", &chart).to_session_text();
+        assert!(text.contains("outside the limits"), "{text}");
     }
 
     #[test]

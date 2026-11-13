@@ -147,6 +147,8 @@ impl FreePlotsApp {
         self.two_way_dialog(&ctx);
         self.crosstab_dialog(&ctx);
         self.g_chart_dialog(&ctx);
+        self.t_chart_dialog(&ctx);
+        self.t_chart_help_window(&ctx);
         self.partial_dialog(&ctx);
         self.box_cox_dialog(&ctx);
         self.tolerance_dialog(&ctx);

@@ -1101,6 +1101,13 @@ impl FreePlotsApp {
                         self.open_g_chart_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("T Chart (Rare Events)…"), None, ready)
+                        .on_hover_text("Time between rare events, with exponential or gamma limits")
+                        .clicked()
+                    {
+                        self.open_t_chart_dialog();
+                        ui.close();
+                    }
                 });
                 help_menu_button(ui, self.catalog().label("Quality Tools"), |ui| {
                     let ready = self.selection_is_numeric();

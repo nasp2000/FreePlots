@@ -3994,6 +3994,49 @@ fn the_attribute_capability_dialog_reports_ppm_defects() {
     assert!(session.contains("Mean DPU"), "{session}");
 }
 
+#[test]
+fn the_t_chart_dialog_reports_the_exponential_limits() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![Column::new_f64(
+        "gap",
+        vec![10.0, 12.0, 8.0, 15.0, 9.0],
+    )])
+    .expect("frame");
+    ui.load_frame(df, "gaps.csv");
+    open(
+        &mut ui,
+        &["Stat", "Quality Tools", "T Chart (Rare Events)…"],
+    );
+    ui.select("Time column:", "gap").expect("column");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("T Chart (Rare Events)"), "{session}");
+    assert!(session.contains("Exponential"), "{session}");
+    assert!(session.contains("Lower control limit"), "{session}");
+    assert!(ui.plot().is_some());
+}
+
+#[test]
+fn the_t_chart_dialog_reads_the_gamma_model() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![Column::new_f64(
+        "gap",
+        vec![10.0, 12.0, 8.0, 15.0, 9.0],
+    )])
+    .expect("frame");
+    ui.load_frame(df, "gaps.csv");
+    open(
+        &mut ui,
+        &["Stat", "Quality Tools", "T Chart (Rare Events)…"],
+    );
+    ui.select("Model:", "Gamma").expect("model");
+    ui.select("Time column:", "gap").expect("column");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Gamma model"), "{session}");
+    assert!(session.contains("Shape"), "{session}");
+}
+
 /// Two responses with a common interior optimum, for the response optimizer.
 fn desirability_frame() -> DataFrame {
     let mut a = Vec::new();

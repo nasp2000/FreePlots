@@ -1153,6 +1153,12 @@ pub struct FreePlotsApp {
     partial_control: String,
     g_chart_counts: String,
     g_chart_times: String,
+    /// T chart dialog (time between rare events).
+    show_t_chart_dialog: bool,
+    /// Help page of the T chart dialog.
+    show_t_chart_help: bool,
+    t_chart_times: String,
+    t_chart_model: fp_core::rare::TChartDistribution,
     crosstab_row: String,
     crosstab_column: String,
     two_way_response: String,
@@ -3901,6 +3907,8 @@ impl FreePlotsApp {
         self.show_equivalence_dialog = false;
         self.show_exp_dialog = false;
         self.show_g_chart_dialog = false;
+        self.show_t_chart_dialog = false;
+        self.show_t_chart_help = false;
         self.show_gage_dialog = false;
         self.show_graph_annotation = false;
         self.show_graph_labels = false;
