@@ -3614,6 +3614,18 @@ fn the_cusum_chart_dialog_reads_k_and_h() {
 }
 
 #[test]
+fn the_cusum_menu_entry_opens_the_chart() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Control Charts", "CUSUM Chart…"]);
+    // The dialog is pre-set to CUSUM, so OK runs the chart without touching
+    // the chart combo.
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Control Chart: CUSUM"), "{session}");
+}
+
+#[test]
 fn the_control_chart_dialog_enables_every_test() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

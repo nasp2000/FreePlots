@@ -436,6 +436,19 @@ impl FreePlotsApp {
         self.show_sixpack_help = open && !close;
     }
 
+    /// Opens the control-chart dialog pre-set to the CUSUM chart.
+    pub fn open_cusum_dialog(&mut self) {
+        if let Some(column) = &self.selected {
+            self.chart_column = column.clone();
+        }
+        self.chart_kind = ControlChartKind::Cusum;
+        // Phases and a subgroup column belong to the variable charts; a
+        // leftover choice from a previous chart would not be used here.
+        self.chart_phase_column.clear();
+        self.chart_subgroup_column.clear();
+        self.show_chart_dialog = true;
+    }
+
     pub(super) fn control_chart_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_chart_dialog {
             return;
@@ -662,7 +675,14 @@ impl FreePlotsApp {
                 }
                 ui.small("Control limits use the published Shewhart constants.");
                 ui.horizontal(|ui| {
-                    if ui
+                    if self.chart_kind == ControlChartKind::Cusum {
+                        if ui
+                            .help_button(self.catalog().label("About CUSUM…"))
+                            .clicked()
+                        {
+                            self.show_cusum_help = true;
+                        }
+                    } else if ui
                         .help_button(self.catalog().label("How to choose subgroups…"))
                         .clicked()
                     {
@@ -841,6 +861,77 @@ impl FreePlotsApp {
                 });
             });
         self.show_chart_help = open && !close;
+    }
+
+    /// Help page of the CUSUM chart.
+    ///
+    /// The overview, the data shapes and a worked example of the two
+    /// cumulative sums.
+    pub(super) fn cusum_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_cusum_help {
+            return;
+        }
+        let mut open = self.show_cusum_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("CUSUM help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The CUSUM chart accumulates the standardised deviations from the centre \
+                     line on two sides. A small shift that a Shewhart chart misses makes the \
+                     sums drift, so the chart reacts to a sustained change of about one sigma.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column holds the measurements. A subgroup size of 1 charts the \
+                     individuals; a larger subgroup charts the subgroup means. The reference \
+                     value k is half the shift to detect (0.5 sigma by default) and the decision \
+                     interval h is the distance that raises a signal (4 sigma by default). Both \
+                     are set in the dialog. Rows with a missing measurement are not used.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A process centred at 10 with sigma 1 shifts to 11. With k = 0.5 and h = 4 \
+                     each point adds about 1 − 0.5 = 0.5 to the upper sum, which crosses the \
+                     decision interval after eight points; the lower sum stays at zero.",
+                ));
+                egui::Grid::new("cusum_help_example")
+                    .num_columns(2)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("observation");
+                        ui.strong("value");
+                        ui.end_row();
+                        for (index, value) in [
+                            ("1", "10.1"),
+                            ("2", "10.2"),
+                            ("3", "10.4"),
+                            ("4", "10.6"),
+                            ("5", "10.8"),
+                            ("6", "11.0"),
+                            ("7", "11.0"),
+                            ("8", "11.1"),
+                        ] {
+                            ui.monospace(index);
+                            ui.monospace(value);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_cusum_help = open && !close;
     }
 
     pub(super) fn attribute_chart_dialog(&mut self, ctx: &egui::Context) {

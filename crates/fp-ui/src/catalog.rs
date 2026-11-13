@@ -729,6 +729,35 @@ impl UiCatalog {
                  71,36 dias. Escolha o modelo gama quando os intervalos variam menos do que uma \
                  distribuição exponencial faria."
             }
+            "About CUSUM…" => "Acerca do CUSUM…",
+            "CUSUM help" => "Ajuda da carta CUSUM",
+            "The CUSUM chart accumulates the standardised deviations from the centre \
+             line on two sides. A small shift that a Shewhart chart misses makes the \
+             sums drift, so the chart reacts to a sustained change of about one sigma." => {
+                "A carta CUSUM acumula os desvios padronizados em relação à linha central, dos \
+                 dois lados. Uma mudança pequena que uma carta de Shewhart não detecta faz as \
+                 somas derivar, por isso a carta reage a uma alteração sustentada de cerca de \
+                 um sigma."
+            }
+            "One numeric column holds the measurements. A subgroup size of 1 charts the \
+             individuals; a larger subgroup charts the subgroup means. The reference \
+             value k is half the shift to detect (0.5 sigma by default) and the decision \
+             interval h is the distance that raises a signal (4 sigma by default). Both \
+             are set in the dialog. Rows with a missing measurement are not used." => {
+                "Uma coluna numérica contém as medições. Um tamanho de subgrupo de 1 traça as \
+                 observações individuais; um subgrupo maior traça as médias dos subgrupos. O \
+                 valor de referência k é metade da mudança a detectar (0,5 sigma por omissão) e \
+                 o intervalo de decisão h é a distância que gera um sinal (4 sigma por omissão). \
+                 Ambos são definidos no diálogo. As linhas com uma medição em falta não são \
+                 usadas."
+            }
+            "A process centred at 10 with sigma 1 shifts to 11. With k = 0.5 and h = 4 \
+             each point adds about 1 − 0.5 = 0.5 to the upper sum, which crosses the \
+             decision interval after eight points; the lower sum stays at zero." => {
+                "Um processo centrado em 10, com sigma 1, muda para 11. Com k = 0,5 e h = 4 \
+                 cada ponto acrescenta cerca de 1 − 0,5 = 0,5 à soma superior, que atravessa o \
+                 intervalo de decisão ao fim de oito pontos; a soma inferior fica em zero."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

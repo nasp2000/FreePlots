@@ -1078,6 +1078,13 @@ impl FreePlotsApp {
                         self.show_chart_dialog = true;
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("CUSUM Chart…"), None, ready)
+                        .on_hover_text("Cumulative sum chart for sustained small shifts")
+                        .clicked()
+                    {
+                        self.open_cusum_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Run Chart"), None, ready)
                         .on_hover_text("Median center line and runs tests")
                         .clicked()

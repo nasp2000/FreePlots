@@ -101,6 +101,7 @@ impl FreePlotsApp {
             cap_sixpack: false,
             show_chart_dialog: false,
             show_chart_help: false,
+            show_cusum_help: false,
             chart_column: String::new(),
             chart_kind: ControlChartKind::IndividualsMovingRange,
             chart_subgroup: 5,

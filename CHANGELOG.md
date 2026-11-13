@@ -32,6 +32,10 @@ All notable changes to FreePlots are recorded here. The format follows
   successive events with the exponential or gamma model, limits at the
   0.135 %/99.865 % quantiles and the median as the centre line, with its own
   help page in both interface languages.
+- Control Charts has a *CUSUM Chart…* entry that opens the control-chart
+  dialog pre-set to the cumulative-sum chart. The CUSUM has its own help page
+  (overview, data and example) in both interface languages, and the entry
+  clears a leftover phase or subgroup column from a variable chart.
 
 ### Changed
 
@@ -45,7 +49,9 @@ All notable changes to FreePlots are recorded here. The format follows
   exact intervals, zero counts and the invalid counts, sizes and confidence.
   The T chart covers the exponential limits against the closed-form values,
   the gamma moments, zero and negative intervals, a single observation, a
-  missing row and a point outside the lower limit.
+  missing row and a point outside the lower limit. The CUSUM menu entry
+  covers the pre-set chart, the cleared variable-chart columns and the help
+  page.
 
 ## [0.1.1] - 2026-11-12
 

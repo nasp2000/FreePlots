@@ -136,6 +136,7 @@ impl FreePlotsApp {
         self.sixpack_help_window(&ctx);
         self.control_chart_dialog(&ctx);
         self.chart_help_window(&ctx);
+        self.cusum_help_window(&ctx);
         self.attribute_chart_dialog(&ctx);
         self.attrcap_dialog(&ctx);
         self.attrcap_help_window(&ctx);

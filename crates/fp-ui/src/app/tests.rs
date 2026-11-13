@@ -3024,6 +3024,59 @@ fn the_capability_help_explains_the_subgroup_column() {
 }
 
 #[test]
+fn the_cusum_menu_entry_clears_the_variable_chart_columns() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    // A leftover phase/subgroup choice from a variable chart must not reach
+    // the CUSUM specification.
+    app.chart_phase_column = "batch".to_owned();
+    app.chart_subgroup_column = "batch".to_owned();
+    app.open_cusum_dialog();
+    assert_eq!(app.chart_kind, ControlChartKind::Cusum);
+    assert!(app.show_chart_dialog);
+    assert!(app.chart_phase_column.is_empty());
+    assert!(app.chart_subgroup_column.is_empty());
+    app.run_control_chart("weight", ControlChartKind::Cusum, 1);
+    let text = app.session_text();
+    assert!(text.contains("CUSUM"), "{text}");
+}
+
+#[test]
+fn the_cusum_help_explains_the_decision_interval() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_chart_dialog = true;
+    app.chart_kind = ControlChartKind::Cusum;
+    app.chart_column = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About CUSUM…").click();
+    harness.run();
+    assert!(harness.state().show_cusum_help);
+    harness.get_by_label("CUSUM help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("accumulates the standardised deviations");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da carta CUSUM");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_cusum_help);
+}
+
+#[test]
 fn the_t_chart_help_explains_the_limits() {
     use egui_kittest::{Harness, kittest::Queryable};
 

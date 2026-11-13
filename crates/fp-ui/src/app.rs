@@ -991,6 +991,8 @@ pub struct FreePlotsApp {
     show_chart_dialog: bool,
     /// Help page of the control-chart dialog (overview, data and example).
     show_chart_help: bool,
+    /// Help page of the CUSUM chart (overview, data and example).
+    show_cusum_help: bool,
     chart_column: String,
     chart_kind: ControlChartKind,
     chart_subgroup: usize,
@@ -3889,6 +3891,7 @@ impl FreePlotsApp {
         self.show_sixpack_help = false;
         self.show_chart_dialog = false;
         self.show_chart_help = false;
+        self.show_cusum_help = false;
         self.show_csv_options = false;
         self.show_correlation_dialog = false;
         self.show_crosstab_dialog = false;
