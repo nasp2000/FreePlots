@@ -995,6 +995,243 @@ impl FreePlotsApp {
         self.attr_sizes = None;
         self.show_attr_dialog = true;
     }
+
+    /// Opens the attribute capability dialog with the selected column.
+    pub fn open_attrcap_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        if !df
+            .columns()
+            .iter()
+            .any(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+        {
+            self.set_error("No numeric column available");
+            return;
+        }
+        self.attrcap_defects = self.selected.clone().unwrap_or_default();
+        self.attrcap_sizes = None;
+        self.show_attrcap_dialog = true;
+    }
+
+    /// Attribute capability dialog: binomial (defectives) or Poisson (defects).
+    pub(super) fn attrcap_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_attrcap_dialog {
+            return;
+        }
+        let columns: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|c| matches!(c.dtype(), DType::Float | DType::Integer))
+                    .map(|c| c.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut open = self.show_attrcap_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Attribute Capability"))
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Distribution:");
+                    egui::ComboBox::from_id_salt("attrcap_kind")
+                        .selected_text(self.attrcap_kind.name())
+                        .width(120.0)
+                        .show_ui(ui, |ui| {
+                            for kind in [
+                                fp_core::attrcap::AttributeCapabilityKind::Binomial,
+                                fp_core::attrcap::AttributeCapabilityKind::Poisson,
+                            ] {
+                                ui.selectable_value(&mut self.attrcap_kind, kind, kind.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Defects column:");
+                    egui::ComboBox::from_id_salt("attrcap_defects")
+                        .selected_text(if self.attrcap_defects.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.attrcap_defects.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &columns {
+                                ui.selectable_value(
+                                    &mut self.attrcap_defects,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Size column:");
+                    egui::ComboBox::from_id_salt("attrcap_sizes")
+                        .selected_text(
+                            self.attrcap_sizes
+                                .as_deref()
+                                .unwrap_or("None (use constant)"),
+                        )
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.attrcap_sizes,
+                                None,
+                                "None (use constant)",
+                            );
+                            for name in &columns {
+                                ui.selectable_value(
+                                    &mut self.attrcap_sizes,
+                                    Some(name.clone()),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Constant size:");
+                    ui.add_enabled(
+                        self.attrcap_sizes.is_none(),
+                        egui::TextEdit::singleline(&mut self.attrcap_size).desired_width(90.0),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                    let confidence = ui.help_label("Confidence:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.attrcap_confidence)
+                            .range(50.0..=99.9)
+                            .speed(0.5)
+                            .suffix(" %"),
+                    )
+                    .labelled_by(confidence.id)
+                    .hover_from(&confidence);
+                });
+                ui.small(match self.attrcap_kind {
+                    fp_core::attrcap::AttributeCapabilityKind::Binomial => {
+                        "Binomial: defectives per subgroup and the inspected units; reports PPM \
+                         defective."
+                    }
+                    fp_core::attrcap::AttributeCapabilityKind::Poisson => {
+                        "Poisson: defects per subgroup and the units; reports PPM defects and DPU."
+                    }
+                });
+                ui.small("The exact interval and process Z are reported with the PPM.");
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About attribute capability…"))
+                        .clicked()
+                    {
+                        self.show_attrcap_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.attrcap_defects.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_attrcap_dialog = open && !run && !cancel;
+        if run {
+            self.run_attrcap_dialog();
+        }
+    }
+
+    /// Help page of the attribute capability dialog.
+    pub(super) fn attrcap_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_attrcap_help {
+            return;
+        }
+        let mut open = self.show_attrcap_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Attribute Capability help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "Attribute capability turns counted defectives or defects into parts per \
+                     million. The binomial study pools the defectives over the inspected units \
+                     and reports the proportion defective, its PPM and the normal-equivalent \
+                     process Z. The Poisson study pools the defects over the units and reports \
+                     the defects per unit (DPU) and its PPM.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One column holds the defectives (binomial) or the defects (Poisson) per \
+                     subgroup. Supply the inspected units in a second column, or set a constant \
+                     size. In the binomial study the defectives cannot exceed the inspected \
+                     units. Rows with a missing count or size are excluded and counted. Both \
+                     reports use an exact confidence interval at the chosen level.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A lot inspects 240 units in 12 subgroups and records 72 defectives: the \
+                     average p is 3 %, or 30,000 PPM defective, and process Z is 1.88. For \
+                     defects, 24 defects over 40 units give DPU 0.60 and 600,000 PPM defects.",
+                ));
+                egui::Grid::new("attrcap_help_example")
+                    .num_columns(2)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("defectives");
+                        ui.strong("inspected");
+                        ui.end_row();
+                        for (defectives, inspected) in [
+                            ("6", "20"),
+                            ("5", "20"),
+                            ("7", "20"),
+                            ("6", "20"),
+                            ("6", "20"),
+                            ("6", "20"),
+                        ] {
+                            ui.monospace(defectives);
+                            ui.monospace(inspected);
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_attrcap_help = open && !close;
+    }
+
     pub fn open_g_chart_dialog(&mut self) {
         self.g_chart_counts = self.selected.clone().unwrap_or_default();
         self.g_chart_times = String::new();

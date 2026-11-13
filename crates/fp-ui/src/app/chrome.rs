@@ -137,6 +137,8 @@ impl FreePlotsApp {
         self.control_chart_dialog(&ctx);
         self.chart_help_window(&ctx);
         self.attribute_chart_dialog(&ctx);
+        self.attrcap_dialog(&ctx);
+        self.attrcap_help_window(&ctx);
         self.t_test_dialog(&ctx);
         self.equivalence_dialog(&ctx);
         self.rank_test_dialog(&ctx);

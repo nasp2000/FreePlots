@@ -116,6 +116,13 @@ impl FreePlotsApp {
             attr_kind: AttributeChartKind::P,
             attr_sizes: None,
             attr_size: "100".to_owned(),
+            show_attrcap_dialog: false,
+            show_attrcap_help: false,
+            attrcap_kind: fp_core::attrcap::AttributeCapabilityKind::Binomial,
+            attrcap_defects: String::new(),
+            attrcap_sizes: None,
+            attrcap_size: "100".to_owned(),
+            attrcap_confidence: 95.0,
             show_t_dialog: false,
             show_equivalence_dialog: false,
             rank_median: String::new(),
@@ -528,6 +535,8 @@ impl FreePlotsApp {
         // The test set is a user preference now.
         self.attr_column = self.selected.clone().unwrap_or_default();
         self.attr_sizes = None;
+        self.attrcap_defects = self.selected.clone().unwrap_or_default();
+        self.attrcap_sizes = None;
         self.t_first = self.selected.clone().unwrap_or_default();
         self.t_second = String::new();
         self.t_null = "0".to_owned();

@@ -1006,6 +1006,15 @@ pub struct FreePlotsApp {
     attr_kind: AttributeChartKind,
     attr_sizes: Option<String>,
     attr_size: String,
+    /// Attribute capability dialog (PPM defective or PPM defects).
+    show_attrcap_dialog: bool,
+    /// Help page of the attribute capability dialog.
+    show_attrcap_help: bool,
+    attrcap_kind: fp_core::attrcap::AttributeCapabilityKind,
+    attrcap_defects: String,
+    attrcap_sizes: Option<String>,
+    attrcap_size: String,
+    attrcap_confidence: f64,
     show_t_dialog: bool,
     show_equivalence_dialog: bool,
     rank_median: String,
@@ -2703,6 +2712,38 @@ impl FreePlotsApp {
         self.show_attr_dialog = false;
     }
 
+    /// Builds and runs the attribute capability selected in the dialog.
+    pub fn run_attrcap_dialog(&mut self) {
+        if self.attrcap_defects.is_empty() {
+            self.set_error("Select the defectives or defects column");
+            return;
+        }
+        let constant = match self.attrcap_size.trim() {
+            "" => None,
+            raw => match raw.parse::<usize>() {
+                Ok(value) if value > 0 => Some(value),
+                _ => {
+                    self.set_error("Constant size must be a positive integer");
+                    return;
+                }
+            },
+        };
+        if self.attrcap_sizes.is_none() && constant.is_none() {
+            self.set_error("Provide a size column or a constant size");
+            return;
+        }
+        let chart_kind = match self.attrcap_kind {
+            fp_core::attrcap::AttributeCapabilityKind::Binomial => AttributeChartKind::P,
+            fp_core::attrcap::AttributeCapabilityKind::Poisson => AttributeChartKind::U,
+        };
+        let spec = AnalysisSpec::attribute_chart(chart_kind, self.attrcap_defects.clone())
+            .with_attribute_size(self.attrcap_sizes.clone(), constant)
+            .with_attribute_capability(true, self.attrcap_confidence / 100.0);
+        let label = format!("Attribute capability: {}", self.attrcap_defects);
+        self.execute_spec(spec, label);
+        self.show_attrcap_dialog = false;
+    }
+
     /// Builds and runs the tolerance interval of the dialog.
     pub fn run_tolerance_dialog(&mut self) {
         if self.tolerance_column.is_empty() {
@@ -3832,6 +3873,8 @@ impl FreePlotsApp {
         self.show_alt_dialog = false;
         self.show_anova_dialog = false;
         self.show_attr_dialog = false;
+        self.show_attrcap_dialog = false;
+        self.show_attrcap_help = false;
         self.show_bb_dialog = false;
         self.show_box_cox_dialog = false;
         self.show_calc_dialog = false;

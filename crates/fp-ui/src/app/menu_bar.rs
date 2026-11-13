@@ -1126,6 +1126,13 @@ impl FreePlotsApp {
                         self.show_cap_dialog = true;
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Attribute Capability…"), None, self.data.is_some())
+                        .on_hover_text("PPM defective (binomial) or PPM defects (Poisson) with process Z")
+                        .clicked()
+                    {
+                        self.open_attrcap_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Distribution Comparison…"), None, ready)
                         .on_hover_text("Normal, Lognormal, Weibull, Exponential, Logistic, Loglogistic, Gamma, Extreme Value, Weibull (3-parameter), Lognormal (3-parameter)")
                         .clicked()

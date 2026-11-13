@@ -660,6 +660,40 @@ impl UiCatalog {
                  histograma, o gráfico de probabilidade normal, as cartas X̄ e R, os últimos \
                  25 pontos e os índices de capacidade."
             }
+            "Attribute Capability" => "Capacidade de atributos",
+            "Attribute Capability…" => "Capacidade de atributos…",
+            "Attribute Capability help" => "Ajuda da capacidade de atributos",
+            "About attribute capability…" => "Acerca da capacidade de atributos…",
+            "Attribute capability turns counted defectives or defects into parts per \
+             million. The binomial study pools the defectives over the inspected units \
+             and reports the proportion defective, its PPM and the normal-equivalent \
+             process Z. The Poisson study pools the defects over the units and reports \
+             the defects per unit (DPU) and its PPM." => {
+                "A capacidade de atributos converte defeituosos ou defeitos contados em \
+                 partes por milhão. O estudo binomial agrega os defeituosos sobre as unidades \
+                 inspeccionadas e reporta a proporção defeituosa, o PPM e o process Z \
+                 equivalente normal. O estudo de Poisson agrega os defeitos sobre as unidades \
+                 e reporta os defeitos por unidade (DPU) e o respectivo PPM."
+            }
+            "One column holds the defectives (binomial) or the defects (Poisson) per \
+             subgroup. Supply the inspected units in a second column, or set a constant \
+             size. In the binomial study the defectives cannot exceed the inspected \
+             units. Rows with a missing count or size are excluded and counted. Both \
+             reports use an exact confidence interval at the chosen level." => {
+                "Uma coluna contém os defeituosos (binomial) ou os defeitos (Poisson) por \
+                 subgrupo. Indique as unidades inspeccionadas numa segunda coluna ou defina um \
+                 tamanho constante. No estudo binomial os defeituosos não podem exceder as \
+                 unidades inspeccionadas. As linhas com uma contagem ou tamanho em falta são \
+                 excluídas e contadas. Ambos os relatórios usam um intervalo de confiança \
+                 exacto no nível escolhido."
+            }
+            "A lot inspects 240 units in 12 subgroups and records 72 defectives: the \
+             average p is 3 %, or 30,000 PPM defective, and process Z is 1.88. For \
+             defects, 24 defects over 40 units give DPU 0.60 and 600,000 PPM defects." => {
+                "Um lote inspecciona 240 unidades em 12 subgrupos e regista 72 defeituosos: a \
+                 proporção média é 3 %, ou 30 000 PPM defeituoso, e o process Z é 1,88. Para \
+                 defeitos, 24 defeitos em 40 unidades dão DPU 0,60 e 600 000 PPM de defeitos."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

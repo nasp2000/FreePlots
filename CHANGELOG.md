@@ -23,6 +23,11 @@ All notable changes to FreePlots are recorded here. The format follows
   Cp/Cpk/Pp/Ppk) over one normal capability study, with its own help page in
   both interface languages. It accepts the same subgroup size or label column
   and uses individuals, X̄–R or X̄–S as the subgroup size requires.
+- Quality Tools has an *Attribute Capability…* entry: binomial capability
+  (PPM defective) and Poisson capability (DPU and PPM defects), each with an
+  exact confidence interval and the normal-equivalent process Z, over the same
+  defect and size columns as the attribute charts. It has its own help page in
+  both interface languages.
 
 ### Changed
 
@@ -31,7 +36,9 @@ All notable changes to FreePlots are recorded here. The format follows
   singleton subgroup. Capability adds the pooled grouped estimate, the dropped
   rows, a singleton group, a single group and a non-normal model. The Sixpack
   covers the six titles and their contents, the I–MR/X̄–R/X̄–S choice, the
-  label column, a short study and the models and sizes it refuses.
+  label column, a short study and the models and sizes it refuses. The
+  attribute capability covers the pooled binomial and Poisson estimates, the
+  exact intervals, zero counts and the invalid counts, sizes and confidence.
 
 ## [0.1.1] - 2026-11-12
 

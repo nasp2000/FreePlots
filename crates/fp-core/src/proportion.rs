@@ -247,6 +247,15 @@ fn clopper_pearson(x: usize, n: usize, confidence: f64, alternative: Alternative
     (lower.clamp(0.0, 1.0), upper.clamp(0.0, 1.0))
 }
 
+/// Two-sided Clopper–Pearson interval for a binomial proportion.
+///
+/// Used by the attribute capability report, which shares the exact interval of
+/// the proportion tests.
+#[must_use]
+pub(crate) fn exact_interval(successes: usize, trials: usize, confidence: f64) -> (f64, f64) {
+    clopper_pearson(successes, trials, confidence, Alternative::TwoSided)
+}
+
 fn interval(lower: f64, upper: f64, alternative: Alternative) -> (Option<f64>, Option<f64>) {
     match alternative {
         Alternative::TwoSided => (Some(lower), Some(upper)),

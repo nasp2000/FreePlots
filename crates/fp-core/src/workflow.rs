@@ -482,6 +482,11 @@ pub enum AnalysisSpec {
         sizes: Option<String>,
         /// Optional constant subgroup size.
         size: Option<usize>,
+        /// Report the attribute capability (PPM and process Z) instead of the
+        /// chart statistics.
+        capability: bool,
+        /// Two-sided confidence level of the capability interval.
+        confidence: f64,
     },
     /// One-sample Student t test.
     OneSampleT {
@@ -1545,6 +1550,8 @@ impl AnalysisSpec {
             defects: defects.into(),
             sizes: None,
             size: None,
+            capability: false,
+            confidence: 0.95,
         }
     }
 
@@ -1559,6 +1566,22 @@ impl AnalysisSpec {
         {
             *sizes_slot = sizes;
             *size_slot = size;
+        }
+        self
+    }
+
+    /// Reports the attribute capability (PPM and process Z) instead of the
+    /// chart statistics.
+    #[must_use]
+    pub fn with_attribute_capability(mut self, capability: bool, confidence: f64) -> Self {
+        if let Self::AttributeChart {
+            capability: capability_slot,
+            confidence: confidence_slot,
+            ..
+        } = &mut self
+        {
+            *capability_slot = capability;
+            *confidence_slot = confidence;
         }
         self
     }
@@ -3469,22 +3492,31 @@ impl AnalysisSpec {
                 "Run Chart — median center line, runs tests, Normal approximation".to_owned()
             }
             Self::AttributeChart {
-                kind, sizes, size, ..
+                kind,
+                sizes,
+                size,
+                capability,
+                confidence,
+                ..
             } => {
-                format!(
-                    "{} Chart — {}; {}",
-                    kind.name(),
-                    kind.description(),
-                    if let Some(sizes) = sizes {
-                        format!("sizes column {sizes}")
-                    } else if let Some(size) = size {
-                        format!("constant size {size}")
-                    } else if kind.needs_size() {
-                        "size not configured".to_owned()
-                    } else {
-                        "no denominator".to_owned()
-                    }
-                )
+                let scope = if let Some(sizes) = sizes {
+                    format!("sizes column {sizes}")
+                } else if let Some(size) = size {
+                    format!("constant size {size}")
+                } else if kind.needs_size() {
+                    "size not configured".to_owned()
+                } else {
+                    "no denominator".to_owned()
+                };
+                if *capability {
+                    format!(
+                        "Attribute Capability — {}, {:.1}% interval; {scope}",
+                        crate::attrcap::AttributeCapabilityKind::from_chart(*kind).name(),
+                        confidence * 100.0
+                    )
+                } else {
+                    format!("{} Chart — {}; {scope}", kind.name(), kind.description())
+                }
             }
             Self::OneSampleT {
                 null_mean,
@@ -7350,8 +7382,21 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
             defects,
             sizes,
             size,
+            capability,
+            confidence,
         } => {
-            let mut out = crate::attribute::analyze(df, *kind, defects, sizes.as_deref(), *size)?;
+            let mut out = if *capability {
+                crate::attrcap::analyze(
+                    df,
+                    crate::attrcap::AttributeCapabilityKind::from_chart(*kind),
+                    defects,
+                    sizes.as_deref(),
+                    *size,
+                    *confidence,
+                )?
+            } else {
+                crate::attribute::analyze(df, *kind, defects, sizes.as_deref(), *size)?
+            };
             for result in &mut out.results {
                 result
                     .notes
@@ -8308,6 +8353,7 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::attribute::AttributeChartKind;
     use crate::data::Column;
 
     fn frame() -> DataFrame {
@@ -10437,6 +10483,195 @@ mod tests {
             .with_capability_subgroup(26);
         let error = run_analysis(&df, &wide).expect_err("26-observation subgroups");
         assert!(error.to_string().contains("2 to 25"), "{error}");
+    }
+
+    #[test]
+    fn attribute_capability_pools_the_defectives() {
+        let defectives = [8.0, 7.0, 5.0, 6.0, 6.0, 6.0, 7.0, 5.0, 6.0, 6.0, 5.0, 5.0];
+        let df = DataFrame::new(vec![
+            Column::new_f64("defectives", defectives.to_vec()),
+            Column::new_f64("inspected", vec![200.0; 12]),
+        ])
+        .expect("frame");
+        let out = run_analysis(
+            &df,
+            &AnalysisSpec::attribute_chart(AttributeChartKind::P, "defectives")
+                .with_attribute_size(Some("inspected".to_owned()), None)
+                .with_attribute_capability(true, 0.95),
+        )
+        .expect("binomial capability");
+        let result = &out.results[0];
+        assert!(
+            result.title.contains("Attribute Capability: Binomial"),
+            "{}",
+            result.title
+        );
+        assert_eq!(result.n, 12);
+        let stat = |name: &str| {
+            result
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+                .unwrap_or_else(|| panic!("{name} missing"))
+        };
+        assert_eq!(stat("Total defectives"), 72.0);
+        assert_eq!(stat("Total inspected"), 2400.0);
+        assert!((stat("Average p") - 0.03).abs() < 1e-12);
+        assert!((stat("PPM defective") - 30_000.0).abs() < 1e-6);
+        assert!((stat("Process Z") - 1.880_793_608).abs() < 1e-6);
+        assert!((stat("PPM lower") - 23_545.576_458).abs() < 0.5);
+        assert!((stat("PPM upper") - 37_632.376_777).abs() < 0.5);
+        let text = result.to_session_text();
+        assert!(text.contains("Clopper"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert!(plot.title.contains("Binomial Capability"), "{}", plot.title);
+        assert_eq!(plot.points.len(), 12);
+        assert!(
+            plot.notes
+                .iter()
+                .any(|note| note.rows.iter().any(|row| row.label == "PPM"))
+        );
+    }
+
+    #[test]
+    fn poisson_capability_reports_the_dpu_and_ppm() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("defects", vec![5.0, 3.0, 4.0, 4.0, 4.0, 4.0]),
+            Column::new_f64("units", vec![5.0, 7.0, 6.0, 7.0, 7.0, 8.0]),
+        ])
+        .expect("frame");
+        let out = run_analysis(
+            &df,
+            &AnalysisSpec::attribute_chart(AttributeChartKind::U, "defects")
+                .with_attribute_size(Some("units".to_owned()), None)
+                .with_attribute_capability(true, 0.95),
+        )
+        .expect("Poisson capability");
+        let result = &out.results[0];
+        assert!(
+            result.title.contains("Attribute Capability: Poisson"),
+            "{}",
+            result.title
+        );
+        let stat = |name: &str| {
+            result
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+                .unwrap_or_else(|| panic!("{name} missing"))
+        };
+        assert_eq!(stat("Total defects"), 24.0);
+        assert_eq!(stat("Total units"), 40.0);
+        assert!((stat("Mean DPU") - 0.6).abs() < 1e-12);
+        assert!((stat("PPM defects") - 600_000.0).abs() < 1e-6);
+        assert!((stat("Process Z") + 0.253_347_103).abs() < 1e-6);
+        assert!((stat("CI lower (DPU)") - 0.384_431_321).abs() < 1e-4);
+        assert!((stat("CI upper (DPU)") - 0.892_752_440).abs() < 1e-4);
+        assert!((stat("PPM lower") - 384_431.321).abs() < 1.0);
+        assert!((stat("PPM upper") - 892_752.440).abs() < 1.0);
+        assert!((stat("Minimum DPU") - 3.0 / 7.0).abs() < 1e-12);
+        assert_eq!(stat("Maximum DPU"), 1.0);
+        let plot = out.plot.expect("plot");
+        assert!(plot.title.contains("Poisson Capability"), "{}", plot.title);
+    }
+
+    #[test]
+    fn attribute_capability_handles_zero_counts() {
+        let none = DataFrame::new(vec![
+            Column::new_f64("defectives", vec![0.0; 5]),
+            Column::new_f64("inspected", vec![20.0; 5]),
+        ])
+        .expect("frame");
+        let out = run_analysis(
+            &none,
+            &AnalysisSpec::attribute_chart(AttributeChartKind::P, "defectives")
+                .with_attribute_size(None, Some(20))
+                .with_attribute_capability(true, 0.95),
+        )
+        .expect("zero defectives");
+        let result = &out.results[0];
+        let stat = |name: &str| {
+            result
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+        };
+        assert_eq!(stat("PPM defective"), Some(0.0));
+        // Clopper–Pearson upper bound for 0 out of 100 at 95 %.
+        assert!((stat("PPM upper").expect("upper") - 36_216.692_645).abs() < 0.5);
+        assert!(stat("Process Z").is_none());
+        assert!(!result.warnings.is_empty());
+
+        let no_defects = DataFrame::new(vec![
+            Column::new_f64("defects", vec![0.0; 5]),
+            Column::new_f64("units", vec![20.0; 5]),
+        ])
+        .expect("frame");
+        let out = run_analysis(
+            &no_defects,
+            &AnalysisSpec::attribute_chart(AttributeChartKind::U, "defects")
+                .with_attribute_size(None, Some(20))
+                .with_attribute_capability(true, 0.95),
+        )
+        .expect("zero defects");
+        let result = &out.results[0];
+        let stat = |name: &str| {
+            result
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+        };
+        assert_eq!(stat("PPM defects"), Some(0.0));
+        assert!((stat("PPM upper").expect("upper") - 36_888.794_541).abs() < 0.5);
+        assert!(stat("Process Z").is_none());
+    }
+
+    #[test]
+    fn attribute_capability_rejects_invalid_counts_and_confidence() {
+        let too_many = DataFrame::new(vec![
+            Column::new_f64("defectives", vec![21.0]),
+            Column::new_f64("inspected", vec![20.0]),
+        ])
+        .expect("frame");
+        let spec = AnalysisSpec::attribute_chart(AttributeChartKind::P, "defectives")
+            .with_attribute_size(None, Some(20))
+            .with_attribute_capability(true, 0.95);
+        let error = run_analysis(&too_many, &spec).expect_err("more defectives than units");
+        assert!(error.to_string().contains("cannot exceed"), "{error}");
+
+        let negative = DataFrame::new(vec![Column::new_f64("defects", vec![-1.0])]).expect("frame");
+        let spec = AnalysisSpec::attribute_chart(AttributeChartKind::U, "defects")
+            .with_attribute_size(None, Some(10))
+            .with_attribute_capability(true, 0.95);
+        let error = run_analysis(&negative, &spec).expect_err("negative count");
+        assert!(
+            error.to_string().contains("non-negative integers"),
+            "{error}"
+        );
+
+        let fractional =
+            DataFrame::new(vec![Column::new_f64("defects", vec![1.5])]).expect("frame");
+        let error = run_analysis(&fractional, &spec).expect_err("fractional count");
+        assert!(
+            error.to_string().contains("non-negative integers"),
+            "{error}"
+        );
+
+        let df = DataFrame::new(vec![Column::new_f64("defects", vec![1.0])]).expect("frame");
+        let no_size = AnalysisSpec::attribute_chart(AttributeChartKind::U, "defects")
+            .with_attribute_capability(true, 0.95);
+        let error = run_analysis(&df, &no_size).expect_err("no size");
+        assert!(error.to_string().contains("size column"), "{error}");
+
+        let bad_confidence = AnalysisSpec::attribute_chart(AttributeChartKind::U, "defects")
+            .with_attribute_size(None, Some(10))
+            .with_attribute_capability(true, 1.0);
+        let error = run_analysis(&df, &bad_confidence).expect_err("confidence");
+        assert!(matches!(error, Error::InvalidParameter { .. }), "{error}");
     }
 
     #[test]

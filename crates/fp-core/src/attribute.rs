@@ -183,18 +183,32 @@ fn size_at(sizes: Option<&Column>, constant: Option<usize>, row: usize) -> Optio
     }
 }
 
-fn build(
+/// Validated counts and denominators of an attribute study.
+pub(crate) struct AttributeRows {
+    /// Defects (or defectives) per retained row.
+    pub counts: Vec<f64>,
+    /// Denominator per retained row.
+    pub sizes: Vec<f64>,
+    /// Rows dropped for a missing or incomplete value.
+    pub excluded: usize,
+}
+
+/// Reads the counts and denominators shared by the attribute charts and the
+/// attribute capability analysis.
+///
+/// `binomial` adds the rule that defectives cannot exceed the inspected units.
+pub(crate) fn rows(
     df: &DataFrame,
-    kind: AttributeChartKind,
     defects_column: &str,
     sizes_column: Option<&str>,
     constant_size: Option<usize>,
-) -> Result<AttributeChart> {
-    if kind.needs_size() && sizes_column.is_none() && constant_size.is_none() {
-        return Err(Error::Unsupported(format!(
-            "{} chart requires --sizes <column> or --size <n>",
-            kind.name()
-        )));
+    needs_size: bool,
+    binomial: bool,
+) -> Result<AttributeRows> {
+    if needs_size && sizes_column.is_none() && constant_size.is_none() {
+        return Err(Error::Unsupported(
+            "the analysis requires a size column or a constant size".to_owned(),
+        ));
     }
     if let Some(size) = constant_size
         && size == 0
@@ -230,7 +244,7 @@ fn build(
                 message: "counts must be non-negative integers".to_owned(),
             });
         }
-        let denominator = if kind.needs_size() {
+        let denominator = if needs_size {
             let Some(size) = size_at(sizes, constant_size, row) else {
                 continue;
             };
@@ -241,14 +255,7 @@ fn build(
                     message: "subgroup sizes must be positive integers".to_owned(),
                 });
             }
-            if matches!(
-                kind,
-                AttributeChartKind::P
-                    | AttributeChartKind::Np
-                    | AttributeChartKind::LaneyP
-                    | AttributeChartKind::LaneyNp
-            ) && value > size
-            {
+            if binomial && value > size {
                 return Err(Error::Cell {
                     column: defects_column.to_owned(),
                     row: row + 1,
@@ -265,6 +272,39 @@ fn build(
     if counts.is_empty() {
         return Err(Error::EmptySample);
     }
+    Ok(AttributeRows {
+        counts,
+        sizes: denominators,
+        excluded: rows - counts.len(),
+    })
+}
+
+fn build(
+    df: &DataFrame,
+    kind: AttributeChartKind,
+    defects_column: &str,
+    sizes_column: Option<&str>,
+    constant_size: Option<usize>,
+) -> Result<AttributeChart> {
+    let binomial = matches!(
+        kind,
+        AttributeChartKind::P
+            | AttributeChartKind::Np
+            | AttributeChartKind::LaneyP
+            | AttributeChartKind::LaneyNp
+    );
+    let AttributeRows {
+        counts,
+        sizes: denominators,
+        excluded,
+    } = rows(
+        df,
+        defects_column,
+        sizes_column,
+        constant_size,
+        kind.needs_size(),
+        binomial,
+    )?;
 
     let k = counts.len();
     let total_defects: f64 = counts.iter().sum();
@@ -525,7 +565,7 @@ fn build(
         lcl,
         sigma_z,
         z_values,
-        excluded: rows - k,
+        excluded,
         signals,
         notes,
         warnings: vec![],

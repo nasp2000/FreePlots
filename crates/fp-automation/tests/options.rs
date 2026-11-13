@@ -3945,6 +3945,55 @@ fn the_capability_dialog_sixpack_checkbox_draws_six_panels() {
     assert_eq!(ui.plot().expect("plot").panels.len(), 6);
 }
 
+#[test]
+fn the_attribute_capability_dialog_reports_ppm_defective() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64(
+            "defectives",
+            vec![8.0, 7.0, 5.0, 6.0, 6.0, 6.0, 7.0, 5.0, 6.0, 6.0, 5.0, 5.0],
+        ),
+        Column::new_f64("inspected", vec![200.0; 12]),
+    ])
+    .expect("frame");
+    ui.load_frame(df, "defectives.csv");
+    open(&mut ui, &["Stat", "Quality Tools", "Attribute Capability…"]);
+    ui.select("Defects column:", "defectives").expect("defects");
+    ui.select("Size column:", "inspected").expect("sizes");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(
+        session.contains("Attribute Capability: Binomial"),
+        "{session}"
+    );
+    assert!(session.contains("PPM defective"), "{session}");
+    assert!(session.contains("Process Z"), "{session}");
+    assert!(ui.plot().is_some());
+}
+
+#[test]
+fn the_attribute_capability_dialog_reports_ppm_defects() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("defects", vec![5.0, 3.0, 4.0, 4.0, 4.0, 4.0]),
+        Column::new_f64("units", vec![5.0, 7.0, 6.0, 7.0, 7.0, 8.0]),
+    ])
+    .expect("frame");
+    ui.load_frame(df, "defects.csv");
+    open(&mut ui, &["Stat", "Quality Tools", "Attribute Capability…"]);
+    ui.select("Distribution:", "Poisson").expect("poisson");
+    ui.select("Defects column:", "defects").expect("defects");
+    ui.select("Size column:", "units").expect("units");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(
+        session.contains("Attribute Capability: Poisson"),
+        "{session}"
+    );
+    assert!(session.contains("PPM defects"), "{session}");
+    assert!(session.contains("Mean DPU"), "{session}");
+}
+
 /// Two responses with a common interior optimum, for the response optimizer.
 fn desirability_frame() -> DataFrame {
     let mut a = Vec::new();
