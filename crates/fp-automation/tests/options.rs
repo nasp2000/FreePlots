@@ -4007,6 +4007,48 @@ fn the_attribute_capability_dialog_reports_ppm_defects() {
 }
 
 #[test]
+fn the_graphical_summary_shows_the_three_panels() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("weight", vec![10.0, 11.0, 12.0, 13.0, 14.0]),
+        Column::new_f64("height", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+    ])
+    .expect("frame");
+    ui.load_frame(df, "summary.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "Graphical Summary…"]);
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Descriptive Statistics"), "{session}");
+    let plot = ui.plot().expect("plot");
+    assert_eq!(plot.panels.len(), 3);
+    assert_eq!(plot.panels[0].title, "Histogram");
+    assert_eq!(plot.panels[2].title, "95% intervals");
+}
+
+#[test]
+fn the_store_command_writes_the_statistics_table() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![Column::new_f64(
+        "weight",
+        vec![10.0, 11.0, 12.0, 13.0, 14.0],
+    )])
+    .expect("frame");
+    ui.load_frame(df, "weights.csv");
+    open(
+        &mut ui,
+        &["Stat", "Basic Statistics", "Store Descriptive Statistics…"],
+    );
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("stored in"), "{session}");
+    let data = ui.app().data().expect("worksheet");
+    assert_eq!(data.n_rows(), 6);
+    assert!(data.column("Variable").is_ok());
+    assert!(data.column("Mean").is_ok());
+    assert_eq!(data.column("Mean").expect("mean").value(5), Some(12.0));
+}
+
+#[test]
 fn the_one_sample_z_dialog_uses_the_known_sigma() {
     let mut ui = Automation::new();
     let df = DataFrame::new(vec![Column::new_f64(

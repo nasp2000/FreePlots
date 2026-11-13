@@ -706,6 +706,20 @@ impl FreePlotsApp {
                         self.open_zp_dialog(ZpKind::PoissonGof);
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Graphical Summary…"), None, ready)
+                        .on_hover_text("Histogram, boxplot and confidence intervals in one view")
+                        .clicked()
+                    {
+                        self.open_gsummary_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Store Descriptive Statistics…"), None, ready)
+                        .on_hover_text("Write the descriptive statistics into new worksheet columns")
+                        .clicked()
+                    {
+                        self.open_store_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Chi-Square Test…"), None, ready)
                         .on_hover_text("Cross-tabulation and test of independence")
                         .clicked()

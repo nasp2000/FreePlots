@@ -54,6 +54,11 @@ All notable changes to FreePlots are recorded here. The format follows
   normal approximation) and *Poisson Goodness-of-Fit…* (chi-square with
   estimated or given mean), with a shared help page in both interface
   languages.
+- Basic Statistics has a *Graphical Summary…* entry (histogram, boxplot and
+  the confidence intervals of the mean, median and standard deviation) and a
+  *Store Descriptive Statistics…* command that writes the selected statistics
+  as new worksheet columns, one row per variable. Both share a help page in
+  both interface languages.
 
 ### Changed
 

@@ -3024,6 +3024,40 @@ fn the_capability_help_explains_the_subgroup_column() {
 }
 
 #[test]
+fn the_summary_help_explains_the_commands() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_gsummary_dialog = true;
+    app.gsummary_column = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About these commands…").click();
+    harness.run();
+    assert!(harness.state().show_summary_help);
+    harness.get_by_label("Summary help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("stacks a histogram, a boxplot");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do resumo");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_summary_help);
+}
+
+#[test]
 fn the_z_and_poisson_help_explains_the_tests() {
     use egui_kittest::{Harness, kittest::Queryable};
 

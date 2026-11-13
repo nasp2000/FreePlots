@@ -210,6 +210,9 @@ impl FreePlotsApp {
         self.box_behnken_dialog(&ctx);
         self.pb_dialog(&ctx);
         self.describe_by_dialog(&ctx);
+        self.gsummary_dialog(&ctx);
+        self.store_dialog(&ctx);
+        self.summary_help_window(&ctx);
         self.shortcuts_dialog(&ctx);
         self.assistant_dialog(&ctx);
         self.find_dialog(&ctx);

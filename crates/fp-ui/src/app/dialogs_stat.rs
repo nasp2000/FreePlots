@@ -803,6 +803,329 @@ impl FreePlotsApp {
         self.show_predict_help = open && !close;
     }
 
+    /// Opens the graphical summary dialog with the selected column.
+    pub fn open_gsummary_dialog(&mut self) {
+        self.gsummary_column = self.selected.clone().unwrap_or_default();
+        self.show_gsummary_dialog = true;
+    }
+
+    /// Runs the graphical summary of the dialog column.
+    pub fn run_gsummary_dialog(&mut self) {
+        if self.gsummary_column.is_empty() {
+            self.set_error("Select the column to summarise");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::summary::graphical_summary(&df, &self.gsummary_column) {
+            Ok(output) => {
+                let label = format!("Graphical summary: {}", self.gsummary_column);
+                self.apply_output(output, label);
+                self.show_gsummary_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Opens the store descriptive statistics dialog.
+    pub fn open_store_dialog(&mut self) {
+        let selected = self.selected.clone().unwrap_or_default();
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        self.store_columns = if numeric.contains(&selected) {
+            vec![selected]
+        } else {
+            numeric.into_iter().take(1).collect()
+        };
+        self.show_store_dialog = true;
+    }
+
+    /// Writes the selected descriptive statistics into new columns.
+    pub fn run_store_dialog(&mut self) {
+        if self.store_columns.is_empty() {
+            self.set_error("Select at least one variable");
+            return;
+        }
+        if self.store_stats.is_empty() {
+            self.set_error("Select at least one statistic");
+            return;
+        }
+        let Some(mut df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::summary::store_descriptive_statistics(
+            &mut df,
+            &self.store_columns,
+            &self.store_stats,
+            self.store_confidence / 100.0,
+        ) {
+            Ok(added) => {
+                let names = added.join(", ");
+                self.set_data(df, "Stored statistics".to_owned());
+                self.append_session(&format!("Descriptive statistics stored in: {names}\n"));
+                self.status = format!("Stored {} column(s)", added.len());
+                self.show_store_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Graphical summary dialog.
+    pub(super) fn gsummary_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_gsummary_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_gsummary_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Graphical Summary"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Column:");
+                    egui::ComboBox::from_id_salt("gsummary_column")
+                        .selected_text(if self.gsummary_column.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.gsummary_column.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.gsummary_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "Histogram, boxplot and the 95% confidence intervals of the mean, median and \
+                     standard deviation.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About these commands…"))
+                        .clicked()
+                    {
+                        self.show_summary_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.gsummary_column.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_gsummary_dialog = open && !run && !cancel;
+        if run {
+            self.run_gsummary_dialog();
+        }
+    }
+
+    /// Store descriptive statistics dialog.
+    pub(super) fn store_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_store_dialog {
+            return;
+        }
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_store_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Store Descriptive Statistics"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(440.0)
+            .show(ctx, |ui| {
+                ui.help_label("Variables:");
+                egui::ScrollArea::vertical()
+                    .max_height(120.0)
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            let mut selected = self.store_columns.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.store_columns.push(name.clone());
+                                } else {
+                                    self.store_columns.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.help_label("Statistics:");
+                egui::ScrollArea::vertical()
+                    .max_height(150.0)
+                    .show(ui, |ui| {
+                        for stat in [
+                            fp_core::summary::StoreStat::N,
+                            fp_core::summary::StoreStat::NMissing,
+                            fp_core::summary::StoreStat::Mean,
+                            fp_core::summary::StoreStat::SeMean,
+                            fp_core::summary::StoreStat::StDev,
+                            fp_core::summary::StoreStat::Minimum,
+                            fp_core::summary::StoreStat::Q1,
+                            fp_core::summary::StoreStat::Median,
+                            fp_core::summary::StoreStat::Q3,
+                            fp_core::summary::StoreStat::Maximum,
+                            fp_core::summary::StoreStat::Iqr,
+                            fp_core::summary::StoreStat::CiMeanLower,
+                            fp_core::summary::StoreStat::CiMeanUpper,
+                            fp_core::summary::StoreStat::CiMedianLower,
+                            fp_core::summary::StoreStat::CiMedianUpper,
+                            fp_core::summary::StoreStat::CiSdLower,
+                            fp_core::summary::StoreStat::CiSdUpper,
+                        ] {
+                            let mut selected = self.store_stats.contains(&stat);
+                            if ui.help_checkbox(&mut selected, stat.name()).changed() {
+                                if selected {
+                                    self.store_stats.push(stat);
+                                } else {
+                                    self.store_stats.retain(|value| *value != stat);
+                                }
+                            }
+                        }
+                    });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Confidence:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.store_confidence)
+                            .range(50.0..=99.9)
+                            .speed(0.5)
+                            .suffix(" %"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.small(
+                    "The table is appended after the existing rows: a Variable column and one \
+                     column per statistic.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About these commands…"))
+                        .clicked()
+                    {
+                        self.show_summary_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.store_columns.is_empty() && !self.store_stats.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_store_dialog = open && !run && !cancel;
+        if run {
+            self.run_store_dialog();
+        }
+    }
+
+    /// Help page of the graphical summary and the stored statistics.
+    pub(super) fn summary_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_summary_help {
+            return;
+        }
+        let mut open = self.show_summary_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Summary help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The graphical summary stacks a histogram, a boxplot and the 95% confidence \
+                     intervals of the mean, the median and the standard deviation. Store \
+                     Descriptive Statistics writes the selected statistics as new worksheet \
+                     columns, one row per variable.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose one numeric column for the summary. For the store command, select one \
+                     or more numeric columns and the statistics: the table gets a Variable column \
+                     and one column per statistic at the end of the worksheet, below the existing \
+                     rows. Missing values are excluded and counted.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Five weights 10, 11, 12, 13 and 14 give a mean of 12 and a standard \
+                     deviation of 1.581. Storing N, Mean and StDev adds three columns with one \
+                     row for the variable.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_summary_help = open && !close;
+    }
+
     pub(super) fn regression_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_reg_dialog {
             return;

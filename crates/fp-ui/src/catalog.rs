@@ -906,6 +906,37 @@ impl UiCatalog {
                 "Ajuste à distribuição de Poisson: 35 contagens com média estimada de 2,4 dão um \
                  qui-quadrado de 1,916 e p = 0,590."
             }
+            "Graphical Summary" => "Resumo gráfico",
+            "Graphical Summary…" => "Resumo gráfico…",
+            "Store Descriptive Statistics" => "Guardar estatísticas descritivas",
+            "Store Descriptive Statistics…" => "Guardar estatísticas descritivas…",
+            "Summary help" => "Ajuda do resumo",
+            "About these commands…" => "Acerca destes comandos…",
+            "The graphical summary stacks a histogram, a boxplot and the 95% confidence \
+             intervals of the mean, the median and the standard deviation. Store \
+             Descriptive Statistics writes the selected statistics as new worksheet \
+             columns, one row per variable." => {
+                "O resumo gráfico empilha um histograma, uma caixa de bigodes e os intervalos de \
+                 confiança a 95 % da média, da mediana e do desvio padrão. Guardar estatísticas \
+                 descritivas escreve as estatísticas escolhidas em novas colunas da folha, com \
+                 uma linha por variável."
+            }
+            "Choose one numeric column for the summary. For the store command, select one \
+             or more numeric columns and the statistics: the table gets a Variable column \
+             and one column per statistic at the end of the worksheet, below the existing \
+             rows. Missing values are excluded and counted." => {
+                "Escolha uma coluna numérica para o resumo. Para o comando de gravação, escolha \
+                 uma ou mais colunas numéricas e as estatísticas: a tabela ganha uma coluna \
+                 Variable e uma coluna por estatística no fim da folha, abaixo das linhas \
+                 existentes. Os valores em falta são excluídos e contados."
+            }
+            "Five weights 10, 11, 12, 13 and 14 give a mean of 12 and a standard \
+             deviation of 1.581. Storing N, Mean and StDev adds three columns with one \
+             row for the variable." => {
+                "Cinco pesos 10, 11, 12, 13 e 14 dão uma média de 12 e um desvio padrão de \
+                 1,581. Guardar N, Mean e StDev acrescenta três colunas com uma linha para a \
+                 variável."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }
