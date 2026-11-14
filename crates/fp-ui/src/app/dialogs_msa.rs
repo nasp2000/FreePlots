@@ -1602,6 +1602,14 @@ impl FreePlotsApp {
             .filter(|name| all.contains(name))
             .unwrap_or_else(|| all.first().cloned().unwrap_or_default());
         self.gallery_value = numeric[0].clone();
+        if kind == fp_core::graphs::GalleryKind::Line {
+            self.gallery_columns = numeric
+                .iter()
+                .filter(|name| **name != self.gallery_x)
+                .cloned()
+                .collect::<Vec<String>>()
+                .join(", ");
+        }
         self.show_graph_gallery_dialog = true;
     }
 

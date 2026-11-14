@@ -244,8 +244,7 @@ pub fn bar_chart(
     let notes: Vec<(String, String)> = rows
         .iter()
         .take(12)
-        .enumerate()
-        .map(|(index, (label, value, _))| (label.clone(), format!("{value:.4}")))
+        .map(|(label, value, _)| (label.clone(), format!("{value:.4}")))
         .collect();
     let plot = PlotSpec {
         title: format!("Bar Chart — {category}"),

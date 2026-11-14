@@ -2177,6 +2177,7 @@ fn the_line_and_area_gallery_draw_the_series() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");
     open(&mut ui, &["Graph", "More Graphs", "Line Plot…"]);
+    ui.select("X:", "pressure").expect("x");
     ui.set_text("Series:", "weight,height").expect("series");
     ui.click("Run").expect("run");
     assert!(
