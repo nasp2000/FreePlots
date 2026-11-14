@@ -937,6 +937,36 @@ impl UiCatalog {
                  1,581. Guardar N, Mean e StDev acrescenta três colunas com uma linha para a \
                  variável."
             }
+            "Covariance" => "Covariância",
+            "Covariance…" => "Covariância…",
+            "Tally" => "Contagens",
+            "Tally…" => "Contagens…",
+            "Covariance and tally help" => "Ajuda da covariância e das contagens",
+            "The covariance matrix measures how pairs of numeric columns vary together; \
+             the tally counts the unique values of one or more columns with their \
+             percentages." => {
+                "A matriz de covariâncias mede como pares de colunas numéricas variam em \
+                 conjunto; as contagens listam os valores únicos de uma ou mais colunas com as \
+                 respectivas percentagens."
+            }
+            "Choose at least two numeric columns for the covariance matrix, separated by \
+             commas; each cell uses the rows that are complete in both columns. Tally \
+             accepts numeric, text and date columns; each selected column gets a table \
+             with the count, percent, cumulative count and cumulative percent. Missing \
+             values are excluded and counted." => {
+                "Escolha pelo menos duas colunas numéricas para a matriz de covariâncias, \
+                 separadas por vírgulas; cada célula usa as linhas completas nas duas colunas. \
+                 As contagens aceitam colunas numéricas, de texto e de data; cada coluna \
+                 escolhida ganha uma tabela com contagem, percentagem, contagem acumulada e \
+                 percentagem acumulada. Os valores em falta são excluídos e contados."
+            }
+            "x = 1, 2, 3, 4 and y = 2, 4, 6, 8 give Var(x) = 1.667, Cov(x, y) = 3.333 \
+             and Var(y) = 6.667. A grade column A, A, B, A, B tallies A with 3 (60 %) \
+             and B with 2 (40 %)." => {
+                "x = 1, 2, 3, 4 e y = 2, 4, 6, 8 dão Var(x) = 1,667, Cov(x, y) = 3,333 e \
+                 Var(y) = 6,667. Uma coluna de notas A, A, B, A, B conta A com 3 (60 %) e B com \
+                 2 (40 %)."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

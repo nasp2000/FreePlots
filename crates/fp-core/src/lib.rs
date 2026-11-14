@@ -80,6 +80,7 @@ pub mod stemleaf;
 pub mod stepwise;
 pub mod summary;
 pub mod taguchi;
+pub mod tally;
 pub mod timeseries;
 pub mod tolerance;
 pub mod transform;

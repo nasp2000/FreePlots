@@ -748,6 +748,20 @@ impl FreePlotsApp {
                         self.open_correlation_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Covariance…"), None, ready)
+                        .on_hover_text("Sample covariance matrix of several numeric columns")
+                        .clicked()
+                    {
+                        self.open_covariance_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Tally…"), None, self.data.is_some())
+                        .on_hover_text("Counts of the unique values of one or more columns")
+                        .clicked()
+                    {
+                        self.open_tally_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Tolerance Interval…"), None, ready)
                         .on_hover_text("Interval that covers a proportion of the population")
                         .clicked()

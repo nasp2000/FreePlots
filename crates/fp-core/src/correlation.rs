@@ -31,6 +31,104 @@ fn check_workload(pairs: usize, rows: usize) -> Result<()> {
     Ok(())
 }
 
+/// Covariance matrix of several columns.
+///
+/// Each cell uses the rows that are complete in both columns and divides the
+/// cross-product by `n − 1`; the diagonal is the sample variance.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for fewer than two columns, duplicate names
+/// or a workload beyond the matrix limit, and [`Error::SampleTooSmall`] when a
+/// pair has fewer than two complete observations.
+pub fn covariance(df: &DataFrame, columns: &[String]) -> Result<AnalysisResult> {
+    if columns.len() < 2 {
+        return Err(Error::Unsupported(
+            "the covariance matrix needs at least two columns".to_owned(),
+        ));
+    }
+    let mut unique = columns.to_vec();
+    unique.sort();
+    unique.dedup();
+    if unique.len() != columns.len() {
+        return Err(Error::Unsupported(
+            "the column list contains duplicates".to_owned(),
+        ));
+    }
+    let data: Vec<&Column> = columns
+        .iter()
+        .map(|name| df.column(name))
+        .collect::<Result<Vec<_>>>()?;
+    let rows = df.n_rows();
+    let pairs_count = columns.len() * (columns.len() + 1) / 2;
+    check_workload(pairs_count, rows)?;
+    let mut matrix = vec![vec![f64::NAN; columns.len()]; columns.len()];
+    let mut largest = 0;
+    for i in 0..columns.len() {
+        for j in i..columns.len() {
+            let (xs, ys, n) = complete_pairs(data[i], data[j], rows);
+            if n < 2 {
+                return Err(Error::SampleTooSmall { n, min: 2 });
+            }
+            largest = largest.max(n);
+            let mean_x = xs.iter().sum::<f64>() / n as f64;
+            let mean_y = ys.iter().sum::<f64>() / n as f64;
+            let sum = xs
+                .iter()
+                .zip(&ys)
+                .map(|(x, y)| (x - mean_x) * (y - mean_y))
+                .sum::<f64>();
+            matrix[i][j] = sum / (n - 1) as f64;
+            matrix[j][i] = matrix[i][j];
+        }
+    }
+    let mut result = AnalysisResult::new(
+        format!("Covariance — {}", columns.join(", ")),
+        "Sample covariance matrix; each cell uses the complete pairs of its columns".to_owned(),
+    );
+    result.n = largest;
+    result.statistics = vec![("Columns", columns.len() as f64)];
+    let mut headers = Vec::with_capacity(columns.len() + 1);
+    headers.push("Variable".to_owned());
+    headers.extend(columns.iter().cloned());
+    result.extra.push(Item::Table {
+        headers,
+        rows: (0..columns.len())
+            .map(|i| {
+                let mut row = Vec::with_capacity(columns.len() + 1);
+                row.push(columns[i].clone());
+                for j in 0..columns.len() {
+                    row.push(if matrix[i][j].is_finite() {
+                        format!("{:.6}", matrix[i][j])
+                    } else {
+                        "—".to_owned()
+                    });
+                }
+                row
+            })
+            .collect(),
+    });
+    result.notes = vec![
+        (
+            "Covariance".to_owned(),
+            "cᵢⱼ = Σ(xᵢ − x̄ᵢ)(xⱼ − x̄ⱼ)/(n − 1); the diagonal is the sample variance".to_owned(),
+        ),
+        (
+            "Data policy".to_owned(),
+            "each cell uses the rows complete in both of its columns (pairwise); a pair with \
+             fewer than two observations is an error"
+                .to_owned(),
+        ),
+    ];
+    result.warnings = standard_warnings(result.n, 0, 0);
+    result.warnings.push(
+        "the sample covariance uses n − 1 and pairwise complete rows; it has not been compared \
+         with documented output"
+            .to_owned(),
+    );
+    Ok(result)
+}
+
 /// A pair of columns and their correlations.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pair {
@@ -373,5 +471,59 @@ mod tests {
             error.to_string().contains("select fewer columns"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn the_covariance_matrix_uses_n_minus_one() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0]),
+            Column::new_f64("y", vec![2.0, 4.0, 6.0, 8.0]),
+        ])
+        .expect("frame");
+        let result = covariance(&df, &["x".to_owned(), "y".to_owned()]).expect("covariance");
+        // Var(x) = 5/3, Var(y) = 20/3, Cov(x, y) = 10/3.
+        let (headers, rows) = result
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { headers, rows } => Some((headers, rows)),
+                _ => None,
+            })
+            .expect("table");
+        assert_eq!(
+            headers,
+            &vec!["Variable".to_owned(), "x".to_owned(), "y".to_owned()]
+        );
+        assert_eq!(rows[0][1], "1.666667");
+        assert_eq!(rows[0][2], "3.333333");
+        assert_eq!(rows[1][2], "6.666667");
+    }
+
+    #[test]
+    fn the_covariance_uses_the_complete_pairs() {
+        let df = DataFrame::new(vec![
+            Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0]),
+            Column::new_f64("y", vec![2.0, f64::NAN, 6.0, 8.0]),
+        ])
+        .expect("frame");
+        let result = covariance(&df, &["x".to_owned(), "y".to_owned()]).expect("covariance");
+        let (_, rows) = result
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { headers, rows } => Some((headers, rows)),
+                _ => None,
+            })
+            .expect("table");
+        // Three complete pairs: Cov = 28/6 = 4.666667.
+        assert_eq!(rows[0][2], "4.666667");
+    }
+
+    #[test]
+    fn the_covariance_rejects_bad_column_lists() {
+        let df = DataFrame::new(vec![Column::new_f64("x", vec![1.0, 2.0, 3.0])]).expect("frame");
+        assert!(covariance(&df, &["x".to_owned()]).is_err());
+        assert!(covariance(&df, &["x".to_owned(), "x".to_owned()]).is_err());
+        assert!(covariance(&df, &["x".to_owned(), "missing".to_owned()]).is_err());
     }
 }

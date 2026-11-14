@@ -213,6 +213,9 @@ impl FreePlotsApp {
         self.gsummary_dialog(&ctx);
         self.store_dialog(&ctx);
         self.summary_help_window(&ctx);
+        self.covariance_dialog(&ctx);
+        self.tally_dialog(&ctx);
+        self.cov_tally_help_window(&ctx);
         self.shortcuts_dialog(&ctx);
         self.assistant_dialog(&ctx);
         self.find_dialog(&ctx);

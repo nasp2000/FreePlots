@@ -1284,6 +1284,12 @@ pub struct FreePlotsApp {
     store_columns: Vec<String>,
     store_stats: Vec<fp_core::summary::StoreStat>,
     store_confidence: f64,
+    /// Covariance and tally dialogs.
+    show_covariance_dialog: bool,
+    covariance_columns: String,
+    show_tally_dialog: bool,
+    tally_columns: Vec<String>,
+    show_cov_tally_help: bool,
     show_step_dialog: bool,
     step_response: String,
     step_candidates: Vec<String>,
@@ -3956,6 +3962,9 @@ impl FreePlotsApp {
         self.show_gsummary_dialog = false;
         self.show_store_dialog = false;
         self.show_summary_help = false;
+        self.show_covariance_dialog = false;
+        self.show_tally_dialog = false;
+        self.show_cov_tally_help = false;
         self.show_calc_dialog = false;
         self.show_cap_dialog = false;
         self.show_cap_help = false;

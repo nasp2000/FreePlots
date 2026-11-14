@@ -59,6 +59,10 @@ All notable changes to FreePlots are recorded here. The format follows
   *Store Descriptive Statistics…* command that writes the selected statistics
   as new worksheet columns, one row per variable. Both share a help page in
   both interface languages.
+- Basic Statistics has a *Covariance…* matrix (pairwise complete rows, n−1
+  divisor) and a *Tally…* command (counts, percent and cumulative columns for
+  the unique values of any columns), with a shared help page in both interface
+  languages.
 
 ### Changed
 

@@ -1126,6 +1126,244 @@ impl FreePlotsApp {
         self.show_summary_help = open && !close;
     }
 
+    /// Opens the covariance dialog with the selected column.
+    pub fn open_covariance_dialog(&mut self) {
+        self.covariance_columns = self.selected.clone().unwrap_or_default();
+        self.show_covariance_dialog = true;
+    }
+
+    /// Runs the covariance matrix of the dialog columns.
+    pub fn run_covariance_dialog(&mut self) {
+        let columns: Vec<String> = self
+            .covariance_columns
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if columns.len() < 2 {
+            self.set_error("List at least two columns, separated by commas");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::correlation::covariance(&df, &columns) {
+            Ok(result) => {
+                self.apply_output(
+                    fp_core::workflow::AnalysisOutput {
+                        results: vec![result],
+                        plot: None,
+                    },
+                    "Covariance".to_owned(),
+                );
+                self.show_covariance_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Opens the tally dialog with the selected column.
+    pub fn open_tally_dialog(&mut self) {
+        self.tally_columns = self.selected.clone().into_iter().collect();
+        self.show_tally_dialog = true;
+    }
+
+    /// Runs the tally of the dialog columns.
+    pub fn run_tally_dialog(&mut self) {
+        if self.tally_columns.is_empty() {
+            self.set_error("Select at least one column");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::tally::tally(&df, &self.tally_columns) {
+            Ok(result) => {
+                self.apply_output(
+                    fp_core::workflow::AnalysisOutput {
+                        results: vec![result],
+                        plot: None,
+                    },
+                    "Tally".to_owned(),
+                );
+                self.show_tally_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Covariance dialog.
+    pub(super) fn covariance_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_covariance_dialog {
+            return;
+        }
+        let mut open = self.show_covariance_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Covariance"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Columns:");
+                    ui.text_edit_singleline(&mut self.covariance_columns)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "Two or more numeric columns, separated by commas. Each cell uses the rows \
+                     complete in both columns and divides by n − 1.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About these commands…"))
+                        .clicked()
+                    {
+                        self.show_cov_tally_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.covariance_columns.trim().is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_covariance_dialog = open && !run && !cancel;
+        if run {
+            self.run_covariance_dialog();
+        }
+    }
+
+    /// Tally dialog.
+    pub(super) fn tally_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_tally_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_tally_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Tally"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.help_label("Columns:");
+                for name in &names {
+                    let mut selected = self.tally_columns.contains(name);
+                    if ui.help_checkbox(&mut selected, name).changed() {
+                        if selected {
+                            self.tally_columns.push(name.clone());
+                        } else {
+                            self.tally_columns.retain(|value| value != name);
+                        }
+                    }
+                }
+                ui.small(
+                    "Counts of the unique values of each column, with percent and cumulative \
+                     columns. Missing values are excluded.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About these commands…"))
+                        .clicked()
+                    {
+                        self.show_cov_tally_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.tally_columns.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_tally_dialog = open && !run && !cancel;
+        if run {
+            self.run_tally_dialog();
+        }
+    }
+
+    /// Help page of the covariance and tally commands.
+    pub(super) fn cov_tally_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_cov_tally_help {
+            return;
+        }
+        let mut open = self.show_cov_tally_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Covariance and tally help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The covariance matrix measures how pairs of numeric columns vary together; \
+                     the tally counts the unique values of one or more columns with their \
+                     percentages.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose at least two numeric columns for the covariance matrix, separated by \
+                     commas; each cell uses the rows that are complete in both columns. Tally \
+                     accepts numeric, text and date columns; each selected column gets a table \
+                     with the count, percent, cumulative count and cumulative percent. Missing \
+                     values are excluded and counted.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "x = 1, 2, 3, 4 and y = 2, 4, 6, 8 give Var(x) = 1.667, Cov(x, y) = 3.333 \
+                     and Var(y) = 6.667. A grade column A, A, B, A, B tallies A with 3 (60 %) \
+                     and B with 2 (40 %).",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_cov_tally_help = open && !close;
+    }
+
     pub(super) fn regression_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_reg_dialog {
             return;

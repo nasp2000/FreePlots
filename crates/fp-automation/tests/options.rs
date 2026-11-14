@@ -4007,6 +4007,42 @@ fn the_attribute_capability_dialog_reports_ppm_defects() {
 }
 
 #[test]
+fn the_covariance_dialog_reports_the_matrix() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0]),
+        Column::new_f64("y", vec![2.0, 4.0, 6.0, 8.0]),
+    ])
+    .expect("frame");
+    ui.load_frame(df, "cov.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "Covariance…"]);
+    ui.set_text("Columns:", "x, y").expect("columns");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Covariance"), "{session}");
+    assert!(session.contains("3.333333"), "{session}");
+}
+
+#[test]
+fn the_tally_dialog_counts_the_values() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![Column::new_text(
+        "grade",
+        vec!["A", "A", "B", "A", "B"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+    )])
+    .expect("frame");
+    ui.load_frame(df, "grades.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "Tally…"]);
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Tally"), "{session}");
+    assert!(session.contains("60.00%"), "{session}");
+}
+
+#[test]
 fn the_graphical_summary_shows_the_three_panels() {
     let mut ui = Automation::new();
     let df = DataFrame::new(vec![
