@@ -15,7 +15,7 @@
 use crate::data::{Column, DataFrame};
 use crate::error::{Error, Result};
 use crate::regression::{self, RegressionFit};
-use crate::report::{AnalysisResult, Item, standard_warnings};
+use crate::report::{Item, standard_warnings};
 use crate::special::f_cdf;
 use crate::workflow::AnalysisOutput;
 
@@ -73,12 +73,15 @@ pub struct GlmFit {
     pub excluded: usize,
 }
 
+struct Built {
+    frame: DataFrame,
+    terms: Vec<GlmTerm>,
+    references: Vec<(String, String)>,
+    excluded: usize,
+}
+
 /// Builds the expanded frame, the terms and the reference levels.
-fn build(
-    df: &DataFrame,
-    response: &str,
-    options: &GlmOptions,
-) -> Result<(DataFrame, Vec<GlmTerm>, Vec<(String, String)>, usize)> {
+fn build(df: &DataFrame, response: &str, options: &GlmOptions) -> Result<Built> {
     if options.factors.is_empty() && options.covariates.is_empty() {
         return Err(Error::Unsupported(
             "choose at least one factor or covariate".to_owned(),
@@ -267,7 +270,12 @@ fn build(
             .map(|(name, values)| Column::new_f64(name, values))
             .collect(),
     )?;
-    Ok((frame, terms, references, excluded))
+    Ok(Built {
+        frame,
+        terms,
+        references,
+        excluded,
+    })
 }
 
 /// Fits a general linear model.
@@ -278,7 +286,12 @@ fn build(
 /// interaction that names an undeclared term, a factor with one level or a
 /// non-numeric covariate, and the fitting errors of [`crate::regression::fit`].
 pub fn fit(df: &DataFrame, response: &str, options: &GlmOptions) -> Result<GlmFit> {
-    let (frame, terms, references, excluded) = build(df, response, options)?;
+    let Built {
+        frame,
+        terms,
+        references,
+        excluded,
+    } = build(df, response, options)?;
     let all_columns: Vec<String> = terms
         .iter()
         .flat_map(|term| term.columns.iter().cloned())
