@@ -116,7 +116,8 @@ fn complete_rows(df: &DataFrame, columns: &[String]) -> Result<(Vec<Vec<f64>>, u
             rows.push(values);
         }
     }
-    Ok((rows, df.n_rows() - rows.len()))
+    let excluded = df.n_rows() - rows.len();
+    Ok((rows, excluded))
 }
 
 /// Axis range with a proportional pad.
@@ -202,7 +203,7 @@ pub fn bar_chart(
         .collect();
     let values: Vec<f64> = rows
         .iter()
-        .map(|(_, value, _)| value)
+        .map(|(_, value, _)| *value)
         .filter(|value| value.is_finite())
         .collect();
     if values.is_empty() {
