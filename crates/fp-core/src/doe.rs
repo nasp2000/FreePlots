@@ -1753,8 +1753,8 @@ pub fn factorial_plots(
                 if counts[mask] == 0 {
                     continue;
                 }
-                let left = ((mask >> i) & 1) as usize;
-                let right = ((mask >> k) & 1) as usize;
+                let left = (mask >> i) & 1;
+                let right = (mask >> k) & 1;
                 cell_sums[right][left] += sums[mask];
                 cell_counts[right][left] += counts[mask];
             }
