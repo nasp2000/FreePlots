@@ -464,6 +464,7 @@ impl FreePlotsApp {
             .unwrap_or_default();
         let mut open = self.show_id_dialog;
         let mut run = false;
+        let mut cancel = false;
         dialog_window(
             self.catalog()
                 .label("Individual Distribution Identification"),
@@ -539,7 +540,7 @@ impl FreePlotsApp {
                     run = true;
                 }
                 if ui.help_button(self.catalog().label("Cancel")).clicked() {
-                    open = false;
+                    cancel = true;
                 }
             });
         });
