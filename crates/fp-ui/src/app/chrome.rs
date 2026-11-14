@@ -199,6 +199,8 @@ impl FreePlotsApp {
         self.power_dialog(&ctx);
         self.test2_dialog(&ctx);
         self.regression_dialog(&ctx);
+        self.best_subsets_dialog(&ctx);
+        self.best_subsets_help_window(&ctx);
         self.predict_dialog(&ctx);
         self.predict_help_window(&ctx);
         self.stepwise_dialog(&ctx);

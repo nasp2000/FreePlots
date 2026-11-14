@@ -70,6 +70,7 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["Stat", "Time Series", "Decomposition…"],
     &["Stat", "Time Series", "Exponential Smoothing…"],
     &["Stat", "Regression", "Regression…"],
+    &["Stat", "Regression", "Best Subsets…"],
     &["Stat", "Regression", "Stepwise Regression…"],
     &["Stat", "Regression", "Ordinal Logistic Regression…"],
     &["Stat", "Regression", "Poisson Regression…"],

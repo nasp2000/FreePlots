@@ -72,6 +72,12 @@ All notable changes to FreePlots are recorded here. The format follows
   cumulative curve for one of the ten distributions, with its parameters and an
   optional shaded area that reports the probability. It needs no worksheet
   data and has its own help page in both interface languages.
+- Regression has a *Best Subsets…* entry: it fits every non-empty subset of up
+  to twelve numeric predictors, reports the two best models of each size by R²
+  with their adjusted R², Mallows' Cp and s, and adds a table of the best
+  subset by each criterion. A four-panel selection plot shows the four
+  criteria against the number of predictors. It has its own help page in both
+  interface languages.
 - Quality Tools has an *Individual Distribution Identification…* entry: it
   fits fourteen distributions (Normal; Lognormal, Exponential, Weibull, Gamma
   and Loglogistic with 2 and 3 parameters; Logistic; Extreme Value and
@@ -118,7 +124,10 @@ All notable changes to FreePlots are recorded here. The format follows
   covers the fourteen families and their panels, the two stored transformation
   columns, the missing-value names, the non-positive data and the families
   skipped on them. The new distributions are tested against synthetic samples
-  of their own family and against constant or one-point samples.
+  of their own family and against constant or one-point samples. Best subsets
+  covers the informative and the noise predictor, the adjusted R² and Cp
+  choice, the full-model Cp, the one-predictor and collinear cases and the
+  invalid response, duplicate, over-limit and short samples.
 
 ## [0.1.1] - 2026-11-12
 

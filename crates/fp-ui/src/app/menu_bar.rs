@@ -972,6 +972,13 @@ impl FreePlotsApp {
                         self.open_regression_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Best Subsets…"), None, self.data.is_some())
+                        .on_hover_text("Every subset of the predictors ranked by R², adjusted R², Cp and s")
+                        .clicked()
+                    {
+                        self.open_best_subsets_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Predict…"), None, self.data.is_some())
                         .on_hover_text("Predict the response at new points with confidence and prediction intervals")
                         .clicked()

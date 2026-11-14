@@ -996,6 +996,34 @@ fn the_stepwise_dialog_runs_the_aic_backward_search() {
 }
 
 #[test]
+fn the_best_subsets_dialog_ranks_the_predictors() {
+    let mut ui = Automation::new();
+    ui.load_frame(model_frame(), "model.csv");
+    open(&mut ui, &["Stat", "Regression", "Best Subsets…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("Best Subsets Regression"), "{session}");
+    assert!(session.contains("Largest adjusted R²"), "{session}");
+    assert!(session.contains("x1, x2"), "{session}");
+    assert!(ui.plot().is_some(), "a plot was produced");
+}
+
+#[test]
+fn the_best_subsets_dialog_needs_a_predictor() {
+    let mut ui = Automation::new();
+    ui.load_frame(model_frame(), "model.csv");
+    open(&mut ui, &["Stat", "Regression", "Best Subsets…"]);
+    ui.click("x1").expect("drop x1");
+    ui.click("x2").expect("drop x2");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("at least one predictor"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_stepwise_dialog_needs_a_candidate() {
     let mut ui = Automation::new();
     ui.load_frame(model_frame(), "model.csv");

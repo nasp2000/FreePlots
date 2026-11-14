@@ -520,6 +520,37 @@ impl UiCatalog {
             "Ordinal Logistic Regression…" => "Regressão logística ordinal…",
             "Stepwise Regression" => "Regressão passo a passo",
             "Stepwise Regression…" => "Regressão passo a passo…",
+            "Best Subsets…" => "Melhores subconjuntos…",
+            "Best Subsets Regression" => "Regressão por melhores subconjuntos",
+            "Best subsets regression help" => "Ajuda da regressão por melhores subconjuntos",
+            "About best subsets…" => "Acerca dos melhores subconjuntos…",
+            "Best subsets fits every non-empty subset of the candidate predictors and \
+             ranks the models by R², adjusted R², Mallows' Cp and the residual standard \
+             error s. It is a screening step before fitting a final regression." => {
+                "Os melhores subconjuntos ajustam todos os subconjuntos não vazios dos preditores \
+                 candidatos e ordenam os modelos por R², R² ajustado, Cp de Mallows e erro padrão \
+                 residual s. É um passo de triagem antes de ajustar a regressão final."
+            }
+            "Choose one numeric response and at least one numeric predictor, up to 12. \
+             Rows with a missing value in the response or in any candidate predictor are \
+             removed listwise, so every model uses the same observations. A subset with \
+             collinear predictors is skipped; a collinear full model is an error because \
+             it is the Cp reference." => {
+                "Escolha uma resposta numérica e pelo menos um preditor numérico, até 12. As \
+                 linhas com valor em falta na resposta ou em qualquer preditor candidato são \
+                 removidas em lista, para que todos os modelos usem as mesmas observações. Um \
+                 subconjunto com preditores colineares é ignorado; um modelo completo colinear é \
+                 um erro porque é a referência do Cp."
+            }
+            "With a response built from x1 and x2 and an unrelated x3, the best adjusted \
+             R² and the smallest Cp both choose the model with x1 and x2; its Cp is close \
+             to 3, the number of parameters. Adding x3 raises R² only slightly and lowers \
+             the adjusted R²." => {
+                "Com uma resposta construída a partir de x1 e x2 e um x3 não relacionado, o \
+                 melhor R² ajustado e o menor Cp escolhem ambos o modelo com x1 e x2; o seu Cp \
+                 fica próximo de 3, o número de parâmetros. Acrescentar x3 sobe o R² apenas um \
+                 pouco e baixa o R² ajustado."
+            }
             "Poisson Regression…" => "Regressão de Poisson…",
             "Binary Logistic Regression…" => "Regressão logística binária…",
             "Gage Linearity…" => "Linearidade do sistema…",

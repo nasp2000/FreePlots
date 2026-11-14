@@ -1456,6 +1456,210 @@ impl FreePlotsApp {
             self.run_regression_dialog();
         }
     }
+    /// Opens the best-subsets dialog with the selected response.
+    pub fn open_best_subsets_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.len() < 2 {
+            self.set_error("Best subsets needs a numeric response and at least one predictor");
+            return;
+        }
+        self.bs_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.bs_predictors = numeric
+            .into_iter()
+            .filter(|name| *name != self.bs_response)
+            .collect();
+        self.show_best_subsets_dialog = true;
+    }
+
+    /// Runs the best-subsets enumeration of the dialog.
+    pub fn run_best_subsets_dialog(&mut self) {
+        if self.bs_response.is_empty() {
+            self.set_error("Select the response column");
+            return;
+        }
+        let predictors: Vec<String> = self
+            .bs_predictors
+            .iter()
+            .filter(|name| **name != self.bs_response)
+            .cloned()
+            .collect();
+        if predictors.is_empty() {
+            self.set_error("Select at least one predictor");
+            return;
+        }
+        if predictors.len() > fp_core::regression::MAX_BEST_SUBSETS_PREDICTORS {
+            self.set_error(format!(
+                "Best subsets enumerates at most {} predictors",
+                fp_core::regression::MAX_BEST_SUBSETS_PREDICTORS
+            ));
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::regression::best_subsets(&df, &self.bs_response, &predictors) {
+            Ok(output) => {
+                let label = format!("Best subsets: {}", self.bs_response);
+                self.apply_output(output, label);
+                self.show_best_subsets_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Best subsets regression dialog.
+    pub(super) fn best_subsets_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_best_subsets_dialog {
+            return;
+        }
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_best_subsets_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Best Subsets Regression"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(430.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Response:");
+                    egui::ComboBox::from_id_salt("bs_response")
+                        .selected_text(if self.bs_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.bs_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.bs_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.help_label("Predictors:");
+                egui::ScrollArea::vertical()
+                    .max_height(180.0)
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            if *name == self.bs_response {
+                                continue;
+                            }
+                            let mut selected = self.bs_predictors.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.bs_predictors.push(name.clone());
+                                } else {
+                                    self.bs_predictors.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.small(
+                    "Every non-empty subset of the predictors is fitted; the table lists the two \
+                     best per size by R² and the best by R², adjusted R², Cp and s.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About best subsets…"))
+                        .clicked()
+                    {
+                        self.show_best_subsets_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_best_subsets_dialog = open && !run && !cancel;
+        if run {
+            self.run_best_subsets_dialog();
+        }
+    }
+
+    /// Help page of the best-subsets regression.
+    pub(super) fn best_subsets_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_best_subsets_help {
+            return;
+        }
+        let mut open = self.show_best_subsets_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Best subsets regression help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "Best subsets fits every non-empty subset of the candidate predictors and \
+                     ranks the models by R², adjusted R², Mallows' Cp and the residual standard \
+                     error s. It is a screening step before fitting a final regression.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose one numeric response and at least one numeric predictor, up to 12. \
+                     Rows with a missing value in the response or in any candidate predictor are \
+                     removed listwise, so every model uses the same observations. A subset with \
+                     collinear predictors is skipped; a collinear full model is an error because \
+                     it is the Cp reference.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "With a response built from x1 and x2 and an unrelated x3, the best adjusted \
+                     R² and the smallest Cp both choose the model with x1 and x2; its Cp is close \
+                     to 3, the number of parameters. Adding x3 raises R² only slightly and lowers \
+                     the adjusted R².",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_best_subsets_help = open && !close;
+    }
+
     pub fn open_stepwise_dialog(&mut self) {
         let Some(df) = self.data.as_ref() else {
             self.set_error("No worksheet open: use File → Open CSV…");

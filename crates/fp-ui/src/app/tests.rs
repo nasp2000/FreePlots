@@ -2893,6 +2893,66 @@ fn regression_dialog_reaches_the_session_and_plot() {
 }
 
 #[test]
+fn best_subsets_dialog_reaches_the_session_and_plot() {
+    let mut app = FreePlotsApp::new();
+    let x1: Vec<f64> = (1..=10).map(|i| i as f64).collect();
+    let x2: Vec<f64> = (0..10).map(|i| ((i * 3) % 5) as f64).collect();
+    let y: Vec<f64> = (0..10)
+        .map(|i| 2.0 + 1.5 * x1[i] - 0.8 * x2[i] + 0.1 * ((i % 3) as f64))
+        .collect();
+    let df = DataFrame::new(vec![
+        Column::new_f64("y", y),
+        Column::new_f64("x1", x1),
+        Column::new_f64("x2", x2),
+    ])
+    .expect("frame");
+    app.set_data(df, "subsets.csv".to_owned());
+    app.open_best_subsets_dialog();
+    app.bs_response = "y".to_owned();
+    app.bs_predictors = vec!["x1".to_owned(), "x2".to_owned()];
+    app.run_best_subsets_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Best Subsets Regression"), "{text}");
+    assert!(text.contains("Largest adjusted R²"), "{text}");
+    let plot = app.plot().expect("plot");
+    assert_eq!(plot.panels.len(), 4);
+}
+
+#[test]
+fn the_best_subsets_help_explains_the_criteria() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_best_subsets_dialog = true;
+    app.bs_response = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About best subsets…").click();
+    harness.run();
+    assert!(harness.state().show_best_subsets_help);
+    harness.get_by_label("Best subsets regression help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("fits every non-empty subset");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da regressão por melhores subconjuntos");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_best_subsets_help);
+}
+
+#[test]
 fn stepwise_dialog_reaches_the_session_and_plot() {
     let mut app = FreePlotsApp::new();
     let df = DataFrame::new(vec![

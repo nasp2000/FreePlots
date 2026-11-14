@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
-use crate::plot::{PlotSpec, Point, Segment, linear_axis};
+use crate::plot::{PlotSpec, Point, Segment, linear_axis, panel_plot};
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::special::{f_cdf, student_t_cdf, student_t_quantile};
 use crate::workflow::AnalysisOutput;
@@ -830,6 +830,477 @@ fn variance_inflation_factors(design: &[Vec<f64>], p: usize) -> Result<Vec<f64>>
 }
 
 /// Fits the model, builds the Session report and a residual-versus-fitted plot.
+/// One candidate subset of the predictors.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubsetModel {
+    /// Predictors in the subset, in worksheet order.
+    pub predictors: Vec<String>,
+    /// Number of predictors.
+    pub k: usize,
+    /// Coefficient of determination.
+    pub r_squared: f64,
+    /// Adjusted coefficient of determination.
+    pub adjusted_r_squared: f64,
+    /// Mallows' Cp.
+    pub cp: f64,
+    /// Residual standard error.
+    pub s: f64,
+}
+
+/// Result of the best-subsets enumeration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BestSubsetsResult {
+    /// Response column.
+    pub response: String,
+    /// Candidate predictors.
+    pub predictors: Vec<String>,
+    /// Complete observations used.
+    pub n: usize,
+    /// Rows removed listwise.
+    pub excluded: usize,
+    /// R² of the full model.
+    pub full_r_squared: f64,
+    /// Adjusted R² of the full model.
+    pub full_adjusted_r_squared: f64,
+    /// Residual standard error of the full model.
+    pub full_s: f64,
+    /// Cp of the full model (`m + 1`).
+    pub full_cp: f64,
+    /// Every subset that could be fitted.
+    pub subsets: Vec<SubsetModel>,
+    /// Subsets skipped because the fit failed (collinear predictors).
+    pub skipped: usize,
+}
+
+/// Largest number of predictors for which every subset is enumerated.
+pub const MAX_BEST_SUBSETS_PREDICTORS: usize = 12;
+
+/// Enumerates every non-empty subset of the predictors and scores it.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for an empty, duplicated or too large
+/// predictor list, a response among the predictors, or too few complete rows;
+/// and the errors of the full model fit.
+pub fn fit_best_subsets(
+    df: &DataFrame,
+    response: &str,
+    predictors: &[String],
+) -> Result<BestSubsetsResult> {
+    if predictors.is_empty() {
+        return Err(Error::Unsupported(
+            "choose at least one predictor".to_owned(),
+        ));
+    }
+    if predictors.len() > MAX_BEST_SUBSETS_PREDICTORS {
+        return Err(Error::Unsupported(format!(
+            "best subsets enumerates at most {MAX_BEST_SUBSETS_PREDICTORS} predictors; choose a \
+             smaller set"
+        )));
+    }
+    let mut unique = predictors.to_vec();
+    unique.sort();
+    unique.dedup();
+    if unique.len() != predictors.len() {
+        return Err(Error::Unsupported(
+            "the predictor list contains duplicates".to_owned(),
+        ));
+    }
+    if predictors.iter().any(|name| name == response) {
+        return Err(Error::Unsupported(
+            "the response cannot also be a predictor".to_owned(),
+        ));
+    }
+    let (frame, excluded) = complete_frame(df, response, predictors)?;
+    let n = frame.n_rows();
+    let m = predictors.len();
+    if n < 3 {
+        return Err(Error::SampleTooSmall { n, min: 3 });
+    }
+    if n <= m + 1 {
+        return Err(Error::Unsupported(format!(
+            "best subsets needs more observations than predictors; n = {n}, predictors = {m}"
+        )));
+    }
+    let full = fit(&frame, response, predictors, 0.95)?;
+    let full_mse = full.residual_ss / full.df_residual;
+    if !full_mse.is_finite() || full_mse <= 0.0 {
+        return Err(Error::NotConverged {
+            detail: "the full model has no residual variance".to_owned(),
+        });
+    }
+    let full_cp = full.df_residual - (n as f64 - 2.0 * (m as f64 + 1.0));
+    let mut subsets = Vec::new();
+    let mut skipped = 0usize;
+    for mask in 1u32..(1u32 << m) {
+        let k = mask.count_ones() as usize;
+        let chosen: Vec<String> = predictors
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| mask & (1 << index) != 0)
+            .map(|(_, name)| name.clone())
+            .collect();
+        match fit(&frame, response, &chosen, 0.95) {
+            Ok(model) => {
+                let p = k as f64 + 1.0;
+                let cp = model.residual_ss / full_mse - (n as f64 - 2.0 * p);
+                subsets.push(SubsetModel {
+                    predictors: chosen,
+                    k,
+                    r_squared: model.r_squared,
+                    adjusted_r_squared: model.adjusted_r_squared,
+                    cp,
+                    s: model.s,
+                });
+            }
+            Err(_) => skipped += 1,
+        }
+    }
+    if subsets.is_empty() {
+        return Err(Error::NotConverged {
+            detail: "no subset of the predictors could be fitted".to_owned(),
+        });
+    }
+    Ok(BestSubsetsResult {
+        response: response.to_owned(),
+        predictors: predictors.to_vec(),
+        n,
+        excluded,
+        full_r_squared: full.r_squared,
+        full_adjusted_r_squared: full.adjusted_r_squared,
+        full_s: full.s,
+        full_cp,
+        subsets,
+        skipped,
+    })
+}
+
+/// Keeps the rows complete in the response and in every candidate predictor.
+fn complete_frame(
+    df: &DataFrame,
+    response: &str,
+    predictors: &[String],
+) -> Result<(DataFrame, usize)> {
+    let mut names = Vec::with_capacity(predictors.len() + 1);
+    names.push(response);
+    names.extend(predictors.iter().map(String::as_str));
+    let mut sources = Vec::with_capacity(names.len());
+    for name in &names {
+        let column = df.column(name)?;
+        if !matches!(column.dtype(), DType::Float | DType::Integer) {
+            return Err(Error::Unsupported(format!(
+                "best subsets needs numeric columns; {name} is not numeric"
+            )));
+        }
+        sources.push(column.numeric_by_row());
+    }
+    let mut columns: Vec<Vec<f64>> = vec![Vec::new(); names.len()];
+    let mut excluded = 0usize;
+    for row in 0..df.n_rows() {
+        if sources.iter().all(|source| source[row].is_finite()) {
+            for (column, source) in columns.iter_mut().zip(&sources) {
+                column.push(source[row]);
+            }
+        } else {
+            excluded += 1;
+        }
+    }
+    let frame = DataFrame::new(
+        names
+            .iter()
+            .zip(columns)
+            .map(|(name, values)| Column::new_f64(*name, values))
+            .collect(),
+    )?;
+    Ok((frame, excluded))
+}
+
+/// Runs the best-subsets analysis and builds the report and selection plot.
+pub fn best_subsets(
+    df: &DataFrame,
+    response: &str,
+    predictors: &[String],
+) -> Result<AnalysisOutput> {
+    let model = fit_best_subsets(df, response, predictors)?;
+    let mut result = AnalysisResult::new(
+        format!("Best Subsets Regression — response {response}"),
+        "Ordinary least squares with intercept; every non-empty subset of the predictors",
+    );
+    result.n = model.n;
+    result.excluded = model.excluded;
+    result.statistics = vec![
+        ("Predictors", model.predictors.len() as f64),
+        ("Subsets fitted", model.subsets.len() as f64),
+        ("Full model R²", model.full_r_squared),
+        ("Full model adjusted R²", model.full_adjusted_r_squared),
+        ("Full model s", model.full_s),
+        ("Full model Cp", model.full_cp),
+    ];
+    let per_size = best_per_size(&model.subsets);
+    result.extra.push(Item::Message(
+        "For each number of predictors the two subsets with the largest R² are listed; the \
+         criterion table gives the best subset by each criterion."
+            .to_owned(),
+    ));
+    result.extra.push(Item::Table {
+        headers: vec![
+            "k".to_owned(),
+            "R²".to_owned(),
+            "Adjusted R²".to_owned(),
+            "Cp".to_owned(),
+            "s".to_owned(),
+            "Predictors".to_owned(),
+        ],
+        rows: per_size
+            .iter()
+            .map(|subset| {
+                vec![
+                    subset.k.to_string(),
+                    format!("{:.4}", subset.r_squared),
+                    format!("{:.4}", subset.adjusted_r_squared),
+                    format!("{:.2}", subset.cp),
+                    format!("{:.4}", subset.s),
+                    subset.predictors.join(", "),
+                ]
+            })
+            .collect(),
+    });
+    let mut criterion_rows = Vec::new();
+    for (label, subset) in [
+        (
+            "Largest R²",
+            best_by(&model.subsets, |model| model.r_squared),
+        ),
+        (
+            "Largest adjusted R²",
+            best_by(&model.subsets, |subset| subset.adjusted_r_squared),
+        ),
+        ("Smallest Cp", best_by(&model.subsets, |subset| -subset.cp)),
+        ("Smallest s", best_by(&model.subsets, |subset| -subset.s)),
+    ] {
+        if let Some(subset) = subset {
+            criterion_rows.push(vec![
+                label.to_owned(),
+                subset.predictors.join(", "),
+                subset.k.to_string(),
+                format!("{:.4}", subset.r_squared),
+                format!("{:.4}", subset.adjusted_r_squared),
+                format!("{:.2}", subset.cp),
+                format!("{:.4}", subset.s),
+            ]);
+        }
+    }
+    result.extra.push(Item::Table {
+        headers: vec![
+            "Criterion".to_owned(),
+            "Predictors".to_owned(),
+            "k".to_owned(),
+            "R²".to_owned(),
+            "Adjusted R²".to_owned(),
+            "Cp".to_owned(),
+            "s".to_owned(),
+        ],
+        rows: criterion_rows,
+    });
+    result.notes = vec![
+        (
+            "Criteria".to_owned(),
+            "R² = 1 − SSE/SST; adjusted R² = 1 − (1 − R²)(n − 1)/(n − p); s = √(SSE/(n − p)); \
+             Cp = SSE/MSE(full) − (n − 2p), with p = k + 1 parameters"
+                .to_owned(),
+        ),
+        (
+            "Full model".to_owned(),
+            "the reference for Cp is the model with every candidate predictor; its Cp is m + 1"
+                .to_owned(),
+        ),
+        (
+            "Selection".to_owned(),
+            "smaller Cp, larger adjusted R² and smaller s are better; Cp close to p is a model \
+             with little bias and little variance inflation"
+                .to_owned(),
+        ),
+        (
+            "Enumeration".to_owned(),
+            format!(
+                "every non-empty subset of at most {MAX_BEST_SUBSETS_PREDICTORS} predictors; a \
+                 subset whose fit fails (collinear predictors) is skipped"
+            ),
+        ),
+        (
+            "Data policy".to_owned(),
+            "rows with a missing value in the response or in any candidate predictor are removed \
+             listwise, so every subset uses the same observations"
+                .to_owned(),
+        ),
+    ];
+    let mut warnings = standard_warnings(model.n, model.excluded, 0);
+    warnings.push(
+        "best subsets screens many models on one sample; confirm the chosen model on new data"
+            .to_owned(),
+    );
+    if model.skipped > 0 {
+        warnings.push(format!(
+            "{} subset(s) could not be fitted and were skipped",
+            model.skipped
+        ));
+    }
+    result.warnings = warnings;
+    let plot = selection_plot(&model);
+    Ok(AnalysisOutput {
+        results: vec![result],
+        plot,
+    })
+}
+
+/// The best model by a key, using a total order.
+fn best_by(subsets: &[SubsetModel], key: impl Fn(&SubsetModel) -> f64) -> Option<&SubsetModel> {
+    subsets
+        .iter()
+        .max_by(|left, right| key(left).total_cmp(&key(right)))
+}
+
+/// The two best models of every subset size, by R².
+fn best_per_size(subsets: &[SubsetModel]) -> Vec<SubsetModel> {
+    let mut result = Vec::new();
+    for k in 1..=subsets.iter().map(|subset| subset.k).max().unwrap_or(0) {
+        let mut at_size: Vec<&SubsetModel> =
+            subsets.iter().filter(|subset| subset.k == k).collect();
+        at_size.sort_by(|left, right| right.r_squared.total_cmp(&left.r_squared));
+        result.extend(at_size.into_iter().take(2).cloned());
+    }
+    result
+}
+
+/// The four selection panels: R², adjusted R², Cp and s against the number of
+/// predictors, with the best subset per size joined by a line.
+fn selection_plot(model: &BestSubsetsResult) -> Option<PlotSpec> {
+    let by_size: Vec<SubsetModel> = {
+        let mut best = Vec::new();
+        for k in 1..=model.predictors.len() {
+            if let Some(subset) = model
+                .subsets
+                .iter()
+                .filter(|subset| subset.k == k)
+                .max_by(|left, right| left.r_squared.total_cmp(&right.r_squared))
+            {
+                best.push(subset.clone());
+            }
+        }
+        best
+    };
+    let panels = vec![
+        selection_panel(
+            "R²",
+            "R²",
+            &model.subsets,
+            &by_size,
+            |subset| subset.r_squared,
+            false,
+        ),
+        selection_panel(
+            "Adjusted R²",
+            "Adjusted R²",
+            &model.subsets,
+            &by_size,
+            |subset| subset.adjusted_r_squared,
+            false,
+        ),
+        selection_panel(
+            "Mallows Cp",
+            "Cp",
+            &model.subsets,
+            &by_size,
+            |subset| subset.cp,
+            true,
+        ),
+        selection_panel(
+            "Residual standard error",
+            "s",
+            &model.subsets,
+            &by_size,
+            |subset| subset.s,
+            false,
+        ),
+    ];
+    panel_plot(
+        panels,
+        2,
+        format!("Best Subsets — response {}", model.response),
+    )
+}
+
+/// One selection panel with every subset as a point and the best per size as
+/// a line; the Cp panel also draws the `Cp = p` reference.
+fn selection_panel(
+    title: &str,
+    y_label: &str,
+    subsets: &[SubsetModel],
+    best: &[SubsetModel],
+    value: impl Fn(&SubsetModel) -> f64,
+    cp_reference: bool,
+) -> PlotSpec {
+    let max_k = subsets.iter().map(|subset| subset.k).max().unwrap_or(1);
+    let mut y_min = subsets
+        .iter()
+        .map(|subset| value(subset))
+        .fold(f64::INFINITY, f64::min);
+    let mut y_max = subsets
+        .iter()
+        .map(|subset| value(subset))
+        .fold(f64::NEG_INFINITY, f64::max);
+    if cp_reference {
+        y_min = y_min.min(2.0);
+        y_max = y_max.max(max_k as f64 + 1.0);
+    }
+    let pad = ((y_max - y_min).abs() * 0.05).max(f64::MIN_POSITIVE);
+    let points = subsets
+        .iter()
+        .map(|subset| Point {
+            x: subset.k as f64,
+            y: value(subset),
+        })
+        .collect();
+    let mut lines: Vec<Segment> = best
+        .windows(2)
+        .map(|pair| Segment {
+            from: Point {
+                x: pair[0].k as f64,
+                y: value(&pair[0]),
+            },
+            to: Point {
+                x: pair[1].k as f64,
+                y: value(&pair[1]),
+            },
+            width: 2.0,
+        })
+        .collect();
+    if cp_reference {
+        lines.push(Segment {
+            from: Point { x: 1.0, y: 2.0 },
+            to: Point {
+                x: max_k as f64,
+                y: max_k as f64 + 1.0,
+            },
+            width: 1.0,
+        });
+    }
+    PlotSpec {
+        title: title.to_owned(),
+        x_axis: linear_axis("Predictors", 0.5, max_k as f64 + 0.5),
+        y_axis: linear_axis(y_label, y_min - pad, y_max + pad),
+        size: (360, 280),
+        points,
+        lines,
+        bands: Vec::new(),
+        series: Vec::new(),
+        panels: Vec::new(),
+        panel_columns: 1,
+        secondary: None,
+        notes: Vec::new(),
+    }
+}
+
 pub fn analyze(
     df: &DataFrame,
     response: &str,
@@ -1515,6 +1986,120 @@ mod unusual_observations {
         let error = predict_points(&categorical, "y", &["g".to_owned()], 0.95, &[vec![1.0]])
             .expect_err("categorical predictor");
         assert!(error.to_string().contains("numeric predictors"), "{error}");
+    }
+
+    fn subsets_frame() -> DataFrame {
+        let n = 30;
+        let x1: Vec<f64> = (0..n).map(|i| (i % 7) as f64 + 1.0).collect();
+        let x2: Vec<f64> = (0..n).map(|i| ((i * 3) % 5) as f64).collect();
+        let x3: Vec<f64> = (0..n).map(|i| ((i * 5) % 11) as f64).collect();
+        let y: Vec<f64> = (0..n)
+            .map(|i| {
+                let noise = ((i * 13 % 7) as f64 - 3.0) * 0.1;
+                2.0 + 1.5 * x1[i] - 0.8 * x2[i] + noise
+            })
+            .collect();
+        DataFrame::new(vec![
+            Column::new_f64("y", y),
+            Column::new_f64("x1", x1),
+            Column::new_f64("x2", x2),
+            Column::new_f64("x3", x3),
+        ])
+        .expect("frame")
+    }
+
+    #[test]
+    fn the_best_subset_keeps_the_informative_predictors() {
+        let df = subsets_frame();
+        let predictors = ["x1".to_owned(), "x2".to_owned(), "x3".to_owned()];
+        let model = fit_best_subsets(&df, "y", &predictors).expect("best subsets");
+        assert_eq!(model.n, 30);
+        assert_eq!(model.subsets.len(), 7);
+        assert_eq!(model.skipped, 0);
+        assert!((model.full_cp - 4.0).abs() < 1e-9, "{}", model.full_cp);
+        let best_adjusted = model
+            .subsets
+            .iter()
+            .max_by(|left, right| left.adjusted_r_squared.total_cmp(&right.adjusted_r_squared))
+            .expect("subset");
+        assert_eq!(best_adjusted.predictors, vec!["x1", "x2"]);
+        let best_cp = model
+            .subsets
+            .iter()
+            .min_by(|left, right| left.cp.total_cmp(&right.cp))
+            .expect("subset");
+        assert_eq!(best_cp.predictors, vec!["x1", "x2"]);
+        // Adjusted R² of a two-predictor model with n = 30.
+        let expected =
+            1.0 - (1.0 - best_adjusted.r_squared) * (model.n as f64 - 1.0) / (model.n as f64 - 2.0);
+        assert!((best_adjusted.adjusted_r_squared - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn the_best_subsets_report_and_plot_are_built() {
+        let df = subsets_frame();
+        let predictors = ["x1".to_owned(), "x2".to_owned(), "x3".to_owned()];
+        let out = best_subsets(&df, "y", &predictors).expect("best subsets");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Best Subsets Regression"), "{text}");
+        assert!(text.contains("Largest adjusted R²"), "{text}");
+        assert!(text.contains("x1, x2"), "{text}");
+        assert!(text.contains("Cp"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.panels.len(), 4);
+        assert!(plot.title.contains("Best Subsets"), "{}", plot.title);
+    }
+
+    #[test]
+    fn one_predictor_and_a_collinear_candidate_are_handled() {
+        let df = subsets_frame();
+        let one = fit_best_subsets(&df, "y", &["x1".to_owned()]).expect("one predictor");
+        assert_eq!(one.subsets.len(), 1);
+        assert_eq!(one.subsets[0].k, 1);
+        let out = best_subsets(&df, "y", &["x1".to_owned()]).expect("plot");
+        assert_eq!(out.plot.expect("plot").panels.len(), 4);
+
+        let mut collinear = df;
+        let x4: Vec<f64> = (0..collinear.n_rows())
+            .filter_map(|row| collinear.column("x1").ok()?.value(row))
+            .map(|value| value * 2.0)
+            .collect();
+        let index = collinear.n_columns();
+        collinear
+            .insert_column(index, Column::new_f64("x4", x4))
+            .expect("column");
+        let predictors = [
+            "x1".to_owned(),
+            "x2".to_owned(),
+            "x3".to_owned(),
+            "x4".to_owned(),
+        ];
+        // The full model is the Cp reference, so a collinear full model is an
+        // error rather than a partial table.
+        let error = fit_best_subsets(&collinear, "y", &predictors).expect_err("collinear");
+        assert!(error.to_string().contains("collinear"), "{error}");
+    }
+
+    #[test]
+    fn invalid_best_subsets_inputs_are_rejected() {
+        let df = subsets_frame();
+        assert!(fit_best_subsets(&df, "y", &[]).is_err());
+        assert!(fit_best_subsets(&df, "y", &["x1".to_owned(), "x1".to_owned()]).is_err());
+        assert!(fit_best_subsets(&df, "y", &["y".to_owned()]).is_err());
+        let too_many: Vec<String> = (0..13).map(|i| format!("z{i}")).collect();
+        assert!(fit_best_subsets(&df, "y", &too_many).is_err());
+        let short = DataFrame::new(vec![
+            Column::new_f64("y", vec![1.0, 2.0]),
+            Column::new_f64("x", vec![1.0, 2.0]),
+        ])
+        .expect("frame");
+        assert!(fit_best_subsets(&short, "y", &["x".to_owned()]).is_err());
+        let constant = DataFrame::new(vec![
+            Column::new_f64("y", vec![1.0; 10]),
+            Column::new_f64("x", (0..10).map(|i| i as f64).collect()),
+        ])
+        .expect("frame");
+        assert!(fit_best_subsets(&constant, "y", &["x".to_owned()]).is_err());
     }
 
     #[test]

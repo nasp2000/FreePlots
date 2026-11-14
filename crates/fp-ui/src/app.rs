@@ -1292,6 +1292,11 @@ pub struct FreePlotsApp {
     show_reg_dialog: bool,
     reg_response: String,
     reg_predictors: Vec<String>,
+    /// Best subsets regression dialog and help.
+    show_best_subsets_dialog: bool,
+    show_best_subsets_help: bool,
+    bs_response: String,
+    bs_predictors: Vec<String>,
     reg_confidence: f64,
     /// Predict dialog: model (response and predictors) and new points.
     show_predict_dialog: bool,
@@ -4058,6 +4063,8 @@ impl FreePlotsApp {
         self.show_zp_dialog = false;
         self.show_zp_help = false;
         self.show_reg_dialog = false;
+        self.show_best_subsets_dialog = false;
+        self.show_best_subsets_help = false;
         self.show_rename = false;
         self.show_rsm_dialog = false;
         self.show_sampling_dialog = false;
