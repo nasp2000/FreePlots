@@ -1713,7 +1713,7 @@ pub fn factorial_plots(
 
     let mut panels = Vec::new();
     let mut main_rows = Vec::new();
-    for j in 0..f {
+    for (j, factor) in factors.iter().enumerate() {
         let mut low_sum = 0.0;
         let mut low_count = 0usize;
         let mut high_sum = 0.0;
@@ -1736,13 +1736,13 @@ pub fn factorial_plots(
         let low = low_sum / low_count as f64;
         let high = high_sum / high_count as f64;
         main_rows.push(vec![
-            factors[j].clone(),
+            factor.clone(),
             format!("{low:.6}"),
             format!("{high:.6}"),
             format!("{:.6}", high - low),
             (low_count + high_count).to_string(),
         ]);
-        panels.push(main_effect_panel(&factors[j], low, high));
+        panels.push(main_effect_panel(factor, low, high));
     }
 
     for i in 0..f {
