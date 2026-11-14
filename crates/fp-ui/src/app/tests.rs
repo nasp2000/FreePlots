@@ -2737,6 +2737,69 @@ fn the_browse_button_emits_a_native_dialog_request() {
 }
 
 #[test]
+fn factorial_plots_dialog_reaches_the_session_and_plot() {
+    let mut app = FreePlotsApp::new();
+    let mut rows = Vec::new();
+    for a in [-1.0, 1.0] {
+        for b in [-1.0, 1.0] {
+            for _ in 0..2 {
+                rows.push((a, b, 10.0 + 2.0 * a + 3.0 * b + a * b));
+            }
+        }
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("A", rows.iter().map(|row| row.0).collect()),
+        Column::new_f64("B", rows.iter().map(|row| row.1).collect()),
+        Column::new_f64("y", rows.iter().map(|row| row.2).collect()),
+    ])
+    .expect("frame");
+    app.set_data(df, "doe.csv".to_owned());
+    app.open_factorial_plots_dialog();
+    app.fp_response = "y".to_owned();
+    app.fp_factors = vec!["A".to_owned(), "B".to_owned()];
+    app.run_factorial_plots_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Factorial Plots"), "{text}");
+    assert!(text.contains("Cube corner"), "{text}");
+    let plot = app.plot().expect("plot");
+    assert_eq!(plot.panels.len(), 4);
+}
+
+#[test]
+fn the_factorial_plots_help_explains_the_panels() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_factorial_plots_dialog = true;
+    app.fp_response = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About factorial plots…").click();
+    harness.run();
+    assert!(harness.state().show_factorial_plots_help);
+    harness.get_by_label("Factorial plots help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("main effect of every factor");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda dos gráficos factoriais");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_factorial_plots_help);
+}
+
+#[test]
 fn factorial_dialog_reaches_the_session_and_plot() {
     let mut app = FreePlotsApp::new();
     let mut rows = Vec::new();

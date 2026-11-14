@@ -212,6 +212,8 @@ impl FreePlotsApp {
         self.gage_dialog(&ctx);
         self.type1_dialog(&ctx);
         self.doe_dialog(&ctx);
+        self.factorial_plots_dialog(&ctx);
+        self.factorial_plots_help_window(&ctx);
         self.rsm_dialog(&ctx);
         self.desirability_dialog(&ctx);
         self.scatter_dialog(&ctx);

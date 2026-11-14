@@ -1253,6 +1253,34 @@ impl UiCatalog {
             "2 Variances…" => "2 Variâncias…",
             "2-Level Factorial" => "Fatorial de 2 níveis",
             "2-Level Factorial…" => "Fatorial de 2 níveis…",
+            "Factorial Plots" => "Gráficos factoriais",
+            "Factorial Plots…" => "Gráficos factoriais…",
+            "Factorial plots help" => "Ajuda dos gráficos factoriais",
+            "About factorial plots…" => "Acerca dos gráficos factoriais…",
+            "The factorial plots show the main effect of every factor, the interaction \
+             of every pair and, for two or three factors, the cube of the corner means. \
+             They describe a coded two-level factorial before a formal model is chosen." => {
+                "Os gráficos factoriais mostram o efeito principal de cada factor, a interacção \
+                 de cada par e, para dois ou três factores, o cubo das médias dos cantos. \
+                 Descrevem um factorial de dois níveis codificado antes de se escolher o modelo \
+                 formal."
+            }
+            "Choose a numeric response and at least one factor column already coded to \
+             low = −1 and high = +1. The plots use the observed marginal mean of every \
+             factor combination; rows with a value outside the two levels are not used. \
+             At most five factors are accepted." => {
+                "Escolha uma resposta numérica e pelo menos uma coluna de factor já codificada \
+                 com baixo = −1 e alto = +1. Os gráficos usam a média marginal observada de cada \
+                 combinação de factores; as linhas com um valor fora dos dois níveis não são \
+                 usadas. São aceites no máximo cinco factores."
+            }
+            "A 2² design with y = 10 + 2A + 3B + AB gives a main effect of +2 for A and \
+             +6 for B; the interaction panel shows the two B lines diverging, and the \
+             cube corners list the mean of each of the four combinations." => {
+                "Um delineamento 2² com y = 10 + 2A + 3B + AB dá um efeito principal de +2 para A \
+                 e +6 para B; o painel de interacção mostra as duas linhas de B a divergir, e os \
+                 cantos do cubo listam a média de cada uma das quatro combinações."
+            }
             "Add Date Column" => "Adicionar coluna de data",
             "Add Days" => "Adicionar dias",
             "Add Days…" => "Adicionar dias…",

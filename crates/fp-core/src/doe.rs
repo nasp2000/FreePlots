@@ -8,6 +8,7 @@
 
 use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
+use crate::plot::{PlotNote, PlotSpec, Point, Segment, Series, linear_axis, panel_plot};
 use crate::regression::{self, RegressionFit};
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::special::SplitMix64;
@@ -1652,6 +1653,361 @@ pub fn fold_over_design(
     DataFrame::new(columns)
 }
 
+/// Main-effects, interaction and cube plots of a coded two-level factorial.
+///
+/// The panels use the observed marginal mean of every factor combination, so
+/// they describe the same rows as the fit without re-estimating the model.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for an empty or too large factor list, and
+/// the fitting errors of [`fit`] (uncoded factors, singular design).
+pub fn factorial_plots(
+    df: &DataFrame,
+    response: &str,
+    factors: &[String],
+) -> Result<AnalysisOutput> {
+    if factors.is_empty() {
+        return Err(Error::Unsupported(
+            "the factorial plots need at least one factor".to_owned(),
+        ));
+    }
+    if factors.len() > 5 {
+        return Err(Error::Unsupported(
+            "the factorial plots display at most five factors".to_owned(),
+        ));
+    }
+    let model = fit(df, response, factors)?;
+    let f = factors.len();
+    let masks = 1usize << f;
+    let columns: Vec<&Column> = factors
+        .iter()
+        .map(|name| df.column(name))
+        .collect::<Result<Vec<_>>>()?;
+    let response_column = df.column(response)?;
+    let mut sums = vec![0.0; masks];
+    let mut counts = vec![0usize; masks];
+    for row in 0..df.n_rows() {
+        let Some(y) = cell(response_column, row) else {
+            continue;
+        };
+        let mut mask = 0usize;
+        let mut complete = true;
+        for (j, column) in columns.iter().enumerate() {
+            let Some(value) = cell(column, row) else {
+                complete = false;
+                break;
+            };
+            if value > 0.0 {
+                mask |= 1 << j;
+            } else if value >= 0.0 {
+                complete = false;
+                break;
+            }
+        }
+        if complete {
+            sums[mask] += y;
+            counts[mask] += 1;
+        }
+    }
+
+    let mut panels = Vec::new();
+    let mut main_rows = Vec::new();
+    for j in 0..f {
+        let mut low_sum = 0.0;
+        let mut low_count = 0usize;
+        let mut high_sum = 0.0;
+        let mut high_count = 0usize;
+        for mask in 0..masks {
+            if counts[mask] == 0 {
+                continue;
+            }
+            if mask & (1 << j) == 0 {
+                low_sum += sums[mask];
+                low_count += counts[mask];
+            } else {
+                high_sum += sums[mask];
+                high_count += counts[mask];
+            }
+        }
+        if low_count == 0 || high_count == 0 {
+            continue;
+        }
+        let low = low_sum / low_count as f64;
+        let high = high_sum / high_count as f64;
+        main_rows.push(vec![
+            factors[j].clone(),
+            format!("{low:.6}"),
+            format!("{high:.6}"),
+            format!("{:.6}", high - low),
+            (low_count + high_count).to_string(),
+        ]);
+        panels.push(main_effect_panel(&factors[j], low, high));
+    }
+
+    for i in 0..f {
+        for k in (i + 1)..f {
+            let mut cell_sums = [[0.0_f64; 2]; 2];
+            let mut cell_counts = [[0usize; 2]; 2];
+            for mask in 0..masks {
+                if counts[mask] == 0 {
+                    continue;
+                }
+                let left = ((mask >> i) & 1) as usize;
+                let right = ((mask >> k) & 1) as usize;
+                cell_sums[right][left] += sums[mask];
+                cell_counts[right][left] += counts[mask];
+            }
+            let complete = cell_counts.iter().flatten().all(|count| *count > 0);
+            if !complete {
+                continue;
+            }
+            let means = [
+                [
+                    cell_sums[0][0] / cell_counts[0][0] as f64,
+                    cell_sums[0][1] / cell_counts[0][1] as f64,
+                ],
+                [
+                    cell_sums[1][0] / cell_counts[1][0] as f64,
+                    cell_sums[1][1] / cell_counts[1][1] as f64,
+                ],
+            ];
+            panels.push(interaction_panel(&factors[i], &factors[k], means));
+        }
+    }
+
+    let mut cube_rows = Vec::new();
+    if (f == 2 || f == 3) && counts.iter().all(|count| *count > 0) {
+        panels.push(cube_panel(factors, &sums, &counts, &mut cube_rows));
+    }
+
+    let mut result = AnalysisResult::new(
+        format!("Factorial Plots — response {response}"),
+        "Main effects, interaction and cube plots of the coded two-level factorial",
+    );
+    result.n = model.regression.n;
+    result.excluded = model.excluded;
+    result.statistics = vec![
+        ("Factors", f as f64),
+        ("Terms", (model.names.len() - 1) as f64),
+        ("R²", model.regression.r_squared),
+        ("Adjusted R²", model.regression.adjusted_r_squared),
+        ("Residual standard error", model.regression.s),
+        ("Center points", model.center_points as f64),
+    ];
+    result
+        .extra
+        .push(Item::Message(format!("Factors: {}", factors.join(", "))));
+    result.extra.push(Item::Table {
+        headers: vec![
+            "Factor".to_owned(),
+            "Low (−1)".to_owned(),
+            "High (+1)".to_owned(),
+            "Difference".to_owned(),
+            "Rows".to_owned(),
+        ],
+        rows: main_rows,
+    });
+    if !cube_rows.is_empty() {
+        result.extra.push(Item::Table {
+            headers: vec![
+                "Cube corner".to_owned(),
+                "Mean".to_owned(),
+                "Rows".to_owned(),
+            ],
+            rows: cube_rows,
+        });
+    }
+    result.notes = vec![
+        (
+            "Means".to_owned(),
+            "main effects and interactions use the observed marginal mean of every factor \
+             combination, not a re-estimated model"
+                .to_owned(),
+        ),
+        (
+            "Cube".to_owned(),
+            "the cube plot needs two or three factors; its corners are the factor combinations \
+             and an edge joins corners that differ in one factor"
+                .to_owned(),
+        ),
+        (
+            "Factors".to_owned(),
+            "the columns must already be coded to low = −1 and high = +1".to_owned(),
+        ),
+        (
+            "Data policy".to_owned(),
+            "rows without a numeric response or with an uncoded factor are not used".to_owned(),
+        ),
+    ];
+    result.warnings = standard_warnings(model.regression.n, model.excluded, 0);
+    result.warnings.push(
+        "the plots use observed marginal means and do not adjust for a block effect".to_owned(),
+    );
+    let plot = panel_plot(panels, 2, format!("Factorial Plots — response {response}"));
+    Ok(AnalysisOutput {
+        results: vec![result],
+        plot,
+    })
+}
+
+/// Main-effect panel: low and high means joined by a line.
+fn main_effect_panel(factor: &str, low: f64, high: f64) -> PlotSpec {
+    let y_min = low.min(high);
+    let y_max = low.max(high);
+    let pad = ((y_max - y_min).abs() * 0.1).max(1e-9);
+    PlotSpec {
+        title: format!("Main effect: {factor}"),
+        x_axis: linear_axis(factor, -1.4, 1.4),
+        y_axis: linear_axis("Mean", y_min - pad, y_max + pad),
+        size: (360, 280),
+        points: vec![Point { x: -1.0, y: low }, Point { x: 1.0, y: high }],
+        lines: vec![Segment {
+            from: Point { x: -1.0, y: low },
+            to: Point { x: 1.0, y: high },
+            width: 2.0,
+        }],
+        bands: Vec::new(),
+        series: Vec::new(),
+        panels: Vec::new(),
+        panel_columns: 1,
+        secondary: None,
+        notes: vec![PlotNote::new(vec![
+            ("Low (−1)", format!("{low:.4}")),
+            ("High (+1)", format!("{high:.4}")),
+        ])],
+    }
+}
+
+/// Interaction panel: one line per level of the second factor.
+fn interaction_panel(left: &str, right: &str, means: [[f64; 2]; 2]) -> PlotSpec {
+    let values: Vec<f64> = means.iter().flatten().copied().collect();
+    let y_min = values.iter().copied().fold(f64::INFINITY, f64::min);
+    let y_max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let pad = ((y_max - y_min).abs() * 0.1).max(1e-9);
+    let series = [0usize, 1]
+        .into_iter()
+        .map(|level| {
+            let points = vec![
+                Point {
+                    x: -1.0,
+                    y: means[level][0],
+                },
+                Point {
+                    x: 1.0,
+                    y: means[level][1],
+                },
+            ];
+            Series {
+                label: format!("{right} = {}", if level == 1 { "+1" } else { "−1" }),
+                lines: vec![Segment {
+                    from: points[0],
+                    to: points[1],
+                    width: 2.0,
+                }],
+                points,
+                bands: Vec::new(),
+                secondary_axis: false,
+            }
+        })
+        .collect();
+    PlotSpec {
+        title: format!("Interaction: {left} × {right}"),
+        x_axis: linear_axis(left, -1.4, 1.4),
+        y_axis: linear_axis("Mean", y_min - pad, y_max + pad),
+        size: (360, 280),
+        points: Vec::new(),
+        lines: Vec::new(),
+        bands: Vec::new(),
+        series,
+        panels: Vec::new(),
+        panel_columns: 1,
+        secondary: None,
+        notes: Vec::new(),
+    }
+}
+
+/// Cube (or square) panel of the factor combinations with their means.
+fn cube_panel(
+    factors: &[String],
+    sums: &[f64],
+    counts: &[usize],
+    rows: &mut Vec<Vec<String>>,
+) -> PlotSpec {
+    let f = factors.len();
+    let masks = 1usize << f;
+    let project = |mask: usize| -> Point {
+        let a = if mask & 1 != 0 { 1.0 } else { -1.0 };
+        let b = if mask & 2 != 0 { 1.0 } else { -1.0 };
+        if f == 2 {
+            Point { x: a, y: b }
+        } else {
+            let c = if mask & 4 != 0 { 1.0 } else { -1.0 };
+            Point {
+                x: a + 0.5 * c,
+                y: b + 0.5 * c,
+            }
+        }
+    };
+    let mut points = Vec::with_capacity(masks);
+    let mut note_rows = Vec::with_capacity(masks);
+    for mask in 0..masks {
+        points.push(project(mask));
+        let mean = sums[mask] / counts[mask] as f64;
+        let label = factors
+            .iter()
+            .enumerate()
+            .map(|(j, factor)| format!("{factor}{}", if mask & (1 << j) != 0 { "+" } else { "−" }))
+            .collect::<Vec<String>>()
+            .join(" ");
+        note_rows.push((label.clone(), format!("{mean:.4}")));
+        rows.push(vec![label, format!("{mean:.6}"), counts[mask].to_string()]);
+    }
+    let mut lines = Vec::new();
+    for mask in 0..masks {
+        for bit in 0..f {
+            let other = mask ^ (1 << bit);
+            if other > mask {
+                lines.push(Segment {
+                    from: points[mask],
+                    to: points[other],
+                    width: 1.2,
+                });
+            }
+        }
+    }
+    let x_min = points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::INFINITY, f64::min);
+    let x_max = points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let y_min = points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let y_max = points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    PlotSpec {
+        title: "Cube plot".to_owned(),
+        x_axis: linear_axis("Factors", x_min - 0.3, x_max + 0.3),
+        y_axis: linear_axis("Factors", y_min - 0.3, y_max + 0.3),
+        size: (360, 280),
+        points,
+        lines,
+        bands: Vec::new(),
+        series: Vec::new(),
+        panels: Vec::new(),
+        panel_columns: 1,
+        secondary: None,
+        notes: vec![PlotNote::new(note_rows)],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2152,5 +2508,87 @@ mod tests {
         assert!(text.contains("2-Level Factorial"), "{text}");
         assert!(text.contains("Effect"), "{text}");
         assert!(out.plot.is_some());
+    }
+
+    #[test]
+    fn the_factorial_plots_have_the_main_interaction_and_cube_panels() {
+        let out = factorial_plots(&frame(), "y", &["A".to_owned(), "B".to_owned()]).expect("plots");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Factorial Plots"), "{text}");
+        assert!(text.contains("Cube corner"), "{text}");
+        assert!(text.contains("A− B−"), "{text}");
+        let rows = out.results[0]
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { headers, rows } if headers[0] == "Factor" => Some(rows),
+                _ => None,
+            })
+            .expect("main-effects table");
+        assert_eq!(rows.len(), 2);
+        // A: low mean 10, high mean 12; B: low mean 7, high mean 13.
+        assert_eq!(rows[0][1], "10.000000");
+        assert_eq!(rows[0][2], "12.000000");
+        assert_eq!(rows[1][1], "7.000000");
+        assert_eq!(rows[1][2], "13.000000");
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.panels.len(), 4);
+        assert!(plot.panels[0].title.contains("Main effect: A"));
+        assert!(plot.panels[2].title.contains("Interaction: A × B"));
+        assert_eq!(plot.panels[3].points.len(), 4);
+    }
+
+    #[test]
+    fn one_factor_and_three_factor_cubes_are_supported() {
+        let out = factorial_plots(&frame(), "y", &["A".to_owned()]).expect("one factor");
+        let plot = out.plot.expect("plot");
+        assert!(plot.panels.is_empty());
+        assert!(plot.title.contains("Main effect: A"));
+
+        let mut a = Vec::new();
+        let mut b = Vec::new();
+        let mut c = Vec::new();
+        let mut y = Vec::new();
+        for first in [-1.0, 1.0] {
+            for second in [-1.0, 1.0] {
+                for third in [-1.0, 1.0] {
+                    for _ in 0..2 {
+                        a.push(first);
+                        b.push(second);
+                        c.push(third);
+                        y.push(10.0 + first + 2.0 * second - third + first * third);
+                    }
+                }
+            }
+        }
+        let df = DataFrame::new(vec![
+            Column::new_f64("A", a),
+            Column::new_f64("B", b),
+            Column::new_f64("C", c),
+            Column::new_f64("y", y),
+        ])
+        .expect("frame");
+        let out = factorial_plots(&df, "y", &["A".to_owned(), "B".to_owned(), "C".to_owned()])
+            .expect("three factors");
+        let plot = out.plot.expect("plot");
+        assert_eq!(plot.panels.len(), 7);
+        assert_eq!(plot.panels[6].points.len(), 8);
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("A+ B+ C+"), "{text}");
+    }
+
+    #[test]
+    fn invalid_factorial_plot_requests_are_rejected() {
+        assert!(factorial_plots(&frame(), "y", &[]).is_err());
+        let too_many: Vec<String> = (0..6).map(|i| format!("F{i}")).collect();
+        assert!(factorial_plots(&frame(), "y", &too_many).is_err());
+        let mut uncoded = frame();
+        uncoded
+            .insert_column(
+                uncoded.n_columns(),
+                Column::new_f64("C", vec![0.0; uncoded.n_rows()]),
+            )
+            .expect("column");
+        assert!(factorial_plots(&uncoded, "y", &["A".to_owned(), "C".to_owned()]).is_err());
     }
 }

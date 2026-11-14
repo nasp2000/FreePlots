@@ -2556,6 +2556,39 @@ fn the_factorial_dialog_needs_a_factor() {
 }
 
 #[test]
+fn the_factorial_plots_dialog_draws_the_panels() {
+    let mut ui = Automation::new();
+    ui.load_frame(factorial_frame(), "factorial.csv");
+    open(&mut ui, &["Stat", "DOE", "Factorial Plots…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Factorial Plots — response y"),
+        "{session}"
+    );
+    assert!(session.contains("Cube corner"), "{session}");
+    assert!(session.contains("A− B− C−"), "{session}");
+    let plot = ui.plot().expect("plot");
+    assert_eq!(plot.panels.len(), 7);
+}
+
+#[test]
+fn the_factorial_plots_dialog_needs_a_factor() {
+    let mut ui = Automation::new();
+    ui.load_frame(factorial_frame(), "factorial.csv");
+    open(&mut ui, &["Stat", "DOE", "Factorial Plots…"]);
+    ui.click("A").expect("drop A");
+    ui.click("B").expect("drop B");
+    ui.click("C").expect("drop C");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("Select at least one factor"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_response_surface_dialog_fits_the_quadratic() {
     let mut ui = Automation::new();
     ui.load_frame(rsm_frame(), "rsm.csv");

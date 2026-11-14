@@ -580,6 +580,201 @@ impl FreePlotsApp {
             self.run_taguchi_design_dialog();
         }
     }
+    /// Opens the factorial plots dialog with the selected response.
+    pub fn open_factorial_plots_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.len() < 2 {
+            self.set_error("Factorial plots need a response and at least one factor");
+            return;
+        }
+        self.fp_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.fp_factors = numeric
+            .into_iter()
+            .filter(|name| *name != self.fp_response)
+            .collect();
+        self.show_factorial_plots_dialog = true;
+    }
+
+    /// Runs the factorial plots of the dialog.
+    pub fn run_factorial_plots_dialog(&mut self) {
+        if self.fp_response.is_empty() {
+            self.set_error("Select the response column");
+            return;
+        }
+        let factors: Vec<String> = self
+            .fp_factors
+            .iter()
+            .filter(|name| **name != self.fp_response)
+            .cloned()
+            .collect();
+        if factors.is_empty() {
+            self.set_error("Select at least one factor");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::doe::factorial_plots(&df, &self.fp_response, &factors) {
+            Ok(output) => {
+                let label = format!("Factorial plots: {}", self.fp_response);
+                self.apply_output(output, label);
+                self.show_factorial_plots_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Factorial plots dialog.
+    pub(super) fn factorial_plots_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_factorial_plots_dialog {
+            return;
+        }
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_factorial_plots_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Factorial Plots"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(430.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Response:");
+                    egui::ComboBox::from_id_salt("fp_response")
+                        .selected_text(if self.fp_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.fp_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.fp_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.help_label("Factors (coded −1/+1):");
+                egui::ScrollArea::vertical()
+                    .max_height(180.0)
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            if *name == self.fp_response {
+                                continue;
+                            }
+                            let mut selected = self.fp_factors.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.fp_factors.push(name.clone());
+                                } else {
+                                    self.fp_factors.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.small(
+                    "One main-effects panel per factor, one interaction panel per pair and the \
+                     cube plot for two or three factors. Factors must be coded −1/+1.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About factorial plots…"))
+                        .clicked()
+                    {
+                        self.show_factorial_plots_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_factorial_plots_dialog = open && !run && !cancel;
+        if run {
+            self.run_factorial_plots_dialog();
+        }
+    }
+
+    /// Help page of the factorial plots.
+    pub(super) fn factorial_plots_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_factorial_plots_help {
+            return;
+        }
+        let mut open = self.show_factorial_plots_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Factorial plots help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The factorial plots show the main effect of every factor, the interaction \
+                     of every pair and, for two or three factors, the cube of the corner means. \
+                     They describe a coded two-level factorial before a formal model is chosen.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose a numeric response and at least one factor column already coded to \
+                     low = −1 and high = +1. The plots use the observed marginal mean of every \
+                     factor combination; rows with a value outside the two levels are not used. \
+                     At most five factors are accepted.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A 2² design with y = 10 + 2A + 3B + AB gives a main effect of +2 for A and \
+                     +6 for B; the interaction panel shows the two B lines diverging, and the \
+                     cube corners list the mean of each of the four combinations.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_factorial_plots_help = open && !close;
+    }
+
     pub fn open_rsm_dialog(&mut self) {
         let Some(df) = self.data.as_ref() else {
             self.set_error("No worksheet open: use File → Open CSV…");

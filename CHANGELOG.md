@@ -72,6 +72,10 @@ All notable changes to FreePlots are recorded here. The format follows
   cumulative curve for one of the ten distributions, with its parameters and an
   optional shaded area that reports the probability. It needs no worksheet
   data and has its own help page in both interface languages.
+- DOE has a *Factorial Plots…* entry: from a coded two-level design it draws
+  one main-effects panel per factor, one interaction panel per pair and the
+  cube of the corner means for two or three factors, with the marginal means
+  in the report. It has its own help page in both interface languages.
 - Regression has a *Best Subsets…* entry: it fits every non-empty subset of up
   to twelve numeric predictors, reports the two best models of each size by R²
   with their adjusted R², Mallows' Cp and s, and adds a table of the best
@@ -127,7 +131,9 @@ All notable changes to FreePlots are recorded here. The format follows
   of their own family and against constant or one-point samples. Best subsets
   covers the informative and the noise predictor, the adjusted R² and Cp
   choice, the full-model Cp, the one-predictor and collinear cases and the
-  invalid response, duplicate, over-limit and short samples.
+  invalid response, duplicate, over-limit and short samples. The factorial
+  plots cover the two-factor panels and cube, a single factor, a three-factor
+  cube with eight corners and the uncoded or empty factor lists.
 
 ## [0.1.1] - 2026-11-12
 

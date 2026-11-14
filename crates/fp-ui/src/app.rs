@@ -1374,6 +1374,11 @@ pub struct FreePlotsApp {
     doe_factors: Vec<String>,
     doe_block: String,
     doe_main_effects: bool,
+    /// Factorial plots dialog and help.
+    show_factorial_plots_dialog: bool,
+    show_factorial_plots_help: bool,
+    fp_response: String,
+    fp_factors: Vec<String>,
     show_rsm_dialog: bool,
     rsm_response: String,
     rsm_factors: Vec<String>,
@@ -4028,6 +4033,8 @@ impl FreePlotsApp {
         self.show_batch_dialog = false;
         self.show_conditional_dialog = false;
         self.show_doe_dialog = false;
+        self.show_factorial_plots_dialog = false;
+        self.show_factorial_plots_help = false;
         self.show_dot_dialog = false;
         self.show_ecdf_dialog = false;
         self.show_equivalence_dialog = false;
