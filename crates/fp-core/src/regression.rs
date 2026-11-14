@@ -9,7 +9,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::data::{Column, ColumnData, DataFrame};
+use crate::data::{Column, ColumnData, DType, DataFrame};
 use crate::error::{Error, Result};
 use crate::plot::{PlotSpec, Point, Segment, linear_axis, panel_plot};
 use crate::report::{AnalysisResult, Item, standard_warnings};
