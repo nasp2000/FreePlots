@@ -4036,7 +4036,11 @@ fn graph_gallery_reaches_the_session_for_every_family() {
         app.gallery_size = "z".to_owned();
         app.gallery_category = "group".to_owned();
         app.gallery_value = "x".to_owned();
-        app.gallery_columns = "x,y,z".to_owned();
+        app.gallery_columns = if kind == GalleryKind::Line {
+            "y,z".to_owned()
+        } else {
+            "x,y,z".to_owned()
+        };
         app.gallery_statistic = BarStatistic::Mean;
         app.run_graph_gallery_dialog();
         let text = app.session_text();

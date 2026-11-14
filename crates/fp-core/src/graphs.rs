@@ -447,7 +447,7 @@ pub fn area_chart(df: &DataFrame, x: &str, series: &str) -> Result<AnalysisOutpu
 
 /// Six equal-width classes of a value range, as labels.
 fn value_classes(low: f64, high: f64) -> Vec<(String, f64, f64)> {
-    if !(high > low) {
+    if high <= low {
         return vec![(format!("{low:.4}"), low, high)];
     }
     let classes = 6usize;
@@ -466,7 +466,7 @@ fn value_classes(low: f64, high: f64) -> Vec<(String, f64, f64)> {
 }
 
 fn class_index(value: f64, low: f64, high: f64, classes: usize) -> usize {
-    if !(high > low) {
+    if high <= low {
         return 0;
     }
     let span = (value - low) / (high - low) * classes as f64;
