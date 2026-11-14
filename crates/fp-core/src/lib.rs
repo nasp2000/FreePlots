@@ -40,6 +40,7 @@ pub mod estimate;
 pub mod formula;
 pub mod gage;
 pub mod gage_type1;
+pub mod glm;
 pub mod gof;
 pub mod graphs;
 pub mod histogram;

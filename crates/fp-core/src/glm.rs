@@ -90,9 +90,7 @@ fn build(
     unique.sort();
     unique.dedup();
     if unique.len() != declared.len() {
-        return Err(Error::Unsupported(
-            "a term is declared twice".to_owned(),
-        ));
+        return Err(Error::Unsupported("a term is declared twice".to_owned()));
     }
     if declared.iter().any(|name| name == response) {
         return Err(Error::Unsupported(
@@ -133,7 +131,10 @@ fn build(
         .iter()
         .map(|name| {
             let column = df.column(name)?;
-            if !matches!(column.dtype(), crate::data::DType::Float | crate::data::DType::Integer) {
+            if !matches!(
+                column.dtype(),
+                crate::data::DType::Float | crate::data::DType::Integer
+            ) {
                 return Err(Error::Unsupported(format!(
                     "the covariate {name} is not numeric"
                 )));
@@ -177,10 +178,7 @@ fn build(
     let mut basis: std::collections::BTreeMap<String, Vec<String>> =
         std::collections::BTreeMap::new();
     for (name, column) in options.factors.iter().zip(&factor_columns) {
-        let mut levels: Vec<String> = kept
-            .iter()
-            .filter_map(|row| column.label(*row))
-            .collect();
+        let mut levels: Vec<String> = kept.iter().filter_map(|row| column.label(*row)).collect();
         levels.sort();
         levels.dedup();
         if levels.len() < 2 {
@@ -506,7 +504,11 @@ mod tests {
         assert_eq!(model.terms[2].columns, vec!["A[B]*x"]);
         assert_eq!(model.references, vec![("A".to_owned(), "A".to_owned())]);
         assert_eq!(model.regression.n, 24);
-        assert!(model.regression.r_squared > 0.999, "{}", model.regression.r_squared);
+        assert!(
+            model.regression.r_squared > 0.999,
+            "{}",
+            model.regression.r_squared
+        );
         assert_eq!(model.anova.len(), 5);
         assert_eq!(model.anova[0].df, 1.0);
         assert_eq!(model.anova[2].source, "A*x");
