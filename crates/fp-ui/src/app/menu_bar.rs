@@ -1019,6 +1019,13 @@ impl FreePlotsApp {
                     }
                 });
                 help_menu_button(ui, self.catalog().label("ANOVA"), |ui| {
+                    if menu_text_item(ui, self.catalog().label("General Linear Model…"), None, self.data.is_some())
+                        .on_hover_text("Factors, covariates and two-way interactions with Type I/III sums of squares")
+                        .clicked()
+                    {
+                        self.open_glm_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("One-Way…"), None, self.data.is_some())
                         .on_hover_text("One numeric response by one factor")
                         .clicked()

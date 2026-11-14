@@ -207,6 +207,8 @@ impl FreePlotsApp {
         self.predict_help_window(&ctx);
         self.stepwise_dialog(&ctx);
         self.anova_dialog(&ctx);
+        self.glm_dialog(&ctx);
+        self.glm_help_window(&ctx);
         self.kaplan_meier_dialog(&ctx);
         self.weibull_dialog(&ctx);
         self.exponential_dialog(&ctx);

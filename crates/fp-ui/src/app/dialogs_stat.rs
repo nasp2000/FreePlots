@@ -1850,6 +1850,277 @@ impl FreePlotsApp {
             self.run_stepwise_dialog();
         }
     }
+    /// Opens the general linear model dialog with the selected response.
+    pub fn open_glm_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        let all: Vec<String> = df
+            .columns()
+            .iter()
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.is_empty() {
+            self.set_error("The general linear model needs a numeric response");
+            return;
+        }
+        self.glm_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.glm_factors = all
+            .into_iter()
+            .filter(|name| *name != self.glm_response && !numeric.contains(name))
+            .collect();
+        self.glm_covariates = numeric
+            .into_iter()
+            .filter(|name| *name != self.glm_response)
+            .collect();
+        self.glm_interactions.clear();
+        self.show_glm_dialog = true;
+    }
+
+    /// Runs the general linear model of the dialog.
+    pub fn run_glm_dialog(&mut self) {
+        if self.glm_response.is_empty() {
+            self.set_error("Select the response column");
+            return;
+        }
+        if self.glm_factors.is_empty() && self.glm_covariates.is_empty() {
+            self.set_error("Select at least one factor or covariate");
+            return;
+        }
+        let mut interactions = Vec::new();
+        for part in self.glm_interactions.split(',') {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            let sides: Vec<&str> = part.split('*').map(str::trim).collect();
+            if sides.len() != 2 || sides[0].is_empty() || sides[1].is_empty() {
+                self.set_error("Write each interaction as A*B, separated by commas");
+                return;
+            }
+            interactions.push((sides[0].to_owned(), sides[1].to_owned()));
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let options = fp_core::glm::GlmOptions {
+            factors: self
+                .glm_factors
+                .iter()
+                .filter(|name| **name != self.glm_response)
+                .cloned()
+                .collect(),
+            covariates: self
+                .glm_covariates
+                .iter()
+                .filter(|name| **name != self.glm_response)
+                .cloned()
+                .collect(),
+            interactions,
+        };
+        match fp_core::glm::analyze(&df, &self.glm_response, &options) {
+            Ok(output) => {
+                let label = format!("General linear model: {}", self.glm_response);
+                self.apply_output(output, label);
+                self.show_glm_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// General linear model dialog.
+    pub(super) fn glm_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_glm_dialog {
+            return;
+        }
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let categorical: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| !matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_glm_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("General Linear Model"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(470.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Response:");
+                    egui::ComboBox::from_id_salt("glm_response")
+                        .selected_text(if self.glm_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.glm_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.glm_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.help_label("Factors (reference coding):");
+                egui::ScrollArea::vertical()
+                    .id_salt("glm_factors")
+                    .max_height(120.0)
+                    .show(ui, |ui| {
+                        for name in &categorical {
+                            if *name == self.glm_response {
+                                continue;
+                            }
+                            let mut selected = self.glm_factors.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.glm_factors.push(name.clone());
+                                } else {
+                                    self.glm_factors.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.help_label("Covariates (numeric):");
+                egui::ScrollArea::vertical()
+                    .id_salt("glm_covariates")
+                    .max_height(120.0)
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            if *name == self.glm_response {
+                                continue;
+                            }
+                            let mut selected = self.glm_covariates.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.glm_covariates.push(name.clone());
+                                } else {
+                                    self.glm_covariates.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Interactions (A*B):");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.glm_interactions)
+                            .desired_width(250.0)
+                            .hint_text("A*B, A*x"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.small(
+                    "Factors use reference coding; interactions are two-way products. Rows missing \
+                     the response, a factor label or a covariate are removed listwise.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About the general linear model…"))
+                        .clicked()
+                    {
+                        self.show_glm_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_glm_dialog = open && !run && !cancel;
+        if run {
+            self.run_glm_dialog();
+        }
+    }
+
+    /// Help page of the general linear model.
+    pub(super) fn glm_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_glm_help {
+            return;
+        }
+        let mut open = self.show_glm_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("General linear model help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The general linear model fits one numeric response from categorical \
+                     factors, numeric covariates and two-way interactions. Factors use reference \
+                     coding and every term gets sequential (Type I) and adjusted (Type III) sums \
+                     of squares with an F test.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose the response, the factors and the covariates. Factors are the text or \
+                     date columns; covariates are the numeric columns. Write each interaction \
+                     as A*B, separated by commas, using names already declared as factors or \
+                     covariates. Rows missing the response, a factor label or a covariate are \
+                     removed listwise.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A response measured on two machines (factor) at several speeds (covariate), \
+                     with the Machine*Speed interaction, gives an ANOVA table with Machine, \
+                     Speed and Machine*Speed; the interaction tests whether the speed slopes \
+                     differ between the machines.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_glm_help = open && !close;
+    }
+
     pub fn open_anova_dialog(&mut self) {
         self.open_one_way_dialog(OneWayKind::Anova);
     }

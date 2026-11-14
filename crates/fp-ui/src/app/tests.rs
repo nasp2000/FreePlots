@@ -2936,6 +2936,78 @@ fn anova_dialog_reaches_the_session_and_plot() {
 }
 
 #[test]
+fn glm_dialog_reaches_the_session_and_plot() {
+    let mut app = FreePlotsApp::new();
+    let mut machine = Vec::new();
+    let mut speed = Vec::new();
+    let mut y = Vec::new();
+    for row in 0..20 {
+        let level = if row % 2 == 0 { "A" } else { "B" };
+        let value = (row % 5) as f64 + 1.0;
+        machine.push(level.to_owned());
+        speed.push(value);
+        y.push(
+            5.0 + if level == "A" { 0.0 } else { 2.0 }
+                + 1.5 * value
+                + if level == "B" { 0.5 * value } else { 0.0 }
+                + ((row * 7 % 3) as f64 - 1.0) * 0.05,
+        );
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("y", y),
+        Column::new_text("machine", machine),
+        Column::new_f64("speed", speed),
+    ])
+    .expect("frame");
+    app.set_data(df, "glm.csv".to_owned());
+    app.open_glm_dialog();
+    app.glm_response = "y".to_owned();
+    app.glm_factors = vec!["machine".to_owned()];
+    app.glm_covariates = vec!["speed".to_owned()];
+    app.glm_interactions = "machine*speed".to_owned();
+    app.run_glm_dialog();
+    let text = app.session_text();
+    assert!(text.contains("General Linear Model"), "{text}");
+    assert!(text.contains("machine*speed"), "{text}");
+    assert!(app.plot().is_some());
+}
+
+#[test]
+fn the_glm_help_explains_the_terms() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_glm_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness
+        .get_by_label("About the general linear model…")
+        .click();
+    harness.run();
+    assert!(harness.state().show_glm_help);
+    harness.get_by_label("General linear model help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("fits one numeric response");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do modelo linear geral");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_glm_help);
+}
+
+#[test]
 fn regression_dialog_reaches_the_session_and_plot() {
     let mut app = FreePlotsApp::new();
     let df = DataFrame::new(vec![

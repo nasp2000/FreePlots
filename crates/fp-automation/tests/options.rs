@@ -1216,6 +1216,53 @@ fn the_one_way_anova_dialog_rejects_the_response_as_factor() {
 }
 
 #[test]
+fn the_glm_dialog_fits_factors_covariates_and_an_interaction() {
+    let mut ui = Automation::new();
+    ui.load_frame(model_frame(), "model.csv");
+    open(&mut ui, &["Stat", "ANOVA", "General Linear Model…"]);
+    ui.set_text("Interactions (A*B):", "group*x1")
+        .expect("interaction");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("General Linear Model"), "{session}");
+    assert!(session.contains("group"), "{session}");
+    assert!(session.contains("group[B]*x1"), "{session}");
+    assert!(session.contains("Adj SS"), "{session}");
+    assert!(ui.plot().is_some());
+}
+
+#[test]
+fn the_glm_dialog_needs_a_term() {
+    let mut ui = Automation::new();
+    ui.load_frame(model_frame(), "model.csv");
+    open(&mut ui, &["Stat", "ANOVA", "General Linear Model…"]);
+    ui.click("group").expect("drop group");
+    ui.click("x1").expect("drop x1");
+    ui.click("x2").expect("drop x2");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("at least one factor or covariate"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
+fn the_glm_dialog_rejects_an_unknown_interaction_term() {
+    let mut ui = Automation::new();
+    ui.load_frame(model_frame(), "model.csv");
+    open(&mut ui, &["Stat", "ANOVA", "General Linear Model…"]);
+    ui.set_text("Interactions (A*B):", "group*missing")
+        .expect("interaction");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("not a factor or covariate"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_levene_dialog_reads_the_centre() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

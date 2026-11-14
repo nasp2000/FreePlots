@@ -1353,6 +1353,13 @@ pub struct FreePlotsApp {
     variance_center: VarianceCenter,
     anova_factor: String,
     anova_confidence: f64,
+    /// General linear model dialog and help.
+    show_glm_dialog: bool,
+    show_glm_help: bool,
+    glm_response: String,
+    glm_factors: Vec<String>,
+    glm_covariates: Vec<String>,
+    glm_interactions: String,
     show_km_dialog: bool,
     km_time: String,
     km_censor: Option<String>,
@@ -4003,6 +4010,8 @@ impl FreePlotsApp {
         self.show_agreement_dialog = false;
         self.show_alt_dialog = false;
         self.show_anova_dialog = false;
+        self.show_glm_dialog = false;
+        self.show_glm_help = false;
         self.show_attr_dialog = false;
         self.show_attrcap_dialog = false;
         self.show_attrcap_help = false;

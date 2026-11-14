@@ -1368,6 +1368,39 @@ impl UiCatalog {
             "No notes yet." => "Ainda sem notas.",
             "OK" => "OK",
             "One-Way…" => "Um fator…",
+            "General Linear Model…" => "Modelo linear geral…",
+            "General Linear Model" => "Modelo linear geral",
+            "General linear model help" => "Ajuda do modelo linear geral",
+            "About the general linear model…" => "Acerca do modelo linear geral…",
+            "The general linear model fits one numeric response from categorical \
+             factors, numeric covariates and two-way interactions. Factors use reference \
+             coding and every term gets sequential (Type I) and adjusted (Type III) sums \
+             of squares with an F test." => {
+                "O modelo linear geral ajusta uma resposta numérica a partir de factores \
+                 categóricos, covariáveis numéricas e interacções de duas vias. Os factores usam \
+                 codificação de referência e cada termo recebe somas de quadrados sequenciais \
+                 (Tipo I) e ajustadas (Tipo III) com um teste F."
+            }
+            "Choose the response, the factors and the covariates. Factors are the text or \
+             date columns; covariates are the numeric columns. Write each interaction \
+             as A*B, separated by commas, using names already declared as factors or \
+             covariates. Rows missing the response, a factor label or a covariate are \
+             removed listwise." => {
+                "Escolha a resposta, os factores e as covariáveis. Os factores são as colunas de \
+                 texto ou de data; as covariáveis são as colunas numéricas. Escreva cada \
+                 interacção como A*B, separada por vírgulas, usando nomes já declarados como \
+                 factores ou covariáveis. As linhas sem resposta, rótulo de factor ou covariável \
+                 são removidas em lista."
+            }
+            "A response measured on two machines (factor) at several speeds (covariate), \
+             with the Machine*Speed interaction, gives an ANOVA table with Machine, \
+             Speed and Machine*Speed; the interaction tests whether the speed slopes \
+             differ between the machines." => {
+                "Uma resposta medida em duas máquinas (factor) a várias velocidades (covariável), \
+                 com a interacção Machine*Speed, dá uma tabela ANOVA com Machine, Speed e \
+                 Machine*Speed; a interacção testa se os declives da velocidade diferem entre as \
+                 máquinas."
+            }
             "Open" => "Abrir",
             "Regression…" => "Regressão…",
             "Rename" => "Renomear",

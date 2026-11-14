@@ -72,6 +72,11 @@ All notable changes to FreePlots are recorded here. The format follows
   cumulative curve for one of the ten distributions, with its parameters and an
   optional shaded area that reports the probability. It needs no worksheet
   data and has its own help page in both interface languages.
+- ANOVA has a *General Linear Model…* entry: one numeric response from
+  categorical factors (reference coding), numeric covariates and two-way
+  interactions, with sequential and adjusted (Type III) sums of squares, F
+  tests, the coefficient table and the residuals plot. It has its own help page
+  in both interface languages.
 - *Graph → More Graphs* adds nine descriptive charts: bar, line, area,
   heatmap, bubble, individual value, marginal, parallel coordinates and
   correlogram. They share one dialog and one help page in both interface
@@ -143,7 +148,9 @@ All notable changes to FreePlots are recorded here. The format follows
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus
-  the invalid column lists.
+  the invalid column lists. The general linear model covers the factor,
+  covariate and interaction expansion, the Type I/III table, a model without
+  interactions and the empty, duplicated, unknown-term and one-level cases.
 
 ## [0.1.1] - 2026-11-12
 
