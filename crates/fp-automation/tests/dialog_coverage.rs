@@ -98,6 +98,11 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["Stat", "Control Charts", "Multivariate Charts…"],
     &["Stat", "Quality Tools", "Capability Analysis…"],
     &["Stat", "Quality Tools", "Distribution Comparison…"],
+    &[
+        "Stat",
+        "Quality Tools",
+        "Individual Distribution Identification…",
+    ],
     &["Stat", "Quality Tools", "Interval Plot…"],
     &["Stat", "Quality Tools", "Pareto Chart…"],
     &["Stat", "Quality Tools", "Gage Linearity…"],

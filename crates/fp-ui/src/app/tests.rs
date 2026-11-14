@@ -3332,6 +3332,68 @@ fn the_johnson_help_explains_the_transformation() {
 }
 
 #[test]
+fn the_individual_identification_stores_the_columns() {
+    let mut app = FreePlotsApp::new();
+    let values: Vec<f64> = (1..=40).map(|i| (i as f64 * 0.1).exp()).collect();
+    let df = DataFrame::new(vec![Column::new_f64("life", values)]).expect("frame");
+    app.set_data(df, "life.csv".to_owned());
+    app.open_id_dialog();
+    app.id_column = "life".to_owned();
+    app.id_boxcox_name = "life_bc".to_owned();
+    app.id_johnson_name = "life_j".to_owned();
+    app.id_store_boxcox = true;
+    app.id_store_johnson = true;
+    app.run_id_dialog();
+    let text = app.session_text();
+    assert!(
+        text.contains("Individual Distribution Identification"),
+        "{text}"
+    );
+    assert!(text.contains("Box-Cox Transformation"), "{text}");
+    assert!(text.contains("Johnson Transformation"), "{text}");
+    let data = app.data().expect("worksheet");
+    assert!(data.column("life_bc").is_ok(), "Box-Cox column missing");
+    assert!(data.column("life_j").is_ok(), "Johnson column missing");
+    assert!(app.plot().is_some());
+}
+
+#[test]
+fn the_individual_identification_help_explains_the_families() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_id_dialog = true;
+    app.id_column = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness
+        .get_by_label("About individual distribution identification…")
+        .click();
+    harness.run();
+    assert!(harness.state().show_id_help);
+    harness.get_by_label("Individual distribution identification help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("compares fourteen distributions");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da identificação individual de distribuições");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_id_help);
+}
+
+#[test]
 fn the_acceptance_chart_reports_the_limits_and_decisions() {
     let mut app = FreePlotsApp::new();
     let df = DataFrame::new(vec![Column::new_f64("x", vec![5.0, 9.0, 9.8, 0.1])]).expect("frame");

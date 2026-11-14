@@ -4353,6 +4353,60 @@ fn the_johnson_transformation_writes_a_column() {
 }
 
 #[test]
+fn the_individual_identification_draws_the_families() {
+    let mut ui = Automation::new();
+    ui.load_frame(capability_frame(), "capability.csv");
+    open(
+        &mut ui,
+        &[
+            "Stat",
+            "Quality Tools",
+            "Individual Distribution Identification…",
+        ],
+    );
+    ui.select("Column:", "value").expect("column");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Individual Distribution Identification"),
+        "{session}"
+    );
+    assert!(session.contains("Smallest Extreme Value"), "{session}");
+    assert!(session.contains("AIC"), "{session}");
+    assert!(ui.plot().is_some(), "a plot was produced");
+}
+
+#[test]
+fn the_individual_identification_stores_both_columns() {
+    let mut ui = Automation::new();
+    ui.load_frame(capability_frame(), "capability.csv");
+    open(
+        &mut ui,
+        &[
+            "Stat",
+            "Quality Tools",
+            "Individual Distribution Identification…",
+        ],
+    );
+    ui.select("Column:", "value").expect("column");
+    ui.click("Store Box-Cox column").expect("box-cox");
+    ui.click("Store Johnson column").expect("johnson");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("Box-Cox Transformation"), "{session}");
+    assert!(session.contains("Johnson Transformation"), "{session}");
+    let data = ui.app().data().expect("worksheet");
+    assert!(
+        data.column("value_boxcox").is_ok(),
+        "Box-Cox column missing"
+    );
+    assert!(
+        data.column("value_johnson").is_ok(),
+        "Johnson column missing"
+    );
+}
+
+#[test]
 fn the_t_chart_dialog_reports_the_exponential_limits() {
     let mut ui = Automation::new();
     let df = DataFrame::new(vec![Column::new_f64(

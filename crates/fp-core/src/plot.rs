@@ -366,7 +366,7 @@ pub enum ProbabilityScale {
     Logit,
 }
 
-fn probability_position(scale: ProbabilityScale, p: f64) -> f64 {
+pub(crate) fn probability_position(scale: ProbabilityScale, p: f64) -> f64 {
     match scale {
         ProbabilityScale::Normal => normal_quantile(p),
         ProbabilityScale::Gumbel => (-(1.0 - p).ln()).ln(),
@@ -681,7 +681,12 @@ pub(crate) fn linear_axis(label: &str, lo: f64, hi: f64) -> AxisSpec {
     }
 }
 
-fn probability_axis(label: &str, p_lo: f64, p_hi: f64, scale: ProbabilityScale) -> AxisSpec {
+pub(crate) fn probability_axis(
+    label: &str,
+    p_lo: f64,
+    p_hi: f64,
+    scale: ProbabilityScale,
+) -> AxisSpec {
     // The documented plots start at 1 % and expand by decades only when
     // the plotting positions fall outside; 0.1/99.9 appear at n = 200, for
     // example.

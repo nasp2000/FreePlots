@@ -1278,6 +1278,18 @@ impl FreePlotsApp {
                         self.run_distribution_comparison();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Individual Distribution Identification…"),
+                        None,
+                        ready,
+                    )
+                    .on_hover_text("Fourteen distributions with probability plots and stored Box-Cox/Johnson columns")
+                    .clicked()
+                    {
+                        self.open_id_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Interval Plot…"), None, self.data.is_some())
                         .on_hover_text("Level means with confidence intervals")
                         .clicked()

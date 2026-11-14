@@ -160,6 +160,8 @@ impl FreePlotsApp {
         self.box_cox_dialog(&ctx);
         self.johnson_dialog(&ctx);
         self.johnson_help_window(&ctx);
+        self.id_dialog(&ctx);
+        self.id_help_window(&ctx);
         self.tolerance_dialog(&ctx);
         self.linearity_dialog(&ctx);
         self.logistic_dialog(&ctx);

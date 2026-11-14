@@ -7,7 +7,7 @@
 //! scale — and the report compares the normality of the data before and
 //! after the transformation.
 
-use crate::data::{DataFrame, MissingPolicy, Sample};
+use crate::data::{Column, DataFrame, MissingPolicy, Sample};
 use crate::dists::{Distribution, Normal};
 use crate::error::{Error, Result};
 use crate::gof::{ad_p_value, anderson_darling};
@@ -355,6 +355,93 @@ pub fn analyze(df: &DataFrame, column_name: &str) -> Result<crate::workflow::Ana
     })
 }
 
+/// Stores the Box–Cox transformation as a new worksheet column.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for an empty or duplicate output name, and
+/// the errors of [`lambda`] and [`transform`] when the data are not positive.
+pub fn add_transformation(
+    df: &mut DataFrame,
+    column: &str,
+    output: &str,
+) -> Result<AnalysisResult> {
+    let name = output.trim();
+    if name.is_empty() {
+        return Err(Error::Unsupported(
+            "the transformed column needs a name".to_owned(),
+        ));
+    }
+    if df.column(name).is_ok() {
+        return Err(Error::Unsupported(format!(
+            "the worksheet already has a column named {name}"
+        )));
+    }
+    let source = df.column(column)?;
+    let sample = source.sample(MissingPolicy::Drop)?;
+    let lambda = lambda(&sample)?;
+    let mut values = Vec::with_capacity(df.n_rows());
+    let mut transformed = Vec::with_capacity(sample.n());
+    for row in 0..df.n_rows() {
+        match source.value(row) {
+            Some(value) => {
+                let converted = transform(value, lambda)?;
+                values.push(converted);
+                transformed.push(converted);
+            }
+            None => values.push(f64::NAN),
+        }
+    }
+    let after_sample = Sample::new(transformed, MissingPolicy::Drop)?;
+    let before_a2 = anderson_darling(&Normal::fit_moments(&sample)?, &sample)?;
+    let after_a2 = anderson_darling(&Normal::fit_moments(&after_sample)?, &after_sample)?;
+    let before_p = ad_p_value(sample.n(), before_a2)?;
+    let after_p = ad_p_value(after_sample.n(), after_a2)?;
+    let (ci_low, ci_high) = lambda_interval(&sample, 0.95)?;
+    let index = df.n_columns();
+    df.insert_column(index, Column::new_f64(name, values))?;
+
+    let mut result = AnalysisResult::new(
+        format!("Box-Cox Transformation — column {column}"),
+        format!("Profile-likelihood transformation; stored column {name}"),
+    );
+    result.n = sample.n();
+    result.excluded = sample.excluded();
+    result.statistics = vec![
+        ("Lambda", lambda),
+        ("Lambda 95% CI lower", ci_low),
+        ("Lambda 95% CI upper", ci_high),
+        ("A2 before", before_a2),
+        ("p-value before", before_p),
+        ("A2 after", after_a2),
+        ("p-value after", after_p),
+    ];
+    result.notes = vec![
+        (
+            "Transformation".to_owned(),
+            format!("x(λ) = (x^{lambda:.6} − 1)/{lambda:.6}; a lambda of zero is the logarithm"),
+        ),
+        (
+            "Output".to_owned(),
+            format!(
+                "column {name} holds x(λ); rows with a missing or non-positive value stay missing"
+            ),
+        ),
+        (
+            "Estimator".to_owned(),
+            "profile likelihood of the Normal model with the Jacobian term (λ − 1)·Σ ln x"
+                .to_owned(),
+        ),
+    ];
+    result.warnings = standard_warnings(result.n, result.excluded, 0);
+    if after_p <= before_p {
+        result
+            .warnings
+            .push("the transformation does not improve the normality of the data".to_owned());
+    }
+    Ok(result)
+}
+
 /// The skewness of a sample (the standardised third central moment).
 fn skewness(sample: &Sample) -> f64 {
     let n = sample.n();
@@ -482,5 +569,33 @@ mod tests {
         assert!(text.contains("p-value before"), "{text}");
         assert!(text.contains("p-value after"), "{text}");
         assert!(out.plot.is_some());
+    }
+
+    #[test]
+    fn the_transformed_column_is_stored() {
+        let values: Vec<f64> = (1..=40).map(|i| (i as f64 * 0.1).exp()).collect();
+        let mut df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
+        let result = add_transformation(&mut df, "x", "x_boxcox").expect("transformation");
+        assert!(result.title.contains("Box-Cox"), "{result:?}");
+        let column = df.column("x_boxcox").expect("stored column");
+        assert_eq!(column.len(), df.n_rows());
+        let text = result.to_session_text();
+        assert!(text.contains("x_boxcox"), "{text}");
+        assert!(text.contains("Lambda"), "{text}");
+    }
+
+    #[test]
+    fn the_transformation_refuses_bad_names_and_bad_data() {
+        let mut df = DataFrame::new(vec![
+            Column::new_f64("x", vec![1.0, 2.0, 3.0]),
+            Column::new_f64("taken", vec![1.0, 2.0, 3.0]),
+        ])
+        .expect("frame");
+        assert!(add_transformation(&mut df, "x", " ").is_err());
+        assert!(add_transformation(&mut df, "x", "taken").is_err());
+        let mut negative =
+            DataFrame::new(vec![Column::new_f64("x", vec![-1.0, 0.0, 2.0])]).expect("frame");
+        assert!(add_transformation(&mut negative, "x", "x_boxcox").is_err());
+        assert!(negative.column("x_boxcox").is_err());
     }
 }

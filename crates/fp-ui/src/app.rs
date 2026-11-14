@@ -1092,6 +1092,14 @@ pub struct FreePlotsApp {
     johnson_column: String,
     johnson_choice: fp_core::johnson::JohnsonChoice,
     johnson_name: String,
+    /// Individual distribution identification dialog and help.
+    show_id_dialog: bool,
+    show_id_help: bool,
+    id_column: String,
+    id_store_boxcox: bool,
+    id_boxcox_name: String,
+    id_store_johnson: bool,
+    id_johnson_name: String,
     show_tolerance_dialog: bool,
     show_sort_dialog: bool,
     sort_keys: String,
@@ -3981,6 +3989,8 @@ impl FreePlotsApp {
         self.show_box_cox_dialog = false;
         self.show_johnson_dialog = false;
         self.show_johnson_help = false;
+        self.show_id_dialog = false;
+        self.show_id_help = false;
         self.show_predict_dialog = false;
         self.show_predict_help = false;
         self.show_gsummary_dialog = false;

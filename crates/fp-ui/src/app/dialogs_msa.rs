@@ -391,6 +391,214 @@ impl FreePlotsApp {
         self.show_johnson_help = open && !close;
     }
 
+    /// Opens the individual distribution identification dialog.
+    pub fn open_id_dialog(&mut self) {
+        let column = self.selected.clone().unwrap_or_default();
+        self.id_column = column.clone();
+        if !column.is_empty() {
+            if self.id_boxcox_name.trim().is_empty() {
+                self.id_boxcox_name = format!("{column}_boxcox");
+            }
+            if self.id_johnson_name.trim().is_empty() {
+                self.id_johnson_name = format!("{column}_johnson");
+            }
+        }
+        self.show_id_dialog = true;
+    }
+
+    /// Runs the identification and stores the requested transformed columns.
+    pub fn run_id_dialog(&mut self) {
+        if self.id_column.is_empty() {
+            self.set_error("Select the measurement column");
+            return;
+        }
+        let column = self.id_column.clone();
+        let box_cox = self
+            .id_store_boxcox
+            .then(|| self.id_boxcox_name.trim().to_owned());
+        if self.id_store_boxcox && box_cox.as_deref().is_none_or(str::is_empty) {
+            self.set_error("Name the Box-Cox column");
+            return;
+        }
+        let johnson = self
+            .id_store_johnson
+            .then(|| self.id_johnson_name.trim().to_owned());
+        if self.id_store_johnson && johnson.as_deref().is_none_or(str::is_empty) {
+            self.set_error("Name the Johnson column");
+            return;
+        }
+        let Some(mut df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::workflow::individual_distribution(
+            &mut df,
+            &column,
+            box_cox.as_deref(),
+            johnson.as_deref(),
+        ) {
+            Ok(output) => {
+                self.set_data(df, "Individual distribution identification".to_owned());
+                self.apply_output(output, format!("Distribution identification: {column}"));
+                self.show_id_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Individual distribution identification dialog.
+    pub(super) fn id_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_id_dialog {
+            return;
+        }
+        let columns: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_id_dialog;
+        let mut run = false;
+        dialog_window(
+            self.catalog()
+                .label("Individual Distribution Identification"),
+        )
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .default_width(470.0)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                let label = ui.help_label("Column:");
+                egui::ComboBox::from_id_salt("id_column")
+                    .selected_text(if self.id_column.is_empty() {
+                        "—".to_owned()
+                    } else {
+                        self.id_column.clone()
+                    })
+                    .width(200.0)
+                    .show_ui(ui, |ui| {
+                        for name in &columns {
+                            ui.selectable_value(&mut self.id_column, name.clone(), name.as_str());
+                        }
+                    })
+                    .response
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+            });
+            ui.help_checkbox(&mut self.id_store_boxcox, "Store Box-Cox column");
+            ui.horizontal(|ui| {
+                let label = ui.help_label("Box-Cox name:");
+                ui.add_enabled(
+                    self.id_store_boxcox,
+                    egui::TextEdit::singleline(&mut self.id_boxcox_name),
+                )
+                .labelled_by(label.id)
+                .hover_from(&label);
+            });
+            ui.help_checkbox(&mut self.id_store_johnson, "Store Johnson column");
+            ui.horizontal(|ui| {
+                let label = ui.help_label("Johnson name:");
+                ui.add_enabled(
+                    self.id_store_johnson,
+                    egui::TextEdit::singleline(&mut self.id_johnson_name),
+                )
+                .labelled_by(label.id)
+                .hover_from(&label);
+            });
+            ui.small(
+                "Fourteen distributions with the Anderson–Darling test and one probability \
+                     panel per family; Box-Cox and Johnson store the transformed column.",
+            );
+            ui.horizontal(|ui| {
+                if ui
+                    .help_button(
+                        self.catalog()
+                            .label("About individual distribution identification…"),
+                    )
+                    .clicked()
+                {
+                    self.show_id_help = true;
+                }
+                ui.small(self.catalog().label("Overview, data and an example"));
+            });
+            ui.separator();
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(
+                        !self.id_column.is_empty(),
+                        egui::Button::new(self.catalog().label("Run")),
+                    )
+                    .clicked()
+                {
+                    run = true;
+                }
+                if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                    open = false;
+                }
+            });
+        });
+        self.show_id_dialog = open && !run;
+        if run {
+            self.run_id_dialog();
+        }
+    }
+
+    /// Help page of the individual distribution identification.
+    pub(super) fn id_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_id_help {
+            return;
+        }
+        let mut open = self.show_id_help;
+        let mut close = false;
+        dialog_window(
+            self.catalog()
+                .label("Individual distribution identification help"),
+        )
+        .without_clear()
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .default_width(560.0)
+        .show(ctx, |ui| {
+            ui.strong(self.catalog().label("Overview"));
+            ui.label(self.catalog().label(
+                "Individual distribution identification compares fourteen distributions on \
+                     the same sample, with the Anderson–Darling test, AIC/BIC and one probability \
+                     plot per family. Box-Cox and Johnson transformations can be stored as new \
+                     worksheet columns for later analyses.",
+            ));
+            ui.add_space(6.0);
+            ui.strong(self.catalog().label("Data"));
+            ui.label(self.catalog().label(
+                "Choose one numeric column; missing values are excluded and counted. Normal, \
+                     logistic, extreme value and smallest extreme value accept any data; the other \
+                     families need positive values. The Box-Cox and Johnson columns are written \
+                     with the names in the dialog, and rows with a missing value stay missing.",
+            ));
+            ui.add_space(6.0);
+            ui.strong(self.catalog().label("Example"));
+            ui.label(self.catalog().label(
+                "A right-skewed life column is fitted by the Weibull and the lognormal; the \
+                     table ranks them by AIC and the panels show the probability plot of each \
+                     family. Turning on Store Box-Cox column writes life_boxcox and turning on \
+                     Store Johnson column writes life_johnson, both with the fitted score.",
+            ));
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                if ui.help_button(self.catalog().label("Close")).clicked() {
+                    close = true;
+                }
+            });
+        });
+        self.show_id_help = open && !close;
+    }
+
     pub fn open_diagnostic_dialog(&mut self, kind: DiagnosticKind) {
         self.diagnostic_kind = kind;
         self.diagnostic_column = self.selected.clone().unwrap_or_default();

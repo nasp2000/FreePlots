@@ -9,8 +9,8 @@ use std::collections::BTreeMap;
 
 use crate::data::{Column, ColumnData, DType, DataFrame, Descriptives, MissingPolicy, Sample};
 use crate::dists::{
-    Distribution, Exponential, ExtremeValue, Gamma, Logistic, Loglogistic, Lognormal, Lognormal3,
-    Normal, Weibull, Weibull3,
+    Distribution, Exponential, Exponential2, ExtremeValue, Gamma, Gamma3, Logistic, Loglogistic,
+    Loglogistic3, Lognormal, Lognormal3, Normal, SmallestExtremeValue, Weibull, Weibull3,
 };
 use crate::error::{Error, Result};
 use crate::estimate::c4;
@@ -18,11 +18,12 @@ use crate::gof::{
     ad_p_value, ad_p_value_exponential, ad_p_value_mc, ad_p_value_weibull, anderson_darling,
 };
 use crate::plot::{
-    PlotNote, PlotSpec, PlottingPosition, exponential_probability_plot,
-    extreme_value_probability_plot, gamma_probability_plot, logistic_probability_plot,
-    loglogistic_probability_plot, lognormal_probability_plot, lognormal3_probability_plot,
-    normal_probability_plot, overlay_plots, panel_plot_with_scales, weibull_probability_plot,
-    weibull3_probability_plot,
+    PlotNote, PlotSpec, PlottingPosition, Point, ProbabilityScale, Segment,
+    exponential_probability_plot, extreme_value_probability_plot, gamma_probability_plot,
+    linear_axis, logistic_probability_plot, loglogistic_probability_plot,
+    lognormal_probability_plot, lognormal3_probability_plot, normal_probability_plot,
+    overlay_plots, panel_plot, panel_plot_with_scales, positions, probability_axis,
+    probability_position, weibull_probability_plot, weibull3_probability_plot,
 };
 use crate::report::{AnalysisResult, Item, standard_warnings};
 use crate::spc::{ControlChartKind, TestSet};
@@ -6763,6 +6764,427 @@ pub fn distribution_comparison(df: &DataFrame, column_name: &str) -> Result<Anal
     Ok(result)
 }
 
+/// Rows, fits and probability panels of the identification report.
+struct IdentificationTable {
+    rows: Vec<Vec<String>>,
+    fits: Vec<(String, f64, f64, f64)>,
+    panels: Vec<PlotSpec>,
+    notes: Vec<(String, String)>,
+    column: String,
+}
+
+impl IdentificationTable {
+    fn new(column: &str) -> Self {
+        Self {
+            rows: Vec::new(),
+            fits: Vec::new(),
+            panels: Vec::new(),
+            notes: Vec::new(),
+            column: column.to_owned(),
+        }
+    }
+
+    /// Fits the Anderson–Darling test, the information criteria and the
+    /// probability panel of one family. A family that does not converge is
+    /// recorded as a note and the remaining families still run.
+    fn add<D: Distribution>(
+        &mut self,
+        name: &str,
+        dist: &D,
+        sample: &Sample,
+        p_value: impl Fn(usize, f64) -> Result<f64>,
+    ) {
+        let a2 = match anderson_darling(dist, sample) {
+            Ok(value) => value,
+            Err(error) => {
+                self.notes
+                    .push((format!("{name} fit"), format!("skipped: {error}")));
+                return;
+            }
+        };
+        let p = match p_value(sample.n(), a2) {
+            Ok(value) if value.is_finite() => value,
+            Ok(_) => {
+                self.notes.push((
+                    format!("{name} p-value"),
+                    "not finite; row skipped".to_owned(),
+                ));
+                return;
+            }
+            Err(error) => {
+                self.notes
+                    .push((format!("{name} p-value"), format!("skipped: {error}")));
+                return;
+            }
+        };
+        let log_likelihood = log_likelihood(dist, sample);
+        if !log_likelihood.is_finite() {
+            self.notes.push((
+                format!("{name} likelihood"),
+                "not finite; row skipped".to_owned(),
+            ));
+            return;
+        }
+        let k = dist.n_params() as f64;
+        let aic = 2.0 * k - 2.0 * log_likelihood;
+        let bic = k * (sample.n() as f64).ln() - 2.0 * log_likelihood;
+        let parameters = dist
+            .parameters()
+            .iter()
+            .map(|(label, value)| format!("{label}={value:.6}"))
+            .collect::<Vec<String>>()
+            .join(", ");
+        self.rows.push(vec![
+            name.to_owned(),
+            parameters,
+            format!("{a2:.6}"),
+            format!("{p:.6}"),
+            format!("{aic:.3}"),
+            format!("{bic:.3}"),
+        ]);
+        self.fits.push((name.to_owned(), a2, p, aic));
+        self.panels
+            .push(identification_panel(name, sample, dist, &self.column));
+    }
+
+    /// Adds the Box–Cox row and its probability panel on the transformed data.
+    fn add_box_cox(
+        &mut self,
+        sample: &Sample,
+        identification: &crate::boxcox::Identification,
+    ) -> Result<()> {
+        let k = identification.n_params as f64;
+        let aic = 2.0 * k - 2.0 * identification.log_likelihood;
+        let bic = k * (sample.n() as f64).ln() - 2.0 * identification.log_likelihood;
+        self.rows.push(vec![
+            "Box-Cox Normal".to_owned(),
+            format!(
+                "λ={:.6}, µ={:.6}, σ={:.6} (transformed)",
+                identification.lambda, identification.mu, identification.sigma
+            ),
+            format!("{:.6}", identification.a2),
+            format!("{:.6}", identification.p_value),
+            format!("{aic:.3}"),
+            format!("{bic:.3}"),
+        ]);
+        self.fits.push((
+            "Box-Cox Normal".to_owned(),
+            identification.a2,
+            identification.p_value,
+            aic,
+        ));
+        let transformed: Vec<f64> = sample
+            .values()
+            .iter()
+            .map(|&value| crate::boxcox::transform(value, identification.lambda))
+            .collect::<Result<Vec<f64>>>()?;
+        let transformed = Sample::new(transformed, MissingPolicy::Drop)?;
+        let normal = Normal::fit_moments(&transformed)?;
+        self.panels.push(identification_panel(
+            "Box-Cox Normal",
+            &transformed,
+            &normal,
+            &format!("{} (Box-Cox)", self.column),
+        ));
+        Ok(())
+    }
+}
+
+/// A probability panel of one fitted family on the Normal probability scale.
+///
+/// The plotting positions are the Benard median ranks; the points are
+/// `(x, z)` and the line is the fitted quantile curve `x = F⁻¹(Φ(z))`.
+fn identification_panel(
+    name: &str,
+    sample: &Sample,
+    dist: &dyn Distribution,
+    column: &str,
+) -> PlotSpec {
+    let positions = positions(sample.n(), PlottingPosition::Benard).unwrap_or_default();
+    let observed = sample.sorted();
+    let p_lo = positions.first().copied().unwrap_or(0.01);
+    let p_hi = positions.last().copied().unwrap_or(0.99);
+    let mut points = Vec::with_capacity(observed.len());
+    for (x, p) in observed.iter().zip(&positions) {
+        points.push(Point {
+            x: *x,
+            y: probability_position(ProbabilityScale::Normal, *p),
+        });
+    }
+    let mut x_min = observed.iter().copied().fold(f64::INFINITY, f64::min);
+    let mut x_max = observed.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let steps = 40usize;
+    let mut line_points = Vec::with_capacity(steps + 1);
+    for index in 0..=steps {
+        let p = p_lo + (p_hi - p_lo) * index as f64 / steps as f64;
+        let x = dist.quantile(p);
+        if !x.is_finite() {
+            continue;
+        }
+        x_min = x_min.min(x);
+        x_max = x_max.max(x);
+        line_points.push(Point {
+            x,
+            y: probability_position(ProbabilityScale::Normal, p),
+        });
+    }
+    let pad = ((x_max - x_min).abs() * 0.05).max(f64::MIN_POSITIVE);
+    let lines = line_points
+        .windows(2)
+        .map(|pair| Segment {
+            from: pair[0],
+            to: pair[1],
+            width: 2.0,
+        })
+        .collect();
+    PlotSpec {
+        title: name.to_owned(),
+        x_axis: linear_axis(column, x_min - pad, x_max + pad),
+        y_axis: probability_axis("Percent", p_lo, p_hi, ProbabilityScale::Normal),
+        size: (320, 260),
+        points,
+        lines,
+        bands: Vec::new(),
+        series: Vec::new(),
+        panels: Vec::new(),
+        panel_columns: 1,
+        secondary: None,
+        notes: Vec::new(),
+    }
+}
+
+/// Runs the individual distribution identification: 14 families, their
+/// probability panels and the optional Box–Cox and Johnson columns.
+///
+/// # Errors
+///
+/// Returns the usual column and sample errors, and the transformation errors
+/// when a stored column is requested on data it cannot transform.
+pub fn individual_distribution(
+    df: &mut DataFrame,
+    column: &str,
+    store_box_cox: Option<&str>,
+    store_johnson: Option<&str>,
+) -> Result<AnalysisOutput> {
+    let sample = df.column(column)?.sample(MissingPolicy::Drop)?;
+    let positive = sample.values().iter().all(|&value| value > 0.0);
+    let mut table = IdentificationTable::new(column);
+
+    let normal = Normal::fit(&sample)?;
+    table.add("Normal", &normal, &sample, ad_p_value);
+
+    if positive {
+        let lognormal = Lognormal::fit_mle(&sample)?;
+        table.add("Lognormal", &lognormal, &sample, ad_p_value);
+        let exponential = Exponential::fit_mle(&sample)?;
+        table.add("Exponential", &exponential, &sample, ad_p_value_exponential);
+        match Weibull::fit_mle(&sample) {
+            Ok(weibull) => table.add("Weibull", &weibull, &sample, ad_p_value_weibull),
+            Err(error) => table
+                .notes
+                .push(("Weibull fit".to_owned(), format!("skipped: {error}"))),
+        }
+        match Gamma::fit_mle(&sample) {
+            Ok(gamma) => table.add("Gamma", &gamma, &sample, ad_p_value),
+            Err(error) => table
+                .notes
+                .push(("Gamma fit".to_owned(), format!("skipped: {error}"))),
+        }
+        let loglogistic = Loglogistic::fit_mle(&sample)?;
+        table.add("Loglogistic", &loglogistic, &sample, ad_p_value);
+        match Lognormal3::fit_mle(&sample) {
+            Ok(fitted) => table.add("Lognormal (3-parameter)", &fitted, &sample, ad_p_value),
+            Err(error) => table.notes.push((
+                "Lognormal (3-parameter) fit".to_owned(),
+                format!("skipped: {error}"),
+            )),
+        }
+        match Weibull3::fit_mle(&sample) {
+            Ok(fitted) => table.add(
+                "Weibull (3-parameter)",
+                &fitted,
+                &sample,
+                ad_p_value_weibull,
+            ),
+            Err(error) => table.notes.push((
+                "Weibull (3-parameter) fit".to_owned(),
+                format!("skipped: {error}"),
+            )),
+        }
+        table.add(
+            "Exponential (2-parameter)",
+            &Exponential2::fit_mle(&sample)?,
+            &sample,
+            ad_p_value_exponential,
+        );
+        match Gamma3::fit_mle(&sample) {
+            Ok(fitted) => table.add("Gamma (3-parameter)", &fitted, &sample, ad_p_value),
+            Err(error) => table.notes.push((
+                "Gamma (3-parameter) fit".to_owned(),
+                format!("skipped: {error}"),
+            )),
+        }
+        match Loglogistic3::fit_mle(&sample) {
+            Ok(fitted) => table.add("Loglogistic (3-parameter)", &fitted, &sample, ad_p_value),
+            Err(error) => table.notes.push((
+                "Loglogistic (3-parameter) fit".to_owned(),
+                format!("skipped: {error}"),
+            )),
+        }
+    } else {
+        table.notes.push((
+            "Positive-data families".to_owned(),
+            "Lognormal, Lognormal (3-parameter), Exponential, Weibull, Weibull (3-parameter), \
+             Gamma, Gamma (3-parameter), Loglogistic and Loglogistic (3-parameter) skipped: the \
+             column has x ≤ 0"
+                .to_owned(),
+        ));
+    }
+
+    match Logistic::fit_mle(&sample) {
+        Ok(logistic) => table.add("Logistic", &logistic, &sample, ad_p_value),
+        Err(error) => table
+            .notes
+            .push(("Logistic fit".to_owned(), format!("skipped: {error}"))),
+    }
+    match ExtremeValue::fit_mle(&sample) {
+        Ok(extreme) => table.add("Extreme Value", &extreme, &sample, ad_p_value),
+        Err(error) => table
+            .notes
+            .push(("Extreme Value fit".to_owned(), format!("skipped: {error}"))),
+    }
+    match SmallestExtremeValue::fit_mle(&sample) {
+        Ok(extreme) => table.add("Smallest Extreme Value", &extreme, &sample, ad_p_value),
+        Err(error) => table.notes.push((
+            "Smallest Extreme Value fit".to_owned(),
+            format!("skipped: {error}"),
+        )),
+    }
+
+    if positive {
+        match crate::boxcox::identify_normal(&sample) {
+            Ok(identification) => table.add_box_cox(&sample, &identification)?,
+            Err(error) => table
+                .notes
+                .push(("Box-Cox fit".to_owned(), format!("skipped: {error}"))),
+        }
+    }
+    match crate::johnson::Johnson::fit_best(&sample) {
+        Ok(johnson) => table.add(johnson.name(), &johnson, &sample, ad_p_value),
+        Err(error) => table
+            .notes
+            .push(("Johnson fit".to_owned(), format!("skipped: {error}"))),
+    }
+
+    let mut result = AnalysisResult::new(
+        format!("Individual Distribution Identification — column {column}"),
+        "Maximum likelihood; 14 distributions plus the Box-Cox and Johnson transformations",
+    );
+    result.n = sample.n();
+    result.excluded = sample.excluded();
+    result.extra.push(Item::Message(
+        "Fitted distributions on the same sample; AIC/BIC are comparable only across these fits."
+            .to_owned(),
+    ));
+    result.extra.push(Item::Table {
+        headers: vec![
+            "Distribution".to_owned(),
+            "Parameters".to_owned(),
+            "AD".to_owned(),
+            "p".to_owned(),
+            "AIC".to_owned(),
+            "BIC".to_owned(),
+        ],
+        rows: table.rows,
+    });
+    let mut notes = table.notes;
+    if let Some((name, accepted)) = best_distribution(&table.fits) {
+        if accepted {
+            result.extra.push(Item::Message(format!(
+                "Best fit: {name} (lowest AIC among the distributions not rejected at 5%)"
+            )));
+        } else {
+            result.extra.push(Item::Message(format!(
+                "Best fit: {name} (lowest Anderson–Darling statistic; no distribution is accepted at 5%)"
+            )));
+            result
+                .warnings
+                .push("no candidate distribution is accepted at the 5% level".to_owned());
+        }
+        notes.push((
+            "Selection rule".to_owned(),
+            "among the distributions whose Anderson–Darling p-value is at least 0.05, the one with \
+             the lowest AIC; when none is accepted, the lowest Anderson–Darling statistic"
+                .to_owned(),
+        ));
+    }
+    notes.push((
+        "Estimator".to_owned(),
+        "MLE for every family; the 2- and 3-parameter threshold families estimate the threshold by \
+         the probability-plot or profile-likelihood method"
+            .to_owned(),
+    ));
+    notes.push((
+        "Graphs".to_owned(),
+        "one probability panel per family, with the Benard plotting positions and the fitted \
+         quantile curve on the Normal probability scale"
+            .to_owned(),
+    ));
+    notes.push((
+        "AD p-values".to_owned(),
+        "Normal/Lognormal use the composite normal formula; Logistic/Loglogistic/Gamma/Extreme \
+         Value use the same approximation; Weibull and Exponential use their recovered formulas, \
+         also for the 3- and 2-parameter variants"
+            .to_owned(),
+    ));
+    notes.push((
+        "Scope".to_owned(),
+        "Normal, Lognormal (2 and 3), Exponential (1 and 2), Weibull (2 and 3), Gamma (2 and 3), \
+         Logistic, Loglogistic (2 and 3), Extreme Value and Smallest Extreme Value, plus Box-Cox \
+         Normal and Johnson SU/SB/SL (best AIC)"
+            .to_owned(),
+    ));
+    notes.push((
+        "Data policy".to_owned(),
+        "non-finite values are excluded and counted; the positive families need x > 0".to_owned(),
+    ));
+    result.notes = notes;
+    result.warnings.extend(standard_warnings(
+        sample.n(),
+        sample.excluded(),
+        sample.ties(),
+    ));
+    result.warnings.push(
+        "the Anderson–Darling p-values are approximations and the threshold families are not \
+         claimed to match documented output"
+            .to_owned(),
+    );
+
+    let mut results = vec![result];
+    if let Some(name) = store_box_cox {
+        if !positive {
+            return Err(Error::Unsupported(
+                "the Box-Cox transformation needs strictly positive values".to_owned(),
+            ));
+        }
+        results.push(crate::boxcox::add_transformation(df, column, name)?);
+    }
+    if let Some(name) = store_johnson {
+        results.push(crate::johnson::add_transformation(
+            df,
+            column,
+            crate::johnson::JohnsonChoice::Best,
+            name,
+        )?);
+    }
+    let plot = panel_plot(
+        table.panels,
+        4,
+        format!("Individual Distribution Identification — {column}"),
+    );
+    Ok(AnalysisOutput { results, plot })
+}
+
 fn log_likelihood<D: Distribution>(dist: &D, sample: &crate::data::Sample) -> f64 {
     sample.values().iter().map(|&x| dist.ln_pdf(x)).sum()
 }
@@ -11134,6 +11556,78 @@ mod tests {
         }
         assert!(text.contains("AIC"));
         assert!(text.contains("Distribution Comparison"));
+    }
+
+    /// A skewed positive sample drawn from a lognormal quantile function.
+    fn identification_frame() -> DataFrame {
+        let dist = Lognormal::new(0.5, 0.8).expect("lognormal");
+        let n = 80;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| dist.quantile((i as f64 - 0.5) / n as f64))
+            .collect();
+        DataFrame::new(vec![Column::new_f64("life", values)]).expect("frame")
+    }
+
+    #[test]
+    fn individual_identification_builds_the_fourteen_families() {
+        let mut df = identification_frame();
+        let out = individual_distribution(&mut df, "life", None, None).expect("identification");
+        assert_eq!(out.results.len(), 1);
+        let text = out.results[0].to_session_text();
+        for name in [
+            "Normal",
+            "Lognormal",
+            "Lognormal (3-parameter)",
+            "Exponential",
+            "Exponential (2-parameter)",
+            "Weibull",
+            "Weibull (3-parameter)",
+            "Gamma",
+            "Gamma (3-parameter)",
+            "Logistic",
+            "Loglogistic",
+            "Loglogistic (3-parameter)",
+            "Extreme Value",
+            "Smallest Extreme Value",
+            "Box-Cox Normal",
+            "Johnson",
+        ] {
+            assert!(text.contains(name), "{name} missing:\n{text}");
+        }
+        assert!(text.contains("Best fit:"), "{text}");
+        let plot = out.plot.expect("plot");
+        assert!(plot.panels.len() >= 14, "{} panels", plot.panels.len());
+    }
+
+    #[test]
+    fn individual_identification_stores_the_transformations() {
+        let mut df = identification_frame();
+        let out =
+            individual_distribution(&mut df, "life", Some("life_boxcox"), Some("life_johnson"))
+                .expect("identification");
+        assert_eq!(out.results.len(), 3);
+        for name in ["life_boxcox", "life_johnson"] {
+            let column = df.column(name).expect("stored column");
+            assert_eq!(column.len(), df.n_rows());
+        }
+        let text = out.results[1].to_session_text();
+        assert!(text.contains("Box-Cox Transformation"), "{text}");
+        let text = out.results[2].to_session_text();
+        assert!(text.contains("Johnson Transformation"), "{text}");
+    }
+
+    #[test]
+    fn individual_identification_skips_positive_families_for_non_positive_data() {
+        let values = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+        let mut df = DataFrame::new(vec![Column::new_f64("life", values.clone())]).expect("frame");
+        let out = individual_distribution(&mut df, "life", None, None).expect("identification");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("x ≤ 0"), "{text}");
+        assert!(text.contains("Smallest Extreme Value"), "{text}");
+        assert!(!text.contains("Box-Cox Normal"), "{text}");
+
+        let mut refused = DataFrame::new(vec![Column::new_f64("life", values)]).expect("frame");
+        assert!(individual_distribution(&mut refused, "life", Some("life_boxcox"), None).is_err());
     }
 
     #[test]

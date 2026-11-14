@@ -129,6 +129,45 @@ impl UiCatalog {
             // Quality tools.
             "Capability Analysis…" => "Análise de capacidade…",
             "Distribution Comparison…" => "Comparação de distribuições…",
+            "Individual Distribution Identification" => "Identificação individual de distribuições",
+            "Individual Distribution Identification…" => {
+                "Identificação individual de distribuições…"
+            }
+            "Individual distribution identification help" => {
+                "Ajuda da identificação individual de distribuições"
+            }
+            "About individual distribution identification…" => {
+                "Acerca da identificação individual de distribuições…"
+            }
+            "Individual distribution identification compares fourteen distributions on \
+             the same sample, with the Anderson–Darling test, AIC/BIC and one probability \
+             plot per family. Box-Cox and Johnson transformations can be stored as new \
+             worksheet columns for later analyses." => {
+                "A identificação individual de distribuições compara catorze distribuições na \
+                 mesma amostra, com o teste de Anderson–Darling, AIC/BIC e um gráfico de \
+                 probabilidade por família. As transformações Box-Cox e Johnson podem ser \
+                 guardadas como novas colunas da folha para análises posteriores."
+            }
+            "Choose one numeric column; missing values are excluded and counted. Normal, \
+             logistic, extreme value and smallest extreme value accept any data; the other \
+             families need positive values. The Box-Cox and Johnson columns are written \
+             with the names in the dialog, and rows with a missing value stay missing." => {
+                "Escolha uma coluna numérica; os valores em falta são excluídos e contados. A \
+                 normal, a logística, o valor extremo e o valor extremo mínimo aceitam quaisquer \
+                 dados; as restantes famílias exigem valores positivos. As colunas Box-Cox e \
+                 Johnson são escritas com os nomes indicados no diálogo, e as linhas com valor em \
+                 falta continuam em falta."
+            }
+            "A right-skewed life column is fitted by the Weibull and the lognormal; the \
+             table ranks them by AIC and the panels show the probability plot of each \
+             family. Turning on Store Box-Cox column writes life_boxcox and turning on \
+             Store Johnson column writes life_johnson, both with the fitted score." => {
+                "Uma coluna de vida com assimetria à direita é ajustada pelo Weibull e pelo \
+                 lognormal; a tabela ordena-os por AIC e os painéis mostram o gráfico de \
+                 probabilidade de cada família. Ao activar Store Box-Cox column é escrita \
+                 life_boxcox e ao activar Store Johnson column é escrita life_johnson, ambas com \
+                 a pontuação ajustada."
+            }
             "Gage R&R…" => "Gage R&R…",
             "Type 1 Gage Study…" => "Estudo Gage de tipo 1…",
             // Control charts.

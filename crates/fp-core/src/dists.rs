@@ -1804,6 +1804,603 @@ impl Distribution for Weibull3 {
     }
 }
 
+/// Two-parameter exponential distribution with a threshold.
+///
+/// `F(x) = 1 − exp(−(x − γ)/θ)` for `x ≥ γ`. The maximum-likelihood threshold
+/// is the smallest observation (the likelihood increases as the threshold
+/// approaches it from below), so the mean above the threshold is `x̄ − γ`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Exponential2 {
+    threshold: f64,
+    theta: f64,
+}
+
+impl Exponential2 {
+    /// Creates a shifted exponential with a finite threshold and positive mean.
+    pub fn new(threshold: f64, theta: f64) -> Result<Self> {
+        if !threshold.is_finite() {
+            return Err(Error::InvalidParameter {
+                name: "threshold",
+                value: threshold,
+            });
+        }
+        if !theta.is_finite() || theta <= 0.0 {
+            return Err(Error::InvalidParameter {
+                name: "theta",
+                value: theta,
+            });
+        }
+        Ok(Self { threshold, theta })
+    }
+
+    /// Threshold `γ`: the smallest value the distribution supports.
+    #[must_use]
+    pub fn threshold(&self) -> f64 {
+        self.threshold
+    }
+
+    /// Mean above the threshold `θ`.
+    #[must_use]
+    pub fn theta(&self) -> f64 {
+        self.theta
+    }
+
+    /// Maximum-likelihood fit with the threshold at the sample minimum.
+    pub fn fit_mle(sample: &Sample) -> Result<Self> {
+        if sample.n() < 2 {
+            return Err(Error::SampleTooSmall {
+                n: sample.n(),
+                min: 2,
+            });
+        }
+        let values = sample.values();
+        let minimum = values.iter().copied().fold(f64::INFINITY, f64::min);
+        let theta = sample.mean()? - minimum;
+        if !theta.is_finite() || theta <= 0.0 {
+            return Err(Error::ConstantSample);
+        }
+        Self::new(minimum, theta)
+    }
+}
+
+impl Distribution for Exponential2 {
+    fn name(&self) -> &'static str {
+        "Exponential (2-parameter)"
+    }
+
+    fn pdf(&self, x: f64) -> f64 {
+        if x < self.threshold {
+            return 0.0;
+        }
+        (-(x - self.threshold) / self.theta).exp() / self.theta
+    }
+
+    fn cdf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return 0.0;
+        }
+        -(-(x - self.threshold) / self.theta).exp_m1()
+    }
+
+    fn sf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return 1.0;
+        }
+        (-(x - self.threshold) / self.theta).exp()
+    }
+
+    fn ln_pdf(&self, x: f64) -> f64 {
+        if x < self.threshold {
+            return f64::NEG_INFINITY;
+        }
+        -self.theta.ln() - (x - self.threshold) / self.theta
+    }
+
+    fn quantile(&self, p: f64) -> f64 {
+        if p <= 0.0 {
+            return self.threshold;
+        }
+        if p >= 1.0 {
+            return f64::INFINITY;
+        }
+        self.threshold - self.theta * (1.0 - p).ln()
+    }
+
+    fn n_params(&self) -> usize {
+        2
+    }
+
+    fn parameters(&self) -> Vec<(&'static str, f64)> {
+        vec![("Threshold (γ)", self.threshold), ("Mean (θ)", self.theta)]
+    }
+
+    fn from_parameters(parameters: &[f64]) -> Option<Self> {
+        let (threshold, theta) = match parameters {
+            [threshold, theta] => (*threshold, *theta),
+            _ => return None,
+        };
+        Self::new(threshold, theta).ok()
+    }
+}
+
+/// Three-parameter gamma distribution with a threshold.
+///
+/// `F(x) = P(α, (x − γ)/β)` for `x > γ`. The threshold is chosen by profile
+/// likelihood over a grid below the smallest observation; the shape and scale
+/// follow by maximum likelihood with that threshold fixed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Gamma3 {
+    threshold: f64,
+    shape: f64,
+    scale: f64,
+}
+
+impl Gamma3 {
+    /// Creates a shifted gamma with a finite threshold and positive parameters.
+    pub fn new(threshold: f64, shape: f64, scale: f64) -> Result<Self> {
+        if !threshold.is_finite() {
+            return Err(Error::InvalidParameter {
+                name: "threshold",
+                value: threshold,
+            });
+        }
+        Gamma::new(shape, scale)?;
+        Ok(Self {
+            threshold,
+            shape,
+            scale,
+        })
+    }
+
+    /// Threshold `γ`: the smallest value the distribution supports.
+    #[must_use]
+    pub fn threshold(&self) -> f64 {
+        self.threshold
+    }
+
+    /// Shape `α`.
+    #[must_use]
+    pub fn shape(&self) -> f64 {
+        self.shape
+    }
+
+    /// Scale `β`.
+    #[must_use]
+    pub fn scale(&self) -> f64 {
+        self.scale
+    }
+
+    /// Fits the threshold by profile likelihood and the rest by MLE.
+    pub fn fit_mle(sample: &Sample) -> Result<Self> {
+        for (index, &x) in sample.values().iter().enumerate() {
+            if !x.is_finite() || x <= 0.0 {
+                return Err(Error::NonPositive { index, value: x });
+            }
+        }
+        let (threshold, gamma) = profile_threshold(sample, |values| Gamma::fit_mle(values))?;
+        Self::new(threshold, gamma.shape(), gamma.scale())
+    }
+}
+
+impl Distribution for Gamma3 {
+    fn name(&self) -> &'static str {
+        "Gamma (3-parameter)"
+    }
+
+    fn pdf(&self, x: f64) -> f64 {
+        self.ln_pdf(x).exp()
+    }
+
+    fn cdf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return 0.0;
+        }
+        regularized_gamma_lower(self.shape, (x - self.threshold) / self.scale)
+    }
+
+    fn sf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return 1.0;
+        }
+        regularized_gamma_upper(self.shape, (x - self.threshold) / self.scale)
+    }
+
+    fn ln_pdf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return f64::NEG_INFINITY;
+        }
+        let z = (x - self.threshold) / self.scale;
+        (self.shape - 1.0) * z.ln() - z - ln_gamma(self.shape) - self.shape * self.scale.ln()
+    }
+
+    fn quantile(&self, p: f64) -> f64 {
+        if p <= 0.0 {
+            return self.threshold;
+        }
+        if p >= 1.0 {
+            return f64::INFINITY;
+        }
+        self.threshold + self.scale * Gamma::standard_quantile(self.shape, p).exp()
+    }
+
+    fn n_params(&self) -> usize {
+        3
+    }
+
+    fn parameters(&self) -> Vec<(&'static str, f64)> {
+        vec![
+            ("Threshold (γ)", self.threshold),
+            ("Shape (α)", self.shape),
+            ("Scale (β)", self.scale),
+        ]
+    }
+
+    fn from_parameters(parameters: &[f64]) -> Option<Self> {
+        let (threshold, shape, scale) = match parameters {
+            [threshold, shape, scale] => (*threshold, *shape, *scale),
+            _ => return None,
+        };
+        Self::new(threshold, shape, scale).ok()
+    }
+}
+
+/// Three-parameter log-logistic distribution with a threshold.
+///
+/// `F(x) = 1/(1 + ((x − γ)/α)^(−β))` for `x > γ`. The threshold is chosen by
+/// profile likelihood over a grid below the smallest observation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Loglogistic3 {
+    threshold: f64,
+    scale: f64,
+    shape: f64,
+}
+
+impl Loglogistic3 {
+    /// Creates a shifted log-logistic with a finite threshold and positive parameters.
+    pub fn new(threshold: f64, scale: f64, shape: f64) -> Result<Self> {
+        if !threshold.is_finite() {
+            return Err(Error::InvalidParameter {
+                name: "threshold",
+                value: threshold,
+            });
+        }
+        Loglogistic::new(scale, shape)?;
+        Ok(Self {
+            threshold,
+            scale,
+            shape,
+        })
+    }
+
+    /// Threshold `γ`: the smallest value the distribution supports.
+    #[must_use]
+    pub fn threshold(&self) -> f64 {
+        self.threshold
+    }
+
+    /// Scale `α`.
+    #[must_use]
+    pub fn scale(&self) -> f64 {
+        self.scale
+    }
+
+    /// Shape `β`.
+    #[must_use]
+    pub fn shape(&self) -> f64 {
+        self.shape
+    }
+
+    /// Fits the threshold by profile likelihood and the rest by MLE.
+    pub fn fit_mle(sample: &Sample) -> Result<Self> {
+        for (index, &x) in sample.values().iter().enumerate() {
+            if !x.is_finite() || x <= 0.0 {
+                return Err(Error::NonPositive { index, value: x });
+            }
+        }
+        let (threshold, fitted) = profile_threshold(sample, |values| Loglogistic::fit_mle(values))?;
+        Self::new(threshold, fitted.scale(), fitted.shape())
+    }
+}
+
+impl Distribution for Loglogistic3 {
+    fn name(&self) -> &'static str {
+        "Loglogistic (3-parameter)"
+    }
+
+    fn pdf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return 0.0;
+        }
+        let z = self.shape * ((x - self.threshold) / self.scale).ln();
+        let cdf = logistic_cdf(z);
+        cdf * (1.0 - cdf) * self.shape / (x - self.threshold)
+    }
+
+    fn cdf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return 0.0;
+        }
+        logistic_cdf(self.shape * ((x - self.threshold) / self.scale).ln())
+    }
+
+    fn sf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return 1.0;
+        }
+        logistic_cdf(-(self.shape * ((x - self.threshold) / self.scale).ln()))
+    }
+
+    fn ln_pdf(&self, x: f64) -> f64 {
+        if x <= self.threshold {
+            return f64::NEG_INFINITY;
+        }
+        let z = self.shape * ((x - self.threshold) / self.scale).ln();
+        self.shape.ln() - self.scale.ln() + ((self.shape - 1.0) / self.shape) * z
+            - 2.0
+                * if z >= 0.0 {
+                    z + (-z).exp().ln_1p()
+                } else {
+                    z.exp().ln_1p()
+                }
+    }
+
+    fn quantile(&self, p: f64) -> f64 {
+        if p <= 0.0 {
+            return self.threshold;
+        }
+        if p >= 1.0 {
+            return f64::INFINITY;
+        }
+        self.threshold + self.scale * (p / (1.0 - p)).powf(1.0 / self.shape)
+    }
+
+    fn n_params(&self) -> usize {
+        3
+    }
+
+    fn parameters(&self) -> Vec<(&'static str, f64)> {
+        vec![
+            ("Threshold (γ)", self.threshold),
+            ("Scale (α)", self.scale),
+            ("Shape (β)", self.shape),
+        ]
+    }
+
+    fn from_parameters(parameters: &[f64]) -> Option<Self> {
+        let (threshold, scale, shape) = match parameters {
+            [threshold, scale, shape] => (*threshold, *scale, *shape),
+            _ => return None,
+        };
+        Self::new(threshold, scale, shape).ok()
+    }
+}
+
+/// Smallest extreme value (Gumbel for minima) distribution.
+///
+/// `F(x) = 1 − exp(−exp((x − µ)/σ))` and the density
+/// `f(x) = exp((x − µ)/σ − exp((x − µ)/σ))/σ`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SmallestExtremeValue {
+    location: f64,
+    scale: f64,
+}
+
+impl SmallestExtremeValue {
+    /// Creates a smallest-extreme-value distribution with a positive scale.
+    pub fn new(location: f64, scale: f64) -> Result<Self> {
+        if !location.is_finite() {
+            return Err(Error::InvalidParameter {
+                name: "location",
+                value: location,
+            });
+        }
+        if !scale.is_finite() || scale <= 0.0 {
+            return Err(Error::InvalidParameter {
+                name: "scale",
+                value: scale,
+            });
+        }
+        Ok(Self { location, scale })
+    }
+
+    /// Location parameter `µ`.
+    #[must_use]
+    pub fn location(&self) -> f64 {
+        self.location
+    }
+
+    /// Scale parameter `σ`.
+    #[must_use]
+    pub fn scale(&self) -> f64 {
+        self.scale
+    }
+
+    /// Maximum-likelihood fit.
+    ///
+    /// The score equations are `mean(exp(z)) = 1` and `mean(x·exp(z)) = x̄`,
+    /// with `z = (x − µ)/σ`; they are solved with the same bisection/update
+    /// scheme as the maximum extreme value, with the opposite sign.
+    pub fn fit_mle(sample: &Sample) -> Result<Self> {
+        if sample.n() < 2 {
+            return Err(Error::SampleTooSmall {
+                n: sample.n(),
+                min: 2,
+            });
+        }
+        let values = sample.values();
+        let n = sample.n() as f64;
+        let mean = sample.mean()?;
+        let sd = sample.sd()?;
+        if !sd.is_finite() || sd <= 0.0 {
+            return Err(Error::ConstantSample);
+        }
+        let x_min = values.iter().copied().fold(f64::INFINITY, f64::min);
+        let x_max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let mut scale = sd * (6.0f64).sqrt() / std::f64::consts::PI;
+        let mut location = mean + std::f64::consts::EULER_GAMMA * scale;
+        let mut converged = false;
+        for _ in 0..200 {
+            let mut lo = x_min - 50.0 * scale;
+            let mut hi = x_max + 50.0 * scale;
+            for _ in 0..100 {
+                let mid = 0.5 * (lo + hi);
+                let t_mean = values
+                    .iter()
+                    .map(|&x| ((x - mid) / scale).exp())
+                    .sum::<f64>()
+                    / n;
+                if t_mean > 1.0 {
+                    lo = mid;
+                } else {
+                    hi = mid;
+                }
+            }
+            let new_location = 0.5 * (lo + hi);
+            let weighted = values
+                .iter()
+                .map(|&x| {
+                    let t = ((x - new_location) / scale).exp();
+                    x * t
+                })
+                .sum::<f64>();
+            let new_scale = weighted / n - mean;
+            if !new_scale.is_finite() || new_scale <= 0.0 {
+                break;
+            }
+            let moved = (new_location - location).abs() <= 1e-12 * (1.0 + new_location.abs())
+                && (new_scale - scale).abs() <= 1e-12 * (1.0 + new_scale.abs());
+            location = new_location;
+            scale = new_scale;
+            if moved {
+                converged = true;
+                break;
+            }
+        }
+        if !converged {
+            let t_mean = values
+                .iter()
+                .map(|&x| ((x - location) / scale).exp())
+                .sum::<f64>()
+                / n;
+            if (t_mean - 1.0).abs() > 1e-9 {
+                return Err(Error::NotConverged {
+                    detail: "smallest-extreme-value score equations".to_owned(),
+                });
+            }
+        }
+        Self::new(location, scale)
+    }
+}
+
+impl Distribution for SmallestExtremeValue {
+    fn name(&self) -> &'static str {
+        "Smallest Extreme Value"
+    }
+
+    fn pdf(&self, x: f64) -> f64 {
+        let z = (x - self.location) / self.scale;
+        let t = z.exp();
+        (z - t).exp() / self.scale
+    }
+
+    fn cdf(&self, x: f64) -> f64 {
+        let z = (x - self.location) / self.scale;
+        -(-z.exp()).exp_m1()
+    }
+
+    fn sf(&self, x: f64) -> f64 {
+        let z = (x - self.location) / self.scale;
+        (-z.exp()).exp()
+    }
+
+    fn ln_pdf(&self, x: f64) -> f64 {
+        let z = (x - self.location) / self.scale;
+        z - z.exp() - self.scale.ln()
+    }
+
+    fn quantile(&self, p: f64) -> f64 {
+        if p <= 0.0 {
+            return f64::NEG_INFINITY;
+        }
+        if p >= 1.0 {
+            return f64::INFINITY;
+        }
+        self.location + self.scale * (-(1.0 - p).ln()).ln()
+    }
+
+    fn n_params(&self) -> usize {
+        2
+    }
+
+    fn parameters(&self) -> Vec<(&'static str, f64)> {
+        vec![("Location (µ)", self.location), ("Scale (σ)", self.scale)]
+    }
+
+    fn from_parameters(parameters: &[f64]) -> Option<Self> {
+        let (location, scale) = match parameters {
+            [location, scale] => (*location, *scale),
+            _ => return None,
+        };
+        Self::new(location, scale).ok()
+    }
+}
+
+/// Best threshold of a three-parameter family by profile likelihood.
+///
+/// The candidates span ten sample spreads below the smallest observation; for
+/// each one the two-parameter family is fitted to `x − γ` and the threshold
+/// with the largest log-likelihood is kept.
+fn profile_threshold<D: Distribution>(
+    sample: &Sample,
+    fit: impl Fn(&Sample) -> Result<D>,
+) -> Result<(f64, D)> {
+    if sample.n() < 3 {
+        return Err(Error::SampleTooSmall {
+            n: sample.n(),
+            min: 3,
+        });
+    }
+    let mut sorted = sample.values().to_vec();
+    sorted.sort_by(|a, b| a.total_cmp(b));
+    let q1 = quantile_of(&sorted, 0.25);
+    let q3 = quantile_of(&sorted, 0.75);
+    let mut spread = q3 - q1;
+    if spread <= 0.0 {
+        spread = sample.sd()?;
+    }
+    if !spread.is_finite() || spread <= 0.0 {
+        return Err(Error::ConstantSample);
+    }
+    let minimum = sorted[0];
+    let lower = minimum - 10.0 * spread;
+    let upper = minimum - 1e-6 * spread;
+    let candidates = 60usize;
+    let mut chosen: Option<(f64, D)> = None;
+    let mut best_log_likelihood = f64::NEG_INFINITY;
+    for index in 0..candidates {
+        let gamma = lower + (upper - lower) * index as f64 / (candidates - 1) as f64;
+        let shifted: Vec<f64> = sample.values().iter().map(|value| value - gamma).collect();
+        let Ok(shifted_sample) = Sample::from_valid(shifted, 0) else {
+            continue;
+        };
+        let Ok(fitted) = fit(&shifted_sample) else {
+            continue;
+        };
+        let log_likelihood: f64 = shifted_sample
+            .values()
+            .iter()
+            .map(|&value| fitted.ln_pdf(value))
+            .sum();
+        if log_likelihood.is_finite() && log_likelihood > best_log_likelihood {
+            best_log_likelihood = log_likelihood;
+            chosen = Some((gamma, fitted));
+        }
+    }
+    chosen.ok_or_else(|| Error::NotConverged {
+        detail: "the threshold profile likelihood found no candidate".to_owned(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2219,5 +2816,79 @@ mod tests {
         for x in [-2.0, 0.0, 1.5] {
             assert!((a.cdf(x) - b.cdf(5.0 + 3.0 * x)).abs() < 1e-14);
         }
+    }
+
+    #[test]
+    fn the_shifted_exponential_uses_the_sample_minimum() {
+        let s = Sample::new(vec![3.0, 4.0, 5.0, 6.0], MissingPolicy::Drop).unwrap();
+        let d = Exponential2::fit_mle(&s).unwrap();
+        assert!((d.threshold() - 3.0).abs() < 1e-12);
+        assert!((d.theta() - 1.5).abs() < 1e-12);
+        assert_eq!(d.cdf(3.0), 0.0);
+        assert!((d.cdf(d.quantile(0.7)) - 0.7).abs() < 1e-12);
+        assert!(
+            Exponential2::fit_mle(&Sample::new(vec![2.0, 2.0], MissingPolicy::Drop).unwrap())
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn the_three_parameter_gamma_recovers_a_synthetic_sample() {
+        let truth = Gamma3::new(2.0, 3.0, 1.5).unwrap();
+        let n = 120;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| truth.quantile((i as f64 - 0.5) / n as f64))
+            .collect();
+        let d = Gamma3::fit_mle(&Sample::new(values, MissingPolicy::Drop).unwrap()).unwrap();
+        assert!(
+            (d.threshold() - 2.0).abs() < 0.5,
+            "threshold {}",
+            d.threshold()
+        );
+        assert!((d.shape() - 3.0).abs() < 0.5, "shape {}", d.shape());
+        assert!((d.scale() - 1.5).abs() < 0.5, "scale {}", d.scale());
+        assert!((d.cdf(d.quantile(0.4)) - 0.4).abs() < 1e-9);
+        assert_eq!(d.n_params(), 3);
+    }
+
+    #[test]
+    fn the_three_parameter_loglogistic_recovers_a_synthetic_sample() {
+        let truth = Loglogistic3::new(5.0, 2.0, 1.5).unwrap();
+        let n = 120;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| truth.quantile((i as f64 - 0.5) / n as f64))
+            .collect();
+        let d = Loglogistic3::fit_mle(&Sample::new(values, MissingPolicy::Drop).unwrap()).unwrap();
+        assert!(
+            (d.threshold() - 5.0).abs() < 0.6,
+            "threshold {}",
+            d.threshold()
+        );
+        assert!((d.scale() - 2.0).abs() < 0.6, "scale {}", d.scale());
+        assert!((d.shape() - 1.5).abs() < 0.6, "shape {}", d.shape());
+        assert!((d.cdf(d.quantile(0.6)) - 0.6).abs() < 1e-9);
+    }
+
+    #[test]
+    fn the_smallest_extreme_value_recovers_a_synthetic_sample() {
+        let truth = SmallestExtremeValue::new(10.0, 2.0).unwrap();
+        let n = 120;
+        let values: Vec<f64> = (1..=n)
+            .map(|i| truth.quantile((i as f64 - 0.5) / n as f64))
+            .collect();
+        let d = SmallestExtremeValue::fit_mle(&Sample::new(values, MissingPolicy::Drop).unwrap())
+            .unwrap();
+        assert!(
+            (d.location() - 10.0).abs() < 0.2,
+            "location {}",
+            d.location()
+        );
+        assert!((d.scale() - 2.0).abs() < 0.15, "scale {}", d.scale());
+        assert!((d.cdf(d.quantile(0.3)) - 0.3).abs() < 1e-9);
+        assert!(d.quantile(0.5) < d.location() + d.scale());
+        assert!(
+            SmallestExtremeValue::fit_mle(&Sample::new(vec![1.0], MissingPolicy::Drop).unwrap())
+                .is_err()
+        );
     }
 }
