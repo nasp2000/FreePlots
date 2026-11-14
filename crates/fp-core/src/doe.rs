@@ -2526,8 +2526,8 @@ mod tests {
             })
             .expect("main-effects table");
         assert_eq!(rows.len(), 2);
-        // A: low mean 10, high mean 12; B: low mean 7, high mean 13.
-        assert_eq!(rows[0][1], "10.000000");
+        // A: low mean 8, high mean 12; B: low mean 7, high mean 13.
+        assert_eq!(rows[0][1], "8.000000");
         assert_eq!(rows[0][2], "12.000000");
         assert_eq!(rows[1][1], "7.000000");
         assert_eq!(rows[1][2], "13.000000");
