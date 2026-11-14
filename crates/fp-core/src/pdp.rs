@@ -142,7 +142,7 @@ pub fn build(options: &PdpOptions) -> Result<AnalysisOutput> {
         }
     };
     let mut x_min = dist.quantile(0.0005);
-    let mut x_max = dist.quantile(0.9995);
+    let x_max = dist.quantile(0.9995);
     if let Some(lower) = lower_support {
         x_min = x_min.max(lower);
         let span = (x_max - lower).abs().max(1.0);
