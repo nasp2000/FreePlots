@@ -504,6 +504,42 @@ impl UiCatalog {
             "Principal Component Analysis" => "Análise em componentes principais",
             "K-Means Clustering" => "Agrupamento k-médias",
             "Hotelling T² Chart" => "Carta T² de Hotelling",
+            "Generalized Variance Chart" => "Carta de variância generalizada",
+            "Generalized Variance Chart…" => "Carta de variância generalizada…",
+            "Multivariate EWMA Chart" => "Carta EWMA multivariada",
+            "Multivariate EWMA Chart…" => "Carta EWMA multivariada…",
+            "Multivariate charts help" => "Ajuda das cartas multivariadas",
+            "Multivariate Charts…" => "Cartas multivariadas…",
+            "About multivariate charts…" => "Acerca das cartas multivariadas…",
+            "The multivariate charts monitor two or more correlated variables together. \
+             Hotelling's T² watches the mean vector, the generalized variance chart \
+             watches the joint variability, and the multivariate EWMA is more sensitive \
+             to small shifts in the mean." => {
+                "As cartas multivariadas monitorizam em conjunto duas ou mais variáveis \
+                 correlacionadas. O T² de Hotelling vigia o vector de médias, a carta de \
+                 variância generalizada vigia a variabilidade conjunta e a EWMA multivariada é \
+                 mais sensível a pequenos desvios da média."
+            }
+            "Choose two or more numeric columns, separated by commas, and the subgroup \
+             size; rows are taken in order and an incomplete last subgroup is dropped. \
+             The T² and the multivariate EWMA use the confidence level; the generalized \
+             variance chart uses the 3-sigma b1/b2 limits and needs a subgroup larger \
+             than the number of variables. The multivariate EWMA also uses λ." => {
+                "Escolha duas ou mais colunas numéricas, separadas por vírgulas, e o tamanho do \
+                 subgrupo; as linhas são tomadas por ordem e o último subgrupo incompleto é \
+                 descartado. O T² e a EWMA multivariada usam o nível de confiança; a carta de \
+                 variância generalizada usa os limites b1/b2 a três sigma e exige um subgrupo \
+                 maior do que o número de variáveis. A EWMA multivariada usa ainda λ."
+            }
+            "With two variables and subgroups of three, the T² chart flags a subgroup \
+             whose mean vector leaves the F limit; the generalized variance chart flags \
+             a subgroup whose covariance determinant leaves the b1/b2 limits; λ = 0.2 \
+             smooths the mean vector for the EWMA chart." => {
+                "Com duas variáveis e subgrupos de três, a carta T² assinala um subgrupo cujo \
+                 vector de médias sai do limite F; a carta de variância generalizada assinala um \
+                 subgrupo cujo determinante da covariância sai dos limites b1/b2; λ = 0,2 alisa \
+                 o vector de médias da carta EWMA."
+            }
             "Acceptance Sampling" => "Amostragem de aceitação",
             "Pareto Chart" => "Gráfico de Pareto",
             "Interval Plot" => "Gráfico de intervalos",

@@ -953,9 +953,16 @@ impl FreePlotsApp {
         }
     }
     pub fn open_t2_dialog(&mut self) {
+        self.open_multivariate_dialog(fp_core::mvchart::MultivariateChart::HotellingT2);
+    }
+
+    /// Opens the multivariate chart dialog pre-set to `kind`.
+    pub fn open_multivariate_dialog(&mut self, kind: fp_core::mvchart::MultivariateChart) {
+        self.t2_kind = kind;
         self.t2_columns = self.selected.clone().unwrap_or_default();
         self.show_t2_dialog = true;
     }
+
     pub fn run_t2_dialog(&mut self) {
         let columns: Vec<String> = self
             .t2_columns
@@ -968,22 +975,66 @@ impl FreePlotsApp {
             self.set_error("List at least two columns, separated by commas");
             return;
         }
-        let spec = AnalysisSpec::hotelling_t2(columns, self.t2_subgroup)
-            .with_t2_confidence((self.t2_confidence / 100.0).clamp(0.5, 0.999));
-        self.execute_spec(spec, "Hotelling T² Chart".to_owned());
-        self.show_t2_dialog = false;
+        let confidence = (self.t2_confidence / 100.0).clamp(0.5, 0.999);
+        if self.t2_kind == fp_core::mvchart::MultivariateChart::HotellingT2 {
+            let spec = AnalysisSpec::hotelling_t2(columns, self.t2_subgroup)
+                .with_t2_confidence(confidence);
+            self.execute_spec(spec, "Hotelling T² Chart".to_owned());
+            self.show_t2_dialog = false;
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let kind = self.t2_kind;
+        let outcome = match kind {
+            fp_core::mvchart::MultivariateChart::GeneralizedVariance => {
+                fp_core::mvchart::generalized_variance(&df, &columns, self.t2_subgroup)
+            }
+            fp_core::mvchart::MultivariateChart::Mewma => {
+                fp_core::mvchart::mewma(&df, &columns, self.t2_subgroup, self.t2_lambda, confidence)
+            }
+            fp_core::mvchart::MultivariateChart::HotellingT2 => unreachable!("handled above"),
+        };
+        match outcome {
+            Ok(output) => {
+                self.apply_output(output, kind.name().to_owned());
+                self.show_t2_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
     }
+
     pub(super) fn t2_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_t2_dialog {
             return;
         }
         let mut open = self.show_t2_dialog;
         let mut run = false;
-        dialog_window(self.catalog().label("Hotelling T² Chart"))
+        dialog_window(self.catalog().label(self.t2_kind.name()))
             .open(&mut open)
             .resizable(false)
-            .default_width(440.0)
+            .default_width(460.0)
             .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Chart:");
+                    egui::ComboBox::from_id_salt("t2_kind")
+                        .selected_text(self.t2_kind.name())
+                        .width(240.0)
+                        .show_ui(ui, |ui| {
+                            for kind in [
+                                fp_core::mvchart::MultivariateChart::HotellingT2,
+                                fp_core::mvchart::MultivariateChart::GeneralizedVariance,
+                                fp_core::mvchart::MultivariateChart::Mewma,
+                            ] {
+                                ui.selectable_value(&mut self.t2_kind, kind, kind.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
                 ui.horizontal(|ui| {
                     let label = ui.help_label("Columns:");
                     ui.text_edit_singleline(&mut self.t2_columns)
@@ -996,7 +1047,10 @@ impl FreePlotsApp {
                         .labelled_by(subgroup.id)
                         .hover_from(&subgroup);
                     let confidence = ui.help_label("Confidence:");
-                    ui.add(
+                    let two_sided =
+                        self.t2_kind != fp_core::mvchart::MultivariateChart::GeneralizedVariance;
+                    ui.add_enabled(
+                        two_sided,
                         egui::DragValue::new(&mut self.t2_confidence)
                             .range(50.0..=99.9)
                             .speed(0.5)
@@ -1005,7 +1059,40 @@ impl FreePlotsApp {
                     .labelled_by(confidence.id)
                     .hover_from(&confidence);
                 });
-                ui.small("Rows are taken in order; an incomplete last subgroup is dropped.");
+                if self.t2_kind == fp_core::mvchart::MultivariateChart::Mewma {
+                    ui.horizontal(|ui| {
+                        let lambda = ui.help_label("λ:");
+                        ui.add(
+                            egui::DragValue::new(&mut self.t2_lambda)
+                                .range(0.01..=1.0)
+                                .speed(0.01),
+                        )
+                        .labelled_by(lambda.id)
+                        .hover_from(&lambda);
+                        ui.small("smoothing constant");
+                    });
+                }
+                ui.small(match self.t2_kind {
+                    fp_core::mvchart::MultivariateChart::HotellingT2 => {
+                        "Rows are taken in order; an incomplete last subgroup is dropped."
+                    }
+                    fp_core::mvchart::MultivariateChart::GeneralizedVariance => {
+                        "Rows are taken in order; the subgroup size must be larger than the number \
+                         of variables."
+                    }
+                    fp_core::mvchart::MultivariateChart::Mewma => {
+                        "Rows are taken in order; the limit uses the Phase I F form."
+                    }
+                });
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About multivariate charts…"))
+                        .clicked()
+                    {
+                        self.show_mv_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
                 ui.separator();
                 if ui.help_button(self.catalog().label("Run")).clicked() {
                     run = true;
@@ -1015,6 +1102,54 @@ impl FreePlotsApp {
         if run {
             self.run_t2_dialog();
         }
+    }
+
+    /// Help page of the three multivariate charts.
+    pub(super) fn mv_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_mv_help {
+            return;
+        }
+        let mut open = self.show_mv_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Multivariate charts help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The multivariate charts monitor two or more correlated variables together. \
+                     Hotelling's T² watches the mean vector, the generalized variance chart \
+                     watches the joint variability, and the multivariate EWMA is more sensitive \
+                     to small shifts in the mean.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose two or more numeric columns, separated by commas, and the subgroup \
+                     size; rows are taken in order and an incomplete last subgroup is dropped. \
+                     The T² and the multivariate EWMA use the confidence level; the generalized \
+                     variance chart uses the 3-sigma b1/b2 limits and needs a subgroup larger \
+                     than the number of variables. The multivariate EWMA also uses λ.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "With two variables and subgroups of three, the T² chart flags a subgroup \
+                     whose mean vector leaves the F limit; the generalized variance chart flags \
+                     a subgroup whose covariance determinant leaves the b1/b2 limits; λ = 0.2 \
+                     smooths the mean vector for the EWMA chart.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_mv_help = open && !close;
     }
     pub fn open_kmeans_dialog(&mut self) {
         self.kmeans_columns = self.selected.clone().unwrap_or_default();

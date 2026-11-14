@@ -1813,6 +1813,73 @@ fn t2_dialog_reaches_the_session() {
 }
 
 #[test]
+fn the_multivariate_charts_reach_the_session() {
+    use fp_core::mvchart::MultivariateChart;
+
+    let mut app = FreePlotsApp::new();
+    let offsets = [(0.05, -0.1), (-0.02, 0.08), (0.03, 0.01)];
+    let mut a = Vec::new();
+    let mut b = Vec::new();
+    for _ in 0..10 {
+        for (offset_a, offset_b) in offsets {
+            a.push(10.0 + offset_a);
+            b.push(20.0 + offset_b);
+        }
+    }
+    let df = DataFrame::new(vec![Column::new_f64("a", a), Column::new_f64("b", b)]).expect("frame");
+    app.set_data(df, "t2.csv".to_owned());
+
+    app.open_multivariate_dialog(MultivariateChart::GeneralizedVariance);
+    app.t2_columns = "a,b".to_owned();
+    app.t2_subgroup = 3;
+    app.run_t2_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Generalized Variance Chart"), "{text}");
+    assert!(app.plot().is_some());
+
+    app.open_multivariate_dialog(MultivariateChart::Mewma);
+    app.t2_columns = "a,b".to_owned();
+    app.t2_subgroup = 3;
+    app.run_t2_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Multivariate EWMA Chart"), "{text}");
+}
+
+#[test]
+fn the_multivariate_help_explains_the_charts() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.show_t2_dialog = true;
+    app.t2_columns = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About multivariate charts…").click();
+    harness.run();
+    assert!(harness.state().show_mv_help);
+    harness.get_by_label("Multivariate charts help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("monitor two or more correlated variables");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda das cartas multivariadas");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_mv_help);
+}
+
+#[test]
 fn poisson_dialog_reaches_the_session() {
     let mut app = FreePlotsApp::new();
     // Growing counts against a growing predictor, written out so that the

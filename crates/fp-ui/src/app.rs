@@ -1138,9 +1138,12 @@ pub struct FreePlotsApp {
     sampling_alpha: f64,
     sampling_beta: f64,
     show_t2_dialog: bool,
+    show_mv_help: bool,
+    t2_kind: fp_core::mvchart::MultivariateChart,
     t2_columns: String,
     t2_subgroup: usize,
     t2_confidence: f64,
+    t2_lambda: f64,
     show_pca_dialog: bool,
     pca_columns: String,
     pca_keep: usize,
@@ -4058,6 +4061,7 @@ impl FreePlotsApp {
         self.show_subset_dialog = false;
         self.show_t_dialog = false;
         self.show_t2_dialog = false;
+        self.show_mv_help = false;
         self.show_test2_dialog = false;
         self.show_type1_dialog = false;
         self.show_taguchi_design_dialog = false;

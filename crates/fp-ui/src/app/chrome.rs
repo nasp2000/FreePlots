@@ -182,6 +182,7 @@ impl FreePlotsApp {
         self.pca_dialog(&ctx);
         self.kmeans_dialog(&ctx);
         self.t2_dialog(&ctx);
+        self.mv_help_window(&ctx);
         self.sampling_dialog(&ctx);
         self.taguchi_dialog(&ctx);
         self.taguchi_design_dialog(&ctx);

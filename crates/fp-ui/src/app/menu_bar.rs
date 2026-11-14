@@ -904,6 +904,32 @@ impl FreePlotsApp {
                         self.open_t2_dialog();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Generalized Variance Chart…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text("Joint variability of several variables")
+                    .clicked()
+                    {
+                        self.open_multivariate_dialog(
+                            fp_core::mvchart::MultivariateChart::GeneralizedVariance,
+                        );
+                        ui.close();
+                    }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Multivariate EWMA Chart…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text("Smoothed mean vector of several variables")
+                    .clicked()
+                    {
+                        self.open_multivariate_dialog(fp_core::mvchart::MultivariateChart::Mewma);
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("K-Means Clustering…"), None, self.data.is_some())
                         .on_hover_text("Groups of similar rows with k-means++ initialisation")
                         .clicked()
@@ -1165,6 +1191,15 @@ impl FreePlotsApp {
                     .clicked()
                     {
                         self.open_acceptance_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Multivariate Charts…"), None, ready)
+                        .on_hover_text("Hotelling T², generalized variance and multivariate EWMA")
+                        .clicked()
+                    {
+                        self.open_multivariate_dialog(
+                            fp_core::mvchart::MultivariateChart::HotellingT2,
+                        );
                         ui.close();
                     }
                     if menu_text_item(ui, self.catalog().label("Run Chart"), None, ready)

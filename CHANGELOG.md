@@ -72,6 +72,13 @@ All notable changes to FreePlots are recorded here. The format follows
   cumulative curve for one of the ten distributions, with its parameters and an
   optional shaded area that reports the probability. It needs no worksheet
   data and has its own help page in both interface languages.
+- The Multivariate menu has a *Generalized Variance Chart…* entry and a
+  *Multivariate EWMA Chart…* entry, sharing the multivariate dialog and one
+  help page in both interface languages. The generalized variance chart plots
+  the determinant of each subgroup covariance against the b1/b2 limits; the
+  multivariate EWMA smooths the mean vector with λ and plots T² against the
+  Phase I F limit. Both take a subgroup size and drop the rows with a missing
+  value.
 
 ### Changed
 
@@ -97,7 +104,10 @@ All notable changes to FreePlots are recorded here. The format follows
   the conditional two-sample test, the published goodness-of-fit example and
   the invalid inputs. The acceptance chart covers the published limits, the
   estimated sigma, the subgroups with a trailing row, the one-sided
-  specifications and the invalid proportions and crossing limits.
+  specifications and the invalid proportions and crossing limits. The
+  multivariate charts cover the b1/b2 limits and a divergent subgroup, the zero
+  determinant and the singular covariance, the MEWMA statistic, the invalid λ
+  and the panels without degrees of freedom.
 
 ## [0.1.1] - 2026-11-12
 

@@ -2174,6 +2174,63 @@ fn the_hotelling_dialog_needs_two_columns() {
 }
 
 #[test]
+fn the_generalized_variance_dialog_draws_the_chart() {
+    let mut ui = Automation::new();
+    ui.load_frame(hotelling_frame(), "hotelling.csv");
+    open(
+        &mut ui,
+        &["Stat", "Multivariate", "Generalized Variance Chart…"],
+    );
+    ui.set_text("Columns:", "x1,x2").expect("columns");
+    ui.set_text("Subgroup:", "3").expect("subgroup");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Generalized Variance Chart"),
+        "{}",
+        ui.session()
+    );
+    assert!(ui.plot().is_some(), "a plot was produced");
+}
+
+#[test]
+fn the_generalized_variance_dialog_refuses_a_short_subgroup() {
+    let mut ui = Automation::new();
+    ui.load_frame(hotelling_frame(), "hotelling.csv");
+    open(
+        &mut ui,
+        &["Stat", "Multivariate", "Generalized Variance Chart…"],
+    );
+    ui.set_text("Columns:", "x1,x2").expect("columns");
+    ui.set_text("Subgroup:", "2").expect("subgroup");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("larger than the number of variables"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
+fn the_mewma_dialog_draws_the_chart() {
+    let mut ui = Automation::new();
+    ui.load_frame(hotelling_frame(), "hotelling.csv");
+    open(
+        &mut ui,
+        &["Stat", "Multivariate", "Multivariate EWMA Chart…"],
+    );
+    ui.set_text("Columns:", "x1,x2").expect("columns");
+    ui.set_text("Subgroup:", "3").expect("subgroup");
+    ui.set_text("λ:", "0.4").expect("lambda");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Multivariate EWMA Chart"),
+        "{}",
+        ui.session()
+    );
+    assert!(ui.plot().is_some(), "a plot was produced");
+}
+
+#[test]
 fn the_moving_average_dialog_centres_the_window() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");
