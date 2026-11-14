@@ -1977,7 +1977,7 @@ impl Gamma3 {
                 return Err(Error::NonPositive { index, value: x });
             }
         }
-        let (threshold, gamma) = profile_threshold(sample, |values| Gamma::fit_mle(values))?;
+        let (threshold, gamma) = profile_threshold(sample, Gamma::fit_mle)?;
         Self::new(threshold, gamma.shape(), gamma.scale())
     }
 }
@@ -2097,7 +2097,7 @@ impl Loglogistic3 {
                 return Err(Error::NonPositive { index, value: x });
             }
         }
-        let (threshold, fitted) = profile_threshold(sample, |values| Loglogistic::fit_mle(values))?;
+        let (threshold, fitted) = profile_threshold(sample, Loglogistic::fit_mle)?;
         Self::new(threshold, fitted.scale(), fitted.shape())
     }
 }
