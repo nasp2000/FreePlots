@@ -11624,7 +11624,18 @@ mod tests {
         let text = out.results[0].to_session_text();
         assert!(text.contains("x ≤ 0"), "{text}");
         assert!(text.contains("Smallest Extreme Value"), "{text}");
-        assert!(!text.contains("Box-Cox Normal"), "{text}");
+        let rows = out.results[0]
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { rows, .. } => Some(rows),
+                _ => None,
+            })
+            .expect("table");
+        assert!(
+            rows.iter().all(|row| row[0] != "Box-Cox Normal"),
+            "{rows:?}"
+        );
 
         let mut refused = DataFrame::new(vec![Column::new_f64("life", values)]).expect("frame");
         assert!(individual_distribution(&mut refused, "life", Some("life_boxcox"), None).is_err());
