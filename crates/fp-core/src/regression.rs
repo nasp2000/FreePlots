@@ -1241,14 +1241,8 @@ fn selection_panel(
     cp_reference: bool,
 ) -> PlotSpec {
     let max_k = subsets.iter().map(|subset| subset.k).max().unwrap_or(1);
-    let mut y_min = subsets
-        .iter()
-        .map(|subset| value(subset))
-        .fold(f64::INFINITY, f64::min);
-    let mut y_max = subsets
-        .iter()
-        .map(|subset| value(subset))
-        .fold(f64::NEG_INFINITY, f64::max);
+    let mut y_min = subsets.iter().map(&value).fold(f64::INFINITY, f64::min);
+    let mut y_max = subsets.iter().map(&value).fold(f64::NEG_INFINITY, f64::max);
     if cp_reference {
         y_min = y_min.min(2.0);
         y_max = y_max.max(max_k as f64 + 1.0);
