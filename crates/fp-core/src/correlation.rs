@@ -97,9 +97,9 @@ pub fn covariance(df: &DataFrame, columns: &[String]) -> Result<AnalysisResult> 
             .map(|i| {
                 let mut row = Vec::with_capacity(columns.len() + 1);
                 row.push(columns[i].clone());
-                for j in 0..columns.len() {
-                    row.push(if matrix[i][j].is_finite() {
-                        format!("{:.6}", matrix[i][j])
+                for value in &matrix[i] {
+                    row.push(if value.is_finite() {
+                        format!("{value:.6}")
                     } else {
                         "—".to_owned()
                     });
