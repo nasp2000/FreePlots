@@ -325,8 +325,9 @@ mod tests {
         ))
         .expect("plot");
         let plot = output.plot.expect("plot");
-        let middle = &plot.lines[plot.lines.len() / 2];
-        assert!((middle.to.y - 0.5).abs() < 1e-3, "{}", middle.to.y);
+        // The 200th point is the middle of the symmetric range: x = 0.
+        let middle = &plot.lines[plot.lines.len() / 2 - 1];
+        assert!((middle.to.y - 0.5).abs() < 1e-6, "{}", middle.to.y);
         assert!(plot.bands.is_empty());
     }
 
@@ -394,6 +395,6 @@ mod tests {
             .find(|(name, _)| *name == "Shaded probability")
             .map(|(_, value)| *value)
             .expect("probability");
-        assert!((probability - 0.157_305_339_016_251_36).abs() < 1e-9);
+        assert!((probability - 0.157_305_355_899_826_97).abs() < 1e-9);
     }
 }
