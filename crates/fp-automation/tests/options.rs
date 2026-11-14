@@ -4007,6 +4007,24 @@ fn the_attribute_capability_dialog_reports_ppm_defects() {
 }
 
 #[test]
+fn the_probability_distribution_plot_needs_no_data() {
+    let mut ui = Automation::new();
+    open(&mut ui, &["Graph", "Probability Distribution Plot…"]);
+    ui.set_text("Shade from:", "-1").expect("low");
+    ui.set_text("Shade to:", "1").expect("high");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(
+        session.contains("Probability Distribution Plot"),
+        "{session}"
+    );
+    assert!(session.contains("Shaded probability"), "{session}");
+    assert!(session.contains("0.682689"), "{session}");
+    let plot = ui.plot().expect("plot");
+    assert_eq!(plot.lines.len(), 400);
+}
+
+#[test]
 fn the_covariance_dialog_reports_the_matrix() {
     let mut ui = Automation::new();
     let df = DataFrame::new(vec![

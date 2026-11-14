@@ -1342,6 +1342,13 @@ impl FreePlotsApp {
                     self.open_matrix_dialog();
                     ui.close();
                 }
+                if menu_icon_item(ui, ToolIcon::Plot, self.catalog().label("Probability Distribution Plot…"), None, true)
+                    .on_hover_text("Theoretical density or cumulative curve of a distribution, with a shaded area")
+                    .clicked()
+                {
+                    self.open_pdp_dialog();
+                    ui.close();
+                }
                 if menu_icon_item(ui, ToolIcon::Plot, self.catalog().label("Interval Plot…"), None, ready)
                     .on_hover_text("Level means with 95% intervals")
                     .clicked()

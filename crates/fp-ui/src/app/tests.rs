@@ -3024,6 +3024,38 @@ fn the_capability_help_explains_the_subgroup_column() {
 }
 
 #[test]
+fn the_distribution_plot_help_explains_the_curve() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_pdp_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About this plot…").click();
+    harness.run();
+    assert!(harness.state().show_pdp_help);
+    harness.get_by_label("Probability Distribution Plot help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("draws the theoretical density");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do gráfico de distribuição de probabilidade");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_pdp_help);
+}
+
+#[test]
 fn the_covariance_help_explains_the_commands() {
     use egui_kittest::{Harness, kittest::Queryable};
 

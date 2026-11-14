@@ -57,6 +57,7 @@ pub mod ordinal;
 pub mod pareto;
 pub mod pca;
 pub mod pdf;
+pub mod pdp;
 pub mod plot;
 pub mod plugin;
 pub mod poisson;

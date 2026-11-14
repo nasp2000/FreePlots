@@ -967,6 +967,35 @@ impl UiCatalog {
                  Var(y) = 6,667. Uma coluna de notas A, A, B, A, B conta A com 3 (60 %) e B com \
                  2 (40 %)."
             }
+            "Probability Distribution Plot" => "Gráfico de distribuição de probabilidade",
+            "Probability Distribution Plot…" => "Gráfico de distribuição de probabilidade…",
+            "Probability Distribution Plot help" => {
+                "Ajuda do gráfico de distribuição de probabilidade"
+            }
+            "About this plot…" => "Acerca deste gráfico…",
+            "The probability distribution plot draws the theoretical density or \
+             cumulative probability of a distribution you specify. No worksheet data are \
+             used. You can shade the area between two values to read the probability." => {
+                "O gráfico de distribuição de probabilidade desenha a densidade ou a \
+                 probabilidade acumulada teórica de uma distribuição escolhida. Não são usados \
+                 dados da folha. Pode sombrear a área entre dois valores para ler a \
+                 probabilidade."
+            }
+            "Choose one of the ten distributions and enter its parameters; the labels \
+             change with the family. Choose Density or Cumulative probability. \
+             Optionally enter two values of x to shade the area between them; the report \
+             gives the shaded probability F(b) − F(a)." => {
+                "Escolha uma das dez distribuições e introduza os parâmetros; os rótulos mudam \
+                 com a família. Escolha Density ou Cumulative probability. Opcionalmente \
+                 introduza dois valores de x para sombrear a área entre eles; o relatório dá a \
+                 probabilidade sombreada F(b) − F(a)."
+            }
+            "A standard normal (mean 0, standard deviation 1) peaks at 0.399. Shading \
+             from −1 to 1 covers 68.27 % of the area; the cumulative curve reaches 0.5 \
+             at the mean." => {
+                "Uma normal padrão (média 0, desvio padrão 1) tem o pico em 0,399. Sombrear de \
+                 −1 a 1 cobre 68,27 % da área; a curva acumulada atinge 0,5 na média."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

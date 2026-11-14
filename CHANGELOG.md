@@ -63,6 +63,10 @@ All notable changes to FreePlots are recorded here. The format follows
   divisor) and a *Tally…* command (counts, percent and cumulative columns for
   the unique values of any columns), with a shared help page in both interface
   languages.
+- Graph has a *Probability Distribution Plot…* entry: a theoretical density or
+  cumulative curve for one of the ten distributions, with its parameters and an
+  optional shaded area that reports the probability. It needs no worksheet
+  data and has its own help page in both interface languages.
 
 ### Changed
 

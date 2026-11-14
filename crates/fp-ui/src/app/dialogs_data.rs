@@ -963,6 +963,221 @@ impl FreePlotsApp {
         self.execute_spec(spec, label);
         self.show_dot_dialog = false;
     }
+    /// Opens the probability distribution plot dialog.
+    pub fn open_pdp_dialog(&mut self) {
+        self.pdp_parameters = fp_core::pdp::default_parameters(self.pdp_kind)
+            .into_iter()
+            .chain(std::iter::repeat(1.0))
+            .take(3)
+            .collect();
+        self.pdp_shade_low.clear();
+        self.pdp_shade_high.clear();
+        self.show_pdp_dialog = true;
+    }
+
+    /// Builds the probability distribution plot of the dialog.
+    pub fn run_pdp_dialog(&mut self) {
+        let count = fp_core::pdp::parameter_count(self.pdp_kind);
+        let parameters: Vec<f64> = self.pdp_parameters.iter().copied().take(count).collect();
+        let number = |text: &str| {
+            text.trim()
+                .parse::<f64>()
+                .ok()
+                .filter(|value| value.is_finite())
+        };
+        let shade = match (self.pdp_shade_low.trim(), self.pdp_shade_high.trim()) {
+            ("", "") => None,
+            (low, high) => {
+                let (Some(low), Some(high)) = (number(low), number(high)) else {
+                    self.set_error("The shaded bounds must be numbers or both blank");
+                    return;
+                };
+                if (low - high).abs() <= f64::EPSILON {
+                    self.set_error("The shaded bounds must differ");
+                    return;
+                }
+                Some((low, high))
+            }
+        };
+        let options = fp_core::pdp::PdpOptions {
+            kind: self.pdp_kind,
+            parameters,
+            view: self.pdp_view,
+            shade,
+        };
+        match fp_core::pdp::build(&options) {
+            Ok(output) => {
+                let label = format!("Probability distribution plot: {}", self.pdp_kind.name());
+                self.apply_output(output, label);
+                self.show_pdp_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Probability distribution plot dialog.
+    pub(super) fn pdp_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_pdp_dialog {
+            return;
+        }
+        let mut open = self.show_pdp_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        let mut reset = false;
+        dialog_window(self.catalog().label("Probability Distribution Plot"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(430.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Distribution:");
+                    egui::ComboBox::from_id_salt("pdp_kind")
+                        .selected_text(self.pdp_kind.name())
+                        .width(180.0)
+                        .show_ui(ui, |ui| {
+                            for kind in [
+                                fp_core::workflow::DistributionKind::Normal,
+                                fp_core::workflow::DistributionKind::Lognormal,
+                                fp_core::workflow::DistributionKind::Weibull,
+                                fp_core::workflow::DistributionKind::Exponential,
+                                fp_core::workflow::DistributionKind::Logistic,
+                                fp_core::workflow::DistributionKind::Loglogistic,
+                                fp_core::workflow::DistributionKind::Gamma,
+                                fp_core::workflow::DistributionKind::ExtremeValue,
+                                fp_core::workflow::DistributionKind::Weibull3,
+                                fp_core::workflow::DistributionKind::Lognormal3,
+                            ] {
+                                if ui
+                                    .selectable_value(&mut self.pdp_kind, kind, kind.name())
+                                    .changed()
+                                {
+                                    reset = true;
+                                }
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                if reset {
+                    let defaults = fp_core::pdp::default_parameters(self.pdp_kind);
+                    self.pdp_parameters = defaults
+                        .into_iter()
+                        .chain(std::iter::repeat(1.0))
+                        .take(3)
+                        .collect();
+                }
+                let labels = fp_core::pdp::parameter_labels(self.pdp_kind);
+                for (index, label_text) in labels.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(*label_text);
+                        ui.add(egui::DragValue::new(&mut self.pdp_parameters[index]).speed(0.1))
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("View:");
+                    egui::ComboBox::from_id_salt("pdp_view")
+                        .selected_text(self.pdp_view.name())
+                        .width(180.0)
+                        .show_ui(ui, |ui| {
+                            for view in [
+                                fp_core::pdp::PdpView::Density,
+                                fp_core::pdp::PdpView::Cumulative,
+                            ] {
+                                ui.selectable_value(&mut self.pdp_view, view, view.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                for (label_text, field) in [
+                    ("Shade from:", &mut self.pdp_shade_low),
+                    ("Shade to:", &mut self.pdp_shade_high),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(label_text);
+                        ui.text_edit_singleline(field)
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                ui.small(
+                    "The plot is theoretical: no worksheet column is used. Leave the shaded \
+                     bounds blank for the plain curve.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About this plot…"))
+                        .clicked()
+                    {
+                        self.show_pdp_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("OK")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_pdp_dialog = open && !run && !cancel;
+        if run {
+            self.run_pdp_dialog();
+        }
+    }
+
+    /// Help page of the probability distribution plot.
+    pub(super) fn pdp_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_pdp_help {
+            return;
+        }
+        let mut open = self.show_pdp_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Probability Distribution Plot help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The probability distribution plot draws the theoretical density or \
+                     cumulative probability of a distribution you specify. No worksheet data are \
+                     used. You can shade the area between two values to read the probability.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose one of the ten distributions and enter its parameters; the labels \
+                     change with the family. Choose Density or Cumulative probability. \
+                     Optionally enter two values of x to shade the area between them; the report \
+                     gives the shaded probability F(b) − F(a).",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A standard normal (mean 0, standard deviation 1) peaks at 0.399. Shading \
+                     from −1 to 1 covers 68.27 % of the area; the cumulative curve reaches 0.5 \
+                     at the mean.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_pdp_help = open && !close;
+    }
+
     pub(super) fn dotplot_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_dot_dialog {
             return;

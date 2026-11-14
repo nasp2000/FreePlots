@@ -172,6 +172,8 @@ impl FreePlotsApp {
         self.stem_dialog(&ctx);
         self.series_dialog(&ctx);
         self.ecdf_dialog(&ctx);
+        self.pdp_dialog(&ctx);
+        self.pdp_help_window(&ctx);
         self.alt_dialog(&ctx);
         self.step_stress_dialog(&ctx);
         self.timeseries_dialog(&ctx);

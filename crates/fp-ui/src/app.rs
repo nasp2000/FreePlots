@@ -1290,6 +1290,14 @@ pub struct FreePlotsApp {
     show_tally_dialog: bool,
     tally_columns: Vec<String>,
     show_cov_tally_help: bool,
+    /// Probability distribution plot dialog.
+    show_pdp_dialog: bool,
+    show_pdp_help: bool,
+    pdp_kind: fp_core::workflow::DistributionKind,
+    pdp_parameters: Vec<f64>,
+    pdp_view: fp_core::pdp::PdpView,
+    pdp_shade_low: String,
+    pdp_shade_high: String,
     show_step_dialog: bool,
     step_response: String,
     step_candidates: Vec<String>,
@@ -3965,6 +3973,8 @@ impl FreePlotsApp {
         self.show_covariance_dialog = false;
         self.show_tally_dialog = false;
         self.show_cov_tally_help = false;
+        self.show_pdp_dialog = false;
+        self.show_pdp_help = false;
         self.show_calc_dialog = false;
         self.show_cap_dialog = false;
         self.show_cap_help = false;
