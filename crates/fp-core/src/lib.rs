@@ -41,6 +41,7 @@ pub mod formula;
 pub mod gage;
 pub mod gage_type1;
 pub mod gof;
+pub mod graphs;
 pub mod histogram;
 pub mod hypothesis;
 pub mod i18n;

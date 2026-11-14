@@ -72,6 +72,12 @@ All notable changes to FreePlots are recorded here. The format follows
   cumulative curve for one of the ten distributions, with its parameters and an
   optional shaded area that reports the probability. It needs no worksheet
   data and has its own help page in both interface languages.
+- *Graph → More Graphs* adds nine descriptive charts: bar, line, area,
+  heatmap, bubble, individual value, marginal, parallel coordinates and
+  correlogram. They share one dialog and one help page in both interface
+  languages; the heatmap and bubble plots use value classes because the engine
+  fills with a single tone and draws fixed-radius points, and the pie chart and
+  the 3D scatter are recorded as limitations.
 - DOE has a *Factorial Plots…* entry: from a coded two-level design it draws
   one main-effects panel per factor, one interaction panel per pair and the
   cube of the corner means for two or three factors, with the marginal means
@@ -133,7 +139,11 @@ All notable changes to FreePlots are recorded here. The format follows
   choice, the full-model Cp, the one-predictor and collinear cases and the
   invalid response, duplicate, over-limit and short samples. The factorial
   plots cover the two-factor panels and cube, a single factor, a three-factor
-  cube with eight corners and the uncoded or empty factor lists.
+  cube with eight corners and the uncoded or empty factor lists. The graph
+  gallery covers the count/sum/mean bars, the line and area series, the
+  heatmap classes, the bubble size classes, the individual values, the
+  two-panel marginal, the parallel lines and the annotated correlogram, plus
+  the invalid column lists.
 
 ## [0.1.1] - 2026-11-12
 

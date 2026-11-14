@@ -2157,6 +2157,106 @@ fn the_matrix_plot_dialog_needs_two_columns() {
 }
 
 #[test]
+fn the_bar_chart_gallery_aggregates_by_category() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Graph", "More Graphs", "Bar Chart…"]);
+    ui.select("Category:", "batch").expect("category");
+    ui.select("Statistic:", "Mean").expect("statistic");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Bar Chart — batch"),
+        "{}",
+        ui.session()
+    );
+    assert!(ui.plot().is_some());
+}
+
+#[test]
+fn the_line_and_area_gallery_draw_the_series() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Graph", "More Graphs", "Line Plot…"]);
+    ui.set_text("Series:", "weight,height").expect("series");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Line Plot — weight, height"),
+        "{}",
+        ui.session()
+    );
+    open(&mut ui, &["Graph", "More Graphs", "Area Chart…"]);
+    ui.click("Run").expect("run");
+    assert!(ui.session().contains("Area Chart"), "{}", ui.session());
+}
+
+#[test]
+fn the_heatmap_and_individual_value_gallery_draw() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Graph", "More Graphs", "Heatmap…"]);
+    ui.set_text("Columns:", "weight,height,pressure")
+        .expect("columns");
+    ui.click("Run").expect("run");
+    assert!(ui.session().contains("Heatmap"), "{}", ui.session());
+    open(&mut ui, &["Graph", "More Graphs", "Individual Value Plot…"]);
+    ui.set_text("Columns:", "weight,height").expect("columns");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Individual Value Plot"),
+        "{}",
+        ui.session()
+    );
+}
+
+#[test]
+fn the_bubble_and_marginal_gallery_draw() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Graph", "More Graphs", "Bubble Plot…"]);
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Bubble Plot — weight × height"),
+        "{}",
+        ui.session()
+    );
+    open(&mut ui, &["Graph", "More Graphs", "Marginal Plot…"]);
+    ui.click("Run").expect("run");
+    assert!(ui.session().contains("Marginal Plot"), "{}", ui.session());
+}
+
+#[test]
+fn the_parallel_and_correlogram_gallery_draw() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Graph", "More Graphs", "Parallel Coordinates…"]);
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Parallel Coordinates"),
+        "{}",
+        ui.session()
+    );
+    open(&mut ui, &["Graph", "More Graphs", "Correlogram…"]);
+    ui.set_text("Columns:", "weight,height,pressure")
+        .expect("columns");
+    ui.click("Run").expect("run");
+    assert!(ui.session().contains("Correlogram"), "{}", ui.session());
+}
+
+#[test]
+fn the_correlogram_gallery_needs_two_variables() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Graph", "More Graphs", "Correlogram…"]);
+    ui.set_text("Columns:", "weight").expect("columns");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("at least two variables"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_hotelling_dialog_draws_the_chart() {
     let mut ui = Automation::new();
     ui.load_frame(hotelling_frame(), "hotelling.csv");

@@ -614,6 +614,46 @@ impl UiCatalog {
             "Pareto Chart" => "Gráfico de Pareto",
             "Interval Plot" => "Gráfico de intervalos",
             "Matrix Plot" => "Gráfico de matriz",
+            "More Graphs" => "Mais gráficos",
+            "Bar Chart…" => "Gráfico de barras…",
+            "Line Plot…" => "Gráfico de linhas…",
+            "Area Chart…" => "Gráfico de área…",
+            "Heatmap…" => "Mapa de calor…",
+            "Bubble Plot…" => "Gráfico de bolhas…",
+            "Individual Value Plot…" => "Gráfico de valores individuais…",
+            "Marginal Plot…" => "Gráfico marginal…",
+            "Parallel Coordinates…" => "Coordenadas paralelas…",
+            "Correlogram…" => "Correlograma…",
+            "Graph Gallery" => "Galeria de gráficos",
+            "Graph gallery help" => "Ajuda da galeria de gráficos",
+            "About these graphs…" => "Acerca destes gráficos…",
+            "The graph gallery collects nine descriptive graphs: bar, line, area, \
+             heatmap, bubble, individual value, marginal, parallel coordinates and \
+             correlogram. They describe the worksheet; no model is fitted." => {
+                "A galeria de gráficos reúne nove gráficos descritivos: barras, linhas, área, \
+                 mapa de calor, bolhas, valores individuais, marginal, coordenadas paralelas e \
+                 correlograma. Descrevem a folha de cálculo; não é ajustado nenhum modelo."
+            }
+            "Choose one numeric or text column for the categories, one or more numeric \
+             columns, an x column and, for the bubble plot, a size column. Rows with a \
+             missing value in the used columns are excluded. The heatmap and bubble plot \
+             encode their magnitude in value classes because the drawing primitives use \
+             a single fill tone and a fixed marker radius." => {
+                "Escolha uma coluna numérica ou de texto para as categorias, uma ou mais colunas \
+                 numéricas, uma coluna x e, para o gráfico de bolhas, uma coluna de tamanho. As \
+                 linhas com valor em falta nas colunas usadas são excluídas. O mapa de calor e o \
+                 gráfico de bolhas codificam a grandeza em classes de valor porque as primitivas \
+                 de desenho usam um único tom de preenchimento e um raio de marcador fixo."
+            }
+            "A weight column by batch gives a bar chart of the count; time and weight \
+             give a line plot; weight, height and batch give a bubble plot with three \
+             size classes. The parallel-coordinates plot draws one line per row and the \
+             correlogram annotates every scatter with its correlation." => {
+                "Uma coluna de peso por lote dá um gráfico de barras da contagem; tempo e peso dão \
+                 um gráfico de linhas; peso, altura e lote dão um gráfico de bolhas com três \
+                 classes de tamanho. O gráfico de coordenadas paralelas desenha uma linha por \
+                 linha e o correlograma anota cada dispersão com a sua correlação."
+            }
             "Dotplot" => "Gráfico de pontos",
             "Stem-and-Leaf" => "Caule-e-folhas",
             "Time Series Plot" => "Gráfico de séries temporais",

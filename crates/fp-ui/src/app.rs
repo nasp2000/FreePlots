@@ -1193,6 +1193,17 @@ pub struct FreePlotsApp {
     show_matrix_dialog: bool,
     matrix_columns: String,
     matrix_bins: usize,
+    /// Graph gallery dialog and help.
+    show_graph_gallery_dialog: bool,
+    show_graph_gallery_help: bool,
+    gallery_kind: fp_core::graphs::GalleryKind,
+    gallery_columns: String,
+    gallery_x: String,
+    gallery_y: String,
+    gallery_size: String,
+    gallery_category: String,
+    gallery_value: String,
+    gallery_statistic: fp_core::graphs::BarStatistic,
     show_interval_dialog: bool,
     interval_response: String,
     interval_factor: String,
@@ -4055,6 +4066,8 @@ impl FreePlotsApp {
         self.show_log_dialog = false;
         self.show_logistic_dialog = false;
         self.show_matrix_dialog = false;
+        self.show_graph_gallery_dialog = false;
+        self.show_graph_gallery_help = false;
         self.show_ordinal_dialog = false;
         self.show_pareto_dialog = false;
         self.show_partial_dialog = false;

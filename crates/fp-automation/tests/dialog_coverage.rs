@@ -16,6 +16,8 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["File", "Sample projects…"],
     &["Assistant", "Choose an analysis…"],
     &["Help", "Keyboard shortcuts"],
+    &["Graph", "More Graphs", "Bar Chart…"],
+    &["Graph", "More Graphs", "Correlogram…"],
     &["Graph", "Dotplot…"],
     &["Graph", "Empirical CDF…"],
     &["Graph", "Matrix Plot…"],

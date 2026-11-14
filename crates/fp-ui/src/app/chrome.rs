@@ -172,6 +172,8 @@ impl FreePlotsApp {
         self.sheet_dialog(&ctx);
         self.interval_dialog(&ctx);
         self.matrix_dialog(&ctx);
+        self.graph_gallery_dialog(&ctx);
+        self.graph_gallery_help_window(&ctx);
         self.dotplot_dialog(&ctx);
         self.stem_dialog(&ctx);
         self.series_dialog(&ctx);

@@ -1464,6 +1464,64 @@ impl FreePlotsApp {
                     self.open_scatter_dialog();
                     ui.close();
                 }
+                ui.separator();
+                help_menu_button(ui, self.catalog().label("More Graphs"), |ui| {
+                    for (label, kind, hint) in [
+                        (
+                            "Bar Chart…",
+                            fp_core::graphs::GalleryKind::Bar,
+                            "Counts, sums or means per category",
+                        ),
+                        (
+                            "Line Plot…",
+                            fp_core::graphs::GalleryKind::Line,
+                            "One line per series along an x column",
+                        ),
+                        (
+                            "Area Chart…",
+                            fp_core::graphs::GalleryKind::Area,
+                            "A line with the area under it filled",
+                        ),
+                        (
+                            "Heatmap…",
+                            fp_core::graphs::GalleryKind::Heatmap,
+                            "Value classes of several columns",
+                        ),
+                        (
+                            "Bubble Plot…",
+                            fp_core::graphs::GalleryKind::Bubble,
+                            "Scatter with a third magnitude class",
+                        ),
+                        (
+                            "Individual Value Plot…",
+                            fp_core::graphs::GalleryKind::IndividualValue,
+                            "Every observation with the column mean",
+                        ),
+                        (
+                            "Marginal Plot…",
+                            fp_core::graphs::GalleryKind::Marginal,
+                            "Scatter beside the histogram of x",
+                        ),
+                        (
+                            "Parallel Coordinates…",
+                            fp_core::graphs::GalleryKind::ParallelCoordinates,
+                            "One line per row across the normalized columns",
+                        ),
+                        (
+                            "Correlogram…",
+                            fp_core::graphs::GalleryKind::Correlogram,
+                            "Scatter matrix with the correlation of each pair",
+                        ),
+                    ] {
+                        if menu_text_item(ui, self.catalog().label(label), None, ready)
+                            .on_hover_text(hint)
+                            .clicked()
+                        {
+                            self.open_graph_gallery_dialog(kind);
+                            ui.close();
+                        }
+                    }
+                });
             });
 
             help_menu_button(ui, self.catalog().label("Assistant"), |ui| {

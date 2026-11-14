@@ -1557,4 +1557,373 @@ impl FreePlotsApp {
             self.run_matrix_dialog();
         }
     }
+
+    /// Opens the graph gallery pre-set to one chart family.
+    pub fn open_graph_gallery_dialog(&mut self, kind: fp_core::graphs::GalleryKind) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let all: Vec<String> = df
+            .columns()
+            .iter()
+            .map(|column| column.name().to_owned())
+            .collect();
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.is_empty() {
+            self.set_error("The graph needs at least one numeric column");
+            return;
+        }
+        self.gallery_kind = kind;
+        self.gallery_columns = numeric.join(", ");
+        self.gallery_x = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.gallery_y = numeric
+            .iter()
+            .find(|name| **name != self.gallery_x)
+            .cloned()
+            .unwrap_or_else(|| numeric[0].clone());
+        self.gallery_size = numeric
+            .iter()
+            .find(|name| **name != self.gallery_x && **name != self.gallery_y)
+            .cloned()
+            .unwrap_or_else(|| numeric[0].clone());
+        self.gallery_category = self
+            .selected
+            .clone()
+            .filter(|name| all.contains(name))
+            .unwrap_or_else(|| all.first().cloned().unwrap_or_default());
+        self.gallery_value = numeric[0].clone();
+        self.show_graph_gallery_dialog = true;
+    }
+
+    /// Runs the chart selected in the gallery.
+    pub fn run_graph_gallery_dialog(&mut self) {
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let columns: Vec<String> = self
+            .gallery_columns
+            .split(',')
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
+            .collect();
+        let kind = self.gallery_kind;
+        let outcome = match kind {
+            fp_core::graphs::GalleryKind::Bar => fp_core::graphs::bar_chart(
+                &df,
+                &self.gallery_category,
+                Some(&self.gallery_value),
+                self.gallery_statistic,
+            ),
+            fp_core::graphs::GalleryKind::Line => {
+                fp_core::graphs::line_plot(&df, &self.gallery_x, &columns)
+            }
+            fp_core::graphs::GalleryKind::Area => {
+                fp_core::graphs::area_chart(&df, &self.gallery_x, &self.gallery_y)
+            }
+            fp_core::graphs::GalleryKind::Heatmap => fp_core::graphs::heatmap(&df, &columns),
+            fp_core::graphs::GalleryKind::Bubble => fp_core::graphs::bubble_plot(
+                &df,
+                &self.gallery_x,
+                &self.gallery_y,
+                &self.gallery_size,
+            ),
+            fp_core::graphs::GalleryKind::IndividualValue => {
+                fp_core::graphs::individual_value_plot(&df, &columns)
+            }
+            fp_core::graphs::GalleryKind::Marginal => {
+                fp_core::graphs::marginal_plot(&df, &self.gallery_x, &self.gallery_y)
+            }
+            fp_core::graphs::GalleryKind::ParallelCoordinates => {
+                fp_core::graphs::parallel_coordinates(&df, &columns)
+            }
+            fp_core::graphs::GalleryKind::Correlogram => {
+                fp_core::graphs::correlogram(&df, &columns)
+            }
+        };
+        match outcome {
+            Ok(output) => {
+                self.apply_output(output, kind.name().to_owned());
+                self.show_graph_gallery_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Graph gallery dialog: one chart family and its inputs.
+    pub(super) fn graph_gallery_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_graph_gallery_dialog {
+            return;
+        }
+        let all: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_graph_gallery_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Graph Gallery"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(480.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Chart:");
+                    egui::ComboBox::from_id_salt("gallery_kind")
+                        .selected_text(self.gallery_kind.name())
+                        .width(220.0)
+                        .show_ui(ui, |ui| {
+                            for kind in [
+                                fp_core::graphs::GalleryKind::Bar,
+                                fp_core::graphs::GalleryKind::Line,
+                                fp_core::graphs::GalleryKind::Area,
+                                fp_core::graphs::GalleryKind::Heatmap,
+                                fp_core::graphs::GalleryKind::Bubble,
+                                fp_core::graphs::GalleryKind::IndividualValue,
+                                fp_core::graphs::GalleryKind::Marginal,
+                                fp_core::graphs::GalleryKind::ParallelCoordinates,
+                                fp_core::graphs::GalleryKind::Correlogram,
+                            ] {
+                                ui.selectable_value(&mut self.gallery_kind, kind, kind.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                match self.gallery_kind {
+                    fp_core::graphs::GalleryKind::Bar => {
+                        column_combo(
+                            ui,
+                            "gallery_category",
+                            "Category:",
+                            &mut self.gallery_category,
+                            &all,
+                        );
+                        column_combo(
+                            ui,
+                            "gallery_value",
+                            "Value:",
+                            &mut self.gallery_value,
+                            &numeric,
+                        );
+                        ui.horizontal(|ui| {
+                            let label = ui.help_label("Statistic:");
+                            egui::ComboBox::from_id_salt("gallery_statistic")
+                                .selected_text(self.gallery_statistic.name())
+                                .show_ui(ui, |ui| {
+                                    for statistic in [
+                                        fp_core::graphs::BarStatistic::Count,
+                                        fp_core::graphs::BarStatistic::Sum,
+                                        fp_core::graphs::BarStatistic::Mean,
+                                    ] {
+                                        ui.selectable_value(
+                                            &mut self.gallery_statistic,
+                                            statistic,
+                                            statistic.name(),
+                                        );
+                                    }
+                                })
+                                .response
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                        });
+                    }
+                    fp_core::graphs::GalleryKind::Line => {
+                        column_combo(ui, "gallery_x", "X:", &mut self.gallery_x, &numeric);
+                        ui.horizontal(|ui| {
+                            let label = ui.help_label("Series:");
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.gallery_columns)
+                                    .desired_width(250.0)
+                                    .hint_text("a,b,c"),
+                            )
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                        });
+                    }
+                    fp_core::graphs::GalleryKind::Area => {
+                        column_combo(ui, "gallery_x", "X:", &mut self.gallery_x, &numeric);
+                        column_combo(ui, "gallery_y", "Y:", &mut self.gallery_y, &numeric);
+                    }
+                    fp_core::graphs::GalleryKind::Heatmap
+                    | fp_core::graphs::GalleryKind::IndividualValue
+                    | fp_core::graphs::GalleryKind::ParallelCoordinates
+                    | fp_core::graphs::GalleryKind::Correlogram => {
+                        ui.horizontal(|ui| {
+                            let label = ui.help_label("Columns:");
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.gallery_columns)
+                                    .desired_width(250.0)
+                                    .hint_text("a,b,c"),
+                            )
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                        });
+                    }
+                    fp_core::graphs::GalleryKind::Bubble => {
+                        column_combo(ui, "gallery_x", "X:", &mut self.gallery_x, &numeric);
+                        column_combo(ui, "gallery_y", "Y:", &mut self.gallery_y, &numeric);
+                        column_combo(
+                            ui,
+                            "gallery_size",
+                            "Size:",
+                            &mut self.gallery_size,
+                            &numeric,
+                        );
+                    }
+                    fp_core::graphs::GalleryKind::Marginal => {
+                        column_combo(ui, "gallery_x", "X:", &mut self.gallery_x, &numeric);
+                        column_combo(ui, "gallery_y", "Y:", &mut self.gallery_y, &numeric);
+                    }
+                }
+                ui.small(match self.gallery_kind {
+                    fp_core::graphs::GalleryKind::Bar => {
+                        "Bars of the count, sum or mean per category."
+                    }
+                    fp_core::graphs::GalleryKind::Line => {
+                        "One line per series, in worksheet order or along the x column."
+                    }
+                    fp_core::graphs::GalleryKind::Area => {
+                        "The line with the area between the curve and zero filled."
+                    }
+                    fp_core::graphs::GalleryKind::Heatmap => {
+                        "Cells grouped into six value classes; rows are observations."
+                    }
+                    fp_core::graphs::GalleryKind::Bubble => {
+                        "Scatter with a third magnitude split into three classes."
+                    }
+                    fp_core::graphs::GalleryKind::IndividualValue => {
+                        "Every observation as a point, with the mean of each column."
+                    }
+                    fp_core::graphs::GalleryKind::Marginal => {
+                        "Scatter beside the histogram of the first variable."
+                    }
+                    fp_core::graphs::GalleryKind::ParallelCoordinates => {
+                        "One line per row across the normalized columns."
+                    }
+                    fp_core::graphs::GalleryKind::Correlogram => {
+                        "Scatter matrix with the Pearson correlation of every pair."
+                    }
+                });
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About these graphs…"))
+                        .clicked()
+                    {
+                        self.show_graph_gallery_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_graph_gallery_dialog = open && !run && !cancel;
+        if run {
+            self.run_graph_gallery_dialog();
+        }
+    }
+
+    /// Help page of the graph gallery.
+    pub(super) fn graph_gallery_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_graph_gallery_help {
+            return;
+        }
+        let mut open = self.show_graph_gallery_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Graph gallery help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The graph gallery collects nine descriptive graphs: bar, line, area, \
+                     heatmap, bubble, individual value, marginal, parallel coordinates and \
+                     correlogram. They describe the worksheet; no model is fitted.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose one numeric or text column for the categories, one or more numeric \
+                     columns, an x column and, for the bubble plot, a size column. Rows with a \
+                     missing value in the used columns are excluded. The heatmap and bubble plot \
+                     encode their magnitude in value classes because the drawing primitives use \
+                     a single fill tone and a fixed marker radius.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A weight column by batch gives a bar chart of the count; time and weight \
+                     give a line plot; weight, height and batch give a bubble plot with three \
+                     size classes. The parallel-coordinates plot draws one line per row and the \
+                     correlogram annotates every scatter with its correlation.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_graph_gallery_help = open && !close;
+    }
+}
+
+fn column_combo(ui: &mut egui::Ui, id: &str, text: &str, current: &mut String, names: &[String]) {
+    ui.horizontal(|ui| {
+        let label = ui.help_label(text);
+        egui::ComboBox::from_id_salt(id)
+            .selected_text(if current.is_empty() {
+                "—".to_owned()
+            } else {
+                current.clone()
+            })
+            .width(180.0)
+            .show_ui(ui, |ui| {
+                for name in names {
+                    ui.selectable_value(current, name.clone(), name.as_str());
+                }
+            })
+            .response
+            .labelled_by(label.id)
+            .hover_from(&label);
+    });
 }

@@ -3997,6 +3997,88 @@ fn matrix_dialog_reaches_the_session() {
 }
 
 #[test]
+fn graph_gallery_reaches_the_session_for_every_family() {
+    use fp_core::graphs::{BarStatistic, GalleryKind};
+
+    let mut app = FreePlotsApp::new();
+    let mut x = Vec::new();
+    let mut y = Vec::new();
+    let mut z = Vec::new();
+    let mut group = Vec::new();
+    for index in 0..20 {
+        x.push(index as f64);
+        y.push(2.0 * index as f64 + 0.5);
+        z.push(((index * 7) % 5) as f64);
+        group.push(if index % 2 == 0 { "A" } else { "B" }.to_owned());
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("x", x),
+        Column::new_f64("y", y),
+        Column::new_f64("z", z),
+        Column::new_text("group", group),
+    ])
+    .expect("frame");
+    app.set_data(df, "gallery.csv".to_owned());
+    for kind in [
+        GalleryKind::Bar,
+        GalleryKind::Line,
+        GalleryKind::Area,
+        GalleryKind::Heatmap,
+        GalleryKind::Bubble,
+        GalleryKind::IndividualValue,
+        GalleryKind::Marginal,
+        GalleryKind::ParallelCoordinates,
+        GalleryKind::Correlogram,
+    ] {
+        app.open_graph_gallery_dialog(kind);
+        app.gallery_x = "x".to_owned();
+        app.gallery_y = "y".to_owned();
+        app.gallery_size = "z".to_owned();
+        app.gallery_category = "group".to_owned();
+        app.gallery_value = "x".to_owned();
+        app.gallery_columns = "x,y,z".to_owned();
+        app.gallery_statistic = BarStatistic::Mean;
+        app.run_graph_gallery_dialog();
+        let text = app.session_text();
+        assert!(text.contains(kind.name()), "{kind:?} missing:\n{text}");
+        assert!(app.plot().is_some(), "{kind:?} produced no plot");
+    }
+}
+
+#[test]
+fn the_graph_gallery_help_explains_the_charts() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_graph_gallery_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About these graphs…").click();
+    harness.run();
+    assert!(harness.state().show_graph_gallery_help);
+    harness.get_by_label("Graph gallery help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("collects nine descriptive graphs");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da galeria de gráficos");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_graph_gallery_help);
+}
+
+#[test]
 fn interval_dialog_reaches_the_session() {
     let mut app = FreePlotsApp::new();
     let mut values = Vec::new();
