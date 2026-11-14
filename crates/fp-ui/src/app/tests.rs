@@ -3265,6 +3265,57 @@ fn the_johnson_help_explains_the_transformation() {
 }
 
 #[test]
+fn the_acceptance_chart_reports_the_limits_and_decisions() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![Column::new_f64("x", vec![5.0, 9.0, 9.8, 0.1])]).expect("frame");
+    app.set_data(df, "acceptance.csv".to_owned());
+    app.acceptance_column = "x".to_owned();
+    app.acceptance_lsl = "0".to_owned();
+    app.acceptance_usl = "10".to_owned();
+    app.acceptance_sigma = "1".to_owned();
+    app.run_acceptance_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Acceptance Chart"), "{text}");
+    assert!(text.contains("8.554621"), "{text}");
+    assert!(text.contains("9.636698"), "{text}");
+    assert!(text.contains("Reject"), "{text}");
+}
+
+#[test]
+fn the_acceptance_help_explains_the_decisions() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_acceptance_dialog = true;
+    app.acceptance_column = "weight".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About acceptance charts…").click();
+    harness.run();
+    assert!(harness.state().show_acceptance_help);
+    harness.get_by_label("Acceptance chart help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("plots the mean of each subgroup");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da carta de aceitação");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_acceptance_help);
+}
+
+#[test]
 fn the_cusum_menu_entry_clears_the_variable_chart_columns() {
     let mut app = FreePlotsApp::new();
     app.set_data(frame(), "weights.csv".to_owned());

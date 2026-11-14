@@ -3626,6 +3626,52 @@ fn the_cusum_menu_entry_opens_the_chart() {
 }
 
 #[test]
+fn the_acceptance_chart_dialog_reads_the_specification() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Control Charts", "Acceptance Chart…"]);
+    ui.set_text("Lower spec (LSL):", "18").expect("lsl");
+    ui.set_text("Upper spec (USL):", "22").expect("usl");
+    ui.set_text("Known sigma:", "0.5").expect("sigma");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Acceptance Chart"), "{session}");
+    assert!(session.contains("Acceptance UAL"), "{session}");
+    assert!(session.contains("Rejection URL"), "{session}");
+}
+
+#[test]
+fn the_acceptance_chart_dialog_estimates_sigma_in_subgroups() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Control Charts", "Acceptance Chart…"]);
+    ui.set_text("Lower spec (LSL):", "18").expect("lsl");
+    ui.set_text("Subgroup size:", "2").expect("subgroup");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Acceptance Chart"), "{session}");
+    assert!(session.contains("Sigma estimate"), "{session}");
+    assert!(session.contains("Subgroup size"), "{session}");
+}
+
+#[test]
+fn the_acceptance_chart_dialog_reads_the_risks() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Control Charts", "Acceptance Chart…"]);
+    ui.set_text("Lower spec (LSL):", "18").expect("lsl");
+    ui.set_text("Accepted p1:", "0.01").expect("p1");
+    ui.set_text("Rejectable p2:", "0.1").expect("p2");
+    ui.set_text("Producer risk α:", "0.1").expect("alpha");
+    ui.set_text("Consumer risk β:", "0.2").expect("beta");
+    ui.click("OK").expect("ok");
+    let session = ui.session();
+    assert!(session.contains("Acceptance Chart"), "{session}");
+    assert!(session.contains("0.010000"), "{session}");
+    assert!(session.contains("0.200000"), "{session}");
+}
+
+#[test]
 fn the_control_chart_dialog_enables_every_test() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

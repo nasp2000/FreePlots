@@ -1027,6 +1027,19 @@ pub struct FreePlotsApp {
     chart_cusum_h: f64,
     chart_ewma_lambda: f64,
     chart_ewma_limit: f64,
+    /// Acceptance chart dialog.
+    show_acceptance_dialog: bool,
+    /// Help page of the acceptance chart.
+    show_acceptance_help: bool,
+    acceptance_column: String,
+    acceptance_lsl: String,
+    acceptance_usl: String,
+    acceptance_subgroup: usize,
+    acceptance_sigma: String,
+    acceptance_p1: f64,
+    acceptance_p2: f64,
+    acceptance_alpha: f64,
+    acceptance_beta: f64,
     show_attr_dialog: bool,
     attr_column: String,
     attr_kind: AttributeChartKind,
@@ -3982,6 +3995,8 @@ impl FreePlotsApp {
         self.show_chart_dialog = false;
         self.show_chart_help = false;
         self.show_cusum_help = false;
+        self.show_acceptance_dialog = false;
+        self.show_acceptance_help = false;
         self.show_csv_options = false;
         self.show_correlation_dialog = false;
         self.show_crosstab_dialog = false;

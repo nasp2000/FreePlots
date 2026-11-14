@@ -36,6 +36,11 @@ All notable changes to FreePlots are recorded here. The format follows
   dialog pre-set to the cumulative-sum chart. The CUSUM has its own help page
   (overview, data and example) in both interface languages, and the entry
   clears a leftover phase or subgroup column from a variable chart.
+- Control Charts has an *Acceptance Chart…* entry: acceptance and rejection
+  limits derived from LSL/USL, the accepted and rejectable proportions and the
+  producer and consumer risks, with the decision of every subgroup mean and a
+  known or estimated sigma. It has its own help page in both interface
+  languages.
 - Quality Tools has a *Johnson Transformation…* command: it fits Johnson SU,
   SB or SL (or the best of the three by AIC), writes the standard-normal
   scores as a new worksheet column and reports the parameters with the
@@ -90,7 +95,9 @@ All notable changes to FreePlots are recorded here. The format follows
   comparison value, the one-sided and short samples and the removed missing
   row. The Z and Poisson tests cover the known sigma, the exact Poisson tails,
   the conditional two-sample test, the published goodness-of-fit example and
-  the invalid inputs.
+  the invalid inputs. The acceptance chart covers the published limits, the
+  estimated sigma, the subgroups with a trailing row, the one-sided
+  specifications and the invalid proportions and crossing limits.
 
 ## [0.1.1] - 2026-11-12
 

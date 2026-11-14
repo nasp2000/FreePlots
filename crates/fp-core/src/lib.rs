@@ -13,6 +13,7 @@
 #![forbid(unsafe_code)]
 #![deny(missing_debug_implementations)]
 
+pub mod acceptance;
 pub mod agreement;
 pub mod alt;
 pub mod anova;

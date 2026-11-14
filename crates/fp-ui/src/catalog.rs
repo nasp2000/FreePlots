@@ -996,6 +996,40 @@ impl UiCatalog {
                 "Uma normal padrão (média 0, desvio padrão 1) tem o pico em 0,399. Sombrear de \
                  −1 a 1 cobre 68,27 % da área; a curva acumulada atinge 0,5 na média."
             }
+            "Acceptance Chart" => "Carta de aceitação",
+            "Acceptance Chart…" => "Carta de aceitação…",
+            "Acceptance chart help" => "Ajuda da carta de aceitação",
+            "About acceptance charts…" => "Acerca das cartas de aceitação…",
+            "The acceptance chart plots the mean of each subgroup against limits \
+             derived from the specification. It accepts a process whose mean is inside \
+             the acceptance limits, rejects a process whose mean is beyond a rejection \
+             limit, and asks for another subgroup in between." => {
+                "A carta de aceitação desenha a média de cada subgrupo contra limites \
+                 derivados da especificação. Aceita um processo cuja média está dentro dos \
+                 limites de aceitação, rejeita um processo cuja média ultrapassa um limite de \
+                 rejeição e pede outro subgrupo entre os dois."
+            }
+            "One numeric column holds the measurements and at least one specification \
+             limit is required. The accepted proportion p1 and the rejectable proportion \
+             p2 are the proportions allowed outside a specification limit; the producer \
+             risk α and the consumer risk β set how often each decision may be wrong. \
+             Leave sigma blank to estimate it from the average subgroup range, or enter \
+             a known value. A subgroup size of 1 charts the individuals." => {
+                "Uma coluna numérica contém as medições e é exigido pelo menos um limite de \
+                 especificação. A proporção aceitável p1 e a proporção rejeitável p2 são as \
+                 proporções permitidas fora de um limite de especificação; o risco do produtor \
+                 α e o risco do consumidor β definem a frequência com que cada decisão pode \
+                 errar. Deixe sigma em branco para o estimar a partir da amplitude média dos \
+                 subgrupos, ou introduza um valor conhecido. Um tamanho de subgrupo de 1 \
+                 representa os indivíduos."
+            }
+            "With LSL 0 and USL 10, sigma 1, p1 0.001, p2 0.05, α 0.05 and β 0.10, the \
+             upper acceptance limit is 8.555 and the upper rejection limit is 9.637. A \
+             subgroup mean of 9.0 continues, 9.8 rejects and 5.0 accepts." => {
+                "Com LSL 0 e USL 10, sigma 1, p1 0,001, p2 0,05, α 0,05 e β 0,10, o limite \
+                 superior de aceitação é 8,555 e o limite superior de rejeição é 9,637. Uma \
+                 média de subgrupo de 9,0 continua, 9,8 rejeita e 5,0 aceita."
+            }
             "Title, subtitle, axis labels and footer" => {
                 "Título, subtítulo, rótulos dos eixos e rodapé"
             }

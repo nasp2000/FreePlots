@@ -1155,6 +1155,18 @@ impl FreePlotsApp {
                         self.open_cusum_dialog();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Acceptance Chart…"),
+                        None,
+                        ready,
+                    )
+                    .on_hover_text("Acceptance and rejection limits from the specification limits")
+                    .clicked()
+                    {
+                        self.open_acceptance_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Run Chart"), None, ready)
                         .on_hover_text("Median center line and runs tests")
                         .clicked()

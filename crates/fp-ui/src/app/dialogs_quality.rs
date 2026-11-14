@@ -449,6 +449,260 @@ impl FreePlotsApp {
         self.show_chart_dialog = true;
     }
 
+    /// Opens the acceptance chart dialog with the selected column.
+    pub fn open_acceptance_dialog(&mut self) {
+        if let Some(column) = &self.selected {
+            self.acceptance_column = column.clone();
+        }
+        self.show_acceptance_dialog = true;
+    }
+
+    /// Builds and runs the acceptance chart of the dialog.
+    pub fn run_acceptance_dialog(&mut self) {
+        if self.acceptance_column.is_empty() {
+            self.set_error("Select the measurement column");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        fn parse_limit(text: &str, name: &str) -> Result<Option<f64>, String> {
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                return Ok(None);
+            }
+            match trimmed.parse::<f64>() {
+                Ok(value) if value.is_finite() => Ok(Some(value)),
+                _ => Err(format!("{name} must be a finite number")),
+            }
+        }
+        let lower_spec = match parse_limit(&self.acceptance_lsl, "The lower specification") {
+            Ok(value) => value,
+            Err(error) => {
+                self.set_error(error);
+                return;
+            }
+        };
+        let upper_spec = match parse_limit(&self.acceptance_usl, "The upper specification") {
+            Ok(value) => value,
+            Err(error) => {
+                self.set_error(error);
+                return;
+            }
+        };
+        let sigma = match parse_limit(&self.acceptance_sigma, "The known sigma") {
+            Ok(None) => None,
+            Ok(Some(value)) if value > 0.0 => Some(value),
+            Ok(Some(_)) => {
+                self.set_error("The known sigma must be positive");
+                return;
+            }
+            Err(error) => {
+                self.set_error(error);
+                return;
+            }
+        };
+        let options = fp_core::acceptance::AcceptanceOptions {
+            lower_spec,
+            upper_spec,
+            subgroup: self.acceptance_subgroup,
+            sigma,
+            acceptable: self.acceptance_p1,
+            rejectable: self.acceptance_p2,
+            producer: self.acceptance_alpha,
+            consumer: self.acceptance_beta,
+        };
+        match fp_core::acceptance::analyze(&df, &self.acceptance_column, &options) {
+            Ok(output) => {
+                let label = format!("Acceptance chart: {}", self.acceptance_column);
+                self.apply_output(output, label);
+                self.show_acceptance_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Acceptance chart dialog.
+    pub(super) fn acceptance_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_acceptance_dialog {
+            return;
+        }
+        let columns: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|c| matches!(c.dtype(), DType::Float | DType::Integer))
+                    .map(|c| c.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_acceptance_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Acceptance Chart"))
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Column:");
+                    egui::ComboBox::from_id_salt("acceptance_column")
+                        .selected_text(if self.acceptance_column.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.acceptance_column.clone()
+                        })
+                        .width(200.0)
+                        .show_ui(ui, |ui| {
+                            for name in &columns {
+                                ui.selectable_value(
+                                    &mut self.acceptance_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                for (label_text, field, hint) in [
+                    (
+                        "Lower spec (LSL):",
+                        &mut self.acceptance_lsl,
+                        "blank = none",
+                    ),
+                    (
+                        "Upper spec (USL):",
+                        &mut self.acceptance_usl,
+                        "blank = none",
+                    ),
+                    (
+                        "Known sigma:",
+                        &mut self.acceptance_sigma,
+                        "blank = estimate",
+                    ),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(label_text);
+                        ui.text_edit_singleline(field)
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                        ui.small(hint);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Subgroup size:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.acceptance_subgroup)
+                            .range(1..=25)
+                            .speed(0.1),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                    ui.small("1 = individuals");
+                });
+                for (label_text, field, low) in [
+                    ("Accepted p1:", &mut self.acceptance_p1, 0.000_01),
+                    ("Rejectable p2:", &mut self.acceptance_p2, 0.000_1),
+                    ("Producer risk α:", &mut self.acceptance_alpha, 0.000_1),
+                    ("Consumer risk β:", &mut self.acceptance_beta, 0.000_1),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(label_text);
+                        ui.add(egui::DragValue::new(field).range(low..=0.49).speed(0.001))
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                ui.small(
+                    "Acceptance and rejection limits come from the specification: inside the \
+                     acceptance limits accept, beyond a rejection limit reject, between them \
+                     continue sampling.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About acceptance charts…"))
+                        .clicked()
+                    {
+                        self.show_acceptance_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            !self.acceptance_column.is_empty(),
+                            egui::Button::new(self.catalog().label("OK")),
+                        )
+                        .clicked()
+                    {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_acceptance_dialog = open && !run && !cancel;
+        if run {
+            self.run_acceptance_dialog();
+        }
+    }
+
+    /// Help page of the acceptance chart.
+    pub(super) fn acceptance_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_acceptance_help {
+            return;
+        }
+        let mut open = self.show_acceptance_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Acceptance chart help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The acceptance chart plots the mean of each subgroup against limits \
+                     derived from the specification. It accepts a process whose mean is inside \
+                     the acceptance limits, rejects a process whose mean is beyond a rejection \
+                     limit, and asks for another subgroup in between.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "One numeric column holds the measurements and at least one specification \
+                     limit is required. The accepted proportion p1 and the rejectable proportion \
+                     p2 are the proportions allowed outside a specification limit; the producer \
+                     risk α and the consumer risk β set how often each decision may be wrong. \
+                     Leave sigma blank to estimate it from the average subgroup range, or enter \
+                     a known value. A subgroup size of 1 charts the individuals.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "With LSL 0 and USL 10, sigma 1, p1 0.001, p2 0.05, α 0.05 and β 0.10, the \
+                     upper acceptance limit is 8.555 and the upper rejection limit is 9.637. A \
+                     subgroup mean of 9.0 continues, 9.8 rejects and 5.0 accepts.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_acceptance_help = open && !close;
+    }
+
     pub(super) fn control_chart_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_chart_dialog {
             return;
