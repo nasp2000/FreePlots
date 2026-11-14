@@ -2029,9 +2029,9 @@ mod unusual_observations {
             .min_by(|left, right| left.cp.total_cmp(&right.cp))
             .expect("subset");
         assert_eq!(best_cp.predictors, vec!["x1", "x2"]);
-        // Adjusted R² of a two-predictor model with n = 30.
+        // Adjusted R² of a two-predictor model (p = 3 parameters) with n = 30.
         let expected =
-            1.0 - (1.0 - best_adjusted.r_squared) * (model.n as f64 - 1.0) / (model.n as f64 - 2.0);
+            1.0 - (1.0 - best_adjusted.r_squared) * (model.n as f64 - 1.0) / (model.n as f64 - 3.0);
         assert!((best_adjusted.adjusted_r_squared - expected).abs() < 1e-9);
     }
 
