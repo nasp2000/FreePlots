@@ -543,7 +543,7 @@ impl FreePlotsApp {
                 }
             });
         });
-        self.show_id_dialog = open && !run;
+        self.show_id_dialog = open && !run && !cancel;
         if run {
             self.run_id_dialog();
         }
