@@ -1435,9 +1435,15 @@ mod tests {
         DataFrame::new(columns).expect("frame")
     }
 
+    /// A curved series with an irregular, deterministic noise so the
+    /// unit-root design is not degenerate.
     fn wavy(n: usize) -> Vec<f64> {
         (0..n)
-            .map(|index| (index as f64 * 0.7).sin() + 0.02 * index as f64)
+            .map(|index| {
+                (index as f64 * 0.7).sin()
+                    + 0.02 * index as f64
+                    + (((index * 37) % 17) as f64 - 8.0) * 0.05
+            })
             .collect()
     }
 
