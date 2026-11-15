@@ -107,6 +107,7 @@ fn label(column: &Column, row: usize) -> Option<String> {
 }
 
 /// Cholesky factor `L` of a symmetric positive definite matrix (`E = L Lᵀ`).
+#[allow(clippy::needless_range_loop)]
 fn cholesky(matrix: &[Vec<f64>]) -> Option<Vec<Vec<f64>>> {
     let n = matrix.len();
     let mut lower = vec![vec![0.0; n]; n];
@@ -117,7 +118,7 @@ fn cholesky(matrix: &[Vec<f64>]) -> Option<Vec<Vec<f64>>> {
                 sum -= lower[i][k] * lower[j][k];
             }
             if i == j {
-                if !(sum > 0.0) {
+                if sum <= 0.0 || sum.is_nan() {
                     return None;
                 }
                 lower[i][j] = sum.sqrt();
@@ -157,6 +158,7 @@ fn transpose(matrix: &[Vec<f64>]) -> Vec<Vec<f64>> {
     out
 }
 
+#[cfg(test)]
 fn determinant(matrix: &[Vec<f64>]) -> f64 {
     match cholesky(matrix) {
         Some(lower) => lower
@@ -652,6 +654,7 @@ mod tests {
         assert!(wilks.p.is_finite() && wilks.p > 0.05, "{}", wilks.p);
         let report = analyze(&df, &["y1".to_owned(), "y2".to_owned()], "g")
             .expect("report")
+            .results[0]
             .to_session_text();
         assert!(report.contains("MANOVA — 2 responses"), "{report}");
         assert!(report.contains("Pillai's trace"), "{report}");

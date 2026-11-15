@@ -551,9 +551,7 @@ mod tests {
         );
         assert!((components[1].percent - 5.0).abs() < 1e-9);
         assert!((components[2].percent - 10.0).abs() < 1e-9);
-        let text = analyze(&df, "y", "g", "s")
-            .expect("report")
-            .to_session_text();
+        let text = analyze(&df, "y", "g", "s").expect("report").results[0].to_session_text();
         assert!(text.contains("Nested ANOVA — response y"), "{text}");
         assert!(text.contains("s (g)"), "{text}");
         assert!(text.contains("Total"), "{text}");
@@ -583,9 +581,7 @@ mod tests {
         let model = fit(&df, "y", "g", "s").expect("nested");
         assert!(model.components[1].clamped, "{:?}", model.components[1]);
         assert!(model.components[1].estimate == 0.0);
-        let text = analyze(&df, "y", "g", "s")
-            .expect("report")
-            .to_session_text();
+        let text = analyze(&df, "y", "g", "s").expect("report").results[0].to_session_text();
         assert!(text.contains("negative"), "{text}");
     }
 
