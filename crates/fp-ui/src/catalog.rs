@@ -717,8 +717,6 @@ impl UiCatalog {
             "Moving Average…" => "Média móvel…",
             "Decomposition…" => "Decomposição…",
             "Exponential Smoothing…" => "Suavização exponencial…",
-            "ARIMA…" => "ARIMA…",
-            "ARIMA" => "ARIMA",
             "ARIMA help" => "Ajuda do ARIMA",
             "About ARIMA…" => "Acerca do ARIMA…",
             "ARIMA models a series with autoregressive (AR) and moving-average (MA) \
@@ -1514,6 +1512,8 @@ mod tests {
     /// Labels whose English and Portuguese spellings are the same.
     const SAME_IN_BOTH: &[&str] = &[
         "A+",
+        "ARIMA",
+        "ARIMA…",
         "A−",
         "ANOVA",
         "EWMA…",
