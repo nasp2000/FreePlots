@@ -1273,8 +1273,8 @@ mod tests {
         let mut y = vec![20.0; design.n_rows()];
         for (index, name) in factors.iter().enumerate() {
             let column = design.column(name).expect("factor");
-            for row in 0..design.n_rows() {
-                y[row] += 0.5 * effects[index] * cell(column, row).unwrap_or(0.0);
+            for (row, value) in y.iter_mut().enumerate() {
+                *value += 0.5 * effects[index] * cell(column, row).unwrap_or(0.0);
             }
         }
         let mut columns = vec![Column::new_f64("y", y)];
