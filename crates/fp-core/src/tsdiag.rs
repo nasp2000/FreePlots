@@ -37,7 +37,7 @@ use crate::plot::{
 };
 use crate::regression;
 use crate::report::{AnalysisResult, Item, standard_warnings};
-use crate::special::{chi_square_cdf, student_t_cdf};
+use crate::special::chi_square_cdf;
 use crate::workflow::AnalysisOutput;
 
 /// One lag of the autocorrelation function.
@@ -476,7 +476,6 @@ struct Ols {
     coefficients: Vec<f64>,
     standard_errors: Vec<f64>,
     t_values: Vec<f64>,
-    p_values: Vec<f64>,
 }
 
 fn ols(design: &[Vec<f64>], y: &[f64]) -> Result<Ols> {
@@ -526,21 +525,10 @@ fn ols(design: &[Vec<f64>], y: &[f64]) -> Result<Ols> {
             }
         })
         .collect();
-    let p_values: Vec<f64> = t_values
-        .iter()
-        .map(|t| {
-            if t.is_finite() {
-                (2.0 * student_t_cdf(-t.abs(), df as f64)).clamp(0.0, 1.0)
-            } else {
-                f64::NAN
-            }
-        })
-        .collect();
     Ok(Ols {
         coefficients,
         standard_errors,
         t_values,
-        p_values,
     })
 }
 
