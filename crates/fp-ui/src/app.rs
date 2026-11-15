@@ -1163,6 +1163,16 @@ pub struct FreePlotsApp {
     timeseries_model: fp_core::timeseries::DecompositionModel,
     timeseries_season: usize,
     timeseries_horizon: usize,
+    /// ARIMA dialog and help.
+    show_arima_dialog: bool,
+    show_arima_help: bool,
+    arima_column: String,
+    arima_p: usize,
+    arima_d: usize,
+    arima_q: usize,
+    arima_horizon: usize,
+    arima_confidence: f64,
+    arima_best: bool,
     show_alt_dialog: bool,
     alt_time: String,
     alt_stress: String,
@@ -4117,6 +4127,8 @@ impl FreePlotsApp {
         self.show_taguchi_design_dialog = false;
         self.show_taguchi_dialog = false;
         self.show_timeseries_dialog = false;
+        self.show_arima_dialog = false;
+        self.show_arima_help = false;
         self.show_tolerance_dialog = false;
         self.show_two_way_dialog = false;
         self.show_step_stress_dialog = false;

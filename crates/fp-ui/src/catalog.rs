@@ -717,6 +717,37 @@ impl UiCatalog {
             "Moving Average…" => "Média móvel…",
             "Decomposition…" => "Decomposição…",
             "Exponential Smoothing…" => "Suavização exponencial…",
+            "ARIMA…" => "ARIMA…",
+            "ARIMA" => "ARIMA",
+            "ARIMA help" => "Ajuda do ARIMA",
+            "About ARIMA…" => "Acerca do ARIMA…",
+            "ARIMA models a series with autoregressive (AR) and moving-average (MA) \
+             terms after differencing it d times. The report gives the coefficients, the \
+             information criteria, the forecasts and their intervals; the best order \
+             searches p, d and q from 0 to 2 and keeps the smallest AICc." => {
+                "O ARIMA modela uma série com termos autorregressivos (AR) e de médias móveis \
+                 (MA) depois de a diferenciar d vezes. O relatório dá os coeficientes, os \
+                 critérios de informação, as previsões e os intervalos; a melhor ordem procura p, \
+                 d e q de 0 a 2 e mantém o menor AICc."
+            }
+            "Choose one numeric column; non-finite values are excluded. Set the AR, \
+             differencing and MA orders, or let the best-order search choose them. The \
+             forecast periods are between 1 and 120. The estimation is conditional and \
+             the intervals ignore parameter uncertainty." => {
+                "Escolha uma coluna numérica; os valores não finitos são excluídos. Defina as \
+                 ordens AR, de diferenciação e MA, ou deixe a procura da melhor ordem escolhê-las. \
+                 Os períodos de previsão estão entre 1 e 120. A estimação é condicional e os \
+                 intervalos ignoram a incerteza dos parâmetros."
+            }
+            "A series with y(t) = 0.6·y(t−1) + noise is fitted by ARIMA(1,0,0); the AR \
+             coefficient is near 0.6 and the forecasts decay towards the mean. A random \
+             walk needs one difference: the forecast starts at the last value and the \
+             interval widens with the horizon." => {
+                "Uma série com y(t) = 0,6·y(t−1) + ruído é ajustada por ARIMA(1,0,0); o \
+                 coeficiente AR fica próximo de 0,6 e as previsões decaem para a média. Um passeio \
+                 aleatório precisa de uma diferença: a previsão começa no último valor e o \
+                 intervalo alarga com o horizonte."
+            }
             "Box-Behnken Design…" => "Delineamento Box-Behnken…",
             "Tolerance Interval…" => "Intervalo de tolerância…",
             "Chi-Square Test for Independence" => "Teste qui-quadrado de independência",

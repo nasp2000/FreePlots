@@ -183,6 +183,8 @@ impl FreePlotsApp {
         self.alt_dialog(&ctx);
         self.step_stress_dialog(&ctx);
         self.timeseries_dialog(&ctx);
+        self.arima_dialog(&ctx);
+        self.arima_help_window(&ctx);
         self.pca_dialog(&ctx);
         self.kmeans_dialog(&ctx);
         self.t2_dialog(&ctx);

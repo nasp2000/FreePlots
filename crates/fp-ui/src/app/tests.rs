@@ -2131,6 +2131,72 @@ fn timeseries_dialog_reaches_the_session() {
 }
 
 #[test]
+fn arima_dialog_reaches_the_session_and_plot() {
+    let mut app = FreePlotsApp::new();
+    let mut values = vec![0.0];
+    for index in 1..80 {
+        let noise = ((index * 37 % 11) as f64 - 5.0) * 0.1;
+        values.push(0.6 * values[index - 1] + noise);
+    }
+    let df = DataFrame::new(vec![Column::new_f64("y", values)]).expect("frame");
+    app.set_data(df, "arima.csv".to_owned());
+    app.open_arima_dialog();
+    app.arima_column = "y".to_owned();
+    app.arima_p = 1;
+    app.arima_d = 0;
+    app.arima_q = 0;
+    app.arima_horizon = 6;
+    app.run_arima_dialog();
+    let text = app.session_text();
+    assert!(text.contains("ARIMA(1,0,0)"), "{text}");
+    assert!(text.contains("Forecast"), "{text}");
+    assert!(app.plot().is_some());
+
+    app.open_arima_dialog();
+    app.arima_column = "y".to_owned();
+    app.arima_best = true;
+    app.run_arima_dialog();
+    assert!(
+        app.session_text().contains("Order (p,d,q)"),
+        "{}",
+        app.session_text()
+    );
+}
+
+#[test]
+fn the_arima_help_explains_the_model() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_arima_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About ARIMA…").click();
+    harness.run();
+    assert!(harness.state().show_arima_help);
+    harness.get_by_label("ARIMA help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("autoregressive (AR) and moving-average");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do ARIMA");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_arima_help);
+}
+
+#[test]
 fn logistic_dialog_reaches_the_session() {
     let mut app = FreePlotsApp::new();
     let mut response = Vec::new();

@@ -72,6 +72,10 @@ All notable changes to FreePlots are recorded here. The format follows
   cumulative curve for one of the ten distributions, with its parameters and an
   optional shaded area that reports the probability. It needs no worksheet
   data and has its own help page in both interface languages.
+- Time Series has an *ARIMA…* entry: AR(p), differencing d and MA(q) fitted
+  by conditional sum of squares, with forecasts, ψ-based intervals, AIC/AICc/
+  BIC and a best-order search over p, d, q from 0 to 2. It has its own help
+  page in both interface languages.
 - Gage R&R has an expanded crossed report: optional lower and upper
   specification limits add %Tolerance (with the repeatability and
   reproducibility percentages) and the published 10 %/30 % acceptance bands
@@ -151,7 +155,10 @@ All notable changes to FreePlots are recorded here. The format follows
   plots cover the two-factor panels and cube, a single factor, a three-factor
   cube with eight corners and the uncoded or empty factor lists. The expanded
   Gage R&R covers %Tolerance against the closed-form value, the acceptance
-  verdict table, the no-limits case and the inverted limits. The graph
+  verdict table, the no-limits case and the inverted limits. ARIMA covers the
+  AR coefficient of a synthetic series, a differenced random walk, an MA term,
+  the best-order table, the forecast table and the invalid orders, horizon,
+  confidence, short and constant series. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus

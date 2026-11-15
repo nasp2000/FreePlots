@@ -2449,6 +2449,40 @@ fn the_moving_average_dialog_rejects_a_window_longer_than_the_series() {
 }
 
 #[test]
+fn the_arima_dialog_fits_and_forecasts() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Time Series", "ARIMA…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("ARIMA(1,0,0)"), "{session}");
+    assert!(session.contains("Forecast"), "{session}");
+    assert!(ui.plot().is_some(), "a plot was produced");
+}
+
+#[test]
+fn the_arima_dialog_searches_the_best_order() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Time Series", "ARIMA…"]);
+    ui.click("Best order by AICc").expect("best");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("Order (p,d,q)"), "{session}");
+    assert!(session.contains("AICc"), "{session}");
+}
+
+#[test]
+fn the_arima_dialog_rejects_a_constant_series() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![Column::new_f64("y", vec![2.0; 20])]).expect("frame");
+    ui.load_frame(df, "constant.csv");
+    open(&mut ui, &["Stat", "Time Series", "ARIMA…"]);
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("residual variance"), "{}", ui.status());
+}
+
+#[test]
 fn the_decomposition_dialog_splits_the_series() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

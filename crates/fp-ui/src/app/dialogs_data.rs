@@ -703,6 +703,230 @@ impl FreePlotsApp {
             self.run_timeseries_dialog();
         }
     }
+    /// Opens the ARIMA dialog with the selected series.
+    pub fn open_arima_dialog(&mut self) {
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if numeric.is_empty() {
+            self.set_error("ARIMA needs a numeric series column");
+            return;
+        }
+        self.arima_column = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.show_arima_dialog = true;
+    }
+
+    /// Runs the ARIMA model of the dialog.
+    pub fn run_arima_dialog(&mut self) {
+        if self.arima_column.is_empty() {
+            self.set_error("Select the series column");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let confidence = (self.arima_confidence / 100.0).clamp(0.5, 0.999);
+        let outcome = if self.arima_best {
+            fp_core::arima::best(&df, &self.arima_column, self.arima_horizon, confidence)
+        } else {
+            fp_core::arima::analyze(
+                &df,
+                &self.arima_column,
+                fp_core::arima::ArimaOptions {
+                    p: self.arima_p,
+                    d: self.arima_d,
+                    q: self.arima_q,
+                    horizon: self.arima_horizon,
+                },
+                confidence,
+            )
+        };
+        match outcome {
+            Ok(output) => {
+                let label = format!("ARIMA: {}", self.arima_column);
+                self.apply_output(output, label);
+                self.show_arima_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// ARIMA dialog.
+    pub(super) fn arima_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_arima_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_arima_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("ARIMA"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Column:");
+                    egui::ComboBox::from_id_salt("arima_column")
+                        .selected_text(if self.arima_column.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.arima_column.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &names {
+                                ui.selectable_value(
+                                    &mut self.arima_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    ui.help_checkbox(&mut self.arima_best, "Best order by AICc");
+                });
+                ui.horizontal(|ui| {
+                    let p = ui.help_label("AR:");
+                    ui.add_enabled(
+                        !self.arima_best,
+                        egui::DragValue::new(&mut self.arima_p).range(0..=2),
+                    )
+                    .labelled_by(p.id)
+                    .hover_from(&p);
+                    let d = ui.help_label("Difference:");
+                    ui.add_enabled(
+                        !self.arima_best,
+                        egui::DragValue::new(&mut self.arima_d).range(0..=2),
+                    )
+                    .labelled_by(d.id)
+                    .hover_from(&d);
+                    let q = ui.help_label("MA:");
+                    ui.add_enabled(
+                        !self.arima_best,
+                        egui::DragValue::new(&mut self.arima_q).range(0..=2),
+                    )
+                    .labelled_by(q.id)
+                    .hover_from(&q);
+                });
+                ui.horizontal(|ui| {
+                    let horizon = ui.help_label("Forecast periods:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.arima_horizon).range(1..=120),
+                    )
+                    .labelled_by(horizon.id)
+                    .hover_from(&horizon);
+                    let confidence = ui.help_label("Confidence:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.arima_confidence)
+                            .range(50.0..=99.9)
+                            .speed(0.5)
+                            .suffix(" %"),
+                    )
+                    .labelled_by(confidence.id)
+                    .hover_from(&confidence);
+                });
+                ui.small(
+                    "Conditional sum of squares; the order search tries p, d and q from 0 to 2                      and keeps the smallest AICc.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About ARIMA…"))
+                        .clicked()
+                    {
+                        self.show_arima_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_arima_dialog = open && !run && !cancel;
+        if run {
+            self.run_arima_dialog();
+        }
+    }
+
+    /// Help page of ARIMA.
+    pub(super) fn arima_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_arima_help {
+            return;
+        }
+        let mut open = self.show_arima_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("ARIMA help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "ARIMA models a series with autoregressive (AR) and moving-average (MA) \
+                     terms after differencing it d times. The report gives the coefficients, the \
+                     information criteria, the forecasts and their intervals; the best order \
+                     searches p, d and q from 0 to 2 and keeps the smallest AICc.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose one numeric column; non-finite values are excluded. Set the AR, \
+                     differencing and MA orders, or let the best-order search choose them. The \
+                     forecast periods are between 1 and 120. The estimation is conditional and \
+                     the intervals ignore parameter uncertainty.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A series with y(t) = 0.6·y(t−1) + noise is fitted by ARIMA(1,0,0); the AR \
+                     coefficient is near 0.6 and the forecasts decay towards the mean. A random \
+                     walk needs one difference: the forecast starts at the last value and the \
+                     interval widens with the horizon.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_arima_help = open && !close;
+    }
+
     pub fn open_series_dialog(&mut self) {
         self.series_column = self.selected.clone().unwrap_or_default();
         self.series_time.clear();

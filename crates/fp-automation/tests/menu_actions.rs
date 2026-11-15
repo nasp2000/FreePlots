@@ -147,6 +147,7 @@ const MENU_PATHS: &[&[&str]] = &[
     &["Stat", "Multivariate", "Generalized Variance Chart…"],
     &["Stat", "Multivariate", "Multivariate EWMA Chart…"],
     &["Stat", "Multivariate", "K-Means Clustering…"],
+    &["Stat", "Time Series", "ARIMA…"],
     &["Stat", "Time Series", "Moving Average…"],
     &["Stat", "Time Series", "Decomposition…"],
     &["Stat", "Time Series", "Exponential Smoothing…"],

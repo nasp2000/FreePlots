@@ -963,6 +963,13 @@ impl FreePlotsApp {
                         self.open_timeseries_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("ARIMA…"), None, self.data.is_some())
+                        .on_hover_text("AR/MA/d model with forecasts and AICc order search")
+                        .clicked()
+                    {
+                        self.open_arima_dialog();
+                        ui.close();
+                    }
                 });
                 help_menu_button(ui, self.catalog().label("Regression"), |ui| {
                     if menu_text_item(ui, self.catalog().label("Regression…"), None, self.data.is_some())
