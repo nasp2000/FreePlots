@@ -91,7 +91,7 @@ pub fn tost_with_limits(
     upper: f64,
     confidence: f64,
 ) -> Result<Equivalence> {
-    if !lower.is_finite() || !upper.is_finite() || !(lower < upper) {
+    if !lower.is_finite() || !upper.is_finite() || lower >= upper {
         return Err(Error::InvalidParameter {
             name: "equivalence limits",
             value: upper,
@@ -591,7 +591,7 @@ pub fn crossover_fit(
     confidence: f64,
 ) -> Result<CrossoverFit> {
     validate_confidence(confidence)?;
-    if !lower.is_finite() || !upper.is_finite() || !(lower < upper) {
+    if !lower.is_finite() || !upper.is_finite() || lower >= upper {
         return Err(Error::InvalidParameter {
             name: "equivalence limits",
             value: upper,
@@ -787,7 +787,7 @@ pub fn crossover_fit(
     // Each subject difference has variance 2σ², so the residual mean square of
     // the crossover is half the pooled variance of the differences.
     let mse = pooled / 2.0;
-    if !(mse > 0.0) {
+    if mse <= 0.0 || mse.is_nan() {
         return Err(Error::ConstantSample);
     }
     let standard_error = (mse * (1.0 / counts[0] as f64 + 1.0 / counts[1] as f64) / 2.0).sqrt();
@@ -1229,14 +1229,14 @@ mod tests {
     fn balanced_crossover() -> DataFrame {
         let noise = [0.02, -0.02, 0.02, -0.02];
         let mut rows: Vec<(String, String, u8, String, f64)> = Vec::new();
-        for index in 0..4 {
+        for (index, offset) in noise.iter().enumerate() {
             let base = index as f64;
             rows.push((
                 format!("S{}", index + 1),
                 "TR".to_owned(),
                 1,
                 "T".to_owned(),
-                base + 0.2 + noise[index],
+                base + 0.2 + offset,
             ));
             rows.push((
                 format!("S{}", index + 1),
@@ -1246,7 +1246,7 @@ mod tests {
                 base + 1.0,
             ));
         }
-        for index in 0..4 {
+        for (index, offset) in noise.iter().enumerate() {
             let base = index as f64;
             rows.push((
                 format!("S{}", index + 5),
@@ -1260,7 +1260,7 @@ mod tests {
                 "RT".to_owned(),
                 2,
                 "T".to_owned(),
-                base + 1.0 + 0.2 + noise[index],
+                base + 1.0 + 0.2 + offset,
             ));
         }
         let borrowed: Vec<(&str, &str, u8, &str, f64)> = rows
