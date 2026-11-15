@@ -121,6 +121,7 @@ const MENU_PATHS: &[&[&str]] = &[
     &["Stat", "Basic Statistics", "Wilcoxon Signed-Rank…"],
     &["Stat", "Basic Statistics", "Kruskal-Wallis…"],
     &["Stat", "Basic Statistics", "Chi-Square Test…"],
+    &["Stat", "Basic Statistics", "Analysis of Means…"],
     &["Stat", "Basic Statistics", "Two-Way ANOVA…"],
     &["Stat", "Basic Statistics", "Curve Fit…"],
     &["Stat", "Basic Statistics", "Correlation Matrix…"],

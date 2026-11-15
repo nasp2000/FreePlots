@@ -3698,6 +3698,47 @@ fn the_distribution_comparison_rejects_a_constant_column() {
 }
 
 #[test]
+fn the_anom_dialog_reports_the_levels() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "Analysis of Means…"]);
+    ui.select("Factor:", "batch").expect("factor");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("ANOM — response weight by batch"),
+        "{session}"
+    );
+    assert!(session.contains("Outside the limits"), "{session}");
+    assert!(ui.plot().is_some(), "an ANOM chart was produced");
+}
+
+#[test]
+fn the_anom_dialog_reads_alpha() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "Analysis of Means…"]);
+    ui.select("Factor:", "batch").expect("factor");
+    ui.set_text("Alpha:", "1").expect("alpha");
+    ui.click("Run").expect("run");
+    assert!(ui.session().contains("α = 0.010"), "{}", ui.session());
+}
+
+#[test]
+fn the_anom_dialog_rejects_the_same_column_twice() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Basic Statistics", "Analysis of Means…"]);
+    ui.select("Factor:", "weight").expect("factor");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("must be different columns"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_interval_plot_dialog_draws_the_groups() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

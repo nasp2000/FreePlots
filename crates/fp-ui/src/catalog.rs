@@ -124,6 +124,43 @@ impl UiCatalog {
             "Curve Fit…" => "Ajuste de curva…",
             "Chi-Square Test…" => "Teste qui-quadrado…",
             "Two-Way ANOVA…" => "ANOVA de dois factores…",
+            "Analysis of Means…" => "Análise de médias…",
+            "Analysis of Means" => "Análise de médias",
+            "Analysis of means help" => "Ajuda da análise de médias",
+            "About analysis of means…" => "Acerca da análise de médias…",
+            "The analysis of means compares every level mean with the weighted grand \
+             mean through simultaneous decision limits. A level outside the limits is \
+             a real difference from the overall mean; the limits hold together at the \
+             stated alpha, so the chart answers the same question as the F test and \
+             shows which levels differ." => {
+                "A análise de médias compara cada média de nível com a média global ponderada \
+                 através de limites de decisão simultâneos. Um nível fora dos limites é uma \
+                 diferença real face à média geral; os limites valem em conjunto para o alfa \
+                 indicado, pelo que o gráfico responde à mesma pergunta do teste F e mostra \
+                 quais os níveis que diferem."
+            }
+            "Choose a numeric response and a factor with at least two levels of two or \
+             more observations. The limits are the weighted grand mean plus or minus \
+             h times the standard error √(MSE·(N − nᵢ)/(N·nᵢ)); with equal sizes \
+             that is √(MSE·(k − 1)/N). The critical value h is the conservative \
+             Bonferroni-t value t(1 − alpha/(2k), N − k), an approximation of the \
+             studentized maximum modulus tables." => {
+                "Escolha uma resposta numérica e um factor com pelo menos dois níveis de dois \
+                 ou mais valores. Os limites são a média global ponderada mais ou menos h \
+                 vezes o erro padrão √(MSE·(N − nᵢ)/(N·nᵢ)); com tamanhos iguais é \
+                 √(MSE·(k − 1)/N). O valor crítico h é o valor t de Bonferroni \
+                 t(1 − alfa/(2k), N − k), conservador, uma aproximação das tabelas da \
+                 studentized maximum modulus."
+            }
+            "Three levels with three observations each, means 11, 14 and 21 and MSE \
+             one, at five percent: h is about 3.29 and the limits are 15.33 ± 1.55. \
+             The level with mean 21 lies above the upper limit and the level with mean \
+             11 below the lower limit, so both differ from the grand mean." => {
+                "Três níveis com três observações cada, médias 11, 14 e 21 e MSE igual a um, \
+                 a cinco por cento: h é cerca de 3,29 e os limites são 15,33 ± 1,55. O nível \
+                 com média 21 fica acima do limite superior e o nível com média 11 abaixo do \
+                 limite inferior, pelo que ambos diferem da média global."
+            }
             "One-Way ANOVA…" => "ANOVA de um factor…",
             "Power and Sample Size…" => "Potência e tamanho amostral…",
             // Quality tools.

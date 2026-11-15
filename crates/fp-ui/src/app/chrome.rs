@@ -171,6 +171,8 @@ impl FreePlotsApp {
         self.calc_dialog(&ctx);
         self.sheet_dialog(&ctx);
         self.interval_dialog(&ctx);
+        self.anom_dialog(&ctx);
+        self.anom_help_window(&ctx);
         self.matrix_dialog(&ctx);
         self.graph_gallery_dialog(&ctx);
         self.graph_gallery_help_window(&ctx);

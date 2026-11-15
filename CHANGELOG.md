@@ -76,6 +76,11 @@ All notable changes to FreePlots are recorded here. The format follows
   by conditional sum of squares, with forecasts, ψ-based intervals, AIC/AICc/
   BIC and a best-order search over p, d, q from 0 to 2. It has its own help
   page in both interface languages.
+- ANOVA has an *Analysis of Means…* entry: every level mean against
+  simultaneous decision limits around the weighted grand mean, with unequal
+  group sizes and an ANOM chart. The critical value is the conservative
+  Bonferroni-t approximation of the studentized maximum modulus, stated in the
+  report and the help page.
 - DOE has a *General Factorial Design…* entry: a full factorial for two to six
   factors with two to ten levels each (coded from −1 to +1), replicates and
   randomised run order. Screening of many two-level factors remains the
@@ -191,7 +196,9 @@ All notable changes to FreePlots are recorded here. The format follows
   maximin corners, augmentation that keeps the existing runs and the invalid
   run count, duplicate factor, singular and uncoded cases. The general
   factorial covers the six mixed-level runs, the full level coding, replicates
-  and the mismatched level list. The graph
+  and the mismatched level list. The analysis of means covers the balanced and
+  the unequal-size limits, an out-of-limits level, the missing-value count and
+  the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus

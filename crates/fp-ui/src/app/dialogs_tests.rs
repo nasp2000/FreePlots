@@ -1987,6 +1987,189 @@ impl FreePlotsApp {
             self.run_two_way_dialog();
         }
     }
+    /// Opens the analysis of means dialog.
+    pub fn open_anom_dialog(&mut self) {
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        self.anom_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric.first().cloned().unwrap_or_default());
+        self.anom_factor = self
+            .data
+            .as_ref()
+            .and_then(|df| {
+                df.columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .find(|name| *name != self.anom_response)
+            })
+            .unwrap_or_default();
+        self.show_anom_dialog = true;
+    }
+
+    /// Runs the analysis of means of the dialog.
+    pub fn run_anom_dialog(&mut self) {
+        if self.anom_response.is_empty() || self.anom_factor.is_empty() {
+            self.set_error("Select the response and the factor columns");
+            return;
+        }
+        if self.anom_response == self.anom_factor {
+            self.set_error("The response and the factor must be different columns");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let alpha = (self.anom_alpha / 100.0).clamp(0.0001, 0.9999);
+        match fp_core::anom::analyze(&df, &self.anom_response, &self.anom_factor, alpha) {
+            Ok(output) => {
+                let label = format!(
+                    "Analysis of Means: {} by {}",
+                    self.anom_response, self.anom_factor
+                );
+                self.apply_output(output, label);
+                self.show_anom_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Analysis of means dialog.
+    pub(super) fn anom_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_anom_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| df.columns().iter().map(|c| c.name().to_owned()).collect())
+            .unwrap_or_default();
+        let mut open = self.show_anom_dialog;
+        let mut run = false;
+        dialog_window(self.catalog().label("Analysis of Means"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(470.0)
+            .show(ctx, |ui| {
+                for (title, value) in [
+                    ("Response:", &mut self.anom_response),
+                    ("Factor:", &mut self.anom_factor),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.label(title);
+                        egui::ComboBox::from_id_salt(format!("anom_{title}"))
+                            .selected_text(if value.is_empty() {
+                                "—".to_owned()
+                            } else {
+                                value.clone()
+                            })
+                            .show_ui(ui, |ui| {
+                                for name in &names {
+                                    ui.selectable_value(value, name.clone(), name.as_str());
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Alpha:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.anom_alpha)
+                            .range(0.1..=50.0)
+                            .speed(0.1)
+                            .suffix(" %"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.small(
+                    "Each level mean against simultaneous decision limits around the weighted \
+                     grand mean.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About analysis of means…"))
+                        .clicked()
+                    {
+                        self.show_anom_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                if ui.help_button(self.catalog().label("Run")).clicked() {
+                    run = true;
+                }
+            });
+        self.show_anom_dialog = open && !run;
+        if run {
+            self.run_anom_dialog();
+        }
+    }
+
+    /// Help page of the analysis of means.
+    pub(super) fn anom_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_anom_help {
+            return;
+        }
+        let mut open = self.show_anom_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Analysis of means help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The analysis of means compares every level mean with the weighted grand \
+                     mean through simultaneous decision limits. A level outside the limits is \
+                     a real difference from the overall mean; the limits hold together at the \
+                     stated alpha, so the chart answers the same question as the F test and \
+                     shows which levels differ.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose a numeric response and a factor with at least two levels of two or \
+                     more observations. The limits are the weighted grand mean plus or minus \
+                     h times the standard error √(MSE·(N − nᵢ)/(N·nᵢ)); with equal sizes \
+                     that is √(MSE·(k − 1)/N). The critical value h is the conservative \
+                     Bonferroni-t value t(1 − alpha/(2k), N − k), an approximation of the \
+                     studentized maximum modulus tables.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Three levels with three observations each, means 11, 14 and 21 and MSE \
+                     one, at five percent: h is about 3.29 and the limits are 15.33 ± 1.55. \
+                     The level with mean 21 lies above the upper limit and the level with mean \
+                     11 below the lower limit, so both differ from the grand mean.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_anom_help = open && !close;
+    }
+
     pub fn open_interval_dialog(&mut self) {
         let numeric: Vec<String> = self
             .data

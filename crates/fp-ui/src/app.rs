@@ -1230,6 +1230,12 @@ pub struct FreePlotsApp {
     interval_response: String,
     interval_factor: String,
     interval_confidence: f64,
+    /// Analysis of means dialog, help and inputs.
+    show_anom_dialog: bool,
+    show_anom_help: bool,
+    anom_response: String,
+    anom_factor: String,
+    anom_alpha: f64,
     show_sheet_dialog: bool,
     sheet_path: String,
     sheet_names: Vec<String>,

@@ -16,6 +16,7 @@
 pub mod acceptance;
 pub mod agreement;
 pub mod alt;
+pub mod anom;
 pub mod anova;
 pub mod arima;
 pub mod attrcap;

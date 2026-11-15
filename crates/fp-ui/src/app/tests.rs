@@ -4646,6 +4646,73 @@ fn interval_dialog_reaches_the_session() {
 }
 
 #[test]
+fn anom_dialog_reaches_the_session_and_chart() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64(
+            "y",
+            vec![10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 20.0, 21.0, 22.0],
+        ),
+        Column::new_text(
+            "g",
+            ["A", "A", "A", "B", "B", "B", "C", "C", "C"]
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+        ),
+    ])
+    .expect("frame");
+    app.set_data(df, "groups.csv".to_owned());
+    app.open_anom_dialog();
+    app.anom_response = "y".to_owned();
+    app.anom_factor = "g".to_owned();
+    app.anom_alpha = 5.0;
+    app.run_anom_dialog();
+    let text = app.session_text();
+    assert!(text.contains("ANOM — response y by g"), "{text}");
+    assert!(text.contains("Above upper limit"), "{text}");
+    assert!(text.contains("Below lower limit"), "{text}");
+    assert!(app.plot().is_some());
+
+    app.open_anom_dialog();
+    app.anom_factor = "y".to_owned();
+    app.run_anom_dialog();
+    assert!(app.status.contains("different"), "{}", app.status);
+}
+
+#[test]
+fn the_anom_help_explains_the_limits() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_anom_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About analysis of means…").click();
+    harness.run();
+    assert!(harness.state().show_anom_help);
+    harness.get_by_label("Analysis of means help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("simultaneous decision limits");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da análise de médias");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_anom_help);
+}
+
+#[test]
 fn the_tolerance_dialog_offers_the_distribution_free_method() {
     let mut app = FreePlotsApp::new();
     let values: Vec<f64> = (1..=120).map(|index| 40.0 + index as f64 * 0.5).collect();
@@ -7357,6 +7424,7 @@ fn every_dialog_renders_without_panicking() {
             ("open_dotplot_dialog", FreePlotsApp::open_dotplot_dialog),
             ("open_matrix_dialog", FreePlotsApp::open_matrix_dialog),
             ("open_interval_dialog", FreePlotsApp::open_interval_dialog),
+            ("open_anom_dialog", FreePlotsApp::open_anom_dialog),
             ("open_calc_dialog", FreePlotsApp::open_calc_dialog),
             ("open_pareto_dialog", FreePlotsApp::open_pareto_dialog),
             ("open_ordinal_dialog", FreePlotsApp::open_ordinal_dialog),

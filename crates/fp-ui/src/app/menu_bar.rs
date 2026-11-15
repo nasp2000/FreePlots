@@ -734,6 +734,13 @@ impl FreePlotsApp {
                         self.open_two_way_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Analysis of Means…"), None, ready)
+                        .on_hover_text("Level means against simultaneous decision limits")
+                        .clicked()
+                    {
+                        self.open_anom_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Curve Fit…"), None, ready)
                         .on_hover_text("Polynomial, exponential or power fit of a response")
                         .clicked()
