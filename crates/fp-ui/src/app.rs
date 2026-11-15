@@ -4132,6 +4132,8 @@ impl FreePlotsApp {
         self.show_reference_line = false;
         self.show_format_dialog = false;
         self.show_interval_dialog = false;
+        self.show_anom_dialog = false;
+        self.show_anom_help = false;
         self.show_km_dialog = false;
         self.show_kmeans_dialog = false;
         self.show_linearity_dialog = false;
