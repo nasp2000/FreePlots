@@ -63,6 +63,7 @@ pub struct PlsFit {
 }
 
 /// Solves a small dense linear system with partial pivoting.
+#[allow(clippy::needless_range_loop)]
 fn solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
     let n = a.len();
     if n == 0 || b.len() != n {
