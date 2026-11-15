@@ -327,8 +327,17 @@ pub fn fit(df: &DataFrame, responses: &[String], factor: &str) -> Result<ManovaF
     let (mut eigenvalues, _) = jacobi(&transformed).ok_or_else(|| {
         Error::Unsupported("the eigenvalue decomposition did not converge".to_owned())
     })?;
+    // The decomposition gives the eigenvalues θ of E⁻¹H; the statistics use
+    // λ = θ/(1 + θ), which lies in [0, 1).
+    for eigenvalue in &mut eigenvalues {
+        let theta = if eigenvalue.is_finite() {
+            eigenvalue.max(0.0)
+        } else {
+            0.0
+        };
+        *eigenvalue = theta / (1.0 + theta);
+    }
     eigenvalues.sort_by(|a, b| b.total_cmp(a));
-    // λ = θ/(1 + θ) with θ ≥ 0, so λ ∈ [0, 1).
     for eigenvalue in &mut eigenvalues {
         *eigenvalue = eigenvalue.clamp(0.0, 1.0 - 1e-12);
     }
@@ -666,7 +675,7 @@ mod tests {
         // Wilks and Pillai F tests exact.
         let df = frame(vec![
             Column::new_f64("y1", vec![1.0, 2.0, 3.0, 5.0, 6.0, 7.0]),
-            Column::new_f64("y2", vec![2.0, 3.0, 4.0, 8.0, 9.0, 10.0]),
+            Column::new_f64("y2", vec![2.0, 3.0, 4.0, 8.0, 9.0, 11.0]),
             Column::new_text(
                 "g",
                 ["A", "A", "A", "B", "B", "B"]
