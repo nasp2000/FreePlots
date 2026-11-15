@@ -3022,7 +3022,7 @@ mod tests {
         .expect("design");
         assert_eq!(plain.n_rows(), 14);
         let config = MixtureDesignConfig {
-            factors: ["A".to_owned(), "B".to_owned(), "C".to_owned()],
+            factors: vec!["A".to_owned(), "B".to_owned(), "C".to_owned()],
             kind: MixtureDesignKind::Centroid,
             degree: 2,
             lower: None,
