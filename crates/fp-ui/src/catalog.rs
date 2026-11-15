@@ -813,11 +813,10 @@ impl UiCatalog {
             }
             "Two factors with three and two levels give six runs; adding one replicate \
              doubles them. For many two-level factors use the Plackett–Burman design \
-             instead; definitive screening designs are not implemented in this increment." => {
+             instead; definitive screening designs are outside this increment." => {
                 "Dois factores com três e dois níveis dão seis corridas; acrescentar uma réplica \
                  duplica-as. Para muitos factores de dois níveis use o delineamento de \
-                 Plackett–Burman; os desenhos definitivos de screening não estão implementados \
-                 neste incremento."
+                 Plackett–Burman; os desenhos definitivos de screening ficam fora deste incremento."
             }
             "General Factorial Design" => "Delineamento fatorial geral",
             "General factorial help" => "Ajuda do fatorial geral",

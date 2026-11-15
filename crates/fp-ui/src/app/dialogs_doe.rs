@@ -1163,7 +1163,7 @@ impl FreePlotsApp {
                 ui.label(self.catalog().label(
                     "Two factors with three and two levels give six runs; adding one replicate \
                      doubles them. For many two-level factors use the Plackett–Burman design \
-                     instead; definitive screening designs are not implemented in this increment.",
+                     instead; definitive screening designs are outside this increment.",
                 ));
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
