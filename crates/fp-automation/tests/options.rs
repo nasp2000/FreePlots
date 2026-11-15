@@ -3878,6 +3878,84 @@ fn the_anom_dialog_rejects_the_same_column_twice() {
     );
 }
 
+/// Long-format 2x2 crossover: eight subjects, a period effect of one and a
+/// treatment difference of 0.2 with an alternating noise.
+fn crossover_frame() -> DataFrame {
+    let noise = [0.02, -0.02, 0.02, -0.02];
+    let mut y = Vec::new();
+    let mut subject = Vec::new();
+    let mut sequence = Vec::new();
+    let mut period = Vec::new();
+    let mut treatment = Vec::new();
+    for index in 0..4 {
+        let base = index as f64;
+        y.push(base + 0.2 + noise[index]);
+        subject.push(format!("S{}", index + 1));
+        sequence.push("TR".to_owned());
+        period.push(1.0);
+        treatment.push("T".to_owned());
+        y.push(base + 1.0);
+        subject.push(format!("S{}", index + 1));
+        sequence.push("TR".to_owned());
+        period.push(2.0);
+        treatment.push("R".to_owned());
+    }
+    for index in 0..4 {
+        let base = index as f64;
+        y.push(base);
+        subject.push(format!("S{}", index + 5));
+        sequence.push("RT".to_owned());
+        period.push(1.0);
+        treatment.push("R".to_owned());
+        y.push(base + 1.2 + noise[index]);
+        subject.push(format!("S{}", index + 5));
+        sequence.push("RT".to_owned());
+        period.push(2.0);
+        treatment.push("T".to_owned());
+    }
+    DataFrame::new(vec![
+        Column::new_f64("y", y),
+        Column::new_text("subject", subject),
+        Column::new_text("sequence", sequence),
+        Column::new_f64("period", period),
+        Column::new_text("treatment", treatment),
+    ])
+    .expect("crossover frame")
+}
+
+#[test]
+fn the_crossover_equivalence_dialog_reports_the_decision() {
+    let mut ui = Automation::new();
+    ui.load_frame(crossover_frame(), "crossover.csv");
+    open(
+        &mut ui,
+        &["Stat", "Basic Statistics", "2×2 Crossover Equivalence…"],
+    );
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("2×2 Crossover Equivalence — response y"),
+        "{session}"
+    );
+    assert!(session.contains("Sequence (carryover)"), "{session}");
+    assert!(session.contains("equivalent"), "{session}");
+    assert!(ui.status().contains("2x2 crossover"), "{}", ui.status());
+}
+
+#[test]
+fn the_crossover_equivalence_dialog_rejects_crossing_limits() {
+    let mut ui = Automation::new();
+    ui.load_frame(crossover_frame(), "crossover.csv");
+    open(
+        &mut ui,
+        &["Stat", "Basic Statistics", "2×2 Crossover Equivalence…"],
+    );
+    ui.set_text("Lower limit:", "1").expect("lower");
+    ui.set_text("Upper limit:", "-1").expect("upper");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("below the upper"), "{}", ui.status());
+}
+
 #[test]
 fn the_interval_plot_dialog_draws_the_groups() {
     let mut ui = Automation::new();

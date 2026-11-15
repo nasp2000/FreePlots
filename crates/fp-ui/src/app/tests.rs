@@ -10703,3 +10703,104 @@ fn the_tsdiag_help_explains_the_commands() {
     harness.run();
     assert!(!harness.state().show_tsdiag_help);
 }
+
+#[test]
+fn crossover_equivalence_dialog_reaches_the_session() {
+    let noise = [0.02, -0.02, 0.02, -0.02];
+    let mut y = Vec::new();
+    let mut subject = Vec::new();
+    let mut sequence = Vec::new();
+    let mut period = Vec::new();
+    let mut treatment = Vec::new();
+    for index in 0..4 {
+        let base = index as f64;
+        y.push(base + 0.2 + noise[index]);
+        subject.push(format!("S{}", index + 1));
+        sequence.push("TR".to_owned());
+        period.push(1.0);
+        treatment.push("T".to_owned());
+        y.push(base + 1.0);
+        subject.push(format!("S{}", index + 1));
+        sequence.push("TR".to_owned());
+        period.push(2.0);
+        treatment.push("R".to_owned());
+        y.push(base);
+        subject.push(format!("S{}", index + 5));
+        sequence.push("RT".to_owned());
+        period.push(1.0);
+        treatment.push("R".to_owned());
+        y.push(base + 1.2 + noise[index]);
+        subject.push(format!("S{}", index + 5));
+        sequence.push("RT".to_owned());
+        period.push(2.0);
+        treatment.push("T".to_owned());
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("y", y),
+        Column::new_text("subject", subject),
+        Column::new_text("sequence", sequence),
+        Column::new_f64("period", period),
+        Column::new_text("treatment", treatment),
+    ])
+    .expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "crossover.csv".to_owned());
+    app.open_crossover_dialog();
+    app.crossover_response = "y".to_owned();
+    app.crossover_subject = "subject".to_owned();
+    app.crossover_sequence = "sequence".to_owned();
+    app.crossover_period = "period".to_owned();
+    app.crossover_treatment = "treatment".to_owned();
+    app.crossover_lower = "-0.5".to_owned();
+    app.crossover_upper = "0.5".to_owned();
+    app.crossover_confidence = 95.0;
+    app.run_crossover_dialog();
+    let text = app.session_text();
+    assert!(
+        text.contains("2×2 Crossover Equivalence — response y"),
+        "{text}"
+    );
+    assert!(text.contains("Sequence (carryover)"), "{text}");
+    assert!(text.contains("equivalent"), "{text}");
+    assert!(app.plot().is_none(), "the crossover has no chart");
+
+    app.open_crossover_dialog();
+    app.crossover_lower = "1".to_owned();
+    app.crossover_upper = "-1".to_owned();
+    app.run_crossover_dialog();
+    assert!(app.status.contains("below the upper"), "{}", app.status);
+}
+
+#[test]
+fn the_crossover_help_explains_the_design() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_crossover_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness
+        .get_by_label("About 2×2 crossover equivalence…")
+        .click();
+    harness.run();
+    assert!(harness.state().show_crossover_help);
+    harness.get_by_label("2×2 crossover equivalence help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("one in each period");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da equivalência cruzada 2×2");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_crossover_help);
+}

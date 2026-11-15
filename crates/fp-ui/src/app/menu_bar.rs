@@ -629,6 +629,18 @@ impl FreePlotsApp {
                         self.open_equivalence_dialog(EquivalenceKind::OneSample);
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("2×2 Crossover Equivalence…"),
+                        None,
+                        ready,
+                    )
+                    .on_hover_text("Crossed two-period design with a TOST on the differences")
+                    .clicked()
+                    {
+                        self.open_crossover_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Chi-Square Goodness-of-Fit…"), None, ready)
                         .on_hover_text("Observed counts against expected counts")
                         .clicked()

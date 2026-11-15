@@ -113,6 +113,60 @@ impl UiCatalog {
             "2-Sample t…" => "t de 2 amostras…",
             "Paired t…" => "t pareado…",
             "Equivalence Test…" => "Teste de equivalência…",
+            "2×2 Crossover Equivalence…" => "Equivalência cruzada 2×2…",
+            "2×2 Crossover Equivalence" => "Equivalência cruzada 2×2",
+            "2×2 crossover equivalence help" => "Ajuda da equivalência cruzada 2×2",
+            "About 2×2 crossover equivalence…" => "Acerca da equivalência cruzada 2×2…",
+            "Subject:" => "Sujeito:",
+            "Sequence:" => "Sequência:",
+            "Period:" => "Período:",
+            "Treatment:" => "Tratamento:",
+            "Lower limit:" => "Limite inferior:",
+            "Upper limit:" => "Limite superior:",
+            "Confidence:" => "Confiança:",
+            "One row per observation; the two sequences run the treatments in opposite \
+             orders and the TOST decides equivalence inside the limits." => {
+                "Uma linha por observação; as duas sequências aplicam os tratamentos em ordem \
+                 oposta e o TOST decide a equivalência dentro dos limites."
+            }
+            "A 2×2 crossover gives every subject both treatments, one in each period, \
+             and the sequences run them in opposite orders. The within-subject \
+             difference removes the subject effect; its mean over the two sequences \
+             estimates the treatment difference, and the two one-sided tests decide \
+             whether that difference is inside the equivalence limits. The analysis of \
+             variance shows the sequence (the differential carryover), the period and \
+             the treatment rows." => {
+                "Um cruzamento 2×2 dá os dois tratamentos a cada sujeito, um em cada período, e \
+                 as sequências aplicam-nos em ordem oposta. A diferença intra-sujeito remove o \
+                 efeito do sujeito; a sua média nas duas sequências estima a diferença entre \
+                 tratamentos, e os dois testes unilaterais decidem se essa diferença está dentro \
+                 dos limites de equivalência. A análise de variância mostra as linhas da \
+                 sequência (o carryover diferencial), do período e do tratamento."
+            }
+            "Use one row per observation with the response, the subject, the sequence, \
+             the period and the treatment. Every subject needs both periods with the two \
+             treatments in the order of its sequence, and the two sequences must be \
+             opposite. The first treatment label is the reference and the difference is \
+             test − reference. The limits may be asymmetric; the confidence level of the \
+             decision reports the (1 − 2α) interval, so 95 % gives the 90 % interval." => {
+                "Use uma linha por observação com a resposta, o sujeito, a sequência, o período \
+                 e o tratamento. Cada sujeito precisa dos dois períodos com os dois tratamentos \
+                 na ordem da sua sequência, e as duas sequências têm de ser opostas. A primeira \
+                 etiqueta de tratamento é a referência e a diferença é teste − referência. Os \
+                 limites podem ser assimétricos; o nível de confiança da decisão reporta o \
+                 intervalo (1 − 2α), pelo que 95 % dá o intervalo a 90 %."
+            }
+            "Eight subjects, four in each sequence, with a period effect of one and a \
+             treatment difference of 0.2, give an estimate of 0.2 and a period row that \
+             is significant. A carryover that delays the second period of one sequence \
+             inflates the estimate and shows up in the sequence row, because the two \
+             periods cannot separate it from the treatment × period interaction." => {
+                "Oito sujeitos, quatro em cada sequência, com um efeito de período de um e uma \
+                 diferença de tratamentos de 0,2, dão uma estimativa de 0,2 e uma linha de \
+                 período significativa. Um carryover que atrasa o segundo período de uma \
+                 sequência inflaciona a estimativa e aparece na linha da sequência, porque os \
+                 dois períodos não o separam da interacção tratamento × período."
+            }
             "Mann-Whitney…" => "Mann-Whitney…",
             "Wilcoxon Signed-Rank…" => "Wilcoxon de sinais ordenados…",
             "Kruskal-Wallis…" => "Kruskal-Wallis…",

@@ -406,6 +406,271 @@ impl FreePlotsApp {
             self.run_equivalence_dialog();
         }
     }
+    /// Opens the 2x2 crossover equivalence dialog.
+    pub fn open_crossover_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        let all: Vec<String> = df
+            .columns()
+            .iter()
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.is_empty() || all.len() < 5 {
+            self.set_error("The crossover needs a response and four design columns");
+            return;
+        }
+        self.crossover_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        let others: Vec<String> = all
+            .into_iter()
+            .filter(|name| *name != self.crossover_response)
+            .collect();
+        for (field, index) in [
+            (&mut self.crossover_subject, 0),
+            (&mut self.crossover_sequence, 1),
+            (&mut self.crossover_period, 2),
+            (&mut self.crossover_treatment, 3),
+        ] {
+            *field = others.get(index).cloned().unwrap_or_default();
+        }
+        self.show_crossover_dialog = true;
+    }
+
+    /// Runs the 2x2 crossover equivalence test of the dialog.
+    pub fn run_crossover_dialog(&mut self) {
+        let Ok(lower) = self.crossover_lower.trim().parse::<f64>() else {
+            self.set_error("The lower limit must be a number");
+            return;
+        };
+        let Ok(upper) = self.crossover_upper.trim().parse::<f64>() else {
+            self.set_error("The upper limit must be a number");
+            return;
+        };
+        if lower.is_nan() || upper.is_nan() || lower >= upper {
+            self.set_error("The lower limit must be below the upper limit");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let confidence = (self.crossover_confidence / 100.0).clamp(0.5, 0.999);
+        match fp_core::equivalence::crossover(
+            &df,
+            &self.crossover_response,
+            &self.crossover_subject,
+            &self.crossover_sequence,
+            &self.crossover_period,
+            &self.crossover_treatment,
+            lower,
+            upper,
+            confidence,
+        ) {
+            Ok(result) => {
+                let label = format!("2x2 crossover: {}", self.crossover_response);
+                self.apply_output(
+                    fp_core::workflow::AnalysisOutput {
+                        results: vec![result],
+                        plot: None,
+                    },
+                    label,
+                );
+                self.show_crossover_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Dialog of the 2x2 crossover equivalence test.
+    pub(super) fn crossover_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_crossover_dialog {
+            return;
+        }
+        let (numeric, all_columns): (Vec<String>, Vec<String>) = self
+            .data
+            .as_ref()
+            .map(|df| {
+                let numeric = df
+                    .columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                let all = df
+                    .columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                (numeric, all)
+            })
+            .unwrap_or_default();
+        let mut open = self.show_crossover_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("2×2 Crossover Equivalence"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(470.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Response:"));
+                    egui::ComboBox::from_id_salt("crossover_response")
+                        .selected_text(if self.crossover_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.crossover_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.crossover_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                for (title, value) in [
+                    ("Subject:", &mut self.crossover_subject),
+                    ("Sequence:", &mut self.crossover_sequence),
+                    ("Period:", &mut self.crossover_period),
+                    ("Treatment:", &mut self.crossover_treatment),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(title);
+                        egui::ComboBox::from_id_salt(format!("crossover_{title}"))
+                            .selected_text(if value.is_empty() {
+                                "—".to_owned()
+                            } else {
+                                value.clone()
+                            })
+                            .show_ui(ui, |ui| {
+                                for name in &all_columns {
+                                    ui.selectable_value(value, name.clone(), name.as_str());
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Lower limit:"));
+                    ui.text_edit_singleline(&mut self.crossover_lower)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    let label = ui.help_label(self.catalog().label("Upper limit:"));
+                    ui.text_edit_singleline(&mut self.crossover_upper)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Confidence:"));
+                    ui.add(
+                        egui::DragValue::new(&mut self.crossover_confidence)
+                            .range(50.0..=99.9)
+                            .speed(0.5)
+                            .suffix(" %"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.small(self.catalog().label(
+                    "One row per observation; the two sequences run the treatments in opposite \
+                     orders and the TOST decides equivalence inside the limits.",
+                ));
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About 2×2 crossover equivalence…"))
+                        .clicked()
+                    {
+                        self.show_crossover_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_crossover_dialog = open && !run && !cancel;
+        if run {
+            self.run_crossover_dialog();
+        }
+    }
+
+    /// Help page of the 2x2 crossover equivalence test.
+    pub(super) fn crossover_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_crossover_help {
+            return;
+        }
+        let mut open = self.show_crossover_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("2×2 crossover equivalence help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "A 2×2 crossover gives every subject both treatments, one in each period, \
+                     and the sequences run them in opposite orders. The within-subject \
+                     difference removes the subject effect; its mean over the two sequences \
+                     estimates the treatment difference, and the two one-sided tests decide \
+                     whether that difference is inside the equivalence limits. The analysis of \
+                     variance shows the sequence (the differential carryover), the period and \
+                     the treatment rows.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Use one row per observation with the response, the subject, the sequence, \
+                     the period and the treatment. Every subject needs both periods with the two \
+                     treatments in the order of its sequence, and the two sequences must be \
+                     opposite. The first treatment label is the reference and the difference is \
+                     test − reference. The limits may be asymmetric; the confidence level of the \
+                     decision reports the (1 − 2α) interval, so 95 % gives the 90 % interval.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Eight subjects, four in each sequence, with a period effect of one and a \
+                     treatment difference of 0.2, give an estimate of 0.2 and a period row that \
+                     is significant. A carryover that delays the second period of one sequence \
+                     inflates the estimate and shows up in the sequence row, because the two \
+                     periods cannot separate it from the treatment × period interaction.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_crossover_help = open && !close;
+    }
+
     pub fn open_rank_test_dialog(&mut self, kind: RankTestKind) {
         self.rank_kind = kind;
         self.rank_first = self.selected.clone().unwrap_or_default();

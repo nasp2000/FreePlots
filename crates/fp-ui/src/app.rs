@@ -1214,6 +1214,17 @@ pub struct FreePlotsApp {
     timeseries_model: fp_core::timeseries::DecompositionModel,
     timeseries_season: usize,
     timeseries_horizon: usize,
+    /// 2x2 crossover equivalence dialog, help and inputs.
+    show_crossover_dialog: bool,
+    show_crossover_help: bool,
+    crossover_response: String,
+    crossover_subject: String,
+    crossover_sequence: String,
+    crossover_period: String,
+    crossover_treatment: String,
+    crossover_lower: String,
+    crossover_upper: String,
+    crossover_confidence: f64,
     /// ARIMA dialog and help.
     show_arima_dialog: bool,
     show_arima_help: bool,
@@ -4237,6 +4248,8 @@ impl FreePlotsApp {
         self.show_timeseries_dialog = false;
         self.show_tsdiag_dialog = false;
         self.show_tsdiag_help = false;
+        self.show_crossover_dialog = false;
+        self.show_crossover_help = false;
         self.show_arima_dialog = false;
         self.show_arima_help = false;
         self.show_tolerance_dialog = false;

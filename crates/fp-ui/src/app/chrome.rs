@@ -144,6 +144,8 @@ impl FreePlotsApp {
         self.attrcap_help_window(&ctx);
         self.t_test_dialog(&ctx);
         self.equivalence_dialog(&ctx);
+        self.crossover_dialog(&ctx);
+        self.crossover_help_window(&ctx);
         self.rank_test_dialog(&ctx);
         self.runs_dialog(&ctx);
         self.runs_help_window(&ctx);

@@ -35,6 +35,7 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["Stat", "Basic Statistics", "2-Sample t…"],
     &["Stat", "Basic Statistics", "Paired t…"],
     &["Stat", "Basic Statistics", "Equivalence Test…"],
+    &["Stat", "Basic Statistics", "2×2 Crossover Equivalence…"],
     &["Stat", "Basic Statistics", "Chi-Square Goodness-of-Fit…"],
     &["Stat", "Basic Statistics", "Grubbs Test…"],
     &["Stat", "Basic Statistics", "Power and Sample Size…"],

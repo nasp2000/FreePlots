@@ -59,6 +59,12 @@ All notable changes to FreePlots are recorded here. The format follows
   normal approximation) and *Poisson Goodness-of-Fit…* (chi-square with
   estimated or given mean), with a shared help page in both interface
   languages.
+- Basic Statistics has a *2×2 Crossover Equivalence…* entry: the
+  within-subject treatment difference of a two-period crossover with a TOST
+  against configurable lower and upper limits, the 90 % interval of a 95 %
+  decision, and the analysis of variance with the sequence (differential
+  carryover), subject, period and treatment rows. It has its own help page in
+  both interface languages.
 - Basic Statistics has a *Graphical Summary…* entry (histogram, boxplot and
   the confidence intervals of the mean, median and standard deviation) and a
   *Store Descriptive Statistics…* command that writes the selected statistics
@@ -221,7 +227,12 @@ All notable changes to FreePlots are recorded here. The format follows
   of a ramp, the cross-correlation of a shifted series, a mean-reverting series
   and a random walk in the unit-root test (with the regression module as the
   cross-check), the difference and lag columns with a missing value, the four
-  trend models and the invalid windows, lags, orders and non-positive values. The analysis of means covers the balanced and
+  trend models and the invalid windows, lags, orders and non-positive values.
+  The 2×2 crossover covers the recovered treatment and period effects with an
+  equal-weight estimate, unequal sequence sizes with a carryover, the
+  treatment F against the square of the t ratio, asymmetric limits and the
+  broken designs (missing period, repeated treatment, equal sequence orders,
+  crossed limits). The analysis of means covers the balanced and
   the unequal-size limits, an out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
