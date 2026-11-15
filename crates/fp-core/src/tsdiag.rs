@@ -1504,9 +1504,7 @@ mod tests {
             .collect();
         // y follows x by two observations.
         let mut y = vec![0.0; 20];
-        for index in 2..20 {
-            y[index] = x[index - 2];
-        }
+        y[2..].copy_from_slice(&x[..18]);
         let model = cross_correlation(&x, &y, 4).expect("ccf");
         assert_eq!(model.lags.len(), 9);
         let best = model
