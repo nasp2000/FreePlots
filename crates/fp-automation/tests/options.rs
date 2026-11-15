@@ -2724,6 +2724,7 @@ fn the_general_factorial_dialog_generates_the_combinations() {
     ui.load_frame(frame(), "weights.csv");
     open(&mut ui, &["Stat", "DOE", "General Factorial Design…"]);
     ui.set_text("Levels:", "3,2").expect("levels");
+    ui.set_text("Replicates:", "1").expect("replicates");
     ui.click("Generate").expect("generate");
     assert!(
         ui.session()
