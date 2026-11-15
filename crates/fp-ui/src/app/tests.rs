@@ -3266,6 +3266,70 @@ fn best_subsets_dialog_reaches_the_session_and_plot() {
 }
 
 #[test]
+fn pls_dialog_reaches_the_session_and_plot() {
+    let mut app = FreePlotsApp::new();
+    let mut x1 = Vec::new();
+    let mut x2 = Vec::new();
+    let mut y = Vec::new();
+    for index in 0..24 {
+        let first = (index % 7) as f64 + 1.0;
+        let second = ((index * 3) % 5) as f64 + 1.0;
+        x1.push(first);
+        x2.push(second);
+        y.push(2.0 + 3.0 * first - 1.5 * second + 0.02 * ((index % 3) as f64));
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("x1", x1),
+        Column::new_f64("x2", x2),
+        Column::new_f64("y", y),
+    ])
+    .expect("frame");
+    app.set_data(df, "pls.csv".to_owned());
+    app.open_pls_dialog();
+    app.pls_response = "y".to_owned();
+    app.pls_predictors = vec!["x1".to_owned(), "x2".to_owned()];
+    app.pls_components = 2;
+    app.run_pls_dialog();
+    let text = app.session_text();
+    assert!(text.contains("PLS Regression"), "{text}");
+    assert!(text.contains("R² added"), "{text}");
+    assert_eq!(app.plot().expect("plot").panels.len(), 2);
+}
+
+#[test]
+fn the_pls_help_explains_the_components() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_pls_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About partial least squares…").click();
+    harness.run();
+    assert!(harness.state().show_pls_help);
+    harness.get_by_label("Partial least squares help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("through a small number of latent components");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda dos mínimos quadrados parciais");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_pls_help);
+}
+
+#[test]
 fn the_best_subsets_help_explains_the_criteria() {
     use egui_kittest::{Harness, kittest::Queryable};
 

@@ -63,6 +63,7 @@ pub mod pca;
 pub mod pdf;
 pub mod pdp;
 pub mod plot;
+pub mod pls;
 pub mod plugin;
 pub mod poisson;
 pub mod power;

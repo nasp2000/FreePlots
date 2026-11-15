@@ -1456,6 +1456,209 @@ impl FreePlotsApp {
             self.run_regression_dialog();
         }
     }
+    /// Opens the PLS dialog with the selected response.
+    pub fn open_pls_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.len() < 2 {
+            self.set_error("PLS needs a numeric response and at least one predictor");
+            return;
+        }
+        self.pls_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.pls_predictors = numeric
+            .into_iter()
+            .filter(|name| *name != self.pls_response)
+            .collect();
+        self.show_pls_dialog = true;
+    }
+
+    /// Runs the PLS model of the dialog.
+    pub fn run_pls_dialog(&mut self) {
+        if self.pls_response.is_empty() {
+            self.set_error("Select the response column");
+            return;
+        }
+        let predictors: Vec<String> = self
+            .pls_predictors
+            .iter()
+            .filter(|name| **name != self.pls_response)
+            .cloned()
+            .collect();
+        if predictors.is_empty() {
+            self.set_error("Select at least one predictor");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::pls::analyze(&df, &self.pls_response, &predictors, self.pls_components) {
+            Ok(output) => {
+                let label = format!("PLS: {}", self.pls_response);
+                self.apply_output(output, label);
+                self.show_pls_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Partial least squares dialog.
+    pub(super) fn pls_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_pls_dialog {
+            return;
+        }
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_pls_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Partial Least Squares"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(440.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Response:");
+                    egui::ComboBox::from_id_salt("pls_response")
+                        .selected_text(if self.pls_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.pls_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.pls_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.help_label("Predictors:");
+                egui::ScrollArea::vertical()
+                    .max_height(180.0)
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            if *name == self.pls_response {
+                                continue;
+                            }
+                            let mut selected = self.pls_predictors.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.pls_predictors.push(name.clone());
+                                } else {
+                                    self.pls_predictors.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Components:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.pls_components)
+                            .range(1..=10),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.small(
+                    "PLS1 by NIPALS; predictors are centred and scaled. The number of components                      is chosen by the user.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About partial least squares…"))
+                        .clicked()
+                    {
+                        self.show_pls_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_pls_dialog = open && !run && !cancel;
+        if run {
+            self.run_pls_dialog();
+        }
+    }
+
+    /// Help page of partial least squares.
+    pub(super) fn pls_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_pls_help {
+            return;
+        }
+        let mut open = self.show_pls_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Partial least squares help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "Partial least squares (PLS1) fits one numeric response from several \
+                     correlated predictors through a small number of latent components. It is \
+                     useful when the predictors are many or collinear and an ordinary regression \
+                     would be unstable.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose one numeric response and at least one numeric predictor. Rows with a \
+                     missing response or predictor are removed listwise; a constant predictor is \
+                     an error. Set the number of components (at most the number of predictors).",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "With y = 2 + 3·x1 − 1.5·x2 and a third predictor equal to x1 + x2, two \
+                     components recover the coefficients; one component already predicts most of \
+                     y through the dominant direction and handles the collinearity.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_pls_help = open && !close;
+    }
+
     /// Opens the best-subsets dialog with the selected response.
     pub fn open_best_subsets_dialog(&mut self) {
         let Some(df) = self.data.as_ref() else {

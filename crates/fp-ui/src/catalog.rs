@@ -580,6 +580,29 @@ impl UiCatalog {
             "Stepwise Regression" => "Regressão passo a passo",
             "Stepwise Regression…" => "Regressão passo a passo…",
             "Best Subsets…" => "Melhores subconjuntos…",
+            "Partial Least Squares…" => "Mínimos quadrados parciais…",
+            "Partial Least Squares" => "Mínimos quadrados parciais",
+            "Partial least squares help" => "Ajuda dos mínimos quadrados parciais",
+            "About partial least squares…" => "Acerca dos mínimos quadrados parciais…",
+            "Partial least squares (PLS1) fits one numeric response from several \
+             correlated predictors through a small number of latent components. It is \
+             useful when the predictors are many or collinear and an ordinary regression \
+             would be unstable." => {
+                "Os mínimos quadrados parciais (PLS1) ajustam uma resposta numérica a partir de \
+                 vários preditores correlacionados através de um pequeno número de componentes \
+                 latentes. São úteis quando os preditores são muitos ou colineares e uma regressão \
+                 ordinária seria instável."
+            }
+            "Choose one numeric response and at least one numeric predictor. Rows with a \
+             missing response or predictor are removed listwise; a constant predictor is \
+             an error. Set the number of components (at most the number of predictors)." => {
+                "Escolha uma resposta numérica e pelo menos um preditor numérico. As linhas com                  resposta ou preditor em falta são removidas em lista; um preditor constante é um                  erro. Defina o número de componentes (no máximo o número de preditores)."
+            }
+            "With y = 2 + 3·x1 − 1.5·x2 and a third predictor equal to x1 + x2, two \
+             components recover the coefficients; one component already predicts most of \
+             y through the dominant direction and handles the collinearity." => {
+                "Com y = 2 + 3·x1 − 1,5·x2 e um terceiro preditor igual a x1 + x2, dois                  componentes recuperam os coeficientes; um componente já prevê a maior parte de y                  através da direção dominante e trata a colinearidade."
+            }
             "Best Subsets Regression" => "Regressão por melhores subconjuntos",
             "Best subsets regression help" => "Ajuda da regressão por melhores subconjuntos",
             "About best subsets…" => "Acerca dos melhores subconjuntos…",

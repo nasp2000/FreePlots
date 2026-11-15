@@ -986,6 +986,13 @@ impl FreePlotsApp {
                         self.open_best_subsets_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Partial Least Squares…"), None, self.data.is_some())
+                        .on_hover_text("PLS1 latent components for many or collinear predictors")
+                        .clicked()
+                    {
+                        self.open_pls_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Predict…"), None, self.data.is_some())
                         .on_hover_text("Predict the response at new points with confidence and prediction intervals")
                         .clicked()

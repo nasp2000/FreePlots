@@ -76,6 +76,10 @@ All notable changes to FreePlots are recorded here. The format follows
   by conditional sum of squares, with forecasts, ψ-based intervals, AIC/AICc/
   BIC and a best-order search over p, d, q from 0 to 2. It has its own help
   page in both interface languages.
+- Regression has a *Partial Least Squares…* entry: PLS1 by NIPALS with one or
+  more components, standardised coefficients, the cumulative R² per component,
+  observed-versus-fitted and R² selection plots. It handles collinear
+  predictors and has its own help page in both interface languages.
 - Quality Tools has a *Variables Acceptance Sampling…* entry: a single-limit
   plan with a known sigma (`n` and the critical distance `k` from AQL/RQL and
   the two risks), the OC curve, comparison of `n:k` plans and the accept/reject
@@ -164,7 +168,10 @@ All notable changes to FreePlots are recorded here. The format follows
   the best-order table, the forecast table and the invalid orders, horizon,
   confidence, short and constant series. Variables sampling covers the
   published `n`/`k` values, the accepted and rejected samples, the lower limit,
-  the comparison table and the invalid proportions/sigma. The graph
+  the comparison table and the invalid proportions/sigma. PLS covers the
+  coefficient recovery, the collinear predictor with one component, the two
+  panels and the empty, duplicated, response-as-predictor, too-many-component
+  and constant cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus

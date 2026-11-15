@@ -972,6 +972,32 @@ fn the_regression_dialog_needs_a_predictor() {
 }
 
 #[test]
+fn the_pls_dialog_fits_the_components() {
+    let mut ui = Automation::new();
+    ui.load_frame(model_frame(), "model.csv");
+    open(&mut ui, &["Stat", "Regression", "Partial Least Squares…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("PLS Regression"), "{session}");
+    assert!(session.contains("R²"), "{session}");
+    assert!(ui.plot().is_some(), "a plot was produced");
+}
+
+#[test]
+fn the_pls_dialog_rejects_too_many_components() {
+    let mut ui = Automation::new();
+    ui.load_frame(model_frame(), "model.csv");
+    open(&mut ui, &["Stat", "Regression", "Partial Least Squares…"]);
+    ui.set_text("Components:", "3").expect("components");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("at most 2 components"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_stepwise_dialog_runs_the_default_criterion() {
     let mut ui = Automation::new();
     ui.load_frame(model_frame(), "model.csv");
