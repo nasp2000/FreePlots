@@ -1267,6 +1267,9 @@ impl FreePlotsApp {
                 (numeric, all)
             })
             .unwrap_or_default();
+        // The catalogue borrows end before the closure holds `&mut self`.
+        let general_label = self.catalog().label("General factorial (all levels)");
+        let screening_label = self.catalog().label("Screening (two-level, Lenth PSE)");
         let mut open = self.show_factorial_analysis_dialog;
         let mut run = false;
         let mut cancel = false;
@@ -1297,15 +1300,11 @@ impl FreePlotsApp {
                         .hover_from(&label);
                 });
                 ui.horizontal(|ui| {
-                    ui.radio_value(
-                        &mut self.factorial_analysis_screening,
-                        false,
-                        self.catalog().label("General factorial (all levels)"),
-                    );
+                    ui.radio_value(&mut self.factorial_analysis_screening, false, general_label);
                     ui.radio_value(
                         &mut self.factorial_analysis_screening,
                         true,
-                        self.catalog().label("Screening (two-level, Lenth PSE)"),
+                        screening_label,
                     );
                 });
                 ui.help_label(self.catalog().label("Factors:"));

@@ -165,7 +165,6 @@ impl Catalog {
             "Adj MS" => "QM ajust.",
             "|Effect|" => "|Efeito|",
             "Normal score" => "Score normal",
-            "Levels" => "Níveis",
             "Active" => "Ativo",
             "Inactive" => "Inativo",
             "Active (simultaneous)" => "Ativo (simultâneo)",

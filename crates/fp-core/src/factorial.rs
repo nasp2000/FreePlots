@@ -314,7 +314,7 @@ pub fn general_fit(
     let mut level_indices: Vec<Vec<usize>> = vec![Vec::new(); factors.len()];
     let mut excluded = 0usize;
     for row in 0..df.n_rows() {
-        let Some(value) = cell(&response_column, row) else {
+        let Some(value) = cell(response_column, row) else {
             excluded += 1;
             continue;
         };
@@ -371,13 +371,13 @@ pub fn general_fit(
             .join("*");
         // Cartesian product of the coded columns of the factors in the term.
         let mut product: Vec<Vec<f64>> = vec![vec![1.0; n]];
-        for index in 0..q {
+        for (index, columns) in coded.iter().enumerate() {
             if mask & (1 << index) == 0 {
                 continue;
             }
-            let mut expanded = Vec::with_capacity(product.len() * coded[index].len());
+            let mut expanded = Vec::with_capacity(product.len() * columns.len());
             for left in &product {
-                for right in &coded[index] {
+                for right in columns {
                     expanded.push(
                         left.iter()
                             .zip(right)
@@ -731,7 +731,7 @@ pub fn screening_fit(df: &DataFrame, response: &str, factors: &[String]) -> Resu
     let mut factor_values: Vec<Vec<f64>> = vec![Vec::new(); factors.len()];
     let mut excluded = 0usize;
     for row in 0..df.n_rows() {
-        let Some(value) = cell(&response_column, row) else {
+        let Some(value) = cell(response_column, row) else {
             excluded += 1;
             continue;
         };
@@ -1195,7 +1195,13 @@ mod tests {
         // A missing response and a missing factor drop the row and count it.
         let df = frame(vec![
             Column::new_f64("y", vec![1.0, 2.0, 3.0, 5.0, f64::NAN, 6.0]),
-            Column::new_text("a", vec!["low", "high", "low", "high", "low", "high"]),
+            Column::new_text(
+                "a",
+                vec!["low", "high", "low", "high", "low", "high"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect::<Vec<String>>(),
+            ),
             Column::new_f64("b", vec![-1.0, -1.0, 1.0, 1.0, -1.0, 1.0]),
         ]);
         let model = general_fit(&df, "y", &["a".to_owned(), "b".to_owned()]).expect("fit");
@@ -1240,7 +1246,13 @@ mod tests {
         ));
         // A text response.
         let words = frame(vec![
-            Column::new_text("y", vec!["1", "2", "3", "7"]),
+            Column::new_text(
+                "y",
+                vec!["1", "2", "3", "7"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect::<Vec<String>>(),
+            ),
             Column::new_f64("a", vec![-1.0, 1.0, -1.0, 1.0]),
             Column::new_f64("b", vec![-1.0, -1.0, 1.0, 1.0]),
         ]);
