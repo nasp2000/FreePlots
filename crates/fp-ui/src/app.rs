@@ -1456,6 +1456,12 @@ pub struct FreePlotsApp {
     design_levels: String,
     show_general_factorial_dialog: bool,
     show_general_factorial_help: bool,
+    /// Factorial analysis dialog (general or screening), help and inputs.
+    show_factorial_analysis_dialog: bool,
+    show_factorial_analysis_help: bool,
+    factorial_analysis_response: String,
+    factorial_analysis_factors: Vec<String>,
+    factorial_analysis_screening: bool,
     design_replicates: usize,
     design_centers: usize,
     design_block_size: usize,
@@ -4149,6 +4155,8 @@ impl FreePlotsApp {
         self.show_mixture_dialog = false;
         self.show_general_factorial_dialog = false;
         self.show_general_factorial_help = false;
+        self.show_factorial_analysis_dialog = false;
+        self.show_factorial_analysis_help = false;
         self.show_optimal_dialog = false;
         self.show_optimal_help = false;
         self.show_mixture_help = false;

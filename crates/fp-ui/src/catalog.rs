@@ -858,6 +858,68 @@ impl UiCatalog {
             "General Factorial Design" => "Delineamento fatorial geral",
             "General factorial help" => "Ajuda do fatorial geral",
             "About general factorial designs…" => "Acerca dos delineamentos fatoriais gerais…",
+            "Analyze Factorial Design…" => "Analisar delineamento fatorial…",
+            "Analyze Factorial Design" => "Analisar delineamento fatorial",
+            "Response:" => "Resposta:",
+            "Factors:" => "Factores:",
+            "General factorial (all levels)" => "Fatorial geral (todos os níveis)",
+            "Screening (two-level, Lenth PSE)" => "Triagem (dois níveis, PSE de Lenth)",
+            "Every factor must be coded −1/+1 with observations at both levels; the \
+             effects are decided with Lenth's pseudo standard error, the Pareto \
+             chart and the normal plot." => {
+                "Cada factor tem de estar codificado −1/+1 com observações nos dois níveis; os \
+                 efeitos são decididos com o erro padrão pseudo de Lenth, o gráfico de Pareto e o \
+                 gráfico normal."
+            }
+            "Two to six factors with two to ten levels each; the report gives the \
+             sequential and adjusted sums of squares, the interaction terms and the \
+             marginal means." => {
+                "Dois a seis factores com dois a dez níveis cada; o relatório dá as somas de \
+                 quadrados sequenciais e ajustadas, os termos de interacção e as médias marginais."
+            }
+            "About factorial analysis…" => "Acerca da análise fatorial…",
+            "Factorial analysis help" => "Ajuda da análise fatorial",
+            "The factorial analysis fits one model to a designed experiment. The \
+             general factorial takes factors with two to ten levels and reports every \
+             main effect and interaction with its sequential and adjusted sums of \
+             squares, the marginal means of each level and the residuals. The screening \
+             analysis takes a two-level design and decides which effects stand out, \
+             with Lenth's pseudo standard error and the two effect charts." => {
+                "A análise fatorial ajusta um modelo a uma experiência delineada. O fatorial \
+                 geral aceita factores com dois a dez níveis e reporta cada efeito principal e \
+                 interacção com as somas de quadrados sequenciais e ajustadas, as médias \
+                 marginais de cada nível e os resíduos. A análise de triagem aceita um \
+                 delineamento de dois níveis e decide que efeitos se destacam, com o erro padrão \
+                 pseudo de Lenth e os dois gráficos de efeitos."
+            }
+            "Choose a numeric response and the factor columns. In the general factorial \
+             each factor level enters as +1, the last level as −1 and the rest as 0, so \
+             a factor with k levels uses k − 1 degrees of freedom; the Seq SS adds the \
+             terms in order and the Adj SS drops each term from the full model. The \
+             screening needs factors coded −1/+1 with observations at both levels: the \
+             effect is the mean at +1 minus the mean at −1, the PSE is 1.5 times the \
+             median of the absolute effects with m/3 degrees of freedom, ME = t(0.975; \
+             m/3)·PSE decides one effect at a time and SME = t(1 − 0.05/(2m); m/3)·PSE \
+             decides all of them together." => {
+                "Escolha uma resposta numérica e as colunas dos factores. No fatorial geral cada \
+                 nível entra como +1, o último nível como −1 e os restantes como 0, pelo que um \
+                 factor com k níveis usa k − 1 graus de liberdade; a SQ sequencial acrescenta os \
+                 termos por ordem e a SQ ajustada retira cada termo do modelo completo. A triagem \
+                 exige factores codificados −1/+1 com observações nos dois níveis: o efeito é a \
+                 média em +1 menos a média em −1, o PSE é 1,5 vezes a mediana dos efeitos \
+                 absolutos com m/3 graus de liberdade, ME = t(0,975; m/3)·PSE decide um efeito de \
+                 cada vez e SME = t(1 − 0,05/(2m); m/3)·PSE decide todos em conjunto."
+            }
+            "Two factors with three and two levels and two replicates give twelve runs; \
+             the terms are A (2 df), B (1 df) and A*B (2 df). A twelve-run \
+             Plackett–Burman design with one effect far above the others has that effect \
+             beyond the simultaneous margin, while the small effects stay inside the \
+             individual margin." => {
+                "Dois factores com três e dois níveis e duas réplicas dão doze corridas; os \
+                 termos são A (2 gl), B (1 gl) e A*B (2 gl). Um delineamento de Plackett–Burman \
+                 com doze corridas e um efeito muito acima dos outros tem esse efeito além da \
+                 margem simultânea, enquanto os efeitos pequenos ficam dentro da margem individual."
+            }
             "Mixture Design…" => "Delineamento de mistura…",
             "Optimal Design…" => "Delineamento ótimo…",
             "Optimal Design" => "Delineamento ótimo",

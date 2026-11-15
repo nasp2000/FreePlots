@@ -4681,6 +4681,125 @@ fn anom_dialog_reaches_the_session_and_chart() {
 }
 
 #[test]
+fn factorial_analysis_reaches_the_session_and_plots() {
+    let mut app = FreePlotsApp::new();
+    let mut y = Vec::new();
+    let mut a = Vec::new();
+    let mut b = Vec::new();
+    for _ in 0..2 {
+        for level in [1.0f64, 2.0, 3.0] {
+            for block in [-1.0f64, 1.0] {
+                y.push(10.0 + level + 2.0 * block + 0.5 * level * block);
+                a.push(level);
+                b.push(block);
+            }
+        }
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("y", y),
+        Column::new_f64("a", a),
+        Column::new_f64("b", b),
+    ])
+    .expect("frame");
+    app.set_data(df, "general.csv".to_owned());
+    app.open_factorial_analysis_dialog();
+    app.factorial_analysis_response = "y".to_owned();
+    app.factorial_analysis_factors = vec!["a".to_owned(), "b".to_owned()];
+    app.factorial_analysis_screening = false;
+    app.run_factorial_analysis_dialog();
+    let text = app.session_text();
+    assert!(text.contains("General Factorial — response y"), "{text}");
+    assert!(text.contains("Seq SS"), "{text}");
+    assert!(text.contains("Adj SS"), "{text}");
+    assert!(text.contains("a*b"), "{text}");
+    assert!(app.plot().is_some());
+
+    // The screening mode reads a two-level design and plots both charts.
+    let mut y = Vec::new();
+    let mut a = Vec::new();
+    let mut b = Vec::new();
+    let mut c = Vec::new();
+    for first in [-1.0f64, 1.0] {
+        for second in [-1.0f64, 1.0] {
+            for third in [-1.0f64, 1.0] {
+                y.push(20.0 + 5.0 * first - 2.0 * second + third + 1.5 * first * second * third);
+                a.push(first);
+                b.push(second);
+                c.push(third);
+            }
+        }
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("y", y),
+        Column::new_f64("a", a),
+        Column::new_f64("b", b),
+        Column::new_f64("c", c),
+    ])
+    .expect("frame");
+    app.set_data(df, "screen.csv".to_owned());
+    app.open_factorial_analysis_dialog();
+    app.factorial_analysis_response = "y".to_owned();
+    app.factorial_analysis_factors = vec!["a".to_owned(), "b".to_owned(), "c".to_owned()];
+    app.factorial_analysis_screening = true;
+    app.run_factorial_analysis_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Screening — response y"), "{text}");
+    assert!(text.contains("PSE"), "{text}");
+    assert!(text.contains("Inactive"), "{text}");
+    let plot = app.plot().expect("plot");
+    assert_eq!(plot.panels.len(), 2);
+
+    // Uncoded factors are refused by the screening analysis.
+    app.open_factorial_analysis_dialog();
+    app.factorial_analysis_screening = true;
+    app.set_data(
+        DataFrame::new(vec![
+            Column::new_f64("y", vec![1.0, 2.0, 3.0, 4.0]),
+            Column::new_f64("a", vec![0.0, 1.0, 0.0, 1.0]),
+            Column::new_f64("b", vec![0.0, 0.0, 1.0, 1.0]),
+        ])
+        .expect("frame"),
+        "uncoded.csv".to_owned(),
+    );
+    app.factorial_analysis_response = "y".to_owned();
+    app.factorial_analysis_factors = vec!["a".to_owned(), "b".to_owned()];
+    app.run_factorial_analysis_dialog();
+    assert!(app.status.contains("coded"), "{}", app.status);
+}
+
+#[test]
+fn the_factorial_analysis_help_explains_both_modes() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_factorial_analysis_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About factorial analysis…").click();
+    harness.run();
+    assert!(harness.state().show_factorial_analysis_help);
+    harness.get_by_label("Factorial analysis help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("Lenth's pseudo standard error");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da análise fatorial");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_factorial_analysis_help);
+}
+
+#[test]
 fn the_anom_help_explains_the_limits() {
     use egui_kittest::{Harness, kittest::Queryable};
 

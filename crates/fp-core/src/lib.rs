@@ -39,6 +39,7 @@ pub mod ecdf;
 pub mod equivalence;
 pub mod error;
 pub mod estimate;
+pub mod factorial;
 pub mod formula;
 pub mod gage;
 pub mod gage_type1;

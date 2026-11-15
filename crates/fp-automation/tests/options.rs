@@ -2978,6 +2978,51 @@ fn the_factorial_dialog_needs_a_factor() {
 }
 
 #[test]
+fn the_general_factorial_analysis_reports_the_terms() {
+    let mut ui = Automation::new();
+    ui.load_frame(factorial_frame(), "factorial.csv");
+    open(&mut ui, &["Stat", "DOE", "Analyze Factorial Design…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("General Factorial — response y"),
+        "{session}"
+    );
+    assert!(session.contains("Seq SS"), "{session}");
+    assert!(session.contains("Adj SS"), "{session}");
+    assert!(session.contains("A*B"), "{session}");
+    assert!(session.contains("Error"), "{session}");
+    assert!(ui.plot().is_some(), "a residual plot was produced");
+}
+
+#[test]
+fn the_screening_analysis_plots_the_effects() {
+    let mut ui = Automation::new();
+    ui.load_frame(factorial_frame(), "factorial.csv");
+    open(&mut ui, &["Stat", "DOE", "Analyze Factorial Design…"]);
+    ui.click("Screening (two-level, Lenth PSE)")
+        .expect("screening");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("Screening — response y"), "{session}");
+    assert!(session.contains("PSE"), "{session}");
+    assert!(session.contains("Inactive"), "{session}");
+    let plot = ui.plot().expect("plot");
+    assert_eq!(plot.panels.len(), 2, "Pareto and normal plots");
+}
+
+#[test]
+fn the_screening_analysis_rejects_uncoded_factors() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "Analyze Factorial Design…"]);
+    ui.click("Screening (two-level, Lenth PSE)")
+        .expect("screening");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("coded"), "{}", ui.status());
+}
+
+#[test]
 fn the_factorial_plots_dialog_draws_the_panels() {
     let mut ui = Automation::new();
     ui.load_frame(factorial_frame(), "factorial.csv");

@@ -170,6 +170,7 @@ const MENU_PATHS: &[&[&str]] = &[
     &["Stat", "DOE", "Optimal Design…"],
     &["Stat", "DOE", "General Factorial Design…"],
     &["Stat", "DOE", "2-Level Factorial…"],
+    &["Stat", "DOE", "Analyze Factorial Design…"],
     &["Stat", "DOE", "Factorial Plots…"],
     &["Stat", "DOE", "Response Surface…"],
     &["Stat", "DOE", "Response Optimizer…"],

@@ -85,6 +85,14 @@ All notable changes to FreePlots are recorded here. The format follows
   factors with two to ten levels each (coded from −1 to +1), replicates and
   randomised run order. Screening of many two-level factors remains the
   Plackett–Burman design; definitive screening designs are not implemented.
+- DOE has an *Analyze Factorial Design…* entry with two modes. The general
+  factorial fits every main effect and interaction of two to six factors with
+  two to ten levels, with the sequential and adjusted sums of squares, the
+  marginal means of every level and the residuals. The screening analysis
+  reads a two-level design, reports the effect of every factor with Lenth's
+  pseudo standard error and the individual and simultaneous margins, and
+  draws the Pareto chart of the absolute effects and the normal plot of the
+  effects. Both modes share one help page in both interface languages.
 - DOE has an *Optimal Design…* entry: D-optimal or maximin-distance
   selection from the coded factorial candidates, augmentation of the current
   design and evaluation (D-efficiency, condition number and distances). It has
@@ -196,7 +204,11 @@ All notable changes to FreePlots are recorded here. The format follows
   maximin corners, augmentation that keeps the existing runs and the invalid
   run count, duplicate factor, singular and uncoded cases. The general
   factorial covers the six mixed-level runs, the full level coding, replicates
-  and the mismatched level list. The analysis of means covers the balanced and
+  and the mismatched level list. The factorial analysis covers the recovered
+  terms and marginal means of a mixed-level design, the saturated design
+  without error, a text factor with a missing row, the Lenth margins of a
+  twelve-run screening design with one large effect, an undefined pseudo
+  standard error and the uncoded, single-level and duplicate cases. The analysis of means covers the balanced and
   the unequal-size limits, an out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the

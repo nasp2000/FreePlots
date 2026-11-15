@@ -1175,6 +1175,251 @@ impl FreePlotsApp {
         self.show_general_factorial_help = open && !close;
     }
 
+    /// Opens the factorial analysis dialog (general or screening).
+    pub fn open_factorial_analysis_dialog(&mut self) {
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        self.factorial_analysis_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric.first().cloned().unwrap_or_default());
+        self.factorial_analysis_factors = numeric
+            .into_iter()
+            .filter(|name| *name != self.factorial_analysis_response)
+            .collect();
+        self.show_factorial_analysis_dialog = true;
+    }
+
+    /// Runs the factorial analysis of the dialog.
+    pub fn run_factorial_analysis_dialog(&mut self) {
+        if self.factorial_analysis_response.is_empty() {
+            self.set_error("Select the response column");
+            return;
+        }
+        let factors: Vec<String> = self
+            .factorial_analysis_factors
+            .iter()
+            .filter(|name| **name != self.factorial_analysis_response)
+            .cloned()
+            .collect();
+        if factors.is_empty() {
+            self.set_error("Select at least one factor");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let screening = self.factorial_analysis_screening;
+        let outcome = if screening {
+            fp_core::factorial::screening_analyze(&df, &self.factorial_analysis_response, &factors)
+        } else {
+            fp_core::factorial::general_analyze(&df, &self.factorial_analysis_response, &factors)
+        };
+        match outcome {
+            Ok(output) => {
+                let label = if screening {
+                    format!(
+                        "Screening: {} with {} factors",
+                        self.factorial_analysis_response,
+                        factors.len()
+                    )
+                } else {
+                    format!("General factorial: {}", self.factorial_analysis_response)
+                };
+                self.apply_output(output, label);
+                self.show_factorial_analysis_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Factorial analysis dialog.
+    pub(super) fn factorial_analysis_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_factorial_analysis_dialog {
+            return;
+        }
+        let (numeric, all_columns): (Vec<String>, Vec<String>) = self
+            .data
+            .as_ref()
+            .map(|df| {
+                let numeric = df
+                    .columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                let all = df
+                    .columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                (numeric, all)
+            })
+            .unwrap_or_default();
+        let mut open = self.show_factorial_analysis_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Analyze Factorial Design"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(470.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Response:"));
+                    egui::ComboBox::from_id_salt("factorial_analysis_response")
+                        .selected_text(if self.factorial_analysis_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.factorial_analysis_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.factorial_analysis_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(
+                        &mut self.factorial_analysis_screening,
+                        false,
+                        self.catalog().label("General factorial (all levels)"),
+                    );
+                    ui.radio_value(
+                        &mut self.factorial_analysis_screening,
+                        true,
+                        self.catalog().label("Screening (two-level, Lenth PSE)"),
+                    );
+                });
+                ui.help_label(self.catalog().label("Factors:"));
+                egui::ScrollArea::vertical()
+                    .max_height(180.0)
+                    .show(ui, |ui| {
+                        for name in &all_columns {
+                            if *name == self.factorial_analysis_response {
+                                continue;
+                            }
+                            let mut selected = self.factorial_analysis_factors.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.factorial_analysis_factors.push(name.clone());
+                                } else {
+                                    self.factorial_analysis_factors
+                                        .retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                if self.factorial_analysis_screening {
+                    ui.small(self.catalog().label(
+                        "Every factor must be coded −1/+1 with observations at both levels; the \
+                         effects are decided with Lenth's pseudo standard error, the Pareto \
+                         chart and the normal plot.",
+                    ));
+                } else {
+                    ui.small(self.catalog().label(
+                        "Two to six factors with two to ten levels each; the report gives the \
+                         sequential and adjusted sums of squares, the interaction terms and the \
+                         marginal means.",
+                    ));
+                }
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About factorial analysis…"))
+                        .clicked()
+                    {
+                        self.show_factorial_analysis_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_factorial_analysis_dialog = open && !run && !cancel;
+        if run {
+            self.run_factorial_analysis_dialog();
+        }
+    }
+
+    /// Help page of the factorial analysis.
+    pub(super) fn factorial_analysis_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_factorial_analysis_help {
+            return;
+        }
+        let mut open = self.show_factorial_analysis_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Factorial analysis help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The factorial analysis fits one model to a designed experiment. The \
+                     general factorial takes factors with two to ten levels and reports every \
+                     main effect and interaction with its sequential and adjusted sums of \
+                     squares, the marginal means of each level and the residuals. The screening \
+                     analysis takes a two-level design and decides which effects stand out, \
+                     with Lenth's pseudo standard error and the two effect charts.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose a numeric response and the factor columns. In the general factorial \
+                     each factor level enters as +1, the last level as −1 and the rest as 0, so \
+                     a factor with k levels uses k − 1 degrees of freedom; the Seq SS adds the \
+                     terms in order and the Adj SS drops each term from the full model. The \
+                     screening needs factors coded −1/+1 with observations at both levels: the \
+                     effect is the mean at +1 minus the mean at −1, the PSE is 1.5 times the \
+                     median of the absolute effects with m/3 degrees of freedom, ME = t(0.975; \
+                     m/3)·PSE decides one effect at a time and SME = t(1 − 0.05/(2m); m/3)·PSE \
+                     decides all of them together.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Two factors with three and two levels and two replicates give twelve runs; \
+                     the terms are A (2 df), B (1 df) and A*B (2 df). A twelve-run \
+                     Plackett–Burman design with one effect far above the others has that effect \
+                     beyond the simultaneous margin, while the small effects stay inside the \
+                     individual margin.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_factorial_analysis_help = open && !close;
+    }
+
     pub fn open_taguchi_design_dialog(&mut self) {
         // The array, factor count, randomization and seed are preferences now.
         self.show_taguchi_design_dialog = true;

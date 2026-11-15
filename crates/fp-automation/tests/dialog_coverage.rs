@@ -91,6 +91,7 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["Stat", "DOE", "Optimal Design…"],
     &["Stat", "DOE", "General Factorial Design…"],
     &["Stat", "DOE", "2-Level Factorial…"],
+    &["Stat", "DOE", "Analyze Factorial Design…"],
     &["Stat", "DOE", "Factorial Plots…"],
     &["Stat", "DOE", "Response Surface…"],
     &["Stat", "DOE", "Response Optimizer…"],
