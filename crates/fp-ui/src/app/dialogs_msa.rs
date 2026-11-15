@@ -780,6 +780,52 @@ impl FreePlotsApp {
             self.set_error("The three columns must be different");
             return;
         }
+        if self.gage_design == GageDesign::Crossed {
+            let parse_limit = |text: &str, name: &str| -> Result<Option<f64>, String> {
+                let text = text.trim();
+                if text.is_empty() {
+                    Ok(None)
+                } else {
+                    text.parse::<f64>()
+                        .map(Some)
+                        .map_err(|_| format!("{name} must be a number"))
+                }
+            };
+            let lower = match parse_limit(&self.gage_lsl, "The lower specification") {
+                Ok(value) => value,
+                Err(message) => {
+                    self.set_error(message);
+                    return;
+                }
+            };
+            let upper = match parse_limit(&self.gage_usl, "The upper specification") {
+                Ok(value) => value,
+                Err(message) => {
+                    self.set_error(message);
+                    return;
+                }
+            };
+            let Some(df) = self.data.clone() else {
+                self.set_error("No worksheet open: use File → Open CSV…");
+                return;
+            };
+            match fp_core::gage::analyze_expanded(
+                &df,
+                &self.gage_measurement,
+                &self.gage_part,
+                &self.gage_operator,
+                lower,
+                upper,
+            ) {
+                Ok(output) => {
+                    let label = format!("Gage R&R: {}", self.gage_measurement);
+                    self.apply_output(output, label);
+                    self.show_gage_dialog = false;
+                }
+                Err(error) => self.set_error(error.to_string()),
+            }
+            return;
+        }
         let spec = AnalysisSpec::gage_rr(
             self.gage_measurement.clone(),
             self.gage_part.clone(),
@@ -897,8 +943,36 @@ impl FreePlotsApp {
                         .labelled_by(label.id)
                         .hover_from(&label);
                 });
+                let crossed = self.gage_design == GageDesign::Crossed;
+                for (label_text, field) in [
+                    ("Lower spec:", &mut self.gage_lsl),
+                    ("Upper spec:", &mut self.gage_usl),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(label_text);
+                        ui.add_enabled(
+                            crossed,
+                            egui::TextEdit::singleline(field).desired_width(110.0),
+                        )
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    });
+                }
                 ui.small("Balanced crossed design: same replicates in every part×operator cell.");
                 ui.small("Crossed ANOVA method; interaction included.");
+                ui.small(
+                    "Optional specification limits add %Tolerance and the published 10 %/30 % \
+                     acceptance bands.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About Gage R&R…"))
+                        .clicked()
+                    {
+                        self.show_gage_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
                 ui.separator();
                 if ui.help_button(self.catalog().label("Run")).clicked() {
                     run = true;
@@ -909,6 +983,56 @@ impl FreePlotsApp {
             self.run_gage_dialog();
         }
     }
+    /// Help page of the crossed Gage R&R.
+    pub(super) fn gage_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_gage_help {
+            return;
+        }
+        let mut open = self.show_gage_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Gage R&R help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The crossed Gage R&R estimates repeatability (the same operator measuring \
+                     the same part), reproducibility (different operators) and their sum, the \
+                     Gage R&R variation. It reports the percentages of study variation, the \
+                     number of distinct categories and, with specification limits, the \
+                     percentage of tolerance.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose a numeric measurement and the part and operator columns of a balanced \
+                     crossed design: every part is measured by every operator with the same \
+                     number of replicates. Optional lower and upper specification limits add \
+                     %Tolerance and the published 10 %/30 % acceptance bands (acceptable, \
+                     marginal, unacceptable), applied to the study variation and to the \
+                     tolerance.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Ten parts measured by three operators, three times each, give the variance \
+                     components and %Gage R&R; with limits 9.9 and 10.1 the same study also gives \
+                     %Tolerance. A %Gage R&R of 8 % is acceptable, 20 % is marginal and 35 % is \
+                     unacceptable under the published guideline.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_gage_help = open && !close;
+    }
+
     pub fn open_type1_dialog(&mut self) {
         let Some(df) = self.data.as_ref() else {
             self.set_error("No worksheet open: use File → Open CSV…");

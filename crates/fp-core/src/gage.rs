@@ -395,6 +395,34 @@ pub fn analyze(
     analyze_design(df, measurement, part, operator, GageDesign::Crossed)
 }
 
+/// Crossed Gage R&R with the expanded report and published acceptance bands.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] when both specification limits are given and
+/// the upper one is not above the lower one, and the errors of [`fit`].
+pub fn analyze_expanded(
+    df: &DataFrame,
+    measurement: &str,
+    part: &str,
+    operator: &str,
+    lower_spec: Option<f64>,
+    upper_spec: Option<f64>,
+) -> Result<AnalysisOutput> {
+    if let (Some(lower), Some(upper)) = (lower_spec, upper_spec)
+        && upper <= lower
+    {
+        return Err(Error::Unsupported(
+            "the upper specification must be above the lower one".to_owned(),
+        ));
+    }
+    let model = fit(df, measurement, part, operator)?;
+    Ok(AnalysisOutput {
+        results: vec![report(measurement, &model, lower_spec, upper_spec)],
+        plot: None,
+    })
+}
+
 /// Fits the requested Gage R&R design and builds the Session report.
 pub fn analyze_design(
     df: &DataFrame,
@@ -407,7 +435,7 @@ pub fn analyze_design(
         GageDesign::Crossed => {
             let model = fit(df, measurement, part, operator)?;
             Ok(AnalysisOutput {
-                results: vec![report(measurement, &model)],
+                results: vec![report(measurement, &model, None, None)],
                 plot: None,
             })
         }
@@ -421,14 +449,27 @@ pub fn analyze_design(
     }
 }
 
-fn report(measurement: &str, model: &GageRr) -> AnalysisResult {
+fn report(
+    measurement: &str,
+    model: &GageRr,
+    lower_spec: Option<f64>,
+    upper_spec: Option<f64>,
+) -> AnalysisResult {
     let mut result = AnalysisResult::new(
         format!("Gage R&R — column {measurement}"),
         "Crossed ANOVA method; balanced design; interaction included",
     );
     result.n = model.n;
     result.excluded = model.excluded;
-    result.statistics = vec![
+    let tolerance = match (lower_spec, upper_spec) {
+        (Some(lower), Some(upper)) if upper > lower => Some(upper - lower),
+        _ => None,
+    };
+    let percent_tolerance = tolerance.map(|span| 100.0 * 6.0 * model.grr / span);
+    let tolerance_repeatability = tolerance.map(|span| 100.0 * 6.0 * model.repeatability / span);
+    let tolerance_reproducibility =
+        tolerance.map(|span| 100.0 * 6.0 * model.reproducibility / span);
+    let mut statistics = vec![
         ("Parts", model.parts as f64),
         ("Operators", model.operators as f64),
         ("Replicates", model.replicates as f64),
@@ -437,6 +478,16 @@ fn report(measurement: &str, model: &GageRr) -> AnalysisResult {
         ("%Reproducibility", model.percent_av),
         ("Number of distinct categories", model.ndc),
     ];
+    if let Some(value) = percent_tolerance {
+        statistics.push(("%Tolerance", value));
+    }
+    if let Some(value) = tolerance_repeatability {
+        statistics.push(("%Tolerance repeatability", value));
+    }
+    if let Some(value) = tolerance_reproducibility {
+        statistics.push(("%Tolerance reproducibility", value));
+    }
+    result.statistics = statistics;
     result.extra.push(Item::Table {
         headers: vec![
             "Source".to_owned(),
@@ -512,7 +563,32 @@ fn report(measurement: &str, model: &GageRr) -> AnalysisResult {
             })
             .collect(),
     });
+    let mut acceptance = vec![vec![
+        "Gage R&R (% study variation)".to_owned(),
+        format!("{:.3}", model.percent_grr),
+        acceptance_verdict(model.percent_grr).to_owned(),
+    ]];
+    if let Some(value) = percent_tolerance {
+        acceptance.push(vec![
+            "Gage R&R (% tolerance)".to_owned(),
+            format!("{value:.3}"),
+            acceptance_verdict(value).to_owned(),
+        ]);
+    }
+    result.extra.push(Item::Table {
+        headers: vec![
+            "Metric".to_owned(),
+            "Value".to_owned(),
+            "Verdict".to_owned(),
+        ],
+        rows: acceptance,
+    });
     result.notes = vec![
+        (
+            "Acceptance bands".to_owned(),
+            "published guideline for one metric: 10 % or less acceptable, 10 % to 30 % marginal, above 30 % unacceptable; applied to the study variation and, when both specification limits are given, to the tolerance"
+                .to_owned(),
+        ),
         (
             "Model".to_owned(),
             "measurement = part + operator + part×operator + error; crossed balanced design"
@@ -534,11 +610,22 @@ fn report(measurement: &str, model: &GageRr) -> AnalysisResult {
         ),
     ];
     result.warnings.push(
-        "Gage R&R conventions, interaction pooling and acceptance thresholds have not been \
+        "Gage R&R conventions, interaction pooling and the acceptance bands have not been \
          verified against documented output"
             .to_owned(),
     );
     result
+}
+
+/// Published 10 %/30 % acceptance band of one percentage.
+fn acceptance_verdict(percent: f64) -> &'static str {
+    if percent <= 10.0 {
+        "acceptable"
+    } else if percent <= 30.0 {
+        "marginal"
+    } else {
+        "unacceptable"
+    }
 }
 
 /// Gage R&R design family.
@@ -1103,5 +1190,33 @@ mod tests {
         assert!(text.contains("Gage R&R"), "{text}");
         assert!(text.contains("%Gage R&R"), "{text}");
         assert!(text.contains("Repeatability"), "{text}");
+    }
+
+    #[test]
+    fn the_expanded_report_adds_tolerance_and_acceptance() {
+        let df = frame();
+        let model = fit(&df, "m", "part", "operator").expect("fit");
+        let out = analyze_expanded(&df, "m", "part", "operator", Some(0.0), Some(20.0))
+            .expect("analysis");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("%Tolerance"), "{text}");
+        assert!(text.contains("Verdict"), "{text}");
+        let expected = 100.0 * 6.0 * model.grr / 20.0;
+        assert!(text.contains(&format!("{expected:.3}")), "{text}");
+        let rows = out.results[0]
+            .extra
+            .iter()
+            .find_map(|item| match item {
+                Item::Table { headers, rows } if headers[0] == "Metric" => Some(rows),
+                _ => None,
+            })
+            .expect("acceptance table");
+        assert!(rows.iter().any(|row| {
+            row[2] == "acceptable" || row[2] == "marginal" || row[2] == "unacceptable"
+        }));
+
+        let plain = analyze_expanded(&df, "m", "part", "operator", None, None).expect("plain");
+        assert!(!plain.results[0].to_session_text().contains("%Tolerance"));
+        assert!(analyze_expanded(&df, "m", "part", "operator", Some(10.0), Some(5.0)).is_err());
     }
 }

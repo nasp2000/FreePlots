@@ -214,6 +214,7 @@ impl FreePlotsApp {
         self.exponential_dialog(&ctx);
         self.lognormal_dialog(&ctx);
         self.gage_dialog(&ctx);
+        self.gage_help_window(&ctx);
         self.type1_dialog(&ctx);
         self.doe_dialog(&ctx);
         self.factorial_plots_dialog(&ctx);

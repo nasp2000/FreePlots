@@ -502,6 +502,41 @@ impl UiCatalog {
             "Descriptive Statistics" => "Estatística descritiva",
             "Capability Analysis" => "Análise de capacidade",
             "Gage R&R" => "Gage R&R",
+            "Gage R&R help" => "Ajuda do Gage R&R",
+            "About Gage R&R…" => "Acerca do Gage R&R…",
+            "The crossed Gage R&R estimates repeatability (the same operator measuring \
+             the same part), reproducibility (different operators) and their sum, the \
+             Gage R&R variation. It reports the percentages of study variation, the \
+             number of distinct categories and, with specification limits, the \
+             percentage of tolerance." => {
+                "O Gage R&R cruzado estima a repetibilidade (o mesmo operador a medir a mesma \
+                 peça), a reprodutibilidade (operadores diferentes) e a sua soma, a variação \
+                 Gage R&R. Reporta as percentagens da variação de estudo, o número de \
+                 categorias distintas e, com limites de especificação, a percentagem de \
+                 tolerância."
+            }
+            "Choose a numeric measurement and the part and operator columns of a balanced \
+             crossed design: every part is measured by every operator with the same \
+             number of replicates. Optional lower and upper specification limits add \
+             %Tolerance and the published 10 %/30 % acceptance bands (acceptable, \
+             marginal, unacceptable), applied to the study variation and to the \
+             tolerance." => {
+                "Escolha uma medição numérica e as colunas de peça e operador de um \
+                 delineamento cruzado equilibrado: cada peça é medida por cada operador com o \
+                 mesmo número de repetições. Os limites inferior e superior de especificação, \
+                 opcionais, acrescentam %Tolerance e as faixas publicadas de 10 %/30 % \
+                 (aceitável, marginal, inaceitável), aplicadas à variação de estudo e à \
+                 tolerância."
+            }
+            "Ten parts measured by three operators, three times each, give the variance \
+             components and %Gage R&R; with limits 9.9 and 10.1 the same study also gives \
+             %Tolerance. A %Gage R&R of 8 % is acceptable, 20 % is marginal and 35 % is \
+             unacceptable under the published guideline." => {
+                "Dez peças medidas por três operadores, três vezes cada, dão os componentes de \
+                 variância e o %Gage R&R; com limites 9,9 e 10,1 o mesmo estudo dá também \
+                 %Tolerance. Um %Gage R&R de 8 % é aceitável, 20 % é marginal e 35 % é \
+                 inaceitável segundo a orientação publicada."
+            }
             "Type 1 Gage Study" => "Estudo Gage de tipo 1",
             "Control Chart" => "Carta de controlo",
             "Attribute Chart" => "Carta de atributos",

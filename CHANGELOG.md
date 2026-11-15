@@ -72,6 +72,11 @@ All notable changes to FreePlots are recorded here. The format follows
   cumulative curve for one of the ten distributions, with its parameters and an
   optional shaded area that reports the probability. It needs no worksheet
   data and has its own help page in both interface languages.
+- Gage R&R has an expanded crossed report: optional lower and upper
+  specification limits add %Tolerance (with the repeatability and
+  reproducibility percentages) and the published 10 %/30 % acceptance bands
+  classify %Gage R&R and %Tolerance as acceptable, marginal or unacceptable.
+  The dialog has its own help page in both interface languages.
 - ANOVA has a *General Linear Model…* entry: one numeric response from
   categorical factors (reference coding), numeric covariates and two-way
   interactions, with sequential and adjusted (Type III) sums of squares, F
@@ -144,7 +149,9 @@ All notable changes to FreePlots are recorded here. The format follows
   choice, the full-model Cp, the one-predictor and collinear cases and the
   invalid response, duplicate, over-limit and short samples. The factorial
   plots cover the two-factor panels and cube, a single factor, a three-factor
-  cube with eight corners and the uncoded or empty factor lists. The graph
+  cube with eight corners and the uncoded or empty factor lists. The expanded
+  Gage R&R covers %Tolerance against the closed-form value, the acceptance
+  verdict table, the no-limits case and the inverted limits. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus

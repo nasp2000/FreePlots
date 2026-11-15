@@ -2889,6 +2889,89 @@ fn gage_rr_dialog_reaches_the_session() {
 }
 
 #[test]
+fn the_expanded_gage_rr_reports_tolerance_and_a_verdict() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("m", vec![1.0, 2.0, 2.0, 3.0, 4.0, 5.0, 5.0, 6.0]),
+        Column::new_text(
+            "part",
+            vec![
+                "A".to_owned(),
+                "A".to_owned(),
+                "A".to_owned(),
+                "A".to_owned(),
+                "B".to_owned(),
+                "B".to_owned(),
+                "B".to_owned(),
+                "B".to_owned(),
+            ],
+        ),
+        Column::new_text(
+            "operator",
+            vec![
+                "O1".to_owned(),
+                "O1".to_owned(),
+                "O2".to_owned(),
+                "O2".to_owned(),
+                "O1".to_owned(),
+                "O1".to_owned(),
+                "O2".to_owned(),
+                "O2".to_owned(),
+            ],
+        ),
+    ])
+    .expect("frame");
+    app.set_data(df, "gage.csv".to_owned());
+    app.open_gage_dialog();
+    app.gage_measurement = "m".to_owned();
+    app.gage_part = "part".to_owned();
+    app.gage_operator = "operator".to_owned();
+    app.gage_lsl = "0".to_owned();
+    app.gage_usl = "10".to_owned();
+    app.run_gage_dialog();
+    let text = app.session_text();
+    assert!(text.contains("%Tolerance"), "{text}");
+    assert!(text.contains("Verdict"), "{text}");
+    assert!(
+        text.contains("acceptable") || text.contains("marginal") || text.contains("unacceptable"),
+        "{text}"
+    );
+}
+
+#[test]
+fn the_gage_rr_help_explains_the_metrics() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_gage_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About Gage R&R…").click();
+    harness.run();
+    assert!(harness.state().show_gage_help);
+    harness.get_by_label("Gage R&R help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("estimates repeatability");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do Gage R&R");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_gage_help);
+}
+
+#[test]
 fn kaplan_meier_dialog_reaches_the_session_and_plot() {
     let mut app = FreePlotsApp::new();
     let df = DataFrame::new(vec![

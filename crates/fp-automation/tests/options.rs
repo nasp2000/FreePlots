@@ -3649,6 +3649,25 @@ fn the_gage_dialog_reports_the_crossed_study() {
 }
 
 #[test]
+fn the_gage_dialog_adds_tolerance_and_acceptance_bands() {
+    let mut ui = Automation::new();
+    ui.load_frame(gage_frame(), "gage.csv");
+    open(&mut ui, &["Stat", "Quality Tools", "Gage R&R…"]);
+    ui.set_text("Lower spec:", "9").expect("lower");
+    ui.set_text("Upper spec:", "15").expect("upper");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("%Tolerance"), "{session}");
+    assert!(session.contains("Verdict"), "{session}");
+    assert!(
+        session.contains("acceptable")
+            || session.contains("marginal")
+            || session.contains("unacceptable"),
+        "{session}"
+    );
+}
+
+#[test]
 fn the_gage_dialog_reads_the_design() {
     let mut ui = Automation::new();
     ui.load_frame(nested_gage_frame(), "nested-gage.csv");

@@ -1382,6 +1382,9 @@ pub struct FreePlotsApp {
     gage_part: String,
     gage_operator: String,
     gage_design: GageDesign,
+    gage_lsl: String,
+    gage_usl: String,
+    show_gage_help: bool,
     show_type1_dialog: bool,
     type1_measurement: String,
     type1_reference: String,
@@ -4063,6 +4066,7 @@ impl FreePlotsApp {
         self.show_t_chart_dialog = false;
         self.show_t_chart_help = false;
         self.show_gage_dialog = false;
+        self.show_gage_help = false;
         self.show_graph_annotation = false;
         self.show_graph_labels = false;
         self.show_graph_text = false;
