@@ -2858,8 +2858,8 @@ fn the_optimal_dialog_creates_a_distance_design() {
 fn the_optimal_dialog_augments_and_evaluates_a_design() {
     let mut ui = Automation::new();
     let df = DataFrame::new(vec![
-        Column::new_f64("A", vec![-1.0, 1.0, -1.0, 1.0]),
-        Column::new_f64("B", vec![-1.0, -1.0, 1.0, 1.0]),
+        Column::new_f64("A", vec![-1.0, 1.0, -1.0]),
+        Column::new_f64("B", vec![-1.0, -1.0, 1.0]),
     ])
     .expect("frame");
     ui.load_frame(df, "design.csv");
@@ -2869,11 +2869,11 @@ fn the_optimal_dialog_augments_and_evaluates_a_design() {
     ui.set_text("Runs to add:", "2").expect("add");
     ui.click("Generate").expect("generate");
     assert!(
-        ui.session().contains("Design augmented: 6 runs"),
+        ui.session().contains("Design augmented: 5 runs"),
         "{}",
         ui.session()
     );
-    assert_eq!(ui.app().data().expect("frame").n_rows(), 6);
+    assert_eq!(ui.app().data().expect("frame").n_rows(), 5);
 
     open(&mut ui, &["Stat", "DOE", "Optimal Design…"]);
     ui.select("Mode:", "Evaluate").expect("mode");
