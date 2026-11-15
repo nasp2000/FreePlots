@@ -1446,8 +1446,9 @@ mod tests {
         let values = ramp(10);
         let model = autocorrelation(&values, 2).expect("acf");
         assert_eq!(model.n, 10);
-        let r1 = 57.5 / 82.5;
-        let r2 = 26.0 / 82.5;
+        // r1 = 57.75/82.5 = 0.7 and r2 = 34/82.5 over Σ(y−ȳ)² = 82.5.
+        let r1 = 0.7;
+        let r2 = 34.0 / 82.5;
         assert!(
             (model.lags[0].acf - r1).abs() < 1e-12,
             "{}",
@@ -1458,10 +1459,10 @@ mod tests {
             "{}",
             model.lags[1].acf
         );
-        // Durbin–Levinson: phi_11 = r1 and phi_22 = −0.3317857142857145.
+        // Durbin–Levinson: phi_11 = r1 and phi_22 = (r2 − r1²)/(1 − r1²).
         assert!((model.lags[0].pacf - r1).abs() < 1e-12);
         assert!(
-            (model.lags[1].pacf - -0.331_785_714_285_714_46).abs() < 1e-12,
+            (model.lags[1].pacf - -0.152_703_505_644_682_13).abs() < 1e-12,
             "{}",
             model.lags[1].pacf
         );
@@ -1497,11 +1498,14 @@ mod tests {
 
     #[test]
     fn the_cross_correlation_finds_the_shift() {
-        let x = ramp(20);
+        // A non-monotone pattern, so that only the true shift correlates.
+        let x: Vec<f64> = (0..20)
+            .map(|index| (((index * 37) % 17) as f64 - 8.0).sin())
+            .collect();
         // y follows x by two observations.
         let mut y = vec![0.0; 20];
         for index in 2..20 {
-            y[index] = x[index - 2] + 0.001 * index as f64;
+            y[index] = x[index - 2];
         }
         let model = cross_correlation(&x, &y, 4).expect("ccf");
         assert_eq!(model.lags.len(), 9);
@@ -1580,7 +1584,15 @@ mod tests {
         )
         .expect("regression");
         assert!((fit.gamma - reference.coefficients[1]).abs() < 1e-9);
-        assert!((fit.t - reference.t_values[1]).abs() < 1e-6);
+        // The normal equations and the QR fit agree to the conditioning of the
+        // design, not to the last bit.
+        let reference_t = reference.t_values[1];
+        assert!(
+            ((fit.t - reference_t) / reference_t).abs() < 1e-4,
+            "{} {}",
+            fit.t,
+            reference_t
+        );
         assert_eq!(fit.df, reference.df_residual as usize);
         assert_eq!(fit.observations, reference.n);
     }
@@ -1616,7 +1628,9 @@ mod tests {
         let differenced =
             transform_column(&holed, ColumnOperation::Difference { order: 1, lag: 1 })
                 .expect("difference");
-        assert!(differenced[3].is_nan(), "{}", differenced[3]);
+        // The second difference does not depend on the missing first value.
+        assert!(differenced[2].is_nan());
+        assert_eq!(differenced[3], 3.0);
         assert!(transform_column(&column, ColumnOperation::Lag { lag: 0 }).is_err());
         assert!(
             transform_column(&column, ColumnOperation::Difference { order: 3, lag: 1 }).is_err()
