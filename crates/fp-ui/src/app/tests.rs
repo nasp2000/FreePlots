@@ -1783,6 +1783,69 @@ fn sampling_dialog_reaches_the_session() {
 }
 
 #[test]
+fn variables_sampling_dialog_builds_a_plan_and_decides() {
+    let mut app = FreePlotsApp::new();
+    app.open_varsampling_dialog();
+    app.vs_limit = "10".to_owned();
+    app.vs_sigma = "1".to_owned();
+    app.vs_aql = "0.01".to_owned();
+    app.vs_rql = "0.05".to_owned();
+    app.vs_alpha = "0.05".to_owned();
+    app.vs_beta = "0.10".to_owned();
+    app.vs_column.clear();
+    app.vs_compare.clear();
+    app.run_varsampling_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Variables Acceptance Sampling"), "{text}");
+    assert!(text.contains("Critical distance k"), "{text}");
+    assert!(text.contains("19"), "{text}");
+    assert!(app.plot().is_some());
+
+    let df = DataFrame::new(vec![Column::new_f64("m", vec![8.0; 19])]).expect("frame");
+    app.set_data(df, "sample.csv".to_owned());
+    app.open_varsampling_dialog();
+    app.vs_column = "m".to_owned();
+    app.run_varsampling_dialog();
+    assert!(
+        app.session_text().contains("accept the lot"),
+        "{}",
+        app.session_text()
+    );
+}
+
+#[test]
+fn the_variables_sampling_help_explains_the_plan() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_varsampling_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About variables sampling…").click();
+    harness.run();
+    assert!(harness.state().show_varsampling_help);
+    harness.get_by_label("Variables sampling help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("inspects a measured characteristic");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da amostragem por variáveis");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_varsampling_help);
+}
+
+#[test]
 fn t2_dialog_reaches_the_session() {
     let mut app = FreePlotsApp::new();
     // Ten subgroups of three observations, written out literally.

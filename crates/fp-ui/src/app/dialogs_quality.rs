@@ -2063,6 +2063,287 @@ impl FreePlotsApp {
             self.run_sampling_dialog();
         }
     }
+    /// Opens the variables acceptance sampling dialog.
+    pub fn open_varsampling_dialog(&mut self) {
+        self.show_varsampling_dialog = true;
+    }
+
+    /// Runs the variables plan and, when a column is chosen, its decision.
+    pub fn run_varsampling_dialog(&mut self) {
+        let parse = |text: &str, name: &str| -> std::result::Result<f64, String> {
+            text.trim()
+                .parse::<f64>()
+                .map_err(|_| format!("{name} must be a number"))
+        };
+        let limit = match parse(&self.vs_limit, "The specification limit") {
+            Ok(value) => value,
+            Err(message) => {
+                self.set_error(message);
+                return;
+            }
+        };
+        let sigma = match parse(&self.vs_sigma, "The standard deviation") {
+            Ok(value) => value,
+            Err(message) => {
+                self.set_error(message);
+                return;
+            }
+        };
+        let aql = match parse(&self.vs_aql, "The AQL") {
+            Ok(value) => value,
+            Err(message) => {
+                self.set_error(message);
+                return;
+            }
+        };
+        let rql = match parse(&self.vs_rql, "The RQL") {
+            Ok(value) => value,
+            Err(message) => {
+                self.set_error(message);
+                return;
+            }
+        };
+        let alpha = match parse(&self.vs_alpha, "The producer risk") {
+            Ok(value) => value,
+            Err(message) => {
+                self.set_error(message);
+                return;
+            }
+        };
+        let beta = match parse(&self.vs_beta, "The consumer risk") {
+            Ok(value) => value,
+            Err(message) => {
+                self.set_error(message);
+                return;
+            }
+        };
+        let mut compare = Vec::new();
+        for part in self.vs_compare.split(',') {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            let sides: Vec<&str> = part.split(':').map(str::trim).collect();
+            if sides.len() != 2 {
+                self.set_error("Write each comparison plan as n:k, separated by commas");
+                return;
+            }
+            let Ok(n) = sides[0].parse::<usize>() else {
+                self.set_error("The plan sample sizes must be positive integers");
+                return;
+            };
+            let Ok(k) = sides[1].parse::<f64>() else {
+                self.set_error("The plan critical distances must be numbers");
+                return;
+            };
+            compare.push((n, k));
+        }
+        let options = fp_core::varsampling::VariablesOptions {
+            limit,
+            side: self.vs_side,
+            sigma,
+            aql,
+            rql,
+            alpha,
+            beta,
+            compare,
+        };
+        let sample = if self.vs_column.is_empty() {
+            None
+        } else {
+            let Some(df) = self.data.as_ref() else {
+                self.set_error("No worksheet open: use File → Open CSV…");
+                return;
+            };
+            let Ok(column) = df.column(&self.vs_column) else {
+                self.set_error("The sample column is not in the worksheet");
+                return;
+            };
+            let values: Vec<f64> = (0..df.n_rows())
+                .filter_map(|row| column.value(row))
+                .filter(|value| value.is_finite())
+                .collect();
+            Some(values)
+        };
+        match fp_core::varsampling::analyze(&options, sample.as_deref()) {
+            Ok(output) => {
+                self.apply_output(output, "Variables sampling".to_owned());
+                self.show_varsampling_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Variables acceptance sampling dialog.
+    pub(super) fn varsampling_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_varsampling_dialog {
+            return;
+        }
+        let numeric: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut open = self.show_varsampling_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Variables Acceptance Sampling"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(470.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Side:");
+                    egui::ComboBox::from_id_salt("vs_side")
+                        .selected_text(self.vs_side.name())
+                        .show_ui(ui, |ui| {
+                            for side in [
+                                fp_core::varsampling::SpecSide::Upper,
+                                fp_core::varsampling::SpecSide::Lower,
+                            ] {
+                                ui.selectable_value(&mut self.vs_side, side, side.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                for (label_text, field) in [
+                    ("Specification limit:", &mut self.vs_limit),
+                    ("Known sigma:", &mut self.vs_sigma),
+                    ("AQL (fraction):", &mut self.vs_aql),
+                    ("RQL (fraction):", &mut self.vs_rql),
+                    ("Producer risk:", &mut self.vs_alpha),
+                    ("Consumer risk:", &mut self.vs_beta),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(label_text);
+                        ui.add(
+                            egui::TextEdit::singleline(field).desired_width(130.0),
+                        )
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Sample column (optional):");
+                    egui::ComboBox::from_id_salt("vs_column")
+                        .selected_text(if self.vs_column.is_empty() {
+                            "None".to_owned()
+                        } else {
+                            self.vs_column.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.vs_column,
+                                String::new(),
+                                "None",
+                            );
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.vs_column,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Compare plans (n:k):");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.vs_compare)
+                            .desired_width(200.0)
+                            .hint_text("19:1.95, 40:2.1"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.small(
+                    "One specification limit and a known sigma; the plan gives n and the critical                      distance k, the OC curve and the accept/reject decision.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About variables sampling…"))
+                        .clicked()
+                    {
+                        self.show_varsampling_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_varsampling_dialog = open && !run && !cancel;
+        if run {
+            self.run_varsampling_dialog();
+        }
+    }
+
+    /// Help page of the variables acceptance sampling.
+    pub(super) fn varsampling_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_varsampling_help {
+            return;
+        }
+        let mut open = self.show_varsampling_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Variables sampling help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "Variables acceptance sampling inspects a measured characteristic instead of \
+                     counting defectives. With one specification limit and a known sigma it \
+                     derives the sample size n and the critical distance k from the acceptable \
+                     and rejectable quality levels and the two risks, draws the operating \
+                     characteristic curve and accepts or rejects a sample.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Enter the specification limit, the known sigma, the AQL, the RQL, the \
+                     producer risk and the consumer risk. Optionally choose a numeric column: the \
+                     first n observations are averaged and the lot is accepted when the mean is at \
+                     least k standard deviations from the limit. Compare plans can be written as \
+                     n:k pairs.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "An upper limit of 10, sigma 1, AQL 0.01, RQL 0.05, producer risk 0.05 and \
+                     consumer risk 0.10 give n = 19 and k = 1.949; a sample mean of 8 is accepted \
+                     and 9.8 is rejected. A 40-item plan with k = 2.1 is steeper and accepts less \
+                     at the RQL.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_varsampling_help = open && !close;
+    }
+
     pub fn open_pareto_dialog(&mut self) {
         self.pareto_column = self.selected.clone().unwrap_or_default();
         self.pareto_weight.clear();

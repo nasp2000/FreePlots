@@ -102,6 +102,7 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["Stat", "Control Charts", "P/NP/C/U Chart…"],
     &["Stat", "Control Charts", "G Chart (Rare Events)…"],
     &["Stat", "Control Charts", "Multivariate Charts…"],
+    &["Stat", "Quality Tools", "Variables Acceptance Sampling…"],
     &["Stat", "Quality Tools", "Capability Analysis…"],
     &["Stat", "Quality Tools", "Distribution Comparison…"],
     &[

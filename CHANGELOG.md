@@ -76,6 +76,10 @@ All notable changes to FreePlots are recorded here. The format follows
   by conditional sum of squares, with forecasts, ψ-based intervals, AIC/AICc/
   BIC and a best-order search over p, d, q from 0 to 2. It has its own help
   page in both interface languages.
+- Quality Tools has a *Variables Acceptance Sampling…* entry: a single-limit
+  plan with a known sigma (`n` and the critical distance `k` from AQL/RQL and
+  the two risks), the OC curve, comparison of `n:k` plans and the accept/reject
+  decision for a sample. It has its own help page in both interface languages.
 - Gage R&R has an expanded crossed report: optional lower and upper
   specification limits add %Tolerance (with the repeatability and
   reproducibility percentages) and the published 10 %/30 % acceptance bands
@@ -158,7 +162,9 @@ All notable changes to FreePlots are recorded here. The format follows
   verdict table, the no-limits case and the inverted limits. ARIMA covers the
   AR coefficient of a synthetic series, a differenced random walk, an MA term,
   the best-order table, the forecast table and the invalid orders, horizon,
-  confidence, short and constant series. The graph
+  confidence, short and constant series. Variables sampling covers the
+  published `n`/`k` values, the accepted and rejected samples, the lower limit,
+  the comparison table and the invalid proportions/sigma. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus

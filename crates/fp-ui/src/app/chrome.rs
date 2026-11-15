@@ -190,6 +190,8 @@ impl FreePlotsApp {
         self.t2_dialog(&ctx);
         self.mv_help_window(&ctx);
         self.sampling_dialog(&ctx);
+        self.varsampling_dialog(&ctx);
+        self.varsampling_help_window(&ctx);
         self.taguchi_dialog(&ctx);
         self.taguchi_design_dialog(&ctx);
         self.agreement_dialog(&ctx);

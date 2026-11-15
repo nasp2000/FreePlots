@@ -129,6 +129,30 @@ impl UiCatalog {
             // Quality tools.
             "Capability Analysis…" => "Análise de capacidade…",
             "Distribution Comparison…" => "Comparação de distribuições…",
+            "Variables Acceptance Sampling…" => "Amostragem de aceitação por variáveis…",
+            "Variables Acceptance Sampling" => "Amostragem de aceitação por variáveis",
+            "Variables sampling help" => "Ajuda da amostragem por variáveis",
+            "About variables sampling…" => "Acerca da amostragem por variáveis…",
+            "Variables acceptance sampling inspects a measured characteristic instead of \
+             counting defectives. With one specification limit and a known sigma it \
+             derives the sample size n and the critical distance k from the acceptable \
+             and rejectable quality levels and the two risks, draws the operating \
+             characteristic curve and accepts or rejects a sample." => {
+                "A amostragem de aceitação por variáveis inspecciona uma característica medida em                  vez de contar defeituosos. Com um limite de especificação e sigma conhecido,                  deriva o tamanho da amostra n e a distância crítica k dos níveis de qualidade                  aceitável e rejeitável e dos dois riscos, desenha a curva característica de                  operação e aceita ou rejeita uma amostra."
+            }
+            "Enter the specification limit, the known sigma, the AQL, the RQL, the \
+             producer risk and the consumer risk. Optionally choose a numeric column: the \
+             first n observations are averaged and the lot is accepted when the mean is at \
+             least k standard deviations from the limit. Compare plans can be written as \
+             n:k pairs." => {
+                "Introduza o limite de especificação, o sigma conhecido, o AQL, o RQL, o risco do                  produtor e o risco do consumidor. Opcionalmente escolha uma coluna numérica: as                  primeiras n observações são mediadas e o lote é aceite quando a média está a pelo                  menos k desvios padrão do limite. Os planos de comparação podem ser escritos como                  pares n:k."
+            }
+            "An upper limit of 10, sigma 1, AQL 0.01, RQL 0.05, producer risk 0.05 and \
+             consumer risk 0.10 give n = 19 and k = 1.949; a sample mean of 8 is accepted \
+             and 9.8 is rejected. A 40-item plan with k = 2.1 is steeper and accepts less \
+             at the RQL." => {
+                "Um limite superior de 10, sigma 1, AQL 0,01, RQL 0,05, risco do produtor 0,05 e                  risco do consumidor 0,10 dão n = 19 e k = 1,949; uma média de 8 é aceite e 9,8 é                  rejeitada. Um plano de 40 itens com k = 2,1 é mais inclinado e aceita menos no                  RQL."
+            }
             "Individual Distribution Identification" => "Identificação individual de distribuições",
             "Individual Distribution Identification…" => {
                 "Identificação individual de distribuições…"

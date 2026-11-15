@@ -1145,6 +1145,18 @@ pub struct FreePlotsApp {
     sampling_ltpd: f64,
     sampling_alpha: f64,
     sampling_beta: f64,
+    /// Variables acceptance sampling dialog and help.
+    show_varsampling_dialog: bool,
+    show_varsampling_help: bool,
+    vs_side: fp_core::varsampling::SpecSide,
+    vs_limit: String,
+    vs_sigma: String,
+    vs_aql: String,
+    vs_rql: String,
+    vs_alpha: String,
+    vs_beta: String,
+    vs_column: String,
+    vs_compare: String,
     show_t2_dialog: bool,
     show_mv_help: bool,
     t2_kind: fp_core::mvchart::MultivariateChart,
@@ -4111,6 +4123,8 @@ impl FreePlotsApp {
         self.show_rename = false;
         self.show_rsm_dialog = false;
         self.show_sampling_dialog = false;
+        self.show_varsampling_dialog = false;
+        self.show_varsampling_help = false;
         self.show_scatter_dialog = false;
         self.show_series_dialog = false;
         self.show_sheet_dialog = false;

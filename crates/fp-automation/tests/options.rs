@@ -1989,6 +1989,52 @@ fn the_sampling_dialog_plans_a_scheme() {
 }
 
 #[test]
+fn the_variables_sampling_dialog_builds_a_plan() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(
+        &mut ui,
+        &["Stat", "Quality Tools", "Variables Acceptance Sampling…"],
+    );
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Variables Acceptance Sampling"),
+        "{session}"
+    );
+    assert!(session.contains("Critical distance k"), "{session}");
+    assert!(session.contains("19"), "{session}");
+    assert!(ui.plot().is_some(), "a plot was produced");
+}
+
+#[test]
+fn the_variables_sampling_dialog_accepts_a_sample() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![Column::new_f64("m", vec![8.0; 19])]).expect("frame");
+    ui.load_frame(df, "sample.csv");
+    open(
+        &mut ui,
+        &["Stat", "Quality Tools", "Variables Acceptance Sampling…"],
+    );
+    ui.select("Sample column (optional):", "m").expect("sample");
+    ui.click("Run").expect("run");
+    assert!(ui.session().contains("accept the lot"), "{}", ui.session());
+}
+
+#[test]
+fn the_variables_sampling_dialog_rejects_invalid_proportions() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(
+        &mut ui,
+        &["Stat", "Quality Tools", "Variables Acceptance Sampling…"],
+    );
+    ui.set_text("RQL (fraction):", "0.005").expect("rql");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("0 < AQL < RQL"), "{}", ui.status());
+}
+
+#[test]
 fn the_sampling_dialog_rejects_an_acceptance_number_above_the_sample() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

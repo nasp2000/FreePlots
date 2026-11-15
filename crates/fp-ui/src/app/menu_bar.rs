@@ -1318,6 +1318,18 @@ impl FreePlotsApp {
                         self.open_id_dialog();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Variables Acceptance Sampling…"),
+                        None,
+                        true,
+                    )
+                    .on_hover_text("Create/compare a variables plan and accept or reject a sample")
+                    .clicked()
+                    {
+                        self.open_varsampling_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Interval Plot…"), None, self.data.is_some())
                         .on_hover_text("Level means with confidence intervals")
                         .clicked()

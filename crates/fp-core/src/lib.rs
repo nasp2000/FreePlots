@@ -91,6 +91,7 @@ pub mod tolerance;
 pub mod transform;
 pub mod twoway;
 pub mod variance;
+pub mod varsampling;
 pub mod workflow;
 pub mod xlsx;
 pub mod xlsx_read;
