@@ -1318,6 +1318,25 @@ mod tests {
     }
 
     #[test]
+    fn a_screening_with_two_effects_warns_about_the_margins() {
+        let df = frame(vec![
+            Column::new_f64("y", vec![1.0, 3.0, 2.0, 4.0]),
+            Column::new_f64("a", vec![-1.0, 1.0, -1.0, 1.0]),
+            Column::new_f64("b", vec![-1.0, -1.0, 1.0, 1.0]),
+        ]);
+        let model = screening_fit(&df, "y", &["a".to_owned(), "b".to_owned()]).expect("fit");
+        assert_eq!(model.effects.len(), 2);
+        assert!((model.pse - 2.25).abs() < 1e-12, "{}", model.pse);
+        assert!((model.df - 2.0 / 3.0).abs() < 1e-12, "{}", model.df);
+        assert!(model.me > model.sme / 3.0);
+        let output =
+            screening_analyze(&df, "y", &["a".to_owned(), "b".to_owned()]).expect("report");
+        let text = output.results[0].to_session_text();
+        assert!(text.contains("fewer than four effects"), "{text}");
+        assert!(output.plot.is_some());
+    }
+
+    #[test]
     fn the_screening_needs_a_scale_and_coded_factors() {
         // Three effects, two of them exactly zero: the median is zero.
         let df = frame(vec![
