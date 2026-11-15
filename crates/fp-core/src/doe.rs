@@ -1014,6 +1014,27 @@ fn mixture_frame(
     DataFrame::new(columns)
 }
 
+/// Request of a mixture design.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MixtureDesignConfig {
+    /// Component names.
+    pub factors: Vec<String>,
+    /// Design family.
+    pub kind: MixtureDesignKind,
+    /// Lattice degree (1–5), used by the simplex lattice.
+    pub degree: usize,
+    /// Optional per-component lower bounds.
+    pub lower: Option<Vec<f64>>,
+    /// Optional per-component upper bounds.
+    pub upper: Option<Vec<f64>>,
+    /// Replicates of every point.
+    pub replicates: usize,
+    /// Whether the run order is randomised.
+    pub randomize: bool,
+    /// Seed of the deterministic randomiser.
+    pub seed: u64,
+}
+
 /// Generates a mixture design: simplex centroid, simplex lattice or extreme
 /// vertices, optionally restricted by per-component bounds.
 ///
@@ -1022,16 +1043,13 @@ fn mixture_frame(
 /// Returns [`Error::Unsupported`] for fewer than two or more than ten
 /// components, duplicate names, an invalid degree, invalid or infeasible
 /// bounds, no point inside the bounds or a design beyond one million runs.
-pub fn mixture_design(
-    factors: &[String],
-    kind: MixtureDesignKind,
-    degree: usize,
-    lower: Option<&[f64]>,
-    upper: Option<&[f64]>,
-    replicates: usize,
-    randomize: bool,
-    seed: u64,
-) -> Result<DataFrame> {
+pub fn mixture_design(config: &MixtureDesignConfig) -> Result<DataFrame> {
+    let factors = &config.factors;
+    let kind = config.kind;
+    let degree = config.degree;
+    let replicates = config.replicates;
+    let randomize = config.randomize;
+    let seed = config.seed;
     let q = factors.len();
     if !(2..=10).contains(&q) {
         return Err(Error::Unsupported(
@@ -1051,7 +1069,7 @@ pub fn mixture_design(
             "the lattice degree must be between 1 and 5".to_owned(),
         ));
     }
-    let (low, high) = mixture_bounds(q, lower, upper)?;
+    let (low, high) = mixture_bounds(q, config.lower.as_deref(), config.upper.as_deref())?;
     let points: Vec<Vec<f64>> = match kind {
         MixtureDesignKind::Centroid => {
             let mut raw = Vec::new();
@@ -2865,18 +2883,35 @@ mod tests {
         df.column(name).expect("column").value(row).expect("value")
     }
 
+    fn design(
+        factors: &[&str],
+        kind: MixtureDesignKind,
+        degree: usize,
+        lower: Option<&[f64]>,
+        upper: Option<&[f64]>,
+        replicates: usize,
+    ) -> Result<DataFrame> {
+        mixture_design(&MixtureDesignConfig {
+            factors: factors.iter().map(|name| (*name).to_owned()).collect(),
+            kind,
+            degree,
+            lower: lower.map(<[f64]>::to_vec),
+            upper: upper.map(<[f64]>::to_vec),
+            replicates,
+            randomize: false,
+            seed: 7,
+        })
+    }
+
     #[test]
     fn the_simplex_centroid_has_every_blend() {
-        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
-        let df = mixture_design(
-            &factors,
+        let df = design(
+            &["A", "B", "C"],
             MixtureDesignKind::Centroid,
             2,
             None,
             None,
             1,
-            false,
-            7,
         )
         .expect("design");
         assert_eq!(df.n_rows(), 7);
@@ -2896,16 +2931,13 @@ mod tests {
 
     #[test]
     fn the_simplex_lattice_of_degree_two_has_six_points() {
-        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
-        let df = mixture_design(
-            &factors,
+        let df = design(
+            &["A", "B", "C"],
             MixtureDesignKind::Lattice,
             2,
             None,
             None,
             1,
-            false,
-            7,
         )
         .expect("design");
         assert_eq!(df.n_rows(), 6);
@@ -2920,18 +2952,15 @@ mod tests {
 
     #[test]
     fn the_extreme_vertices_respect_the_bounds() {
-        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
         let lower = [0.1, 0.1, 0.1];
         let upper = [0.7, 0.7, 0.7];
-        let df = mixture_design(
-            &factors,
+        let df = design(
+            &["A", "B", "C"],
             MixtureDesignKind::ExtremeVertices,
             2,
             Some(&lower),
             Some(&upper),
             1,
-            false,
-            7,
         )
         .expect("design");
         assert!(df.n_rows() > 0);
@@ -2952,17 +2981,14 @@ mod tests {
 
     #[test]
     fn the_bounds_filter_a_centroid_and_an_infeasible_region_is_rejected() {
-        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
         let lower = [0.2, 0.0, 0.0];
-        let df = mixture_design(
-            &factors,
+        let df = design(
+            &["A", "B", "C"],
             MixtureDesignKind::Centroid,
             2,
             Some(&lower),
             None,
             1,
-            false,
-            7,
         )
         .expect("design");
         assert!(df.n_rows() > 0);
@@ -2971,15 +2997,13 @@ mod tests {
         }
         let bad = [0.5, 0.5, 0.5];
         assert!(
-            mixture_design(
-                &factors,
+            design(
+                &["A", "B", "C"],
                 MixtureDesignKind::Centroid,
                 2,
                 Some(&bad),
                 None,
                 1,
-                false,
-                7,
             )
             .is_err()
         );
@@ -2987,41 +3011,28 @@ mod tests {
 
     #[test]
     fn replicates_and_randomisation_are_reproducible() {
-        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
-        let plain = mixture_design(
-            &factors,
+        let plain = design(
+            &["A", "B", "C"],
             MixtureDesignKind::Centroid,
             2,
             None,
             None,
             2,
-            false,
-            7,
         )
         .expect("design");
         assert_eq!(plain.n_rows(), 14);
-        let first = mixture_design(
-            &factors,
-            MixtureDesignKind::Centroid,
-            2,
-            None,
-            None,
-            1,
-            true,
-            11,
-        )
-        .expect("design");
-        let second = mixture_design(
-            &factors,
-            MixtureDesignKind::Centroid,
-            2,
-            None,
-            None,
-            1,
-            true,
-            11,
-        )
-        .expect("design");
+        let config = MixtureDesignConfig {
+            factors: ["A".to_owned(), "B".to_owned(), "C".to_owned()],
+            kind: MixtureDesignKind::Centroid,
+            degree: 2,
+            lower: None,
+            upper: None,
+            replicates: 1,
+            randomize: true,
+            seed: 11,
+        };
+        let first = mixture_design(&config).expect("design");
+        let second = mixture_design(&config).expect("design");
         for row in 0..first.n_rows() {
             assert!((component(&first, "A", row) - component(&second, "A", row)).abs() < 1e-12);
         }
@@ -3029,70 +3040,27 @@ mod tests {
 
     #[test]
     fn invalid_mixture_requests_are_rejected() {
-        let one = ["A".to_owned()];
+        assert!(design(&["A"], MixtureDesignKind::Centroid, 2, None, None, 1,).is_err());
+        assert!(design(&["A", "A"], MixtureDesignKind::Centroid, 2, None, None, 1,).is_err());
+        assert!(design(&["A", "B"], MixtureDesignKind::Lattice, 0, None, None, 1,).is_err());
         assert!(
-            mixture_design(
-                &one,
-                MixtureDesignKind::Centroid,
-                2,
-                None,
-                None,
-                1,
-                false,
-                1,
-            )
-            .is_err()
-        );
-        let duplicate = ["A".to_owned(), "A".to_owned()];
-        assert!(
-            mixture_design(
-                &duplicate,
-                MixtureDesignKind::Centroid,
-                2,
-                None,
-                None,
-                1,
-                false,
-                1,
-            )
-            .is_err()
-        );
-        let factors = ["A".to_owned(), "B".to_owned()];
-        assert!(
-            mixture_design(
-                &factors,
-                MixtureDesignKind::Lattice,
-                0,
-                None,
-                None,
-                1,
-                false,
-                1,
-            )
-            .is_err()
-        );
-        assert!(
-            mixture_design(
-                &factors,
+            design(
+                &["A", "B"],
                 MixtureDesignKind::Lattice,
                 2,
                 Some(&[0.1]),
                 None,
                 1,
-                false,
-                1,
             )
             .is_err()
         );
         assert!(
-            mixture_design(
-                &factors,
+            design(
+                &["A", "B"],
                 MixtureDesignKind::ExtremeVertices,
                 2,
                 Some(&[0.8, 0.8]),
                 Some(&[0.9, 0.9]),
-                1,
-                false,
                 1,
             )
             .is_err()

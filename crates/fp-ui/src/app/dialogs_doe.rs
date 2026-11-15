@@ -561,16 +561,17 @@ impl FreePlotsApp {
                 return;
             }
         };
-        let df = match fp_core::doe::mixture_design(
-            &factors,
-            self.mixture_kind,
-            self.mixture_degree,
-            lower.as_deref(),
-            upper.as_deref(),
-            self.mixture_replicates,
-            self.mixture_randomize,
-            self.mixture_seed,
-        ) {
+        let config = fp_core::doe::MixtureDesignConfig {
+            factors: factors.clone(),
+            kind: self.mixture_kind,
+            degree: self.mixture_degree,
+            lower,
+            upper,
+            replicates: self.mixture_replicates,
+            randomize: self.mixture_randomize,
+            seed: self.mixture_seed,
+        };
+        let df = match fp_core::doe::mixture_design(&config) {
             Ok(df) => df,
             Err(error) => {
                 self.set_error(error.to_string());
