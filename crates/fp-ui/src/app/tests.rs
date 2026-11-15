@@ -10804,3 +10804,135 @@ fn the_crossover_help_explains_the_design() {
     harness.run();
     assert!(!harness.state().show_crossover_help);
 }
+
+#[test]
+fn manova_dialog_reaches_the_session() {
+    let df = DataFrame::new(vec![
+        Column::new_f64("y1", vec![2.0, 0.0, 2.0, 0.0, -2.0, -2.0]),
+        Column::new_f64("y2", vec![2.0, 0.0, -2.0, 0.0, 0.0, 0.0]),
+        Column::new_text(
+            "g",
+            ["A", "A", "B", "B", "C", "C"]
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+        ),
+    ])
+    .expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "manova.csv".to_owned());
+    app.open_manova_dialog();
+    app.manova_factor = "g".to_owned();
+    app.manova_responses = vec!["y1".to_owned(), "y2".to_owned()];
+    app.run_manova_dialog();
+    let text = app.session_text();
+    assert!(text.contains("MANOVA — 2 responses by g"), "{text}");
+    assert!(text.contains("Wilks' lambda"), "{text}");
+    assert!(text.contains("Hotelling-Lawley"), "{text}");
+
+    // A single response is refused before the engine runs.
+    app.open_manova_dialog();
+    app.manova_responses = vec!["y1".to_owned()];
+    app.run_manova_dialog();
+    assert!(app.status.contains("two response"), "{}", app.status);
+}
+
+#[test]
+fn nested_dialog_reaches_the_session() {
+    let mut y = Vec::new();
+    let mut g = Vec::new();
+    let mut s = Vec::new();
+    for (outer, inner, centre) in [
+        ("A", "a1", 4.0),
+        ("A", "a2", 6.0),
+        ("B", "b1", 10.0),
+        ("B", "b2", 12.0),
+    ] {
+        for offset in [-1.0, 1.0] {
+            y.push(centre + offset);
+            g.push(outer.to_owned());
+            s.push(inner.to_owned());
+        }
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("y", y),
+        Column::new_text("g", g),
+        Column::new_text("s", s),
+    ])
+    .expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "nested.csv".to_owned());
+    app.open_nested_dialog();
+    app.nested_response = "y".to_owned();
+    app.nested_group = "g".to_owned();
+    app.nested_subgroup = "s".to_owned();
+    app.run_nested_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Nested ANOVA — response y"), "{text}");
+    assert!(text.contains("s (g)"), "{text}");
+    assert!(text.contains("Estimate"), "{text}");
+}
+
+#[test]
+fn the_manova_help_explains_the_statistics() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_manova_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About MANOVA…").click();
+    harness.run();
+    assert!(harness.state().show_manova_help);
+    harness.get_by_label("MANOVA help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("Pillai's trace");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do MANOVA");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_manova_help);
+}
+
+#[test]
+fn the_nested_help_explains_the_components() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_nested_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About nested ANOVA…").click();
+    harness.run();
+    assert!(harness.state().show_nested_help);
+    harness.get_by_label("Nested ANOVA help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("subgroup belongs to one group");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da ANOVA encaixada");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_nested_help);
+}

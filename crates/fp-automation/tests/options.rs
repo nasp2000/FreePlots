@@ -3923,6 +3923,109 @@ fn crossover_frame() -> DataFrame {
     .expect("crossover frame")
 }
 
+/// Two responses with three groups of two observations.
+fn manova_frame() -> DataFrame {
+    DataFrame::new(vec![
+        Column::new_f64("y1", vec![2.0, 0.0, 2.0, 0.0, -2.0, -2.0]),
+        Column::new_f64("y2", vec![2.0, 0.0, -2.0, 0.0, 0.0, 0.0]),
+        Column::new_text(
+            "g",
+            ["A", "A", "B", "B", "C", "C"]
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+        ),
+    ])
+    .expect("manova frame")
+}
+
+/// A balanced nested design with two groups and two subgroups each.
+fn nested_frame() -> DataFrame {
+    let mut y = Vec::new();
+    let mut g = Vec::new();
+    let mut s = Vec::new();
+    for (outer, inner, centre) in [
+        ("A", "a1", 4.0),
+        ("A", "a2", 6.0),
+        ("B", "b1", 10.0),
+        ("B", "b2", 12.0),
+    ] {
+        for offset in [-1.0, 1.0] {
+            y.push(centre + offset);
+            g.push(outer.to_owned());
+            s.push(inner.to_owned());
+        }
+    }
+    DataFrame::new(vec![
+        Column::new_f64("y", y),
+        Column::new_text("g", g),
+        Column::new_text("s", s),
+    ])
+    .expect("nested frame")
+}
+
+#[test]
+fn the_manova_dialog_reports_the_four_statistics() {
+    let mut ui = Automation::new();
+    ui.load_frame(manova_frame(), "manova.csv");
+    open(&mut ui, &["Stat", "ANOVA", "MANOVA…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("MANOVA — 2 responses"), "{session}");
+    assert!(session.contains("Wilks' lambda"), "{session}");
+    assert!(session.contains("Pillai's trace"), "{session}");
+    assert!(session.contains("Hotelling-Lawley trace"), "{session}");
+    assert!(session.contains("Roy's greatest root"), "{session}");
+}
+
+#[test]
+fn the_manova_dialog_needs_two_responses() {
+    let mut ui = Automation::new();
+    ui.load_frame(manova_frame(), "manova.csv");
+    open(&mut ui, &["Stat", "ANOVA", "MANOVA…"]);
+    ui.click("y2").expect("drop y2");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("two response"), "{}", ui.status());
+}
+
+#[test]
+fn the_nested_dialog_reports_the_components() {
+    let mut ui = Automation::new();
+    ui.load_frame(nested_frame(), "nested.csv");
+    open(&mut ui, &["Stat", "ANOVA", "Nested ANOVA…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("Nested ANOVA — response y"), "{session}");
+    assert!(session.contains("s (g)"), "{session}");
+    assert!(session.contains("Estimate"), "{session}");
+    assert!(session.contains("Percent"), "{session}");
+}
+
+#[test]
+fn the_nested_dialog_rejects_an_unbalanced_design() {
+    let mut ui = Automation::new();
+    let y: Vec<f64> = (0..10).map(|index| index as f64).collect();
+    let mut g: Vec<String> = vec!["A".to_owned(); 4];
+    g.extend(vec!["B".to_owned(); 6]);
+    let mut s: Vec<String> = vec!["a1".to_owned(); 2];
+    s.extend(vec!["a2".to_owned(); 2]);
+    s.extend(vec!["b1".to_owned(); 2]);
+    s.extend(vec!["b2".to_owned(); 2]);
+    s.extend(vec!["b3".to_owned(); 2]);
+    ui.load_frame(
+        DataFrame::new(vec![
+            Column::new_f64("y", y),
+            Column::new_text("g", g),
+            Column::new_text("s", s),
+        ])
+        .expect("frame"),
+        "unbalanced.csv",
+    );
+    open(&mut ui, &["Stat", "ANOVA", "Nested ANOVA…"]);
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("balanced"), "{}", ui.status());
+}
+
 #[test]
 fn the_crossover_equivalence_dialog_reports_the_decision() {
     let mut ui = Automation::new();

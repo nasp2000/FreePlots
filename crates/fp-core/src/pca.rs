@@ -52,7 +52,7 @@ pub struct Pca {
 /// columns of the second value, with the sign of each vector fixed so that its
 /// largest entry is positive.
 #[allow(clippy::needless_range_loop)]
-fn jacobi(matrix: &[Vec<f64>]) -> Option<(Vec<f64>, Vec<Vec<f64>>)> {
+pub(crate) fn jacobi(matrix: &[Vec<f64>]) -> Option<(Vec<f64>, Vec<Vec<f64>>)> {
     let n = matrix.len();
     if n == 0 || matrix.iter().any(|row| row.len() != n) {
         return None;

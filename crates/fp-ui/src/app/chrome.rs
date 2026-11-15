@@ -219,6 +219,10 @@ impl FreePlotsApp {
         self.predict_help_window(&ctx);
         self.stepwise_dialog(&ctx);
         self.anova_dialog(&ctx);
+        self.manova_dialog(&ctx);
+        self.manova_help_window(&ctx);
+        self.nested_dialog(&ctx);
+        self.nested_help_window(&ctx);
         self.glm_dialog(&ctx);
         self.glm_help_window(&ctx);
         self.kaplan_meier_dialog(&ctx);

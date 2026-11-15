@@ -1214,6 +1214,17 @@ pub struct FreePlotsApp {
     timeseries_model: fp_core::timeseries::DecompositionModel,
     timeseries_season: usize,
     timeseries_horizon: usize,
+    /// MANOVA dialog, help and inputs.
+    show_manova_dialog: bool,
+    show_manova_help: bool,
+    manova_factor: String,
+    manova_responses: Vec<String>,
+    /// Nested ANOVA dialog, help and inputs.
+    show_nested_dialog: bool,
+    show_nested_help: bool,
+    nested_response: String,
+    nested_group: String,
+    nested_subgroup: String,
     /// 2x2 crossover equivalence dialog, help and inputs.
     show_crossover_dialog: bool,
     show_crossover_help: bool,
@@ -4250,6 +4261,10 @@ impl FreePlotsApp {
         self.show_tsdiag_help = false;
         self.show_crossover_dialog = false;
         self.show_crossover_help = false;
+        self.show_manova_dialog = false;
+        self.show_manova_help = false;
+        self.show_nested_dialog = false;
+        self.show_nested_help = false;
         self.show_arima_dialog = false;
         self.show_arima_help = false;
         self.show_tolerance_dialog = false;

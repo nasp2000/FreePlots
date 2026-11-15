@@ -113,6 +113,96 @@ impl UiCatalog {
             "2-Sample t…" => "t de 2 amostras…",
             "Paired t…" => "t pareado…",
             "Equivalence Test…" => "Teste de equivalência…",
+            "Nested ANOVA…" => "ANOVA encaixada…",
+            "Nested ANOVA" => "ANOVA encaixada",
+            "MANOVA help" => "Ajuda do MANOVA",
+            "Nested ANOVA help" => "Ajuda da ANOVA encaixada",
+            "About MANOVA…" => "Acerca do MANOVA…",
+            "About nested ANOVA…" => "Acerca da ANOVA encaixada…",
+            "Responses:" => "Respostas:",
+            "Group:" => "Grupo:",
+            "Subgroup:" => "Subgrupo:",
+            "One factor and at least two numeric responses; the four statistics come \
+             with Rao's approximate F tests." => {
+                "Um factor e pelo menos duas respostas numéricas; as quatro estatísticas vêm \
+                 com os testes F aproximados de Rao."
+            }
+            "Two levels in a balanced design: the same number of subgroups per group \
+             and of observations per cell; the components use the random-effects \
+             estimators." => {
+                "Dois níveis num desenho equilibrado: o mesmo número de subgrupos por grupo \
+                 e de observações por célula; os componentes usam os estimadores de efeitos \
+                 aleatórios."
+            }
+            "The multivariate analysis of variance compares the means of several \
+             response variables across the levels of one factor. The hypothesis and \
+             error matrices give the four usual statistics — Wilks' lambda, Pillai's \
+             trace, the Hotelling–Lawley trace and Roy's greatest root — each with an \
+             approximate F test, so the report shows whether the groups differ on the \
+             responses taken together." => {
+                "A análise de variância multivariada compara as médias de várias variáveis \
+                 de resposta entre os níveis de um factor. As matrizes de hipótese e de erro \
+                 dão as quatro estatísticas usuais — lambda de Wilks, traço de Pillai, traço de \
+                 Hotelling–Lawley e raiz maior de Roy — cada uma com um teste F aproximado, pelo \
+                 que o relatório mostra se os grupos diferem nas respostas em conjunto."
+            }
+            "Choose one factor and at least two numeric response variables. The \
+             hypothesis matrix H uses the g − 1 degrees of freedom between the groups \
+             and the error matrix E uses n − g; the eigenvalues of H(E + H)⁻¹ are \
+             computed from the Cholesky factor of E. Rao's F has s = min(p, q), \
+             m = (|p − q| − 1)/2 and n = (v − p − 1)/2 degrees of freedom in the usual \
+             parameterisation, exact with two groups and approximate otherwise." => {
+                "Escolha um factor e pelo menos duas variáveis de resposta numéricas. A \
+                 matriz de hipótese H usa os g − 1 graus de liberdade entre grupos e a matriz \
+                 de erro E usa n − g; os valores próprios de H(E + H)⁻¹ vêm do factor de \
+                 Cholesky de E. O F de Rao usa s = min(p, q), m = (|p − q| − 1)/2 e \
+                 n = (v − p − 1)/2 graus de liberdade na parametrização usual, exacto com dois \
+                 grupos e aproximado nos restantes casos."
+            }
+            "Two responses with three groups of two observations, separated along both \
+             responses, give a small Wilks' lambda and a large Pillai trace; the four \
+             tests agree. A single response belongs to the one-way ANOVA instead, and a \
+             factor with one level cannot be tested." => {
+                "Duas respostas com três grupos de duas observações, separados nas duas \
+                 respostas, dão um lambda de Wilks pequeno e um traço de Pillai grande; os \
+                 quatro testes concordam. Uma única resposta pertence à ANOVA a um factor, e um \
+                 factor com um nível não pode ser testado."
+            }
+            "In a nested design every subgroup belongs to one group: the model is \
+             y = µ + group + subgroup(group) + error. The analysis splits the variation \
+             into the group term, the subgroup term inside the groups and the error, and \
+             the F tests are hierarchical — the group term is tested against the \
+             subgroup mean square and the subgroup term against the error." => {
+                "Num desenho encaixado cada subgrupo pertence a um grupo: o modelo é \
+                 y = µ + grupo + subgrupo(grupo) + erro. A análise reparte a variação entre o \
+                 termo de grupo, o termo de subgrupo dentro dos grupos e o erro, e os testes F \
+                 são hierárquicos — o termo de grupo é testado contra o quadrado médio do \
+                 subgrupo e o termo de subgrupo contra o erro."
+            }
+            "Choose a numeric response, the group column and the subgroup column. The \
+             design must be balanced: the same number of subgroups per group and the \
+             same number of observations per cell. The variance components come from \
+             the random-effects estimators σ²(error) = MS_error, σ²(subgroup) = \
+             (MS_subgroup − MS_error)/n and σ²(group) = (MS_group − MS_subgroup)/(b·n); \
+             a negative estimate is reported as zero." => {
+                "Escolha uma resposta numérica, a coluna do grupo e a do subgrupo. O desenho \
+                 tem de ser equilibrado: o mesmo número de subgrupos por grupo e de observações \
+                 por célula. Os componentes de variância vêm dos estimadores de efeitos \
+                 aleatórios σ²(erro) = MS_erro, σ²(subgrupo) = (MS_subgrupo − MS_erro)/n e \
+                 σ²(grupo) = (MS_grupo − MS_subgrupo)/(b·n); uma estimativa negativa é \
+                 reportada como zero."
+            }
+            "Two groups, two subgroups each and two observations per cell, with cell \
+             means 4, 6, 10 and 12 and a unit spread inside each cell, give a group sum \
+             of squares of 72, a subgroup sum of squares of 8 and an error sum of \
+             squares of 8; the components are 17, 1 and 2, so the groups explain most \
+             of the variance." => {
+                "Dois grupos, dois subgrupos cada e duas observações por célula, com médias \
+                 de célula 4, 6, 10 e 12 e um desvio unitário dentro de cada célula, dão uma \
+                 soma de quadrados de grupo de 72, de subgrupo de 8 e de erro de 8; os \
+                 componentes são 17, 1 e 2, pelo que os grupos explicam a maior parte da \
+                 variância."
+            }
             "2×2 Crossover Equivalence…" => "Equivalência cruzada 2×2…",
             "2×2 Crossover Equivalence" => "Equivalência cruzada 2×2",
             "2×2 crossover equivalence help" => "Ajuda da equivalência cruzada 2×2",
@@ -1894,7 +1984,10 @@ mod tests {
         "Kaplan–Meier",
         "Kaplan–Meier…",
         "Kruskal-Wallis…",
+        "Factor:",
         "Linear",
+        "MANOVA",
+        "MANOVA…",
         "Mann-Whitney…",
         "OK",
         "Português",

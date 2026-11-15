@@ -167,6 +167,8 @@ const MENU_PATHS: &[&[&str]] = &[
     &["Stat", "Regression", "Binary Logistic Regression…"],
     &["Stat", "ANOVA", "General Linear Model…"],
     &["Stat", "ANOVA", "One-Way…"],
+    &["Stat", "ANOVA", "MANOVA…"],
+    &["Stat", "ANOVA", "Nested ANOVA…"],
     &["Stat", "ANOVA", "Levene Test…"],
     &["Stat", "ANOVA", "Bartlett Test…"],
     &["Stat", "DOE", "Create 2-Level Design…"],

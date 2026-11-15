@@ -2526,6 +2526,442 @@ impl FreePlotsApp {
             self.run_anova_dialog();
         }
     }
+
+    /// Opens the MANOVA dialog.
+    pub fn open_manova_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        let all: Vec<String> = df
+            .columns()
+            .iter()
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.len() < 2 || all.len() < 3 {
+            self.set_error("MANOVA needs two numeric responses and a factor column");
+            return;
+        }
+        self.manova_factor = all
+            .iter()
+            .find(|name| !numeric.contains(name))
+            .cloned()
+            .unwrap_or_else(|| all[0].clone());
+        self.manova_responses = numeric
+            .iter()
+            .filter(|name| **name != self.manova_factor)
+            .cloned()
+            .collect();
+        self.show_manova_dialog = true;
+    }
+
+    /// Runs the MANOVA of the dialog.
+    pub fn run_manova_dialog(&mut self) {
+        if self.manova_factor.is_empty() {
+            self.set_error("Select the factor column");
+            return;
+        }
+        let responses: Vec<String> = self
+            .manova_responses
+            .iter()
+            .filter(|name| **name != self.manova_factor)
+            .cloned()
+            .collect();
+        if responses.len() < 2 {
+            self.set_error("Select at least two response variables");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::manova::analyze(&df, &responses, &self.manova_factor) {
+            Ok(output) => {
+                let label = format!(
+                    "MANOVA: {} responses by {}",
+                    responses.len(),
+                    self.manova_factor
+                );
+                self.apply_output(output, label);
+                self.show_manova_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// MANOVA dialog: factor, responses and help.
+    pub(super) fn manova_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_manova_dialog {
+            return;
+        }
+        let (numeric, all_columns): (Vec<String>, Vec<String>) = self
+            .data
+            .as_ref()
+            .map(|df| {
+                let numeric = df
+                    .columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                let all = df
+                    .columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                (numeric, all)
+            })
+            .unwrap_or_default();
+        let mut open = self.show_manova_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("MANOVA"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Factor:"));
+                    egui::ComboBox::from_id_salt("manova_factor")
+                        .selected_text(if self.manova_factor.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.manova_factor.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &all_columns {
+                                ui.selectable_value(
+                                    &mut self.manova_factor,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.help_label(self.catalog().label("Responses:"));
+                egui::ScrollArea::vertical()
+                    .max_height(170.0)
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            if *name == self.manova_factor {
+                                continue;
+                            }
+                            let mut selected = self.manova_responses.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.manova_responses.push(name.clone());
+                                } else {
+                                    self.manova_responses.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.small(self.catalog().label(
+                    "One factor and at least two numeric responses; the four statistics come \
+                     with Rao's approximate F tests.",
+                ));
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About MANOVA…"))
+                        .clicked()
+                    {
+                        self.show_manova_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_manova_dialog = open && !run && !cancel;
+        if run {
+            self.run_manova_dialog();
+        }
+    }
+
+    /// Help page of the MANOVA.
+    pub(super) fn manova_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_manova_help {
+            return;
+        }
+        let mut open = self.show_manova_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("MANOVA help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The multivariate analysis of variance compares the means of several \
+                     response variables across the levels of one factor. The hypothesis and \
+                     error matrices give the four usual statistics — Wilks' lambda, Pillai's \
+                     trace, the Hotelling–Lawley trace and Roy's greatest root — each with an \
+                     approximate F test, so the report shows whether the groups differ on the \
+                     responses taken together.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose one factor and at least two numeric response variables. The \
+                     hypothesis matrix H uses the g − 1 degrees of freedom between the groups \
+                     and the error matrix E uses n − g; the eigenvalues of H(E + H)⁻¹ are \
+                     computed from the Cholesky factor of E. Rao's F has s = min(p, q), \
+                     m = (|p − q| − 1)/2 and n = (v − p − 1)/2 degrees of freedom in the usual \
+                     parameterisation, exact with two groups and approximate otherwise.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Two responses with three groups of two observations, separated along both \
+                     responses, give a small Wilks' lambda and a large Pillai trace; the four \
+                     tests agree. A single response belongs to the one-way ANOVA instead, and a \
+                     factor with one level cannot be tested.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_manova_help = open && !close;
+    }
+
+    /// Opens the nested ANOVA dialog.
+    pub fn open_nested_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        let all: Vec<String> = df
+            .columns()
+            .iter()
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.is_empty() || all.len() < 3 {
+            self.set_error("The nested design needs a response and two factors");
+            return;
+        }
+        self.nested_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        let others: Vec<String> = all
+            .into_iter()
+            .filter(|name| *name != self.nested_response)
+            .collect();
+        self.nested_group = others.first().cloned().unwrap_or_default();
+        self.nested_subgroup = others.get(1).cloned().unwrap_or_default();
+        self.show_nested_dialog = true;
+    }
+
+    /// Runs the nested ANOVA of the dialog.
+    pub fn run_nested_dialog(&mut self) {
+        if self.nested_response.is_empty()
+            || self.nested_group.is_empty()
+            || self.nested_subgroup.is_empty()
+        {
+            self.set_error("Select the response, the group and the subgroup columns");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::nested::analyze(
+            &df,
+            &self.nested_response,
+            &self.nested_group,
+            &self.nested_subgroup,
+        ) {
+            Ok(output) => {
+                let label = format!("Nested ANOVA: {}", self.nested_response);
+                self.apply_output(output, label);
+                self.show_nested_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Nested ANOVA dialog: response, group, subgroup and help.
+    pub(super) fn nested_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_nested_dialog {
+            return;
+        }
+        let (numeric, all_columns): (Vec<String>, Vec<String>) = self
+            .data
+            .as_ref()
+            .map(|df| {
+                let numeric = df
+                    .columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                let all = df
+                    .columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                (numeric, all)
+            })
+            .unwrap_or_default();
+        let mut open = self.show_nested_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Nested ANOVA"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Response:"));
+                    egui::ComboBox::from_id_salt("nested_response")
+                        .selected_text(if self.nested_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.nested_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &numeric {
+                                ui.selectable_value(
+                                    &mut self.nested_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                for (title, value) in [
+                    ("Group:", &mut self.nested_group),
+                    ("Subgroup:", &mut self.nested_subgroup),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(title);
+                        egui::ComboBox::from_id_salt(format!("nested_{title}"))
+                            .selected_text(if value.is_empty() {
+                                "—".to_owned()
+                            } else {
+                                value.clone()
+                            })
+                            .show_ui(ui, |ui| {
+                                for name in &all_columns {
+                                    ui.selectable_value(value, name.clone(), name.as_str());
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                ui.small(self.catalog().label(
+                    "Two levels in a balanced design: the same number of subgroups per group \
+                     and of observations per cell; the components use the random-effects \
+                     estimators.",
+                ));
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About nested ANOVA…"))
+                        .clicked()
+                    {
+                        self.show_nested_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_nested_dialog = open && !run && !cancel;
+        if run {
+            self.run_nested_dialog();
+        }
+    }
+
+    /// Help page of the nested ANOVA.
+    pub(super) fn nested_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_nested_help {
+            return;
+        }
+        let mut open = self.show_nested_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Nested ANOVA help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "In a nested design every subgroup belongs to one group: the model is \
+                     y = µ + group + subgroup(group) + error. The analysis splits the variation \
+                     into the group term, the subgroup term inside the groups and the error, and \
+                     the F tests are hierarchical — the group term is tested against the \
+                     subgroup mean square and the subgroup term against the error.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose a numeric response, the group column and the subgroup column. The \
+                     design must be balanced: the same number of subgroups per group and the \
+                     same number of observations per cell. The variance components come from \
+                     the random-effects estimators σ²(error) = MS_error, σ²(subgroup) = \
+                     (MS_subgroup − MS_error)/n and σ²(group) = (MS_group − MS_subgroup)/(b·n); \
+                     a negative estimate is reported as zero.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Two groups, two subgroups each and two observations per cell, with cell \
+                     means 4, 6, 10 and 12 and a unit spread inside each cell, give a group sum \
+                     of squares of 72, a subgroup sum of squares of 8 and an error sum of \
+                     squares of 8; the components are 17, 1 and 2, so the groups explain most \
+                     of the variance.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_nested_help = open && !close;
+    }
 }
 
 /// Parses one new point per non-empty line, values separated by commas,

@@ -90,6 +90,14 @@ All notable changes to FreePlots are recorded here. The format follows
   p-value), *Differences…* (differences of order 1 or 2 or a lag, written as a
   new column) and *Trend Analysis…* (linear, quadratic, exponential and growth
   trends with the equation and the fitted curve).
+- ANOVA has a *MANOVA…* entry: one factor and at least two numeric responses,
+  with Wilks' lambda, Pillai's trace, the Hotelling–Lawley trace and Roy's
+  greatest root, each with Rao's approximate F, and the group means. It has
+  its own help page in both interface languages.
+- ANOVA has a *Nested ANOVA…* entry: a balanced two-level design
+  (subgroups inside groups) with the hierarchical F tests and the random-effects
+  variance components (groups, subgroups, error and their percentages). It has
+  its own help page in both interface languages.
 - ANOVA has an *Analysis of Means…* entry: every level mean against
   simultaneous decision limits around the weighted grand mean, with unequal
   group sizes and an ANOM chart. The critical value is the conservative
@@ -232,7 +240,11 @@ All notable changes to FreePlots are recorded here. The format follows
   equal-weight estimate, unequal sequence sizes with a carryover, the
   treatment F against the square of the t ratio, asymmetric limits and the
   broken designs (missing period, repeated treatment, equal sequence orders,
-  crossed limits). The analysis of means covers the balanced and
+  crossed limits). The MANOVA covers the closed-form eigenvalues, matrices and
+  statistics of a diagonal construction, the exact F with two groups and the
+  invalid designs; the nested ANOVA covers the sums of squares, the hierarchical
+  F tests, the variance components and percentages, a zero component and the
+  unbalanced and constant cases. The analysis of means covers the balanced and
   the unequal-size limits, an out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the

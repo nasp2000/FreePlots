@@ -1131,6 +1131,22 @@ impl FreePlotsApp {
                         self.open_anova_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("MANOVA…"), None, self.data.is_some())
+                        .on_hover_text(
+                            "Several responses by one factor with Wilks, Pillai, Hotelling-Lawley and Roy",
+                        )
+                        .clicked()
+                    {
+                        self.open_manova_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Nested ANOVA…"), None, self.data.is_some())
+                        .on_hover_text("Two-level nested design with variance components")
+                        .clicked()
+                    {
+                        self.open_nested_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Levene Test…"), None, self.data.is_some())
                         .on_hover_text("Test of equal variances across the levels of a factor")
                         .clicked()
