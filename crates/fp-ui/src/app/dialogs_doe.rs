@@ -514,6 +514,233 @@ impl FreePlotsApp {
             self.run_taguchi_dialog();
         }
     }
+    /// Opens the mixture design dialog.
+    pub fn open_mixture_dialog(&mut self) {
+        self.show_mixture_dialog = true;
+    }
+
+    /// Generates the mixture design of the dialog.
+    pub fn run_mixture_dialog(&mut self) {
+        let factors: Vec<String> = self
+            .mixture_factors
+            .split(',')
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if factors.len() < 2 {
+            self.set_error("A mixture design needs at least two components");
+            return;
+        }
+        let parse_bounds =
+            |text: &str, name: &str| -> std::result::Result<Option<Vec<f64>>, String> {
+                let text = text.trim();
+                if text.is_empty() {
+                    return Ok(None);
+                }
+                let values: std::result::Result<Vec<f64>, _> = text
+                    .split(',')
+                    .map(str::trim)
+                    .map(str::parse::<f64>)
+                    .collect();
+                values
+                    .map(Some)
+                    .map_err(|_| format!("{name} must be numbers separated by commas"))
+            };
+        let lower = match parse_bounds(&self.mixture_lower, "The lower bounds") {
+            Ok(value) => value,
+            Err(message) => {
+                self.set_error(message);
+                return;
+            }
+        };
+        let upper = match parse_bounds(&self.mixture_upper, "The upper bounds") {
+            Ok(value) => value,
+            Err(message) => {
+                self.set_error(message);
+                return;
+            }
+        };
+        let df = match fp_core::doe::mixture_design(
+            &factors,
+            self.mixture_kind,
+            self.mixture_degree,
+            lower.as_deref(),
+            upper.as_deref(),
+            self.mixture_replicates,
+            self.mixture_randomize,
+            self.mixture_seed,
+        ) {
+            Ok(df) => df,
+            Err(error) => {
+                self.set_error(error.to_string());
+                return;
+            }
+        };
+        let rows = df.n_rows();
+        self.set_data(df, "Mixture design".to_owned());
+        self.append_session(&format!(
+            "{} design generated: {rows} runs, components {}.
+",
+            self.mixture_kind.name(),
+            factors.join(", ")
+        ));
+        self.show_mixture_dialog = false;
+    }
+
+    /// Mixture design dialog.
+    pub(super) fn mixture_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_mixture_dialog {
+            return;
+        }
+        let mut open = self.show_mixture_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Mixture Design"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Design:");
+                    egui::ComboBox::from_id_salt("mixture_kind")
+                        .selected_text(self.mixture_kind.name())
+                        .show_ui(ui, |ui| {
+                            for kind in [
+                                fp_core::doe::MixtureDesignKind::Centroid,
+                                fp_core::doe::MixtureDesignKind::Lattice,
+                                fp_core::doe::MixtureDesignKind::ExtremeVertices,
+                            ] {
+                                ui.selectable_value(&mut self.mixture_kind, kind, kind.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Components:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.mixture_factors)
+                            .desired_width(220.0)
+                            .hint_text("A,B,C"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Lattice degree:");
+                    ui.add_enabled(
+                        self.mixture_kind == fp_core::doe::MixtureDesignKind::Lattice,
+                        egui::DragValue::new(&mut self.mixture_degree).range(1..=5),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                    let label = ui.help_label("Replicates:");
+                    ui.add(egui::DragValue::new(&mut self.mixture_replicates).range(1..=100))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                for (label_text, field, hint) in [
+                    ("Lower bounds:", &mut self.mixture_lower, "blank = 0"),
+                    ("Upper bounds:", &mut self.mixture_upper, "blank = 1"),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(label_text);
+                        ui.add(
+                            egui::TextEdit::singleline(field)
+                                .desired_width(180.0)
+                                .hint_text(hint),
+                        )
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    ui.help_checkbox(&mut self.mixture_randomize, "Randomize run order");
+                    let label = ui.help_label("Seed:");
+                    ui.add(egui::DragValue::new(&mut self.mixture_seed).speed(1.0))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "The centroids and lattice points are filtered by the bounds; the extreme \
+                     vertices are built from them. Values are proportions that sum to one.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About mixture designs…"))
+                        .clicked()
+                    {
+                        self.show_mixture_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Generate")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_mixture_dialog = open && !run && !cancel;
+        if run {
+            self.run_mixture_dialog();
+        }
+    }
+
+    /// Help page of the mixture designs.
+    pub(super) fn mixture_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_mixture_help {
+            return;
+        }
+        let mut open = self.show_mixture_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Mixture design help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "A mixture design varies the proportions of components that always sum to \
+                     one. The simplex centroid lists the pure components, the binary blends and \
+                     so on to the overall centroid; the simplex lattice of degree m uses every \
+                     composition in multiples of 1/m; the extreme vertices are the corners of the \
+                     region allowed by the component bounds.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "List two to ten components and choose the design. The lattice degree is 1 \
+                     to 5. Optional lower and upper bounds filter the centroid/lattice points \
+                     and define the extreme-vertices region; leave them blank for 0 and 1. Set \
+                     the replicates and the randomisation seed; the generated sheet has StdOrder, \
+                     RunOrder and one proportion column per component.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Three components give seven centroid runs (three pure, three 50/50 blends \
+                     and the 1/3 centroid) and six degree-2 lattice runs. With bounds 0.1 to 0.7 \
+                     the extreme vertices keep every component inside the range and still sum \
+                     to one.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_mixture_help = open && !close;
+    }
+
     pub fn open_taguchi_design_dialog(&mut self) {
         // The array, factor count, randomization and seed are preferences now.
         self.show_taguchi_design_dialog = true;

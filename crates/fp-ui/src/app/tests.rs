@@ -2744,6 +2744,71 @@ fn boxplot_and_scatter_reach_the_session_and_plot() {
 }
 
 #[test]
+fn mixture_dialog_writes_the_designs() {
+    use fp_core::doe::MixtureDesignKind;
+
+    let mut app = FreePlotsApp::new();
+    app.open_mixture_dialog();
+    app.mixture_factors = "A,B,C".to_owned();
+    app.mixture_kind = MixtureDesignKind::Centroid;
+    app.mixture_replicates = 1;
+    app.mixture_randomize = false;
+    app.mixture_lower.clear();
+    app.mixture_upper.clear();
+    app.run_mixture_dialog();
+    let df = app.data().expect("worksheet");
+    assert_eq!(df.n_rows(), 7);
+    assert!(df.column("A").is_ok());
+    assert!(
+        app.session_text()
+            .contains("Simplex centroid design generated")
+    );
+
+    app.open_mixture_dialog();
+    app.mixture_factors = "A,B,C".to_owned();
+    app.mixture_kind = MixtureDesignKind::Lattice;
+    app.mixture_degree = 2;
+    app.run_mixture_dialog();
+    assert_eq!(app.data().expect("worksheet").n_rows(), 6);
+    assert!(
+        app.session_text()
+            .contains("Simplex lattice design generated")
+    );
+}
+
+#[test]
+fn the_mixture_help_explains_the_designs() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_mixture_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About mixture designs…").click();
+    harness.run();
+    assert!(harness.state().show_mixture_help);
+    harness.get_by_label("Mixture design help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("proportions of components that always sum to one");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda dos desenhos de mistura");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_mixture_help);
+}
+
+#[test]
 fn design_dialog_generates_a_factorial_worksheet() {
     let mut app = FreePlotsApp::new();
     app.open_design_dialog();

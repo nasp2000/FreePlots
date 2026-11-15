@@ -1098,6 +1098,13 @@ impl FreePlotsApp {
                         self.open_factorial_plots_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Mixture Design…"), None, true)
+                        .on_hover_text("Simplex centroid, simplex lattice or extreme vertices for mixture components")
+                        .clicked()
+                    {
+                        self.open_mixture_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Response Surface…"), None, self.data.is_some())
                         .on_hover_text("Full quadratic model with coded factors")
                         .clicked()

@@ -76,6 +76,11 @@ All notable changes to FreePlots are recorded here. The format follows
   by conditional sum of squares, with forecasts, ψ-based intervals, AIC/AICc/
   BIC and a best-order search over p, d, q from 0 to 2. It has its own help
   page in both interface languages.
+- DOE has a *Mixture Design…* entry: simplex centroid, simplex lattice of a
+  chosen degree and extreme vertices with optional per-component bounds,
+  replicates and randomised run order. It writes `StdOrder`, `RunOrder` and
+  one proportion column per component, and has its own help page in both
+  interface languages.
 - Regression has a *Partial Least Squares…* entry: PLS1 by NIPALS with one or
   more components, standardised coefficients, the cumulative R² per component,
   observed-versus-fitted and R² selection plots. It handles collinear
@@ -171,7 +176,10 @@ All notable changes to FreePlots are recorded here. The format follows
   the comparison table and the invalid proportions/sigma. PLS covers the
   coefficient recovery, the collinear predictor with one component, the two
   panels and the empty, duplicated, response-as-predictor, too-many-component
-  and constant cases. The graph
+  and constant cases. Mixture designs cover the seven-run centroid, the
+  six-run lattice, the bounded extreme vertices, bounds that filter the
+  centroid, replicate/randomisation reproducibility and the invalid component,
+  degree and bound cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus

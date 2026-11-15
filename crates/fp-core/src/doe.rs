@@ -865,6 +865,290 @@ pub fn full_factorial_design(
     DataFrame::new(columns)
 }
 
+/// Mixture design family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MixtureDesignKind {
+    /// Simplex centroid: pure components, binary blends, …, overall centroid.
+    #[default]
+    Centroid,
+    /// Simplex lattice of a given degree.
+    Lattice,
+    /// Extreme vertices of the bounded mixture region.
+    ExtremeVertices,
+}
+
+impl MixtureDesignKind {
+    /// Name used by the interface and the report.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Centroid => "Simplex centroid",
+            Self::Lattice => "Simplex lattice",
+            Self::ExtremeVertices => "Extreme vertices",
+        }
+    }
+}
+
+/// All combinations of `k` indices from `0..n`.
+fn combinations(n: usize, k: usize) -> Vec<Vec<usize>> {
+    fn walk(start: usize, n: usize, k: usize, current: &mut Vec<usize>, out: &mut Vec<Vec<usize>>) {
+        if current.len() == k {
+            out.push(current.clone());
+            return;
+        }
+        let remaining = k - current.len();
+        for index in start..=n - remaining {
+            current.push(index);
+            walk(index + 1, n, k, current, out);
+            current.pop();
+        }
+    }
+    let mut out = Vec::new();
+    if k > 0 && k <= n {
+        walk(0, n, k, &mut Vec::with_capacity(k), &mut out);
+    }
+    out
+}
+
+/// Per-component bounds, with the defaults 0 and 1.
+fn mixture_bounds(
+    q: usize,
+    lower: Option<&[f64]>,
+    upper: Option<&[f64]>,
+) -> Result<(Vec<f64>, Vec<f64>)> {
+    let mut low = vec![0.0; q];
+    let mut high = vec![1.0; q];
+    if let Some(values) = lower {
+        if values.len() != q {
+            return Err(Error::Unsupported(format!(
+                "the lower bounds need {q} values"
+            )));
+        }
+        low.copy_from_slice(values);
+    }
+    if let Some(values) = upper {
+        if values.len() != q {
+            return Err(Error::Unsupported(format!(
+                "the upper bounds need {q} values"
+            )));
+        }
+        high.copy_from_slice(values);
+    }
+    for index in 0..q {
+        if !low[index].is_finite()
+            || !high[index].is_finite()
+            || low[index] < 0.0
+            || high[index] > 1.0
+            || low[index] > high[index]
+        {
+            return Err(Error::Unsupported(
+                "the bounds must satisfy 0 ≤ lower ≤ upper ≤ 1".to_owned(),
+            ));
+        }
+    }
+    if low.iter().sum::<f64>() > 1.0 + 1e-9 || high.iter().sum::<f64>() < 1.0 - 1e-9 {
+        return Err(Error::Unsupported(
+            "the bounds do not contain a mixture that sums to one".to_owned(),
+        ));
+    }
+    Ok((low, high))
+}
+
+/// Builds the worksheet of a mixture design from its points.
+fn mixture_frame(
+    factors: &[String],
+    points: Vec<Vec<f64>>,
+    replicates: usize,
+    randomize: bool,
+    seed: u64,
+) -> Result<DataFrame> {
+    if points.is_empty() {
+        return Err(Error::Unsupported(
+            "the bounds leave no mixture point".to_owned(),
+        ));
+    }
+    if replicates == 0 {
+        return Err(Error::InvalidParameter {
+            name: "replicates",
+            value: 0.0,
+        });
+    }
+    let total = points
+        .len()
+        .checked_mul(replicates)
+        .ok_or_else(|| Error::Unsupported("the design is too large".to_owned()))?;
+    if total > 1_000_000 {
+        return Err(Error::Unsupported(
+            "the design exceeds one million runs".to_owned(),
+        ));
+    }
+    let mut std_order = Vec::with_capacity(total);
+    let mut runs = Vec::with_capacity(total);
+    let mut order = 1usize;
+    for point in &points {
+        for _ in 0..replicates {
+            std_order.push(order as f64);
+            order += 1;
+            runs.push(point.clone());
+        }
+    }
+    let mut run_order: Vec<f64> = (1..=total).map(|value| value as f64).collect();
+    if randomize {
+        let mut rng = SplitMix64::new(seed);
+        for index in (1..total).rev() {
+            let swap = (rng.next_u64() % (index as u64 + 1)) as usize;
+            std_order.swap(index, swap);
+            runs.swap(index, swap);
+            run_order.swap(index, swap);
+        }
+    }
+    let mut columns = Vec::with_capacity(factors.len() + 2);
+    columns.push(Column::new_f64("StdOrder", std_order));
+    columns.push(Column::new_f64("RunOrder", run_order));
+    for (index, name) in factors.iter().enumerate() {
+        columns.push(Column::new_f64(
+            name.clone(),
+            runs.iter().map(|run| run[index]).collect(),
+        ));
+    }
+    DataFrame::new(columns)
+}
+
+/// Generates a mixture design: simplex centroid, simplex lattice or extreme
+/// vertices, optionally restricted by per-component bounds.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for fewer than two or more than ten
+/// components, duplicate names, an invalid degree, invalid or infeasible
+/// bounds, no point inside the bounds or a design beyond one million runs.
+pub fn mixture_design(
+    factors: &[String],
+    kind: MixtureDesignKind,
+    degree: usize,
+    lower: Option<&[f64]>,
+    upper: Option<&[f64]>,
+    replicates: usize,
+    randomize: bool,
+    seed: u64,
+) -> Result<DataFrame> {
+    let q = factors.len();
+    if !(2..=10).contains(&q) {
+        return Err(Error::Unsupported(
+            "a mixture design needs between two and ten components".to_owned(),
+        ));
+    }
+    let mut unique = factors.to_vec();
+    unique.sort();
+    unique.dedup();
+    if unique.len() != q {
+        return Err(Error::Unsupported(
+            "the component names must be unique".to_owned(),
+        ));
+    }
+    if kind == MixtureDesignKind::Lattice && !(1..=5).contains(&degree) {
+        return Err(Error::Unsupported(
+            "the lattice degree must be between 1 and 5".to_owned(),
+        ));
+    }
+    let (low, high) = mixture_bounds(q, lower, upper)?;
+    let points: Vec<Vec<f64>> = match kind {
+        MixtureDesignKind::Centroid => {
+            let mut raw = Vec::new();
+            for size in 1..=q {
+                for combination in combinations(q, size) {
+                    let mut point = vec![0.0; q];
+                    for index in combination {
+                        point[index] = 1.0 / size as f64;
+                    }
+                    raw.push(point);
+                }
+            }
+            raw
+        }
+        MixtureDesignKind::Lattice => {
+            let mut raw = Vec::new();
+            let mut current = vec![0usize; q];
+            fn walk(
+                index: usize,
+                remaining: usize,
+                q: usize,
+                current: &mut Vec<usize>,
+                out: &mut Vec<Vec<f64>>,
+                degree: usize,
+            ) {
+                if index + 1 == q {
+                    current[index] = remaining;
+                    out.push(
+                        current
+                            .iter()
+                            .map(|value| *value as f64 / degree as f64)
+                            .collect(),
+                    );
+                    return;
+                }
+                for value in 0..=remaining {
+                    current[index] = value;
+                    walk(index + 1, remaining - value, q, current, out, degree);
+                }
+            }
+            walk(0, degree, q, &mut current, &mut raw, degree);
+            raw
+        }
+        MixtureDesignKind::ExtremeVertices => {
+            let mut raw: Vec<Vec<f64>> = Vec::new();
+            for chosen in combinations(q, q - 1) {
+                let last = (0..q)
+                    .find(|index| !chosen.contains(index))
+                    .expect("one component is not fixed");
+                for mask in 0..(1usize << (q - 1)) {
+                    let mut point = vec![0.0; q];
+                    let mut sum = 0.0;
+                    for (bit, index) in chosen.iter().enumerate() {
+                        let value = if mask & (1 << bit) != 0 {
+                            high[*index]
+                        } else {
+                            low[*index]
+                        };
+                        point[*index] = value;
+                        sum += value;
+                    }
+                    let value = 1.0 - sum;
+                    if value < low[last] - 1e-9 || value > high[last] + 1e-9 {
+                        continue;
+                    }
+                    point[last] = value.clamp(low[last], high[last]);
+                    let rounded: Vec<f64> = point
+                        .iter()
+                        .map(|value| (value * 1e9).round() / 1e9)
+                        .collect();
+                    if !raw.iter().any(|existing| {
+                        existing
+                            .iter()
+                            .zip(&rounded)
+                            .all(|(left, right)| (left - right).abs() < 1e-9)
+                    }) {
+                        raw.push(rounded);
+                    }
+                }
+            }
+            raw
+        }
+    };
+    // Bounds filter the centroid and lattice points and are already part of
+    // the extreme-vertices construction.
+    let points: Vec<Vec<f64>> = points
+        .into_iter()
+        .filter(|point| {
+            point
+                .iter()
+                .enumerate()
+                .all(|(index, value)| *value >= low[index] - 1e-9 && *value <= high[index] + 1e-9)
+        })
+        .collect();
+    mixture_frame(factors, points, replicates, randomize, seed)
+}
+
 /// Axial distance for a central composite design.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum CcdAlpha {
@@ -2575,6 +2859,244 @@ mod tests {
         assert_eq!(plot.panels[6].points.len(), 8);
         let text = out.results[0].to_session_text();
         assert!(text.contains("A+ B+ C+"), "{text}");
+    }
+
+    fn component(df: &DataFrame, name: &str, row: usize) -> f64 {
+        df.column(name).expect("column").value(row).expect("value")
+    }
+
+    #[test]
+    fn the_simplex_centroid_has_every_blend() {
+        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
+        let df = mixture_design(
+            &factors,
+            MixtureDesignKind::Centroid,
+            2,
+            None,
+            None,
+            1,
+            false,
+            7,
+        )
+        .expect("design");
+        assert_eq!(df.n_rows(), 7);
+        let mut centroid = false;
+        for row in 0..df.n_rows() {
+            let sum =
+                component(&df, "A", row) + component(&df, "B", row) + component(&df, "C", row);
+            assert!((sum - 1.0).abs() < 1e-12, "{sum}");
+            if (component(&df, "A", row) - 1.0 / 3.0).abs() < 1e-12
+                && (component(&df, "B", row) - 1.0 / 3.0).abs() < 1e-12
+            {
+                centroid = true;
+            }
+        }
+        assert!(centroid);
+    }
+
+    #[test]
+    fn the_simplex_lattice_of_degree_two_has_six_points() {
+        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
+        let df = mixture_design(
+            &factors,
+            MixtureDesignKind::Lattice,
+            2,
+            None,
+            None,
+            1,
+            false,
+            7,
+        )
+        .expect("design");
+        assert_eq!(df.n_rows(), 6);
+        for row in 0..df.n_rows() {
+            for name in ["A", "B", "C"] {
+                let value = component(&df, name, row);
+                assert!((value * 2.0 - (value * 2.0).round()).abs() < 1e-12);
+                assert!((0.0..=1.0).contains(&value));
+            }
+        }
+    }
+
+    #[test]
+    fn the_extreme_vertices_respect_the_bounds() {
+        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
+        let lower = [0.1, 0.1, 0.1];
+        let upper = [0.7, 0.7, 0.7];
+        let df = mixture_design(
+            &factors,
+            MixtureDesignKind::ExtremeVertices,
+            2,
+            Some(&lower),
+            Some(&upper),
+            1,
+            false,
+            7,
+        )
+        .expect("design");
+        assert!(df.n_rows() > 0);
+        for row in 0..df.n_rows() {
+            let values = [
+                component(&df, "A", row),
+                component(&df, "B", row),
+                component(&df, "C", row),
+            ];
+            assert!((values.iter().sum::<f64>() - 1.0).abs() < 1e-9);
+            assert!(
+                values
+                    .iter()
+                    .all(|value| { (0.1 - 1e-9..=0.7 + 1e-9).contains(value) })
+            );
+        }
+    }
+
+    #[test]
+    fn the_bounds_filter_a_centroid_and_an_infeasible_region_is_rejected() {
+        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
+        let lower = [0.2, 0.0, 0.0];
+        let df = mixture_design(
+            &factors,
+            MixtureDesignKind::Centroid,
+            2,
+            Some(&lower),
+            None,
+            1,
+            false,
+            7,
+        )
+        .expect("design");
+        assert!(df.n_rows() > 0);
+        for row in 0..df.n_rows() {
+            assert!(component(&df, "A", row) >= 0.2 - 1e-12);
+        }
+        let bad = [0.5, 0.5, 0.5];
+        assert!(
+            mixture_design(
+                &factors,
+                MixtureDesignKind::Centroid,
+                2,
+                Some(&bad),
+                None,
+                1,
+                false,
+                7,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn replicates_and_randomisation_are_reproducible() {
+        let factors = ["A".to_owned(), "B".to_owned(), "C".to_owned()];
+        let plain = mixture_design(
+            &factors,
+            MixtureDesignKind::Centroid,
+            2,
+            None,
+            None,
+            2,
+            false,
+            7,
+        )
+        .expect("design");
+        assert_eq!(plain.n_rows(), 14);
+        let first = mixture_design(
+            &factors,
+            MixtureDesignKind::Centroid,
+            2,
+            None,
+            None,
+            1,
+            true,
+            11,
+        )
+        .expect("design");
+        let second = mixture_design(
+            &factors,
+            MixtureDesignKind::Centroid,
+            2,
+            None,
+            None,
+            1,
+            true,
+            11,
+        )
+        .expect("design");
+        for row in 0..first.n_rows() {
+            assert!((component(&first, "A", row) - component(&second, "A", row)).abs() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn invalid_mixture_requests_are_rejected() {
+        let one = ["A".to_owned()];
+        assert!(
+            mixture_design(
+                &one,
+                MixtureDesignKind::Centroid,
+                2,
+                None,
+                None,
+                1,
+                false,
+                1,
+            )
+            .is_err()
+        );
+        let duplicate = ["A".to_owned(), "A".to_owned()];
+        assert!(
+            mixture_design(
+                &duplicate,
+                MixtureDesignKind::Centroid,
+                2,
+                None,
+                None,
+                1,
+                false,
+                1,
+            )
+            .is_err()
+        );
+        let factors = ["A".to_owned(), "B".to_owned()];
+        assert!(
+            mixture_design(
+                &factors,
+                MixtureDesignKind::Lattice,
+                0,
+                None,
+                None,
+                1,
+                false,
+                1,
+            )
+            .is_err()
+        );
+        assert!(
+            mixture_design(
+                &factors,
+                MixtureDesignKind::Lattice,
+                2,
+                Some(&[0.1]),
+                None,
+                1,
+                false,
+                1,
+            )
+            .is_err()
+        );
+        assert!(
+            mixture_design(
+                &factors,
+                MixtureDesignKind::ExtremeVertices,
+                2,
+                Some(&[0.8, 0.8]),
+                Some(&[0.9, 0.9]),
+                1,
+                false,
+                1,
+            )
+            .is_err()
+        );
     }
 
     #[test]

@@ -2764,6 +2764,68 @@ fn the_box_behnken_dialog_needs_three_factor_names() {
 }
 
 #[test]
+fn the_mixture_dialog_generates_a_centroid_design() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "Mixture Design…"]);
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.session()
+            .contains("Simplex centroid design generated: 7 runs"),
+        "{}",
+        ui.session()
+    );
+    assert_eq!(ui.app().data().expect("frame").n_rows(), 7);
+}
+
+#[test]
+fn the_mixture_dialog_generates_a_lattice_design() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "Mixture Design…"]);
+    ui.select("Design:", "Simplex lattice").expect("design");
+    ui.set_text("Lattice degree:", "2").expect("degree");
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.session()
+            .contains("Simplex lattice design generated: 6 runs"),
+        "{}",
+        ui.session()
+    );
+}
+
+#[test]
+fn the_mixture_dialog_generates_extreme_vertices_with_bounds() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "Mixture Design…"]);
+    ui.select("Design:", "Extreme vertices").expect("design");
+    ui.set_text("Lower bounds:", "0.1,0.1,0.1").expect("lower");
+    ui.set_text("Upper bounds:", "0.7,0.7,0.7").expect("upper");
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.session().contains("Extreme vertices design generated"),
+        "{}",
+        ui.session()
+    );
+    assert!(ui.app().data().expect("frame").n_rows() > 0);
+}
+
+#[test]
+fn the_mixture_dialog_needs_two_components() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "Mixture Design…"]);
+    ui.set_text("Components:", "A").expect("components");
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.status().contains("at least two components"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_factorial_dialog_fits_the_main_effects() {
     let mut ui = Automation::new();
     ui.load_frame(factorial_frame(), "factorial.csv");

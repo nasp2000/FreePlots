@@ -794,6 +794,30 @@ impl UiCatalog {
                  intervalo alarga com o horizonte."
             }
             "Box-Behnken Design…" => "Delineamento Box-Behnken…",
+            "Mixture Design…" => "Delineamento de mistura…",
+            "Mixture Design" => "Delineamento de mistura",
+            "Mixture design help" => "Ajuda dos desenhos de mistura",
+            "About mixture designs…" => "Acerca dos desenhos de mistura…",
+            "A mixture design varies the proportions of components that always sum to \
+             one. The simplex centroid lists the pure components, the binary blends and \
+             so on to the overall centroid; the simplex lattice of degree m uses every \
+             composition in multiples of 1/m; the extreme vertices are the corners of the \
+             region allowed by the component bounds." => {
+                "Um desenho de mistura varia as proporções de componentes que somam sempre um. O                  centróide simplex lista os componentes puros, as misturas binárias e assim por                  diante até ao centróide global; a rede simplex de grau m usa todas as composições                  em múltiplos de 1/m; os vértices extremos são os cantos da região permitida pelos                  limites dos componentes."
+            }
+            "List two to ten components and choose the design. The lattice degree is 1 \
+             to 5. Optional lower and upper bounds filter the centroid/lattice points \
+             and define the extreme-vertices region; leave them blank for 0 and 1. Set \
+             the replicates and the randomisation seed; the generated sheet has StdOrder, \
+             RunOrder and one proportion column per component." => {
+                "Liste dois a dez componentes e escolha o desenho. O grau da rede é de 1 a 5. Os                  limites inferior e superior, opcionais, filtram os pontos do centróide/rede e                  definem a região dos vértices extremos; deixe-os em branco para 0 e 1. Defina as                  réplicas e a semente de randomização; a folha gerada tem StdOrder, RunOrder e uma                  coluna de proporção por componente."
+            }
+            "Three components give seven centroid runs (three pure, three 50/50 blends \
+             and the 1/3 centroid) and six degree-2 lattice runs. With bounds 0.1 to 0.7 \
+             the extreme vertices keep every component inside the range and still sum \
+             to one." => {
+                "Três componentes dão sete corridas centróide (três puras, três misturas 50/50 e o                  centróide 1/3) e seis corridas da rede de grau 2. Com limites de 0,1 a 0,7 os                  vértices extremos mantêm cada componente dentro do intervalo e continuam a somar                  um."
+            }
             "Tolerance Interval…" => "Intervalo de tolerância…",
             "Chi-Square Test for Independence" => "Teste qui-quadrado de independência",
             "Power and Sample Size" => "Potência e tamanho amostral",

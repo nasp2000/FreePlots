@@ -1451,6 +1451,17 @@ pub struct FreePlotsApp {
     design_block_size: usize,
     design_randomize: bool,
     design_seed: u64,
+    /// Mixture design dialog and help.
+    show_mixture_dialog: bool,
+    show_mixture_help: bool,
+    mixture_kind: fp_core::doe::MixtureDesignKind,
+    mixture_factors: String,
+    mixture_degree: usize,
+    mixture_lower: String,
+    mixture_upper: String,
+    mixture_replicates: usize,
+    mixture_randomize: bool,
+    mixture_seed: u64,
     show_describe_dialog: bool,
     describe_column: String,
     describe_by: Option<String>,
@@ -4113,6 +4124,8 @@ impl FreePlotsApp {
         self.show_pareto_dialog = false;
         self.show_partial_dialog = false;
         self.show_pb_dialog = false;
+        self.show_mixture_dialog = false;
+        self.show_mixture_help = false;
         self.show_pca_dialog = false;
         self.show_plot = false;
         self.show_poisson_dialog = false;
