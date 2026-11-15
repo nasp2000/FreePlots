@@ -10712,9 +10712,9 @@ fn crossover_equivalence_dialog_reaches_the_session() {
     let mut sequence = Vec::new();
     let mut period = Vec::new();
     let mut treatment = Vec::new();
-    for index in 0..4 {
+    for (index, offset) in noise.iter().enumerate() {
         let base = index as f64;
-        y.push(base + 0.2 + noise[index]);
+        y.push(base + 0.2 + offset);
         subject.push(format!("S{}", index + 1));
         sequence.push("TR".to_owned());
         period.push(1.0);
@@ -10729,7 +10729,7 @@ fn crossover_equivalence_dialog_reaches_the_session() {
         sequence.push("RT".to_owned());
         period.push(1.0);
         treatment.push("R".to_owned());
-        y.push(base + 1.2 + noise[index]);
+        y.push(base + 1.2 + offset);
         subject.push(format!("S{}", index + 5));
         sequence.push("RT".to_owned());
         period.push(2.0);
