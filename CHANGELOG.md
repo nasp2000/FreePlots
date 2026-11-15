@@ -76,6 +76,14 @@ All notable changes to FreePlots are recorded here. The format follows
   by conditional sum of squares, with forecasts, ψ-based intervals, AIC/AICc/
   BIC and a best-order search over p, d, q from 0 to 2. It has its own help
   page in both interface languages.
+- Time Series has five diagnostic entries sharing one dialog and one help page
+  in both interface languages: *Autocorrelation…* (ACF, PACF and the
+  Ljung–Box statistic with the correlograms), *Cross Correlation…*
+  (correlations of two series at lags −m…m), *Unit Root Test…* (the augmented
+  Dickey–Fuller test with the MacKinnon critical values and an interpolated
+  p-value), *Differences…* (differences of order 1 or 2 or a lag, written as a
+  new column) and *Trend Analysis…* (linear, quadratic, exponential and growth
+  trends with the equation and the fitted curve).
 - ANOVA has an *Analysis of Means…* entry: every level mean against
   simultaneous decision limits around the weighted grand mean, with unequal
   group sizes and an ANOM chart. The critical value is the conservative
@@ -208,7 +216,12 @@ All notable changes to FreePlots are recorded here. The format follows
   terms and marginal means of a mixed-level design, the saturated design
   without error, a text factor with a missing row, the Lenth margins of a
   twelve-run screening design with one large effect, an undefined pseudo
-  standard error and the uncoded, single-level and duplicate cases. The analysis of means covers the balanced and
+  standard error and the uncoded, single-level and duplicate cases. The
+  time-series diagnostics cover the closed-form ACF, PACF and Ljung–Box values
+  of a ramp, the cross-correlation of a shifted series, a mean-reverting series
+  and a random walk in the unit-root test (with the regression module as the
+  cross-check), the difference and lag columns with a missing value, the four
+  trend models and the invalid windows, lags, orders and non-positive values. The analysis of means covers the balanced and
   the unequal-size limits, an out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the

@@ -970,6 +970,71 @@ impl FreePlotsApp {
                         self.open_timeseries_dialog();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Autocorrelation…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text("ACF and PACF with the Ljung–Box statistic")
+                    .clicked()
+                    {
+                        self.tsdiag_kind = TsDiagKind::Autocorrelation;
+                        self.open_tsdiag_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Cross Correlation…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text("Correlation of two series at lags −m…m")
+                    .clicked()
+                    {
+                        self.tsdiag_kind = TsDiagKind::CrossCorrelation;
+                        self.open_tsdiag_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Unit Root Test…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text("Augmented Dickey–Fuller test of a unit root")
+                    .clicked()
+                    {
+                        self.tsdiag_kind = TsDiagKind::UnitRoot;
+                        self.open_tsdiag_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Differences…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text("Differences or lags written as a new column")
+                    .clicked()
+                    {
+                        self.tsdiag_kind = TsDiagKind::Difference;
+                        self.open_tsdiag_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Trend Analysis…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text("Linear, quadratic, exponential or growth trend")
+                    .clicked()
+                    {
+                        self.tsdiag_kind = TsDiagKind::Trend;
+                        self.open_tsdiag_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("ARIMA…"), None, self.data.is_some())
                         .on_hover_text("AR/MA/d model with forecasts and AICc order search")
                         .clicked()

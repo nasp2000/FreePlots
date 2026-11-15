@@ -93,6 +93,7 @@ pub mod tally;
 pub mod timeseries;
 pub mod tolerance;
 pub mod transform;
+pub mod tsdiag;
 pub mod twoway;
 pub mod variance;
 pub mod varsampling;

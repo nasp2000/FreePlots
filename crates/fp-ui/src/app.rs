@@ -791,6 +791,34 @@ impl TimeSeriesKind {
     }
 }
 
+/// Command of the time-series diagnostics dialog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TsDiagKind {
+    /// Autocorrelation and partial autocorrelation.
+    #[default]
+    Autocorrelation,
+    /// Cross-correlation of two series.
+    CrossCorrelation,
+    /// Augmented Dickey–Fuller unit-root test.
+    UnitRoot,
+    /// Differences or lags written as a new column.
+    Difference,
+    /// Linear, quadratic, exponential or growth trend.
+    Trend,
+}
+
+impl TsDiagKind {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Autocorrelation => "Autocorrelation",
+            Self::CrossCorrelation => "Cross Correlation",
+            Self::UnitRoot => "Unit Root",
+            Self::Difference => "Differences and Lags",
+            Self::Trend => "Trend Analysis",
+        }
+    }
+}
+
 /// Kind of one-way analysis offered by the dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OneWayKind {
@@ -1170,6 +1198,17 @@ pub struct FreePlotsApp {
     show_timeseries_dialog: bool,
     timeseries_column: String,
     timeseries_kind: TimeSeriesKind,
+    /// Time-series diagnostics dialog, help and inputs.
+    show_tsdiag_dialog: bool,
+    show_tsdiag_help: bool,
+    tsdiag_kind: TsDiagKind,
+    tsdiag_column: String,
+    tsdiag_second: String,
+    tsdiag_max_lag: usize,
+    tsdiag_adf_lags: usize,
+    tsdiag_adf_model: fp_core::tsdiag::AdfModel,
+    tsdiag_operation: fp_core::tsdiag::ColumnOperation,
+    tsdiag_trend: fp_core::tsdiag::TrendModel,
     timeseries_window: usize,
     timeseries_period: usize,
     timeseries_model: fp_core::timeseries::DecompositionModel,
@@ -4196,6 +4235,8 @@ impl FreePlotsApp {
         self.show_taguchi_design_dialog = false;
         self.show_taguchi_dialog = false;
         self.show_timeseries_dialog = false;
+        self.show_tsdiag_dialog = false;
+        self.show_tsdiag_help = false;
         self.show_arima_dialog = false;
         self.show_arima_help = false;
         self.show_tolerance_dialog = false;

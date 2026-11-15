@@ -2493,6 +2493,101 @@ fn the_moving_average_dialog_centres_the_window() {
 }
 
 #[test]
+fn the_autocorrelation_dialog_plots_the_correlograms() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Time Series", "Autocorrelation…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Autocorrelation — column weight"),
+        "{session}"
+    );
+    assert!(session.contains("Ljung"), "{session}");
+    let plot = ui.plot().expect("plot");
+    assert_eq!(plot.panels.len(), 2, "ACF and PACF panels");
+}
+
+#[test]
+fn the_cross_correlation_dialog_uses_the_second_series() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Time Series", "Cross Correlation…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Cross Correlation — weight and height"),
+        "{session}"
+    );
+    assert!(session.contains("Largest |r|"), "{session}");
+    assert!(ui.plot().is_some());
+}
+
+#[test]
+fn the_unit_root_dialog_reports_the_decision() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Time Series", "Unit Root Test…"]);
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("Unit Root — column weight"), "{session}");
+    assert!(session.contains("Critical 5%"), "{session}");
+    assert!(session.contains("Decision at 5 %"), "{session}");
+}
+
+#[test]
+fn the_differences_dialog_adds_a_column() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Time Series", "Differences…"]);
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Column D1(weight,1) added"),
+        "{}",
+        ui.session()
+    );
+    let df = ui.app().data().expect("worksheet");
+    assert!(df.column("D1(weight,1)").is_ok());
+    assert_eq!(
+        df.column("D1(weight,1)").expect("column").len(),
+        df.n_rows()
+    );
+}
+
+#[test]
+fn the_trend_dialog_fits_the_selected_model() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "Time Series", "Trend Analysis…"]);
+    ui.click("Quadratic").expect("model");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Trend Analysis — column weight"),
+        "{session}"
+    );
+    assert!(session.contains("·t²"), "{session}");
+    assert!(ui.plot().is_some());
+}
+
+#[test]
+fn the_trend_dialog_refuses_a_non_positive_series() {
+    let mut ui = Automation::new();
+    ui.load_frame(
+        DataFrame::new(vec![Column::new_f64(
+            "y",
+            vec![1.0, 0.0, 3.0, 4.0, 5.0, 6.0],
+        )])
+        .expect("frame"),
+        "zero.csv",
+    );
+    open(&mut ui, &["Stat", "Time Series", "Trend Analysis…"]);
+    ui.click("Exponential").expect("model");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("positive"), "{}", ui.status());
+}
+
+#[test]
 fn the_moving_average_dialog_uses_the_two_by_w_rule() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

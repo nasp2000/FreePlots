@@ -801,6 +801,102 @@ impl UiCatalog {
             "Moving Average…" => "Média móvel…",
             "Decomposition…" => "Decomposição…",
             "Exponential Smoothing…" => "Suavização exponencial…",
+            "Autocorrelation…" => "Autocorrelação…",
+            "Cross Correlation…" => "Correlação cruzada…",
+            "Unit Root Test…" => "Teste de raiz unitária…",
+            "Differences…" => "Diferenças…",
+            "Trend Analysis…" => "Análise de tendência…",
+            "Time Series Diagnostics" => "Diagnóstico de séries temporais",
+            "Time series diagnostics help" => "Ajuda do diagnóstico de séries temporais",
+            "About time series diagnostics…" => "Acerca do diagnóstico de séries temporais…",
+            "Series:" => "Série:",
+            "Command:" => "Comando:",
+            "Second series:" => "Segunda série:",
+            "Maximum lag:" => "Desfasamento máximo:",
+            "Lags:" => "Desfasamentos:",
+            "Order:" => "Ordem:",
+            "Lag:" => "Desfasamento:",
+            "Operation:" => "Operação:",
+            "Model:" => "Modelo:",
+            "None" => "Nenhum",
+            "Constant" => "Constante",
+            "Constant and trend" => "Constante e tendência",
+            "Linear" => "Linear",
+            "Quadratic" => "Quadrático",
+            "Exponential" => "Exponencial",
+            "Growth" => "Crescimento",
+            "Difference" => "Diferença",
+            "Lag" => "Desfasamento",
+            "Autocorrelation" => "Autocorrelação",
+            "Cross-correlation" => "Correlação cruzada",
+            "Unit root" => "Raiz unitária",
+            "Differences and lags" => "Diferenças e desfasamentos",
+            "Trend" => "Tendência",
+            "ACF and PACF with the white-noise band and the Ljung–Box statistic." => {
+                "FAC e FACP com a banda de ruído branco e a estatística de Ljung–Box."
+            }
+            "Correlation of the first series with the second at lags −m…m; a positive \
+             lag pairs x(t) with y(t+k)." => {
+                "Correlação da primeira série com a segunda em desfasamentos −m…m; um \
+                 desfasamento positivo emparelha x(t) com y(t+k)."
+            }
+            "Augmented Dickey–Fuller test with the chosen deterministic terms and \
+             augmentation lags." => {
+                "Teste de Dickey–Fuller aumentado com os termos determinísticos e os \
+                 desfasamentos escolhidos."
+            }
+            "The new column keeps the rows aligned and leaves a missing value where \
+             the observation does not exist." => {
+                "A coluna nova mantém as linhas alinhadas e deixa um valor em falta onde a \
+                 observação não existe."
+            }
+            "The exponential and growth models need positive values; their \
+             coefficients belong to the linearised fit." => {
+                "Os modelos exponencial e de crescimento exigem valores positivos; os seus \
+                 coeficientes pertencem ao ajuste linearizado."
+            }
+            "The diagnostics read the series in row order. Autocorrelation gives the \
+             ACF, the PACF (Durbin–Levinson) and the Ljung–Box statistic. \
+             Cross-correlation correlates two series at lags −m…m. The unit-root test is \
+             the augmented Dickey–Fuller regression, decided against the asymptotic \
+             critical values. Differences and lags write a new column with the rows \
+             aligned. Trend analysis fits linear, quadratic, exponential or growth \
+             models to the series." => {
+                "O diagnóstico lê a série pela ordem das linhas. A autocorrelação dá a FAC, a \
+                 FACP (Durbin–Levinson) e a estatística de Ljung–Box. A correlação cruzada \
+                 correlaciona duas séries em desfasamentos −m…m. O teste de raiz unitária é a \
+                 regressão de Dickey–Fuller aumentada, decidida pelos valores críticos \
+                 assintóticos. As diferenças e os desfasamentos escrevem uma coluna nova com as \
+                 linhas alinhadas. A análise de tendência ajusta modelos linear, quadrático, \
+                 exponencial ou de crescimento à série."
+            }
+            "Choose a numeric series and the command. Autocorrelation and \
+             cross-correlation need the maximum lag (at most n − 2); the unit-root test \
+             takes the augmentation lags and the deterministic terms (none, constant or \
+             constant and trend); differences take the order (1 or 2) and the lag; the \
+             trend models need at least four positive values for the exponential and \
+             growth fits. Missing values are dropped, and a difference or lag keeps a \
+             missing value instead of inventing an observation." => {
+                "Escolha uma série numérica e o comando. A autocorrelação e a correlação cruzada \
+                 precisam do desfasamento máximo (no máximo n − 2); o teste de raiz unitária \
+                 recebe os desfasamentos e os termos determinísticos (nenhum, constante ou \
+                 constante e tendência); as diferenças recebem a ordem (1 ou 2) e o \
+                 desfasamento; os modelos de tendência precisam de pelo menos quatro valores \
+                 positivos nos ajustes exponencial e de crescimento. Os valores em falta são \
+                 descartados, e uma diferença ou desfasamento mantém um valor em falta em vez de \
+                 inventar uma observação."
+            }
+            "A series that follows another by two observations has its largest \
+             cross-correlation at lag 2. A random walk is not rejected by the unit-root \
+             test, while a mean-reverting series is. Differencing a series once removes \
+             the linear trend, and the exponential trend of a series that doubles every \
+             period has a growth of 100 %." => {
+                "Uma série que segue outra com dois desfasamentos tem a maior correlação \
+                 cruzada no desfasamento 2. Um passeio aleatório não é rejeitado pelo teste de \
+                 raiz unitária, enquanto uma série com reversão à média é. Diferenciar a série \
+                 uma vez remove a tendência linear, e a tendência exponencial de uma série que \
+                 duplica em cada período tem um crescimento de 100 %."
+            }
             "ARIMA help" => "Ajuda do ARIMA",
             "About ARIMA…" => "Acerca do ARIMA…",
             "ARIMA models a series with autoregressive (AR) and moving-average (MA) \

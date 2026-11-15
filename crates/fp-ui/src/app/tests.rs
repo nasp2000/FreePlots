@@ -10619,3 +10619,87 @@ fn the_interface_touches_no_file_without_a_desktop() {
         "unexpected error: {error}"
     );
 }
+
+#[test]
+fn tsdiag_dialog_reaches_the_session_and_charts() {
+    let values: Vec<f64> = (0..30)
+        .map(|index| (index as f64 * 0.6).sin() + 0.05 * index as f64)
+        .collect();
+    let df = DataFrame::new(vec![
+        Column::new_f64("y", values.clone()),
+        Column::new_f64("z", values.iter().map(|value| 2.0 * value + 1.0).collect()),
+    ])
+    .expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "series.csv".to_owned());
+
+    app.open_tsdiag_dialog();
+    app.tsdiag_kind = TsDiagKind::Autocorrelation;
+    app.tsdiag_column = "y".to_owned();
+    app.tsdiag_max_lag = 6;
+    app.run_tsdiag_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Autocorrelation — column y"), "{text}");
+    assert!(text.contains("Ljung–Box"), "{text}");
+    assert_eq!(app.plot().expect("plot").panels.len(), 2);
+
+    // The cross-correlation of a column with itself is refused.
+    app.open_tsdiag_dialog();
+    app.tsdiag_kind = TsDiagKind::CrossCorrelation;
+    app.tsdiag_column = "y".to_owned();
+    app.tsdiag_second = "y".to_owned();
+    app.run_tsdiag_dialog();
+    assert!(app.status.contains("different"), "{}", app.status);
+
+    // The differences write a new column and keep the rows aligned.
+    app.open_tsdiag_dialog();
+    app.tsdiag_kind = TsDiagKind::Difference;
+    app.tsdiag_column = "y".to_owned();
+    app.tsdiag_operation = fp_core::tsdiag::ColumnOperation::Difference { order: 1, lag: 1 };
+    app.run_tsdiag_dialog();
+    assert!(app.status.contains("D1(y,1)"), "{}", app.status);
+    let df = app.data().expect("worksheet");
+    assert_eq!(df.column("D1(y,1)").expect("column").len(), df.n_rows());
+
+    // The trend model reaches the report with the equation.
+    app.open_tsdiag_dialog();
+    app.tsdiag_kind = TsDiagKind::Trend;
+    app.tsdiag_column = "y".to_owned();
+    app.tsdiag_trend = fp_core::tsdiag::TrendModel::Quadratic;
+    app.run_tsdiag_dialog();
+    assert!(app.session_text().contains("·t²"), "{}", app.session_text());
+}
+
+#[test]
+fn the_tsdiag_help_explains_the_commands() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_tsdiag_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness
+        .get_by_label("About time series diagnostics…")
+        .click();
+    harness.run();
+    assert!(harness.state().show_tsdiag_help);
+    harness.get_by_label("Time series diagnostics help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("Durbin–Levinson");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do diagnóstico de séries temporais");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_tsdiag_help);
+}
