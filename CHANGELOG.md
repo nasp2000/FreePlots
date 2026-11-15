@@ -76,6 +76,10 @@ All notable changes to FreePlots are recorded here. The format follows
   by conditional sum of squares, with forecasts, ψ-based intervals, AIC/AICc/
   BIC and a best-order search over p, d, q from 0 to 2. It has its own help
   page in both interface languages.
+- DOE has an *Optimal Design…* entry: D-optimal or maximin-distance
+  selection from the coded factorial candidates, augmentation of the current
+  design and evaluation (D-efficiency, condition number and distances). It has
+  its own help page in both interface languages.
 - DOE has a *Mixture Design…* entry: simplex centroid, simplex lattice of a
   chosen degree and extreme vertices with optional per-component bounds,
   replicates and randomised run order. It writes `StdOrder`, `RunOrder` and
@@ -179,7 +183,9 @@ All notable changes to FreePlots are recorded here. The format follows
   and constant cases. Mixture designs cover the seven-run centroid, the
   six-run lattice, the bounded extreme vertices, bounds that filter the
   centroid, replicate/randomisation reproducibility and the invalid component,
-  degree and bound cases. The graph
+  degree and bound cases. Optimal designs cover the full-rank D design, the
+  maximin corners, augmentation that keeps the existing runs and the invalid
+  run count, duplicate factor, singular and uncoded cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus

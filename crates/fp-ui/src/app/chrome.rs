@@ -224,6 +224,8 @@ impl FreePlotsApp {
         self.type1_dialog(&ctx);
         self.doe_dialog(&ctx);
         self.mixture_dialog(&ctx);
+        self.optimal_dialog(&ctx);
+        self.optimal_help_window(&ctx);
         self.mixture_help_window(&ctx);
         self.factorial_plots_dialog(&ctx);
         self.factorial_plots_help_window(&ctx);

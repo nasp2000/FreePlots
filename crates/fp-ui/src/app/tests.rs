@@ -2777,6 +2777,68 @@ fn mixture_dialog_writes_the_designs() {
 }
 
 #[test]
+fn optimal_dialog_creates_and_evaluates_a_design() {
+    use fp_core::optimal::{OptimalCriterion, OptimalMode};
+
+    let mut app = FreePlotsApp::new();
+    app.open_optimal_dialog();
+    app.optimal_mode = OptimalMode::Create;
+    app.optimal_criterion = OptimalCriterion::D;
+    app.optimal_factors = "A,B,C".to_owned();
+    app.optimal_runs = 8;
+    app.optimal_randomize = false;
+    app.run_optimal_dialog();
+    assert_eq!(app.data().expect("worksheet").n_rows(), 8);
+    assert!(app.session_text().contains("D-optimal design generated"));
+
+    let df = DataFrame::new(vec![
+        Column::new_f64("A", vec![-1.0, 1.0, -1.0, 1.0]),
+        Column::new_f64("B", vec![-1.0, -1.0, 1.0, 1.0]),
+    ])
+    .expect("frame");
+    app.set_data(df, "design.csv".to_owned());
+    app.open_optimal_dialog();
+    app.optimal_mode = OptimalMode::Evaluate;
+    app.optimal_factors = "A,B".to_owned();
+    app.run_optimal_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Design Evaluation"), "{text}");
+    assert!(text.contains("D-efficiency"), "{text}");
+}
+
+#[test]
+fn the_optimal_help_explains_the_criteria() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_optimal_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About optimal designs…").click();
+    harness.run();
+    assert!(harness.state().show_optimal_help);
+    harness.get_by_label("Optimal design help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("maximises the determinant of XᵀX");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda dos desenhos ótimos");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_optimal_help);
+}
+
+#[test]
 fn the_mixture_help_explains_the_designs() {
     use egui_kittest::{Harness, kittest::Queryable};
 

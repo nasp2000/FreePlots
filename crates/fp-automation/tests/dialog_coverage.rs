@@ -87,6 +87,7 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["Stat", "DOE", "Plackett-Burman Design…"],
     &["Stat", "DOE", "Box-Behnken Design…"],
     &["Stat", "DOE", "Mixture Design…"],
+    &["Stat", "DOE", "Optimal Design…"],
     &["Stat", "DOE", "2-Level Factorial…"],
     &["Stat", "DOE", "Factorial Plots…"],
     &["Stat", "DOE", "Response Surface…"],

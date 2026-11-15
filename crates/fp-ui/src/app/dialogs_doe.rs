@@ -742,6 +742,256 @@ impl FreePlotsApp {
         self.show_mixture_help = open && !close;
     }
 
+    /// Opens the optimal design dialog.
+    pub fn open_optimal_dialog(&mut self) {
+        self.show_optimal_dialog = true;
+    }
+
+    /// Creates, augments or evaluates the design of the dialog.
+    pub fn run_optimal_dialog(&mut self) {
+        let factors: Vec<String> = self
+            .optimal_factors
+            .split(',')
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if factors.len() < 2 {
+            self.set_error("An optimal design needs at least two factors");
+            return;
+        }
+        match self.optimal_mode {
+            fp_core::optimal::OptimalMode::Create => {
+                let options = fp_core::optimal::OptimalOptions {
+                    factors,
+                    runs: self.optimal_runs,
+                    criterion: self.optimal_criterion,
+                    randomize: self.optimal_randomize,
+                    seed: self.optimal_seed,
+                };
+                match fp_core::optimal::optimal_design(&options) {
+                    Ok(df) => {
+                        let rows = df.n_rows();
+                        self.set_data(df, "Optimal design".to_owned());
+                        self.append_session(&format!(
+                            "{} design generated: {rows} runs.\n",
+                            self.optimal_criterion.name()
+                        ));
+                        self.show_optimal_dialog = false;
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            fp_core::optimal::OptimalMode::Augment => {
+                let Some(df) = self.data.clone() else {
+                    self.set_error("No worksheet open: use File → Open CSV…");
+                    return;
+                };
+                match fp_core::optimal::augment_design(
+                    &df,
+                    &factors,
+                    self.optimal_add,
+                    self.optimal_criterion,
+                    self.optimal_randomize,
+                    self.optimal_seed,
+                ) {
+                    Ok(augmented) => {
+                        let rows = augmented.n_rows();
+                        self.set_data(augmented, "Augmented design".to_owned());
+                        self.append_session(&format!("Design augmented: {rows} runs in total.\n"));
+                        self.show_optimal_dialog = false;
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            fp_core::optimal::OptimalMode::Evaluate => {
+                let Some(df) = self.data.clone() else {
+                    self.set_error("No worksheet open: use File → Open CSV…");
+                    return;
+                };
+                match fp_core::optimal::evaluate_design(&df, &factors) {
+                    Ok(output) => {
+                        self.apply_output(output, "Design evaluation".to_owned());
+                        self.show_optimal_dialog = false;
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+        }
+    }
+
+    /// Optimal design dialog.
+    pub(super) fn optimal_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_optimal_dialog {
+            return;
+        }
+        let mut open = self.show_optimal_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Optimal Design"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Mode:");
+                    egui::ComboBox::from_id_salt("optimal_mode")
+                        .selected_text(self.optimal_mode.name())
+                        .show_ui(ui, |ui| {
+                            for mode in [
+                                fp_core::optimal::OptimalMode::Create,
+                                fp_core::optimal::OptimalMode::Augment,
+                                fp_core::optimal::OptimalMode::Evaluate,
+                            ] {
+                                ui.selectable_value(&mut self.optimal_mode, mode, mode.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Criterion:");
+                    ui.add_enabled_ui(
+                        self.optimal_mode != fp_core::optimal::OptimalMode::Evaluate,
+                        |ui| {
+                            egui::ComboBox::from_id_salt("optimal_criterion")
+                                .selected_text(self.optimal_criterion.name())
+                                .show_ui(ui, |ui| {
+                                    for criterion in [
+                                        fp_core::optimal::OptimalCriterion::D,
+                                        fp_core::optimal::OptimalCriterion::Distance,
+                                    ] {
+                                        ui.selectable_value(
+                                            &mut self.optimal_criterion,
+                                            criterion,
+                                            criterion.name(),
+                                        );
+                                    }
+                                })
+                                .response
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                        },
+                    );
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Factors:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.optimal_factors)
+                            .desired_width(220.0)
+                            .hint_text("A,B,C"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                match self.optimal_mode {
+                    fp_core::optimal::OptimalMode::Create => {
+                        ui.horizontal(|ui| {
+                            let label = ui.help_label("Runs:");
+                            ui.add(egui::DragValue::new(&mut self.optimal_runs).range(3..=64))
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                        });
+                    }
+                    fp_core::optimal::OptimalMode::Augment => {
+                        ui.horizontal(|ui| {
+                            let label = ui.help_label("Runs to add:");
+                            ui.add(egui::DragValue::new(&mut self.optimal_add).range(1..=64))
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                        });
+                    }
+                    fp_core::optimal::OptimalMode::Evaluate => {}
+                }
+                if self.optimal_mode != fp_core::optimal::OptimalMode::Evaluate {
+                    ui.horizontal(|ui| {
+                        ui.help_checkbox(&mut self.optimal_randomize, "Randomize run order");
+                        let label = ui.help_label("Seed:");
+                        ui.add(egui::DragValue::new(&mut self.optimal_seed).speed(1.0))
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                ui.small(
+                    "Candidates are the −1/+1 factorial plus the centre. Augment and Evaluate use                      the current worksheet; every run must be a −1/0/+1 point.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About optimal designs…"))
+                        .clicked()
+                    {
+                        self.show_optimal_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    let action = match self.optimal_mode {
+                        fp_core::optimal::OptimalMode::Evaluate => "Evaluate",
+                        _ => "Generate",
+                    };
+                    if ui.help_button(self.catalog().label(action)).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_optimal_dialog = open && !run && !cancel;
+        if run {
+            self.run_optimal_dialog();
+        }
+    }
+
+    /// Help page of the optimal designs.
+    pub(super) fn optimal_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_optimal_help {
+            return;
+        }
+        let mut open = self.show_optimal_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Optimal design help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "Optimal designs choose the runs of a first-order experiment from a candidate \
+                     set. The D criterion maximises the determinant of XᵀX, so the coefficients \
+                     are estimated with the smallest joint variance; the distance criterion \
+                     maximises the minimum separation of the runs (maximin).",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Name two to six factors; the candidates are the −1/+1 factorial plus the \
+                     centre. Create writes a new sheet with the requested runs. Augment adds runs \
+                     to the current coded design, keeping its runs. Evaluate reports the \
+                     D-efficiency, the condition number and the minimum/maximum distance of the \
+                     current design.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Three factors with eight runs give the full factorial, D-efficiency one. \
+                     Augmenting the four runs of a two-factor design with two more completes the \
+                     corners, and the evaluation shows the condition number falling towards one.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_optimal_help = open && !close;
+    }
+
     pub fn open_taguchi_design_dialog(&mut self) {
         // The array, factor count, randomization and seed are preferences now.
         self.show_taguchi_design_dialog = true;

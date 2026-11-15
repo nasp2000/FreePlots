@@ -56,6 +56,7 @@ pub mod logistic;
 pub mod matrixplot;
 pub mod mvchart;
 pub mod nonparametric;
+pub mod optimal;
 pub mod optimize;
 pub mod ordinal;
 pub mod pareto;

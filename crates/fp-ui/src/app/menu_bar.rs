@@ -1105,6 +1105,13 @@ impl FreePlotsApp {
                         self.open_mixture_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Optimal Design…"), None, true)
+                        .on_hover_text("D-optimal or maximin design, augment and evaluation")
+                        .clicked()
+                    {
+                        self.open_optimal_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Response Surface…"), None, self.data.is_some())
                         .on_hover_text("Full quadratic model with coded factors")
                         .clicked()

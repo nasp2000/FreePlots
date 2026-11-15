@@ -2826,6 +2826,81 @@ fn the_mixture_dialog_needs_two_components() {
 }
 
 #[test]
+fn the_optimal_dialog_creates_a_d_optimal_design() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "Optimal Design…"]);
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.session().contains("D-optimal design generated: 8 runs"),
+        "{}",
+        ui.session()
+    );
+    assert_eq!(ui.app().data().expect("frame").n_rows(), 8);
+}
+
+#[test]
+fn the_optimal_dialog_creates_a_distance_design() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "Optimal Design…"]);
+    ui.select("Criterion:", "Distance (maximin)")
+        .expect("criterion");
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.session().contains("Distance (maximin) design generated"),
+        "{}",
+        ui.session()
+    );
+}
+
+#[test]
+fn the_optimal_dialog_augments_and_evaluates_a_design() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("A", vec![-1.0, 1.0, -1.0, 1.0]),
+        Column::new_f64("B", vec![-1.0, -1.0, 1.0, 1.0]),
+    ])
+    .expect("frame");
+    ui.load_frame(df, "design.csv");
+    open(&mut ui, &["Stat", "DOE", "Optimal Design…"]);
+    ui.select("Mode:", "Augment").expect("mode");
+    ui.set_text("Factors:", "A,B").expect("factors");
+    ui.set_text("Runs to add:", "2").expect("add");
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.session().contains("Design augmented: 6 runs"),
+        "{}",
+        ui.session()
+    );
+    assert_eq!(ui.app().data().expect("frame").n_rows(), 6);
+
+    open(&mut ui, &["Stat", "DOE", "Optimal Design…"]);
+    ui.select("Mode:", "Evaluate").expect("mode");
+    ui.set_text("Factors:", "A,B").expect("factors");
+    ui.click("Evaluate").expect("evaluate");
+    assert!(
+        ui.session().contains("Design Evaluation"),
+        "{}",
+        ui.session()
+    );
+}
+
+#[test]
+fn the_optimal_dialog_needs_two_factors() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "Optimal Design…"]);
+    ui.set_text("Factors:", "A").expect("factors");
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.status().contains("at least two factors"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_factorial_dialog_fits_the_main_effects() {
     let mut ui = Automation::new();
     ui.load_frame(factorial_frame(), "factorial.csv");

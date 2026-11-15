@@ -795,6 +795,29 @@ impl UiCatalog {
             }
             "Box-Behnken Design…" => "Delineamento Box-Behnken…",
             "Mixture Design…" => "Delineamento de mistura…",
+            "Optimal Design…" => "Delineamento ótimo…",
+            "Optimal Design" => "Delineamento ótimo",
+            "Optimal design help" => "Ajuda dos desenhos ótimos",
+            "About optimal designs…" => "Acerca dos desenhos ótimos…",
+            "Evaluate" => "Avaliar",
+            "Optimal designs choose the runs of a first-order experiment from a candidate \
+             set. The D criterion maximises the determinant of XᵀX, so the coefficients \
+             are estimated with the smallest joint variance; the distance criterion \
+             maximises the minimum separation of the runs (maximin)." => {
+                "Os desenhos ótimos escolhem as corridas de uma experiência de primeira ordem a                  partir de um conjunto de candidatos. O critério D maximiza o determinante de XᵀX,                  para que os coeficientes sejam estimados com a menor variância conjunta; o                  critério de distância maximiza a separação mínima das corridas (maximin)."
+            }
+            "Name two to six factors; the candidates are the −1/+1 factorial plus the \
+             centre. Create writes a new sheet with the requested runs. Augment adds runs \
+             to the current coded design, keeping its runs. Evaluate reports the \
+             D-efficiency, the condition number and the minimum/maximum distance of the \
+             current design." => {
+                "Indique dois a seis factores; os candidatos são o fatorial −1/+1 mais o centro.                  Criar escreve uma folha nova com as corridas pedidas. Aumentar acrescenta corridas                  ao desenho codificado actual, mantendo as existentes. Avaliar reporta a                  eficiência D, o número de condição e a distância mínima/máxima do desenho actual."
+            }
+            "Three factors with eight runs give the full factorial, D-efficiency one. \
+             Augmenting the four runs of a two-factor design with two more completes the \
+             corners, and the evaluation shows the condition number falling towards one." => {
+                "Três factores com oito corridas dão o fatorial completo, com eficiência D igual a                  um. Aumentar as quatro corridas de um desenho de dois factores com mais duas                  completa os cantos, e a avaliação mostra o número de condição a aproximar-se de um."
+            }
             "Mixture Design" => "Delineamento de mistura",
             "Mixture design help" => "Ajuda dos desenhos de mistura",
             "About mixture designs…" => "Acerca dos desenhos de mistura…",

@@ -1453,6 +1453,16 @@ pub struct FreePlotsApp {
     design_seed: u64,
     /// Mixture design dialog and help.
     show_mixture_dialog: bool,
+    /// Optimal design dialog and help.
+    show_optimal_dialog: bool,
+    show_optimal_help: bool,
+    optimal_mode: fp_core::optimal::OptimalMode,
+    optimal_criterion: fp_core::optimal::OptimalCriterion,
+    optimal_factors: String,
+    optimal_runs: usize,
+    optimal_add: usize,
+    optimal_randomize: bool,
+    optimal_seed: u64,
     show_mixture_help: bool,
     mixture_kind: fp_core::doe::MixtureDesignKind,
     mixture_factors: String,
@@ -4125,6 +4135,8 @@ impl FreePlotsApp {
         self.show_partial_dialog = false;
         self.show_pb_dialog = false;
         self.show_mixture_dialog = false;
+        self.show_optimal_dialog = false;
+        self.show_optimal_help = false;
         self.show_mixture_help = false;
         self.show_pca_dialog = false;
         self.show_plot = false;
