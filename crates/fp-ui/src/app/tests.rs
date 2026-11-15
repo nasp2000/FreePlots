@@ -2886,6 +2886,63 @@ fn design_dialog_generates_a_factorial_worksheet() {
 }
 
 #[test]
+fn general_factorial_dialog_writes_the_design() {
+    let mut app = FreePlotsApp::new();
+    app.open_general_factorial_dialog();
+    app.design_factors = "A,B".to_owned();
+    app.design_levels = "3,2".to_owned();
+    app.design_replicates = 1;
+    app.design_randomize = false;
+    app.run_general_factorial_dialog();
+    let df = app.data().expect("worksheet");
+    assert_eq!(df.n_rows(), 6);
+    let mut values: Vec<f64> = (0..df.n_rows())
+        .filter_map(|row| df.column("A").ok()?.value(row))
+        .collect();
+    values.sort_by(f64::total_cmp);
+    values.dedup();
+    assert_eq!(values, vec![-1.0, 0.0, 1.0]);
+    assert!(
+        app.session_text()
+            .contains("General factorial design generated")
+    );
+}
+
+#[test]
+fn the_general_factorial_help_explains_the_levels() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_general_factorial_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness
+        .get_by_label("About general factorial designs…")
+        .click();
+    harness.run();
+    assert!(harness.state().show_general_factorial_help);
+    harness.get_by_label("General factorial help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("runs every combination of the levels");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda do fatorial geral");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_general_factorial_help);
+}
+
+#[test]
 fn rsm_dialog_reaches_the_session_and_plot() {
     let mut app = FreePlotsApp::new();
     let mut rows = Vec::new();

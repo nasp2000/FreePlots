@@ -1446,6 +1446,10 @@ pub struct FreePlotsApp {
     show_pb_dialog: bool,
     design_runs: usize,
     design_factors: String,
+    /// Comma-separated level counts for the general factorial design.
+    design_levels: String,
+    show_general_factorial_dialog: bool,
+    show_general_factorial_help: bool,
     design_replicates: usize,
     design_centers: usize,
     design_block_size: usize,
@@ -4135,6 +4139,8 @@ impl FreePlotsApp {
         self.show_partial_dialog = false;
         self.show_pb_dialog = false;
         self.show_mixture_dialog = false;
+        self.show_general_factorial_dialog = false;
+        self.show_general_factorial_help = false;
         self.show_optimal_dialog = false;
         self.show_optimal_help = false;
         self.show_mixture_help = false;

@@ -1070,6 +1070,18 @@ impl FreePlotsApp {
                         self.open_design_dialog();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("General Factorial Design…"),
+                        None,
+                        true,
+                    )
+                    .on_hover_text("Full factorial with factors of two to ten levels")
+                    .clicked()
+                    {
+                        self.open_general_factorial_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Plackett-Burman Design…"), None, true)
                         .on_hover_text("Screening design with orthogonal factors")
                         .clicked()

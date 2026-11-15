@@ -992,6 +992,189 @@ impl FreePlotsApp {
         self.show_optimal_help = open && !close;
     }
 
+    /// Opens the general factorial design dialog.
+    pub fn open_general_factorial_dialog(&mut self) {
+        self.show_general_factorial_dialog = true;
+    }
+
+    /// Generates the general factorial design of the dialog.
+    pub fn run_general_factorial_dialog(&mut self) {
+        let factors: Vec<String> = self
+            .design_factors
+            .split(',')
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if factors.len() < 2 {
+            self.set_error("A general factorial needs at least two factors");
+            return;
+        }
+        let levels: Vec<usize> = match self
+            .design_levels
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::parse::<usize>)
+            .collect::<std::result::Result<Vec<usize>, _>>()
+        {
+            Ok(values) => values,
+            Err(_) => {
+                self.set_error("The levels must be positive integers separated by commas");
+                return;
+            }
+        };
+        if levels.len() != factors.len() {
+            self.set_error("Give one level count per factor");
+            return;
+        }
+        match fp_core::doe::general_factorial_design(
+            &factors,
+            &levels,
+            self.design_replicates,
+            self.design_randomize,
+            self.design_seed,
+        ) {
+            Ok(df) => {
+                let rows = df.n_rows();
+                self.set_data(df, "General factorial design".to_owned());
+                self.append_session(&format!(
+                    "General factorial design generated: {rows} runs, factors {} with levels {}.
+",
+                    factors.join(", "),
+                    levels
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ));
+                self.show_general_factorial_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// General factorial design dialog.
+    pub(super) fn general_factorial_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_general_factorial_dialog {
+            return;
+        }
+        let mut open = self.show_general_factorial_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("General Factorial Design"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(440.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Factors:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.design_factors)
+                            .desired_width(220.0)
+                            .hint_text("A,B,C"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Levels:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.design_levels)
+                            .desired_width(220.0)
+                            .hint_text("2,3,2"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Replicates:");
+                    ui.add(egui::DragValue::new(&mut self.design_replicates).range(1..=100))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    ui.help_checkbox(&mut self.design_randomize, "Randomize run order");
+                    let label = ui.help_label("Seed:");
+                    ui.add(egui::DragValue::new(&mut self.design_seed).speed(1.0))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "Two to six factors with two to ten levels each; the levels are coded from \
+                     −1 to +1. Screening of many two-level factors is served by the \
+                     Plackett–Burman design.",
+                );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About general factorial designs…"))
+                        .clicked()
+                    {
+                        self.show_general_factorial_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Generate")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_general_factorial_dialog = open && !run && !cancel;
+        if run {
+            self.run_general_factorial_dialog();
+        }
+    }
+
+    /// Help page of the general factorial design.
+    pub(super) fn general_factorial_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_general_factorial_help {
+            return;
+        }
+        let mut open = self.show_general_factorial_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("General factorial help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The general factorial design runs every combination of the levels of two to \
+                     six factors. Each factor may have two to ten levels, coded uniformly from \
+                     −1 to +1, so a two-level factor uses −1/+1 and a three-level factor \
+                     −1/0/+1.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Name the factors and give one level count per factor, separated by commas. \
+                     Set the replicates, the randomised run order and the seed. The generated \
+                     sheet has StdOrder, RunOrder and one coded column per factor.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Two factors with three and two levels give six runs; adding one replicate \
+                     doubles them. For many two-level factors use the Plackett–Burman design \
+                     instead; definitive screening designs are not implemented in this increment.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_general_factorial_help = open && !close;
+    }
+
     pub fn open_taguchi_design_dialog(&mut self) {
         // The array, factor count, randomization and seed are preferences now.
         self.show_taguchi_design_dialog = true;

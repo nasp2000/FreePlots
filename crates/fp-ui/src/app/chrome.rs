@@ -223,6 +223,8 @@ impl FreePlotsApp {
         self.gage_help_window(&ctx);
         self.type1_dialog(&ctx);
         self.doe_dialog(&ctx);
+        self.general_factorial_dialog(&ctx);
+        self.general_factorial_help_window(&ctx);
         self.mixture_dialog(&ctx);
         self.optimal_dialog(&ctx);
         self.optimal_help_window(&ctx);

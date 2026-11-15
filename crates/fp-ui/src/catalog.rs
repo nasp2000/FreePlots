@@ -794,6 +794,34 @@ impl UiCatalog {
                  intervalo alarga com o horizonte."
             }
             "Box-Behnken Design…" => "Delineamento Box-Behnken…",
+            "General Factorial Design…" => "Delineamento fatorial geral…",
+            "The general factorial design runs every combination of the levels of two to \
+             six factors. Each factor may have two to ten levels, coded uniformly from \
+             −1 to +1, so a two-level factor uses −1/+1 and a three-level factor \
+             −1/0/+1." => {
+                "O delineamento fatorial geral executa todas as combinações dos níveis de dois a \
+                 seis factores. Cada factor pode ter de dois a dez níveis, codificados \
+                 uniformemente de −1 a +1, pelo que um factor de dois níveis usa −1/+1 e um de \
+                 três níveis −1/0/+1."
+            }
+            "Name the factors and give one level count per factor, separated by commas. \
+             Set the replicates, the randomised run order and the seed. The generated \
+             sheet has StdOrder, RunOrder and one coded column per factor." => {
+                "Indique os factores e um número de níveis por factor, separados por vírgulas. \
+                 Defina as réplicas, a ordem aleatória das corridas e a semente. A folha gerada \
+                 tem StdOrder, RunOrder e uma coluna codificada por factor."
+            }
+            "Two factors with three and two levels give six runs; adding one replicate \
+             doubles them. For many two-level factors use the Plackett–Burman design \
+             instead; definitive screening designs are not implemented in this increment." => {
+                "Dois factores com três e dois níveis dão seis corridas; acrescentar uma réplica \
+                 duplica-as. Para muitos factores de dois níveis use o delineamento de \
+                 Plackett–Burman; os desenhos definitivos de screening não estão implementados \
+                 neste incremento."
+            }
+            "General Factorial Design" => "Delineamento fatorial geral",
+            "General factorial help" => "Ajuda do fatorial geral",
+            "About general factorial designs…" => "Acerca dos delineamentos fatoriais gerais…",
             "Mixture Design…" => "Delineamento de mistura…",
             "Optimal Design…" => "Delineamento ótimo…",
             "Optimal Design" => "Delineamento ótimo",

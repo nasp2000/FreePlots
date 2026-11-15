@@ -2719,6 +2719,36 @@ fn the_plackett_burman_dialog_rejects_an_unsupported_run_count() {
 }
 
 #[test]
+fn the_general_factorial_dialog_generates_the_combinations() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "General Factorial Design…"]);
+    ui.set_text("Levels:", "3,2").expect("levels");
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.session()
+            .contains("General factorial design generated: 6 runs"),
+        "{}",
+        ui.session()
+    );
+    assert_eq!(ui.app().data().expect("frame").n_rows(), 6);
+}
+
+#[test]
+fn the_general_factorial_dialog_needs_one_level_per_factor() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(&mut ui, &["Stat", "DOE", "General Factorial Design…"]);
+    ui.set_text("Levels:", "2").expect("levels");
+    ui.click("Generate").expect("generate");
+    assert!(
+        ui.status().contains("one level count per factor"),
+        "{}",
+        ui.status()
+    );
+}
+
+#[test]
 fn the_box_behnken_dialog_generates_fifteen_runs() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

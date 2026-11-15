@@ -1167,6 +1167,107 @@ pub fn mixture_design(config: &MixtureDesignConfig) -> Result<DataFrame> {
     mixture_frame(factors, points, replicates, randomize, seed)
 }
 
+/// Generates a general full factorial design with factors of two or more
+/// levels.
+///
+/// The levels of a factor with `L` levels are coded uniformly from `−1` to
+/// `+1`; a two-level factor therefore uses `−1/+1` and a three-level factor
+/// `−1/0/+1`.
+///
+/// # Errors
+///
+/// Returns [`Error::Unsupported`] for fewer than two or more than six factors,
+/// duplicate names, a level count outside 2–10, a level list of the wrong
+/// length or a design beyond one million runs.
+pub fn general_factorial_design(
+    factors: &[String],
+    levels: &[usize],
+    replicates: usize,
+    randomize: bool,
+    seed: u64,
+) -> Result<DataFrame> {
+    let q = factors.len();
+    if !(2..=6).contains(&q) {
+        return Err(Error::Unsupported(
+            "a general factorial needs between two and six factors".to_owned(),
+        ));
+    }
+    if levels.len() != q {
+        return Err(Error::Unsupported(format!(
+            "give one level count per factor ({q} values)"
+        )));
+    }
+    let mut unique = factors.to_vec();
+    unique.sort();
+    unique.dedup();
+    if unique.len() != q {
+        return Err(Error::Unsupported(
+            "the factor names must be unique".to_owned(),
+        ));
+    }
+    if levels.iter().any(|level| !(2..=10).contains(level)) {
+        return Err(Error::Unsupported(
+            "each factor needs between two and ten levels".to_owned(),
+        ));
+    }
+    if replicates == 0 {
+        return Err(Error::InvalidParameter {
+            name: "replicates",
+            value: 0.0,
+        });
+    }
+    let points = levels.iter().try_fold(1usize, |total, level| {
+        total
+            .checked_mul(*level)
+            .ok_or_else(|| Error::Unsupported("the design is too large".to_owned()))
+    })?;
+    let total = points
+        .checked_mul(replicates)
+        .ok_or_else(|| Error::Unsupported("the design is too large".to_owned()))?;
+    if total > 1_000_000 {
+        return Err(Error::Unsupported(
+            "the design exceeds one million runs".to_owned(),
+        ));
+    }
+    let mut std_order = Vec::with_capacity(total);
+    let mut runs: Vec<Vec<f64>> = Vec::with_capacity(total);
+    let mut order = 1usize;
+    for point in 0..points {
+        let mut value = point;
+        let mut coordinates = vec![0.0; q];
+        for index in 0..q {
+            let level = value % levels[index];
+            value /= levels[index];
+            coordinates[index] = -1.0 + 2.0 * level as f64 / (levels[index] - 1) as f64;
+        }
+        for _ in 0..replicates {
+            std_order.push(order as f64);
+            order += 1;
+            runs.push(coordinates.clone());
+        }
+    }
+    let mut run_order: Vec<f64> = (1..=total).map(|value| value as f64).collect();
+    if randomize {
+        let mut rng = SplitMix64::new(seed);
+        for index in (1..total).rev() {
+            let swap = (rng.next_u64() % (index as u64 + 1)) as usize;
+            std_order.swap(index, swap);
+            runs.swap(index, swap);
+            run_order.swap(index, swap);
+        }
+    }
+    let mut columns = Vec::with_capacity(q + 2);
+    columns.push(Column::new_f64("StdOrder", std_order));
+    columns.push(Column::new_f64("RunOrder", run_order));
+    for (index, name) in factors.iter().enumerate() {
+        columns.push(Column::new_f64(
+            name.clone(),
+            runs.iter().map(|run| run[index]).collect(),
+        ));
+    }
+    DataFrame::new(columns)
+}
+
 /// Axial distance for a central composite design.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum CcdAlpha {
@@ -2883,6 +2984,10 @@ mod tests {
         df.column(name).expect("column").value(row).expect("value")
     }
 
+    fn component_f64(df: &DataFrame, name: &str, row: usize) -> f64 {
+        component(df, name, row)
+    }
+
     fn design(
         factors: &[&str],
         kind: MixtureDesignKind,
@@ -3065,6 +3170,42 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn the_general_factorial_covers_every_level_combination() {
+        let factors = ["A".to_owned(), "B".to_owned()];
+        let df = general_factorial_design(&factors, &[3, 2], 1, false, 7).expect("design");
+        assert_eq!(df.n_rows(), 6);
+        let mut values: Vec<f64> = (0..df.n_rows())
+            .map(|row| component_f64(&df, "A", row))
+            .collect();
+        values.sort_by(f64::total_cmp);
+        values.dedup();
+        assert_eq!(values, vec![-1.0, 0.0, 1.0]);
+        let mut b: Vec<f64> = (0..df.n_rows())
+            .map(|row| component_f64(&df, "B", row))
+            .collect();
+        b.sort_by(f64::total_cmp);
+        b.dedup();
+        assert_eq!(b, vec![-1.0, 1.0]);
+    }
+
+    #[test]
+    fn the_general_factorial_replicates_and_rejects_bad_requests() {
+        let factors = ["A".to_owned(), "B".to_owned()];
+        let df = general_factorial_design(&factors, &[3, 3], 2, false, 7).expect("design");
+        assert_eq!(df.n_rows(), 18);
+        assert!(general_factorial_design(&factors, &[3], 1, false, 7).is_err());
+        assert!(general_factorial_design(&factors, &[3, 11], 1, false, 7).is_err());
+        assert!(general_factorial_design(&factors, &[3, 1], 1, false, 7).is_err());
+        let duplicate = ["A".to_owned(), "A".to_owned()];
+        assert!(general_factorial_design(&duplicate, &[2, 2], 1, false, 7).is_err());
+        let too_many = ["A", "B", "C", "D", "E", "F", "G"]
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect::<Vec<String>>();
+        assert!(general_factorial_design(&too_many, &[2, 2, 2, 2, 2, 2, 2], 1, false, 7).is_err());
     }
 
     #[test]

@@ -76,6 +76,10 @@ All notable changes to FreePlots are recorded here. The format follows
   by conditional sum of squares, with forecasts, ψ-based intervals, AIC/AICc/
   BIC and a best-order search over p, d, q from 0 to 2. It has its own help
   page in both interface languages.
+- DOE has a *General Factorial Design…* entry: a full factorial for two to six
+  factors with two to ten levels each (coded from −1 to +1), replicates and
+  randomised run order. Screening of many two-level factors remains the
+  Plackett–Burman design; definitive screening designs are not implemented.
 - DOE has an *Optimal Design…* entry: D-optimal or maximin-distance
   selection from the coded factorial candidates, augmentation of the current
   design and evaluation (D-efficiency, condition number and distances). It has
@@ -185,7 +189,9 @@ All notable changes to FreePlots are recorded here. The format follows
   centroid, replicate/randomisation reproducibility and the invalid component,
   degree and bound cases. Optimal designs cover the full-rank D design, the
   maximin corners, augmentation that keeps the existing runs and the invalid
-  run count, duplicate factor, singular and uncoded cases. The graph
+  run count, duplicate factor, singular and uncoded cases. The general
+  factorial covers the six mixed-level runs, the full level coding, replicates
+  and the mismatched level list. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the
   two-panel marginal, the parallel lines and the annotated correlogram, plus
