@@ -756,15 +756,15 @@ mod tests {
     #[test]
     fn augmenting_keeps_the_existing_runs() {
         let df = DataFrame::new(vec![
-            Column::new_f64("F0", vec![-1.0, 1.0, -1.0, 1.0]),
-            Column::new_f64("F1", vec![-1.0, -1.0, 1.0, 1.0]),
+            Column::new_f64("F0", vec![-1.0, 1.0, -1.0]),
+            Column::new_f64("F1", vec![-1.0, -1.0, 1.0]),
         ])
         .expect("frame");
         let factors = ["F0".to_owned(), "F1".to_owned()];
         let augmented =
             augment_design(&df, &factors, 2, OptimalCriterion::D, false, 7).expect("augment");
-        assert_eq!(augmented.n_rows(), 6);
-        for row in 0..4 {
+        assert_eq!(augmented.n_rows(), 5);
+        for row in 0..3 {
             assert_eq!(
                 augmented.column("F0").expect("F0").value(row),
                 df.column("F0").expect("F0").value(row)
