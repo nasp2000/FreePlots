@@ -4696,7 +4696,7 @@ fn the_anom_help_explains_the_limits() {
     assert!(harness.state().show_anom_help);
     harness.get_by_label("Analysis of means help");
     harness.get_by_label("Overview");
-    harness.get_by_label_contains("simultaneous decision limits");
+    harness.get_by_label_contains("a real difference from the overall mean");
     harness.get_by_label("Example");
 
     harness
