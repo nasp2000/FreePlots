@@ -1485,6 +1485,7 @@ fn data_calc_dialog_standardizes_reports_and_resamples() {
         Column::new_f64("y", vec![2.0, 4.0, 6.0, 8.0, 10.0]),
     ])
     .expect("frame");
+    let original = df.clone();
     app.set_data(df, "values.csv".to_owned());
 
     // Column statistics report to the Session.
@@ -1533,6 +1534,8 @@ fn data_calc_dialog_standardizes_reports_and_resamples() {
     app.run_data_calc_dialog();
     assert_eq!(app.data.as_ref().expect("data").n_rows(), 8);
 
+    // The resampling tasks need the two numeric columns again.
+    app.set_data(original.clone(), "values.csv".to_owned());
     app.open_data_calc_dialog();
     app.data_task = DataTask::Bootstrap;
     app.data_columns = vec!["x".to_owned()];
@@ -1555,6 +1558,7 @@ fn data_calc_dialog_standardizes_reports_and_resamples() {
     assert_eq!(random.n_rows(), 12);
 
     // The randomization test reports with a chart.
+    app.set_data(original, "values.csv".to_owned());
     app.open_data_calc_dialog();
     app.data_task = DataTask::Randomization;
     app.data_first_column = "x".to_owned();
