@@ -213,40 +213,41 @@ pub fn compare(
     let weibull = reliability::fit_weibull(df, time_column, censor_column, censor_value)?;
     let lognormal = reliability::fit_lognormal(df, time_column, censor_column, censor_value)?;
 
-    let mut fits = Vec::with_capacity(3);
-    fits.push(build(
-        SurvivalModel::Exponential,
-        vec![("θ".to_owned(), exponential.theta)],
-        exponential.log_likelihood,
-        exponential.aic,
-        exponential.theta,
-        mission,
-        n,
-    ));
-    fits.push(build(
-        SurvivalModel::Weibull,
-        vec![
-            ("α".to_owned(), weibull.shape),
-            ("β".to_owned(), weibull.scale),
-        ],
-        weibull.log_likelihood,
-        weibull.aic,
-        weibull.mean_life,
-        mission,
-        n,
-    ));
-    fits.push(build(
-        SurvivalModel::Lognormal,
-        vec![
-            ("µ".to_owned(), lognormal.mu),
-            ("σ".to_owned(), lognormal.sigma),
-        ],
-        lognormal.log_likelihood,
-        lognormal.aic,
-        lognormal.mean_life,
-        mission,
-        n,
-    ));
+    let mut fits = vec![
+        build(
+            SurvivalModel::Exponential,
+            vec![("θ".to_owned(), exponential.theta)],
+            exponential.log_likelihood,
+            exponential.aic,
+            exponential.theta,
+            mission,
+            n,
+        ),
+        build(
+            SurvivalModel::Weibull,
+            vec![
+                ("α".to_owned(), weibull.shape),
+                ("β".to_owned(), weibull.scale),
+            ],
+            weibull.log_likelihood,
+            weibull.aic,
+            weibull.mean_life,
+            mission,
+            n,
+        ),
+        build(
+            SurvivalModel::Lognormal,
+            vec![
+                ("µ".to_owned(), lognormal.mu),
+                ("σ".to_owned(), lognormal.sigma),
+            ],
+            lognormal.log_likelihood,
+            lognormal.aic,
+            lognormal.mean_life,
+            mission,
+            n,
+        ),
+    ];
     fits.sort_by(|left, right| left.aic.total_cmp(&right.aic));
 
     Ok(SurvivalComparison {
