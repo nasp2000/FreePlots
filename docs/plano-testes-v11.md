@@ -228,3 +228,106 @@ Test*.
 | P2-37 CART and random forests | `tree.rs` | `decisions-p2-trees.md` | `9ef23c9` |
 | P2-39 linear-model power | `power.rs` | `decisions-p2-power.md` | `d697a8b` |
 | P2-40/41 calculations and resampling | `calcdata.rs` | `decisions-p2-calc-bootstrap.md` | `db64f66` |
+
+## Appendix A — Execution record (2026-11-16)
+
+Status: **partially executed**. Every item was exercised and its numbers agree
+with an independent oracle to the tolerance class of the plan. The comparison
+against the reference run itself is **blocked**: the reference host is
+offline (evidence in A.1) and the private pack holds no recorded output for
+these items. No engine or test change was needed.
+
+### A.1 Environment and evidence
+
+- FreePlots 0.1.1, Linux aarch64, the build installed from the CI artifacts
+  (2026-11-16). Dialogs driven through the application automation interface;
+  data tasks through the shipped binary.
+- Reference host: `tailscale status` reports `offline, last seen 20h ago`;
+  TCP ports 22 and 8765 time out on both the tailnet and the LAN address;
+  Wake-on-LAN is not configured, so the host cannot be started remotely.
+- Private pack `validation/` has no recorded session for any P2 item (only the
+  older distribution, capability, chart and MSA material).
+
+### A.2 Results per item
+
+| Item | Planned cases | Checks run | Pass | Fail | Reference run |
+|---|---|---|---|---|---|
+| P2-33 factorial | 6 | 2 | 2 | 0 | blocked |
+| P2-24 ANOM | 5 | 1 | 1 | 0 | blocked |
+| P2-29 diagnostics | 7 | 1 | 1 | 0 | blocked |
+| P2-38 crossover | 5 | 1 | 1 | 0 | blocked |
+| P2-23 MANOVA/nested | 5 | 2 | 2 | 0 | blocked |
+| P2-25 nonlinear | 5 | 1 | 1 | 0 | blocked |
+| P2-36 survival | 7 | 1 | 1 | 0 | blocked |
+| P2-37 CART/forest | 6 | 2 | 2 | 0 | blocked |
+| P2-39 power | 5 | 2 | 2 | 0 | blocked |
+| P2-40/41 data | 10 | 12 | 12 | 0 | blocked |
+| **Total** | **61** | **25** | **25** | **0** | — |
+
+### A.3 Case records (independent oracle)
+
+| Item | Check | Oracle value | FreePlots value | Class | Result |
+|---|---|---|---|---|---|
+| P2-33 | 2³ design, two replicates | 16 runs, 5 columns | 16 runs, 5 columns | A | pass |
+| P2-33 | 2² analysis with three replicates: SS B / A / AB / error; R² | 107.042133 / 48.000000 / 3.040133 / 0.045333; 0.999713 | same | C | pass |
+| P2-24 | Four levels, n = 5: h, limits, MSE | h 2.813056; 8.777362 … 12.222638; 2.500000 | same | C | pass |
+| P2-29 | Ramp, five lags: r₁…r₅ and Q₅ | 0.850000 / 0.701504 / 0.556015 / 0.415038 / 0.280075; 43.800488 | same | C | pass |
+| P2-38 | Balanced 2×2, eight subjects: estimate, SE, df, interval, ANOVA SS | 1.265000; 0.022638; 6; (1.221009, 1.308991); residual 0.012300 | same | C | pass |
+| P2-23 | MANOVA, 3 groups × 2 responses: Wilks, Pillai, Hotelling, Roy | 0.000363039; 1.939038; 165.920036; 148.494463 | same | C | pass |
+| P2-23 | Nested 2×3×2: SS, F, components | 48 / 18.666667 / 0.120000; 10.285714 / 233.333333; 7.222222 / 2.323333 / 0.020000 | same | C | pass |
+| P2-25 | Michaelis–Menten, published fit | V 212.6837; K 0.0641213; RSS 1195.449 | V 212.683744; K 0.064121; RSS 1195.448 | D | pass |
+| P2-36 | Exponential, right censored: θ, log-likelihood, AIC, BIC, B10, B50, R(10), h(10) | 25.833333; −25.509994; 53.019988; 53.099429; 2.721813; 17.906302; 0.679025; 0.038710 | same | C | pass |
+| P2-37 | Step response: leaves, depth, split, R², RMSE, importance | 2; 1; 10.5; 1.000000; 0.000000; 100 % | same | A | pass |
+| P2-37 | Forest, 40 trees, seed 7: out-of-bag RMSE twice | 2.325546 both runs | 2.325546 both runs | A | pass |
+| P2-39 | Partial F, f² 0.15, q 3, p 5: power at n = 80 and smallest n | 0.8184659; 77 | 0.818466; 77 | C | pass |
+| P2-39 | Overall regression, R² 0.25, p 3, n = 50 | 0.9224603 | 0.922460 | C | pass |
+| P2-40/41 | Standardize 1…5 | z = ±1.264911, ±0.632456, 0 | same | C | pass |
+| P2-40/41 | Patterned 10, 12, 14 twice | 6 rows | 6 rows | A | pass |
+| P2-40/41 | Mesh 3 × 2 | 6 rows, last factor fastest | same | A | pass |
+| P2-40/41 | Indicators, three levels, reference dropped | two 0/1 columns | same | A | pass |
+| P2-40/41 | Column statistics | mean 3/6, SD 1.581139/3.162278, Q1 1.5/3, Q3 4.5/9 | same | C | pass |
+| P2-40/41 | Row sums | 3, 6, 9, 12, 15 | same | A | pass |
+| P2-40/41 | Transpose and product | 2 × 5 block; 55 and 110 | same | A | pass |
+| P2-40/41 | Bootstrap 5 rows × 3, seed 2026 | draws reproduced by SplitMix64 | same order and values | A | pass |
+| P2-40/41 | Randomization 999, seed 7 | p 0.137000; exact enumeration 0.130435 (band 0.033) | 0.137000 | E | pass |
+| P2-40/41 | Random data, seed 9, twice | identical file; values in [0, 1) | identical | A | pass |
+| P2-40/41 | Empty selection | error, no sheet | error | A | pass |
+
+### A.4 Findings
+
+1. **Crossover label order.** The engine sorts the two treatment labels and
+   uses the alphabetically first as the reference; the report sentence
+   "T − R (the first label is the reference)" follows that order. Running the
+   same data with the labels swapped changed only the sign of the estimate
+   (+1.265000 / −1.265000) and left the standard error, interval and decisions
+   unchanged. The methods note was clarified; no engine change.
+2. **ANOM critical value.** The report uses the conservative Bonferroni-t
+   (2.813056) instead of the studentized maximum modulus tables. In the
+   executed case the decisions agree; the difference is the documented
+   approximation and must be recorded again on the reference run.
+3. **Forest fit statistics.** The forest reports the out-of-bag error and no
+   in-sample R² (the value is empty by design); the two runs with the same
+   seed gave the same out-of-bag RMSE.
+
+### A.5 Blocked work and next action
+
+- Every "reference example" comparison of the plan is blocked by the offline
+  reference host. To close it: power the host on, confirm the bridge answers
+  `ready`, load the case worksheets, run the same options, read the Session
+  text and replace the "oracle value" column with the reference values; the
+  tolerance classes stay as defined in section 2.
+- Plan cases not executed in this run: screening/Lenth, saturated and text
+  factor cases (P2-33); unequal sizes, out-of-limit level and refusals
+  (P2-24); cross-correlation, unit root, differences, trend and refusals
+  (P2-29); unequal sequences, asymmetric limits and broken designs (P2-38);
+  two-group MANOVA, zero component and refusals (P2-23); the other five
+  nonlinear models, starting values and refusals (P2-25); percentiles of the
+  other two models and refusals (P2-36); classification, pruning ties and
+  refusals (P2-37); α and power variants (P2-39).
+
+### A.6 Conclusion
+
+Twenty-five checks across the ten items passed, with no failed check and one
+documentation clarification. The reference-run column remains open and is the
+only item blocking the completion of this plan; it is an environment
+constraint, not an engine result.
