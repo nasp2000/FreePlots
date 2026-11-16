@@ -900,7 +900,6 @@ impl RankTestKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Task of the data and calculations dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DataTask {
@@ -949,6 +948,7 @@ impl DataTask {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Test2Kind {
     OneProportion,
     TwoProportions,
