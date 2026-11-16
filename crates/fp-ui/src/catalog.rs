@@ -134,20 +134,21 @@ impl UiCatalog {
                  as observações."
             }
             "Choose a numeric response, a numeric predictor and one of the models: \
-             Michaelis–Menten V·x/(K + x), asymptotic a + b·exp(−c·x), logistic \
-             A/(1 + exp(−k(x − x₀))), Gompertz A·exp(−exp(−k(x − x₀))), Weibull growth \
-             A·(1 − exp(−(x/λ)^k)) and power a·x^b. The power model needs positive \
-             predictor values and the Weibull model non-negative ones. The starting \
-             values come from the range of the data and the iteration stops when the \
-             parameters move by less than 1e-9 relative or the sum of squares by less \
-             than 1e-12." => {
+             Michaelis–Menten (a saturating hyperbola), asymptotic regression, a \
+             three-parameter logistic, Gompertz, Weibull growth and a power curve. The \
+             equation of the chosen model is written above the estimates. The power \
+             model needs positive predictor values and the Weibull model non-negative \
+             ones. The starting values come from the range of the data and the iteration \
+             stops when the parameters move by less than 1e-9 relative or the sum of \
+             squares by less than 1e-12." => {
                 "Escolha uma resposta numérica, um preditor numérico e um dos modelos: \
-                 Michaelis–Menten V·x/(K + x), assintótica a + b·exp(−c·x), logística \
-                 A/(1 + exp(−k(x − x₀))), Gompertz A·exp(−exp(−k(x − x₀))), crescimento de \
-                 Weibull A·(1 − exp(−(x/λ)^k)) e potência a·x^b. O modelo de potência exige \
-                 preditores positivos e o de Weibull não negativos. Os valores iniciais vêm do \
-                 intervalo dos dados e a iteração para quando os parâmetros variam menos de \
-                 1e-9 em termos relativos ou a soma de quadrados menos de 1e-12."
+                 Michaelis–Menten (uma hipérbole saturante), regressão assintótica, logística \
+                 de três parâmetros, Gompertz, crescimento de Weibull e uma curva de potência. \
+                 A equação do modelo escolhido é escrita acima das estimativas. O modelo de \
+                 potência exige preditores positivos e o de Weibull não negativos. Os valores \
+                 iniciais vêm do intervalo dos dados e a iteração para quando os parâmetros \
+                 variam menos de 1e-9 em termos relativos ou a soma de quadrados menos de \
+                 1e-12."
             }
             "Enzyme rates against substrate concentration follow Michaelis–Menten: \
              twelve observations give V about 212.7 and K about 0.064, with R² near \

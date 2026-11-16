@@ -794,7 +794,7 @@ mod tests {
             model.r_squared
         );
         assert_eq!(model.n, 12);
-        assert!((model.s - (1195.448_8f64 / 10.0).sqrt()).abs() < 1e-3);
+        assert!((model.s - (1_195.448_8_f64 / 10.0).sqrt()).abs() < 1e-3);
         // The standard errors of the published fit.
         assert!((model.standard_errors[0] - 6.947_16).abs() < 1e-2);
         assert!((model.standard_errors[1] - 0.008_281).abs() < 1e-5);

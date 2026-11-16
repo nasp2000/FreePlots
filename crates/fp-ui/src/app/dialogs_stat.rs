@@ -2719,13 +2719,13 @@ impl FreePlotsApp {
                 ui.strong(self.catalog().label("Data"));
                 ui.label(self.catalog().label(
                     "Choose a numeric response, a numeric predictor and one of the models: \
-                     Michaelis–Menten V·x/(K + x), asymptotic a + b·exp(−c·x), logistic \
-                     A/(1 + exp(−k(x − x₀))), Gompertz A·exp(−exp(−k(x − x₀))), Weibull growth \
-                     A·(1 − exp(−(x/λ)^k)) and power a·x^b. The power model needs positive \
-                     predictor values and the Weibull model non-negative ones. The starting \
-                     values come from the range of the data and the iteration stops when the \
-                     parameters move by less than 1e-9 relative or the sum of squares by less \
-                     than 1e-12.",
+                     Michaelis–Menten (a saturating hyperbola), asymptotic regression, a \
+                     three-parameter logistic, Gompertz, Weibull growth and a power curve. The \
+                     equation of the chosen model is written above the estimates. The power \
+                     model needs positive predictor values and the Weibull model non-negative \
+                     ones. The starting values come from the range of the data and the iteration \
+                     stops when the parameters move by less than 1e-9 relative or the sum of \
+                     squares by less than 1e-12.",
                 ));
                 ui.add_space(6.0);
                 ui.strong(self.catalog().label("Example"));
