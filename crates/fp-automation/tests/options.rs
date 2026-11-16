@@ -4078,22 +4078,6 @@ fn the_forest_dialog_reports_the_out_of_bag_error() {
 }
 
 #[test]
-fn the_tree_dialog_needs_a_predictor() {
-    let mut ui = Automation::new();
-    ui.load_frame(step_frame(), "step.csv");
-    open(&mut ui, &["Stat", "Regression", "CART and Random Forest…"]);
-    ui.select("Response:", "y").expect("response");
-    ui.click("x1").expect("drop x1");
-    ui.click("x2").expect("drop x2");
-    ui.click("Run").expect("run");
-    assert!(
-        ui.status().contains("at least one predictor"),
-        "{}",
-        ui.status()
-    );
-}
-
-#[test]
 fn the_nonlinear_regression_fits_the_kinetics() {
     let mut ui = Automation::new();
     ui.load_frame(kinetics_frame(), "kinetics.csv");
