@@ -901,6 +901,54 @@ impl RankTestKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Task of the data and calculations dialog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DataTask {
+    /// Standardise the selected columns.
+    #[default]
+    Standardize,
+    /// Summary of the selected columns.
+    ColumnStatistics,
+    /// One statistic across the columns of each row.
+    RowStatistics,
+    /// Patterned sequence.
+    Patterned,
+    /// Full-factorial mesh.
+    Mesh,
+    /// Indicator (dummy) columns.
+    Indicators,
+    /// Transpose a numeric block.
+    Transpose,
+    /// Product of two numeric blocks.
+    Product,
+    /// Random data from a distribution.
+    Random,
+    /// Non-parametric bootstrap.
+    Bootstrap,
+    /// Two-sample randomization test.
+    Randomization,
+}
+
+impl DataTask {
+    /// Name shown in the dialog.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Standardize => "Standardize",
+            Self::ColumnStatistics => "Column statistics",
+            Self::RowStatistics => "Row statistics",
+            Self::Patterned => "Patterned data",
+            Self::Mesh => "Mesh data",
+            Self::Indicators => "Indicator variables",
+            Self::Transpose => "Transpose",
+            Self::Product => "Matrix product (AᵀB)",
+            Self::Random => "Random data",
+            Self::Bootstrap => "Bootstrap",
+            Self::Randomization => "Randomization test",
+        }
+    }
+}
+
 pub enum Test2Kind {
     OneProportion,
     TwoProportions,
@@ -1214,6 +1262,33 @@ pub struct FreePlotsApp {
     timeseries_model: fp_core::timeseries::DecompositionModel,
     timeseries_season: usize,
     timeseries_horizon: usize,
+    /// Data and calculations dialog, help and inputs.
+    show_data_calc_dialog: bool,
+    show_data_calc_help: bool,
+    data_task: DataTask,
+    data_columns: Vec<String>,
+    data_second_columns: Vec<String>,
+    data_row_statistic: fp_core::calcdata::RowStatistic,
+    data_name: String,
+    data_start: String,
+    data_step: String,
+    data_length: usize,
+    data_repeats: usize,
+    data_levels: usize,
+    data_first: String,
+    data_second: String,
+    data_count: usize,
+    data_seed: u64,
+    data_reps: usize,
+    data_first_column: String,
+    data_second_column: String,
+    data_drop_first: bool,
+    data_distribution: fp_core::calcdata::RandomDistribution,
+    data_mesh_count: usize,
+    data_mesh_names: [String; 3],
+    data_mesh_from: [String; 3],
+    data_mesh_to: [String; 3],
+    data_mesh_levels: [usize; 3],
     /// CART and random forest dialog, help and inputs.
     show_tree_dialog: bool,
     show_tree_help: bool,
@@ -4251,6 +4326,8 @@ impl FreePlotsApp {
         self.show_poisson_dialog = false;
         self.show_power_dialog = false;
         self.show_power_help = false;
+        self.show_data_calc_dialog = false;
+        self.show_data_calc_help = false;
         self.show_probability_plot_dialog = false;
         self.show_rank_dialog = false;
         self.show_runs_dialog = false;

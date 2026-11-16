@@ -1352,6 +1352,115 @@ impl UiCatalog {
             "Tolerance Interval…" => "Intervalo de tolerância…",
             "Chi-Square Test for Independence" => "Teste qui-quadrado de independência",
             "Power and Sample Size" => "Potência e tamanho amostral",
+            "Data and Calculations…" => "Dados e cálculos…",
+            "Data and Calculations" => "Dados e cálculos",
+            "Data and calculations help" => "Ajuda de dados e cálculos",
+            "About data and calculations…" => "Acerca de dados e cálculos…",
+            "Tasks, conventions and an example" => "Tarefas, convenções e um exemplo",
+            "Task:" => "Tarefa:",
+            "Statistic:" => "Estatística:",
+            "New column:" => "Nova coluna:",
+            "Start:" => "Início:",
+            "Step:" => "Passo:",
+            "Length:" => "Comprimento:",
+            "Repeats:" => "Repetições:",
+            "Factor column:" => "Coluna do factor:",
+            "Drop the first level (reference)" => "Omitir o primeiro nível (referência)",
+            "Distribution:" => "Distribuição:",
+            "Mean:" => "Média:",
+            "Minimum:" => "Mínimo:",
+            "Rate:" => "Taxa:",
+            "Std dev:" => "Desvio padrão:",
+            "Maximum:" => "Máximo:",
+            "Values:" => "Valores:",
+            "Resamples:" => "Reamostras:",
+            "First sample:" => "Primeira amostra:",
+            "Second sample:" => "Segunda amostra:",
+            "Permutations:" => "Permutações:",
+            "Tasks" => "Tarefas",
+            "Conventions" => "Convenções",
+            "Appends <column>_z, centred on the mean and divided by the \
+             sample standard deviation." => {
+                "Acrescenta <coluna>_z, centrada na média e dividida pelo desvio padrão \
+                 amostral."
+            }
+            "Each row is name, first level, last level and number of \
+             equally spaced levels." => {
+                "Cada linha é nome, primeiro nível, último nível e número de níveis \
+                 igualmente espaçados."
+            }
+            "Each selected column becomes a row; each row a column." => {
+                "Cada coluna escolhida torna-se uma linha; cada linha uma coluna."
+            }
+            "Aᵀ·B: both blocks have the same rows; the result has one row per \
+             column of the first block and one column per column of the \
+             second." => {
+                "Aᵀ·B: os dois blocos têm as mesmas linhas; o resultado tem uma linha por \
+                 coluna do primeiro bloco e uma coluna por coluna do segundo."
+            }
+            "Each resample copies the whole rows with replacement; the table \
+             has a Sample column and every selected column." => {
+                "Cada reamostra copia as linhas inteiras com reposição; a tabela tem uma \
+                 coluna Sample e todas as colunas escolhidas."
+            }
+            "The dialog works on the active worksheet. Standardize, the indicator \
+             columns and the row statistics add columns to it (in a new sheet), while \
+             the patterned, mesh, random, bootstrap, transposed and matrix results \
+             open a new sheet of their own. The column statistics and the \
+             randomization test report to the Session window." => {
+                "O diálogo trabalha na folha activa. A padronização, as colunas indicadoras e \
+                 as estatísticas por linha acrescentam colunas (numa folha nova), enquanto os \
+                 padrões, a mesh, os dados aleatórios, o bootstrap, a transposição e o produto \
+                 de matrizes abrem uma folha própria. As estatísticas por coluna e o teste de \
+                 randomização reportam à janela Session."
+            }
+            "Standardize appends z = (x − mean)/s with the sample standard deviation. \
+             Column statistics give N, N*, sum, mean, standard error, standard \
+             deviation, quartiles and extremes. Row statistics combine the selected \
+             columns row by row, skipping missing cells. Patterned data repeat an \
+             arithmetic sequence. Mesh data build the full grid of one to three \
+             numeric factors. Indicators code a categorical column as 0/1 columns, \
+             with or without the first level. Transpose swaps rows and columns, and \
+             the matrix product multiplies the transpose of the first block by the \
+             second. Random data draw Normal, Uniform or Exponential values. The \
+             bootstrap resamples whole rows with replacement, and the randomization \
+             test permutes the group labels of two columns." => {
+                "A padronização acrescenta z = (x − média)/s com o desvio padrão amostral. As \
+                 estatísticas por coluna dão N, N*, soma, média, erro-padrão, desvio padrão, \
+                 quartis e extremos. As estatísticas por linha combinam as colunas escolhidas \
+                 linha a linha, ignorando células em falta. Os dados padrão repetem uma \
+                 progressão aritmética. A mesh constrói a grelha completa de um a três \
+                 factores numéricos. Os indicadores codificam uma coluna categórica em \
+                 colunas 0/1, com ou sem o primeiro nível. A transposição troca linhas e \
+                 colunas, e o produto de matrizes multiplica a transposta do primeiro bloco \
+                 pelo segundo. Os dados aleatórios geram valores Normal, Uniforme ou \
+                 Exponencial. O bootstrap reamostra linhas inteiras com reposição, e o teste \
+                 de randomização permuta as etiquetas de grupo de duas colunas."
+            }
+            "Every random task takes a seed and uses SplitMix64, so the same seed gives \
+             the same sheet and the same p-value. The randomization p-value is \
+             (extreme + 1)/(permutations + 1) and the test is two-sided on the \
+             difference in means. A missing or non-finite cell is left out of the \
+             statistics and stays missing when a column is standardized." => {
+                "Cada tarefa aleatória recebe uma semente e usa SplitMix64, pelo que a mesma \
+                 semente dá a mesma folha e o mesmo valor-p. O valor-p do teste de \
+                 randomização é (extremos + 1)/(permutações + 1) e o teste é bilateral sobre a \
+                 diferença de médias. Uma célula em falta ou não finita fica fora das \
+                 estatísticas e continua em falta quando a coluna é padronizada."
+            }
+            "Standardising a column from 1 to 5 gives z from about −1.265 to 1.265, with \
+             mean zero and standard deviation one. A mesh of two factors with three and \
+             two levels has six rows. Indicators of three levels with the reference \
+             dropped add two columns. A bootstrap of five rows and three resamples has \
+             fifteen rows, and two clearly separated samples give a randomization \
+             p-value near zero." => {
+                "Padronizar uma coluna de 1 a 5 dá z entre cerca de −1,265 e 1,265, com média \
+                 zero e desvio padrão um. Uma mesh de dois factores com três e dois níveis tem \
+                 seis linhas. Indicadores de três níveis com a referência omitida acrescentam \
+                 duas colunas. Um bootstrap de cinco linhas e três reamostras tem quinze \
+                 linhas, e duas amostras claramente separadas dão um valor-p de randomização \
+                 próximo de zero."
+            }
             "Power and sample size help" => "Ajuda da potência e tamanho amostral",
             "About power and sample size…" => "Acerca da potência e tamanho amostral…",
             "Procedures, effect sizes and an example" => {

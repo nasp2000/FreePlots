@@ -315,6 +315,39 @@ fn the_power_dialog_solves_for_the_sample_size() {
 }
 
 #[test]
+fn the_data_calc_dialog_standardizes_and_tests() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+
+    // Column statistics report to the Session.
+    open(&mut ui, &["Calc", "Data and Calculations…"]);
+    ui.select("Task:", "Column statistics").expect("task");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Column Statistics"),
+        "{}",
+        ui.session()
+    );
+
+    // Standardize opens a sheet with the z column.
+    open(&mut ui, &["Calc", "Data and Calculations…"]);
+    ui.select("Task:", "Standardize").expect("task");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("standardised"), "{}", ui.status());
+
+    // The randomization test reports with its chart.
+    open(&mut ui, &["Calc", "Data and Calculations…"]);
+    ui.select("Task:", "Randomization test").expect("task");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Randomization Test"),
+        "{}",
+        ui.session()
+    );
+    assert!(ui.plot().is_some());
+}
+
+#[test]
 fn the_power_dialog_runs_the_linear_model_partial_f() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

@@ -1945,4 +1945,757 @@ impl FreePlotsApp {
             self.run_calc_dialog();
         }
     }
+    /// Opens the data and calculations dialog.
+    pub fn open_data_calc_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.is_empty() {
+            self.set_error("The worksheet has no numeric column");
+            return;
+        }
+        self.data_columns = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .map(|name| vec![name])
+            .unwrap_or_else(|| numeric.iter().take(1).cloned().collect());
+        self.data_second_columns.clear();
+        self.data_first_column = numeric[0].clone();
+        self.data_second_column = numeric.get(1).cloned().unwrap_or_default();
+        self.data_name = "Pattern".to_owned();
+        for index in 0..3 {
+            self.data_mesh_names[index] = format!("F{}", index + 1);
+            self.data_mesh_from[index] = "0".to_owned();
+            self.data_mesh_to[index] = "1".to_owned();
+            self.data_mesh_levels[index] = 3;
+        }
+        self.show_data_calc_dialog = true;
+    }
+
+    fn data_number(&self, text: &str, label: &str) -> Result<f64, String> {
+        text.trim()
+            .parse::<f64>()
+            .map_err(|_| format!("{label} must be a number"))
+    }
+
+    /// Runs the task of the data and calculations dialog.
+    pub fn run_data_calc_dialog(&mut self) {
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let columns = self.data_columns.clone();
+        let done = |app: &mut Self, message: String| {
+            app.status = message;
+            app.show_data_calc_dialog = false;
+        };
+        match self.data_task {
+            DataTask::Standardize => match fp_core::calcdata::standardize(&df, &columns) {
+                Ok(out) => {
+                    let count = columns.len();
+                    self.set_data(out, "Standardized data".to_owned());
+                    done(self, format!("{count} column(s) standardised"));
+                }
+                Err(error) => self.set_error(error.to_string()),
+            },
+            DataTask::ColumnStatistics => {
+                match fp_core::calcdata::column_statistics_report(&df, &columns) {
+                    Ok(output) => {
+                        self.apply_output(output, "Column statistics".to_owned());
+                        self.show_data_calc_dialog = false;
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            DataTask::RowStatistics => {
+                if self.data_name.trim().is_empty() {
+                    self.set_error("Name the new column");
+                    return;
+                }
+                let mut out = df.clone();
+                let name = self.data_name.trim().to_owned();
+                match fp_core::calcdata::add_row_statistics(
+                    &mut out,
+                    &name,
+                    &columns,
+                    self.data_row_statistic,
+                ) {
+                    Ok(()) => {
+                        self.set_data(out, "Row statistics".to_owned());
+                        done(self, format!("Column {name} added"));
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            DataTask::Patterned => {
+                let start = match self.data_number(&self.data_start, "The start") {
+                    Ok(value) => value,
+                    Err(message) => {
+                        self.set_error(message);
+                        return;
+                    }
+                };
+                let step = match self.data_number(&self.data_step, "The step") {
+                    Ok(value) => value,
+                    Err(message) => {
+                        self.set_error(message);
+                        return;
+                    }
+                };
+                match fp_core::calcdata::patterned_data(
+                    &self.data_name,
+                    start,
+                    step,
+                    self.data_length,
+                    self.data_repeats,
+                ) {
+                    Ok(out) => {
+                        let rows = out.n_rows();
+                        self.set_data(out, "Patterned data".to_owned());
+                        done(self, format!("Pattern with {rows} row(s)"));
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            DataTask::Mesh => {
+                let count = self.data_mesh_count.clamp(1, 3);
+                let mut factors = Vec::with_capacity(count);
+                for index in 0..count {
+                    let name = self.data_mesh_names[index].trim().to_owned();
+                    if name.is_empty() {
+                        self.set_error("Name every factor");
+                        return;
+                    }
+                    let from = match self
+                        .data_number(&self.data_mesh_from[index].clone(), "The first level")
+                    {
+                        Ok(value) => value,
+                        Err(message) => {
+                            self.set_error(message);
+                            return;
+                        }
+                    };
+                    let to = match self.data_number(&self.data_mesh_to[index], "The last level") {
+                        Ok(value) => value,
+                        Err(message) => {
+                            self.set_error(message);
+                            return;
+                        }
+                    };
+                    factors.push(fp_core::calcdata::MeshFactor {
+                        name,
+                        from,
+                        to,
+                        levels: self.data_mesh_levels[index],
+                    });
+                }
+                match fp_core::calcdata::mesh_data(&factors) {
+                    Ok(out) => {
+                        let rows = out.n_rows();
+                        self.set_data(out, "Mesh data".to_owned());
+                        done(self, format!("Mesh with {rows} row(s)"));
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            DataTask::Indicators => {
+                if self.data_first_column.is_empty() {
+                    self.set_error("Select the factor column");
+                    return;
+                }
+                match fp_core::calcdata::indicator_variables(
+                    &df,
+                    &self.data_first_column,
+                    self.data_drop_first,
+                ) {
+                    Ok(out) => {
+                        let added = out.n_columns() - df.n_columns();
+                        self.set_data(out, "Indicator variables".to_owned());
+                        done(self, format!("{added} indicator column(s) added"));
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            DataTask::Transpose => match fp_core::calcdata::transpose(&df, &columns) {
+                Ok(out) => {
+                    let rows = out.n_rows();
+                    let width = out.n_columns();
+                    self.set_data(out, "Transposed block".to_owned());
+                    done(self, format!("Transposed block: {rows} × {width}"));
+                }
+                Err(error) => self.set_error(error.to_string()),
+            },
+            DataTask::Product => {
+                if self.data_second_columns.is_empty() {
+                    self.set_error("Select the columns of the second block");
+                    return;
+                }
+                match fp_core::calcdata::matrix_product(
+                    &df,
+                    &columns,
+                    &df,
+                    &self.data_second_columns,
+                ) {
+                    Ok(out) => {
+                        let rows = out.n_rows();
+                        let width = out.n_columns();
+                        self.set_data(out, "Matrix product".to_owned());
+                        done(self, format!("Product: {rows} × {width}"));
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            DataTask::Random => {
+                let first = match self.data_number(&self.data_first, "The first parameter") {
+                    Ok(value) => value,
+                    Err(message) => {
+                        self.set_error(message);
+                        return;
+                    }
+                };
+                let second =
+                    match self.data_number(&self.data_second.clone(), "The second parameter") {
+                        Ok(value) => value,
+                        Err(message) => {
+                            self.set_error(message);
+                            return;
+                        }
+                    };
+                match fp_core::calcdata::random_data(
+                    &self.data_name,
+                    self.data_distribution,
+                    self.data_count,
+                    first,
+                    second,
+                    self.data_seed,
+                ) {
+                    Ok(out) => {
+                        let rows = out.n_rows();
+                        self.set_data(out, "Random data".to_owned());
+                        done(self, format!("{rows} random value(s)"));
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            DataTask::Bootstrap => {
+                match fp_core::calcdata::bootstrap(&df, &columns, self.data_reps, self.data_seed) {
+                    Ok(out) => {
+                        let rows = out.n_rows();
+                        self.set_data(out, "Bootstrap samples".to_owned());
+                        done(self, format!("Bootstrap table with {rows} row(s)"));
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+            DataTask::Randomization => {
+                let first = self.data_first_column.clone();
+                let second = self.data_second_column.clone();
+                match fp_core::calcdata::randomization_analysis(
+                    &df,
+                    &first,
+                    &second,
+                    self.data_reps,
+                    self.data_seed,
+                ) {
+                    Ok(output) => {
+                        self.apply_output(output, "Randomization test".to_owned());
+                        self.show_data_calc_dialog = false;
+                    }
+                    Err(error) => self.set_error(error.to_string()),
+                }
+            }
+        }
+    }
+
+    fn data_column_selector(
+        &mut self,
+        ui: &mut egui::Ui,
+        id: &str,
+        numeric: &[String],
+        second: bool,
+    ) {
+        egui::ScrollArea::vertical()
+            .id_salt(id)
+            .max_height(130.0)
+            .show(ui, |ui| {
+                for name in numeric {
+                    let current = if second {
+                        self.data_second_columns.contains(name)
+                    } else {
+                        self.data_columns.contains(name)
+                    };
+                    let mut checked = current;
+                    if ui.checkbox(&mut checked, name).changed() {
+                        let list = if second {
+                            &mut self.data_second_columns
+                        } else {
+                            &mut self.data_columns
+                        };
+                        if checked {
+                            list.push(name.clone());
+                        } else {
+                            list.retain(|value| value != name);
+                        }
+                    }
+                }
+            });
+    }
+
+    /// Data and calculations dialog: the task, its inputs and the buttons.
+    pub(super) fn data_calc_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_data_calc_dialog {
+            return;
+        }
+        let (numeric, all): (Vec<String>, Vec<String>) = self
+            .data
+            .as_ref()
+            .map(|df| {
+                let numeric = df
+                    .columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                let all = df
+                    .columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                (numeric, all)
+            })
+            .unwrap_or_default();
+        let mut open = self.show_data_calc_dialog;
+        let mut run = false;
+        dialog_window(self.catalog().label("Data and Calculations"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(520.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Task:"));
+                    egui::ComboBox::from_id_salt("data_task")
+                        .selected_text(self.data_task.name())
+                        .show_ui(ui, |ui| {
+                            for task in [
+                                DataTask::Standardize,
+                                DataTask::ColumnStatistics,
+                                DataTask::RowStatistics,
+                                DataTask::Patterned,
+                                DataTask::Mesh,
+                                DataTask::Indicators,
+                                DataTask::Transpose,
+                                DataTask::Product,
+                                DataTask::Random,
+                                DataTask::Bootstrap,
+                                DataTask::Randomization,
+                            ] {
+                                ui.selectable_value(&mut self.data_task, task, task.name());
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.separator();
+                egui::ScrollArea::vertical()
+                    .max_height(360.0)
+                    .show(ui, |ui| match self.data_task {
+                        DataTask::Standardize => {
+                            ui.small(self.catalog().label(
+                                "Appends <column>_z, centred on the mean and divided by the \
+                                 sample standard deviation.",
+                            ));
+                            ui.label("Columns:");
+                            self.data_column_selector(ui, "data_columns", &numeric, false);
+                        }
+                        DataTask::ColumnStatistics => {
+                            ui.label("Columns:");
+                            self.data_column_selector(ui, "data_stat_columns", &numeric, false);
+                        }
+                        DataTask::RowStatistics => {
+                            ui.label(self.catalog().label("Columns:"));
+                            self.data_column_selector(ui, "data_row_columns", &numeric, false);
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Statistic:"));
+                                egui::ComboBox::from_id_salt("data_row_statistic")
+                                    .selected_text(self.data_row_statistic.name())
+                                    .show_ui(ui, |ui| {
+                                        for statistic in [
+                                            fp_core::calcdata::RowStatistic::Sum,
+                                            fp_core::calcdata::RowStatistic::Mean,
+                                            fp_core::calcdata::RowStatistic::Minimum,
+                                            fp_core::calcdata::RowStatistic::Maximum,
+                                            fp_core::calcdata::RowStatistic::Range,
+                                            fp_core::calcdata::RowStatistic::StandardDeviation,
+                                        ] {
+                                            ui.selectable_value(
+                                                &mut self.data_row_statistic,
+                                                statistic,
+                                                statistic.name(),
+                                            );
+                                        }
+                                    })
+                                    .response
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("New column:"));
+                                ui.text_edit_singleline(&mut self.data_name)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                        }
+                        DataTask::Patterned => {
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Column:"));
+                                ui.text_edit_singleline(&mut self.data_name)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Start:"));
+                                ui.text_edit_singleline(&mut self.data_start)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                                let label = ui.help_label(self.catalog().label("Step:"));
+                                ui.text_edit_singleline(&mut self.data_step)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Length:"));
+                                ui.add(
+                                    egui::DragValue::new(&mut self.data_length).range(1..=10000),
+                                )
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                                let label = ui.help_label(self.catalog().label("Repeats:"));
+                                ui.add(
+                                    egui::DragValue::new(&mut self.data_repeats).range(1..=1000),
+                                )
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                            });
+                        }
+                        DataTask::Mesh => {
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Factors:"));
+                                ui.add(
+                                    egui::DragValue::new(&mut self.data_mesh_count).range(1..=3),
+                                )
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                            });
+                            let count = self.data_mesh_count.clamp(1, 3);
+                            for index in 0..count {
+                                ui.horizontal(|ui| {
+                                    ui.add(
+                                        egui::TextEdit::singleline(
+                                            &mut self.data_mesh_names[index],
+                                        )
+                                        .desired_width(70.0),
+                                    );
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut self.data_mesh_from[index])
+                                            .desired_width(50.0),
+                                    );
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut self.data_mesh_to[index])
+                                            .desired_width(50.0),
+                                    );
+                                    ui.add(
+                                        egui::DragValue::new(&mut self.data_mesh_levels[index])
+                                            .range(2..=100),
+                                    );
+                                });
+                            }
+                            ui.small(self.catalog().label(
+                                "Each row is name, first level, last level and number of \
+                                 equally spaced levels.",
+                            ));
+                        }
+                        DataTask::Indicators => {
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Factor column:"));
+                                egui::ComboBox::from_id_salt("data_factor")
+                                    .selected_text(if self.data_first_column.is_empty() {
+                                        "—".to_owned()
+                                    } else {
+                                        self.data_first_column.clone()
+                                    })
+                                    .show_ui(ui, |ui| {
+                                        for name in &all {
+                                            ui.selectable_value(
+                                                &mut self.data_first_column,
+                                                name.clone(),
+                                                name.as_str(),
+                                            );
+                                        }
+                                    })
+                                    .response
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            let drop_first =
+                                self.catalog().label("Drop the first level (reference)");
+                            ui.checkbox(&mut self.data_drop_first, drop_first);
+                        }
+                        DataTask::Transpose => {
+                            ui.small(
+                                self.catalog().label(
+                                    "Each selected column becomes a row; each row a column.",
+                                ),
+                            );
+                            ui.label("Columns:");
+                            self.data_column_selector(ui, "data_transpose", &numeric, false);
+                        }
+                        DataTask::Product => {
+                            ui.small(self.catalog().label(
+                                "Aᵀ·B: both blocks have the same rows; the result has one row per \
+                                 column of the first block and one column per column of the \
+                                 second.",
+                            ));
+                            ui.label("First block:");
+                            self.data_column_selector(ui, "data_product_a", &numeric, false);
+                            ui.label("Second block:");
+                            self.data_column_selector(ui, "data_product_b", &numeric, true);
+                        }
+                        DataTask::Random => {
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Column:"));
+                                ui.text_edit_singleline(&mut self.data_name)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Distribution:"));
+                                egui::ComboBox::from_id_salt("data_distribution")
+                                    .selected_text(self.data_distribution.name())
+                                    .show_ui(ui, |ui| {
+                                        for distribution in [
+                                            fp_core::calcdata::RandomDistribution::Normal,
+                                            fp_core::calcdata::RandomDistribution::Uniform,
+                                            fp_core::calcdata::RandomDistribution::Exponential,
+                                        ] {
+                                            ui.selectable_value(
+                                                &mut self.data_distribution,
+                                                distribution,
+                                                distribution.name(),
+                                            );
+                                        }
+                                    })
+                                    .response
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            ui.horizontal(|ui| {
+                                let first_label = match self.data_distribution {
+                                    fp_core::calcdata::RandomDistribution::Normal => "Mean:",
+                                    fp_core::calcdata::RandomDistribution::Uniform => "Minimum:",
+                                    fp_core::calcdata::RandomDistribution::Exponential => "Rate:",
+                                };
+                                let label = ui.help_label(self.catalog().label(first_label));
+                                ui.text_edit_singleline(&mut self.data_first)
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                                if self.data_distribution
+                                    != fp_core::calcdata::RandomDistribution::Exponential
+                                {
+                                    let second_label = match self.data_distribution {
+                                        fp_core::calcdata::RandomDistribution::Normal => "Std dev:",
+                                        _ => "Maximum:",
+                                    };
+                                    let label = ui.help_label(self.catalog().label(second_label));
+                                    ui.text_edit_singleline(&mut self.data_second)
+                                        .labelled_by(label.id)
+                                        .hover_from(&label);
+                                }
+                            });
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Values:"));
+                                ui.add(
+                                    egui::DragValue::new(&mut self.data_count).range(1..=100000),
+                                )
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                                let label = ui.help_label(self.catalog().label("Seed:"));
+                                ui.add(egui::DragValue::new(&mut self.data_seed).speed(1.0))
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                        }
+                        DataTask::Bootstrap => {
+                            ui.label("Columns:");
+                            self.data_column_selector(ui, "data_bootstrap", &numeric, false);
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Resamples:"));
+                                ui.add(egui::DragValue::new(&mut self.data_reps).range(1..=1000))
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                                let label = ui.help_label(self.catalog().label("Seed:"));
+                                ui.add(egui::DragValue::new(&mut self.data_seed).speed(1.0))
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            ui.small(self.catalog().label(
+                                "Each resample copies the whole rows with replacement; the table \
+                                 has a Sample column and every selected column.",
+                            ));
+                        }
+                        DataTask::Randomization => {
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("First sample:"));
+                                egui::ComboBox::from_id_salt("data_first_sample")
+                                    .selected_text(if self.data_first_column.is_empty() {
+                                        "—".to_owned()
+                                    } else {
+                                        self.data_first_column.clone()
+                                    })
+                                    .show_ui(ui, |ui| {
+                                        for name in &numeric {
+                                            ui.selectable_value(
+                                                &mut self.data_first_column,
+                                                name.clone(),
+                                                name.as_str(),
+                                            );
+                                        }
+                                    })
+                                    .response
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Second sample:"));
+                                egui::ComboBox::from_id_salt("data_second_sample")
+                                    .selected_text(if self.data_second_column.is_empty() {
+                                        "—".to_owned()
+                                    } else {
+                                        self.data_second_column.clone()
+                                    })
+                                    .show_ui(ui, |ui| {
+                                        for name in &numeric {
+                                            ui.selectable_value(
+                                                &mut self.data_second_column,
+                                                name.clone(),
+                                                name.as_str(),
+                                            );
+                                        }
+                                    })
+                                    .response
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                            ui.horizontal(|ui| {
+                                let label = ui.help_label(self.catalog().label("Permutations:"));
+                                ui.add(
+                                    egui::DragValue::new(&mut self.data_reps).range(100..=100000),
+                                )
+                                .labelled_by(label.id)
+                                .hover_from(&label);
+                                let label = ui.help_label(self.catalog().label("Seed:"));
+                                ui.add(egui::DragValue::new(&mut self.data_seed).speed(1.0))
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                            });
+                        }
+                    });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About data and calculations…"))
+                        .clicked()
+                    {
+                        self.show_data_calc_help = true;
+                    }
+                    ui.small(self.catalog().label("Tasks, conventions and an example"));
+                });
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        self.show_data_calc_dialog = false;
+                    }
+                });
+            });
+        self.show_data_calc_dialog = open && !run && self.show_data_calc_dialog;
+        if run {
+            self.run_data_calc_dialog();
+        }
+    }
+
+    /// Help page of the data and calculations.
+    pub(super) fn data_calc_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_data_calc_help {
+            return;
+        }
+        let mut open = self.show_data_calc_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Data and calculations help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(570.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The dialog works on the active worksheet. Standardize, the indicator \
+                     columns and the row statistics add columns to it (in a new sheet), while \
+                     the patterned, mesh, random, bootstrap, transposed and matrix results \
+                     open a new sheet of their own. The column statistics and the \
+                     randomization test report to the Session window.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Tasks"));
+                ui.label(self.catalog().label(
+                    "Standardize appends z = (x − mean)/s with the sample standard deviation. \
+                     Column statistics give N, N*, sum, mean, standard error, standard \
+                     deviation, quartiles and extremes. Row statistics combine the selected \
+                     columns row by row, skipping missing cells. Patterned data repeat an \
+                     arithmetic sequence. Mesh data build the full grid of one to three \
+                     numeric factors. Indicators code a categorical column as 0/1 columns, \
+                     with or without the first level. Transpose swaps rows and columns, and \
+                     the matrix product multiplies the transpose of the first block by the \
+                     second. Random data draw Normal, Uniform or Exponential values. The \
+                     bootstrap resamples whole rows with replacement, and the randomization \
+                     test permutes the group labels of two columns.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Conventions"));
+                ui.label(self.catalog().label(
+                    "Every random task takes a seed and uses SplitMix64, so the same seed gives \
+                     the same sheet and the same p-value. The randomization p-value is \
+                     (extreme + 1)/(permutations + 1) and the test is two-sided on the \
+                     difference in means. A missing or non-finite cell is left out of the \
+                     statistics and stays missing when a column is standardized.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Standardising a column from 1 to 5 gives z from about −1.265 to 1.265, with \
+                     mean zero and standard deviation one. A mesh of two factors with three and \
+                     two levels has six rows. Indicators of three levels with the reference \
+                     dropped add two columns. A bootstrap of five rows and three resamples has \
+                     fifteen rows, and two clearly separated samples give a randomization \
+                     p-value near zero.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_data_calc_help = open && !close;
+    }
 }

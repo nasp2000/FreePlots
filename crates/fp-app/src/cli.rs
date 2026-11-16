@@ -58,6 +58,7 @@ Usage:
   FreePlots stepstress <file.csv> --duration <name> --stress <name> --unit <name> --event <name> [--use-stress <x>] [--distribution <weibull|lognormal|exponential|normal|logistic|smallest-extreme>] [--model <arrhenius|inverse-power|exponential>] [--svg <file>]
   FreePlots desirability <file.csv> --factors <A,B> --response <name>:<goal>:<low>:<high>[:target=<t>][:weight=<w>][:importance=<i>] [--svg <file>]
   FreePlots calc <file.csv> --name <new> --expression <formula> [--output <file.csv>]
+  FreePlots data <file.csv> --task <standardize|column|row|pattern|mesh|indicator|transpose|product|random|bootstrap|randomize> [--columns <a,b>] [--second-block <a,b>] [--row-statistic <sum|mean|min|max|range|sd>] [--name <column>] [--start <x>] [--step <x>] [--length <n>] [--repeats <n>] [--factors <a:f:t:n;b:f:t:n>] [--column <name>] [--drop-first <true|false>] [--distribution <normal|uniform|exponential>] [--p1 <x>] [--p2 <x>] [--values <n>] [--seed <n>] [--reps <n>] [--first-column <name>] [--second-column <name>] [--output <file.csv>]
   FreePlots datediff <file.csv> --first <date> --second <date> [--name <new>] [--output <file.csv>]
   FreePlots dateadd <file.csv> --column <date> --days <n> [--name <new>] [--output <file.csv>]
   FreePlots signtest <file.csv> --column <name> [--median <x>]
@@ -267,6 +268,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
         Some("stepstress" | "step-stress" | "alt-step-stress") => step_stress(&args[1..]),
         Some("desirability" | "optimizer" | "response-optimizer") => desirability(&args[1..]),
         Some("calc" | "calculator") => calc(&args[1..]),
+        Some("data" | "calcdata" | "data-calc") => data_calc(&args[1..]),
         Some("datediff" | "date-difference") => date_difference(&args[1..]),
         Some("dateadd" | "date-add" | "dateshift") => date_add_days(&args[1..]),
         Some("signtest" | "sign-test") => sign_test(&args[1..]),
@@ -4825,6 +4827,290 @@ fn calc(args: &[String]) -> Result<(), String> {
             for value in values.iter().take(5) {
                 println!("  {value:.6}");
             }
+        }
+    }
+    Ok(())
+}
+
+/// Splits a comma-separated column list.
+fn split_columns(text: &str) -> Vec<String> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Parses `name:from:to:levels` factors separated by semicolons.
+fn parse_mesh_factors(text: &str) -> Result<Vec<fp_core::calcdata::MeshFactor>, String> {
+    let mut factors = Vec::new();
+    for part in text.split(';').filter(|part| !part.trim().is_empty()) {
+        let pieces: Vec<&str> = part.split(':').map(str::trim).collect();
+        if pieces.len() != 4 {
+            return Err(format!("invalid factor {part}: use name:first:last:levels"));
+        }
+        factors.push(fp_core::calcdata::MeshFactor {
+            name: pieces[0].to_owned(),
+            from: pieces[1]
+                .parse::<f64>()
+                .map_err(|_| format!("invalid factor start: {}", pieces[1]))?,
+            to: pieces[2]
+                .parse::<f64>()
+                .map_err(|_| format!("invalid factor end: {}", pieces[2]))?,
+            levels: pieces[3]
+                .parse::<usize>()
+                .map_err(|_| format!("invalid level count: {}", pieces[3]))?,
+        });
+    }
+    Ok(factors)
+}
+
+fn data_calc(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut task = "standardize".to_owned();
+    let mut columns: Vec<String> = Vec::new();
+    let mut second_block: Vec<String> = Vec::new();
+    let mut row_statistic = fp_core::calcdata::RowStatistic::Sum;
+    let mut name = "Result".to_owned();
+    let mut start = 1.0;
+    let mut step = 1.0;
+    let mut length = 10usize;
+    let mut repeats = 1usize;
+    let mut factors: Vec<fp_core::calcdata::MeshFactor> = Vec::new();
+    let mut column = String::new();
+    let mut drop_first = true;
+    let mut distribution = fp_core::calcdata::RandomDistribution::Normal;
+    let mut p1 = 0.0;
+    let mut p2 = 1.0;
+    let mut values = 30usize;
+    let mut seed = 2026u64;
+    let mut reps = 1000usize;
+    let mut first_column = String::new();
+    let mut second_column = String::new();
+    let mut output: Option<PathBuf> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--task" => {
+                task = it
+                    .next()
+                    .ok_or_else(|| "--task requires a name".to_owned())?
+                    .clone();
+            }
+            "--columns" => {
+                columns = split_columns(
+                    it.next()
+                        .ok_or_else(|| "--columns requires a list".to_owned())?,
+                );
+            }
+            "--second-block" => {
+                second_block = split_columns(
+                    it.next()
+                        .ok_or_else(|| "--second-block requires a list".to_owned())?,
+                );
+            }
+            "--row-statistic" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--row-statistic requires a name".to_owned())?;
+                row_statistic = fp_core::calcdata::RowStatistic::parse(raw)
+                    .ok_or_else(|| format!("invalid --row-statistic: {raw}"))?;
+            }
+            "--name" => {
+                name = it
+                    .next()
+                    .ok_or_else(|| "--name requires a column name".to_owned())?
+                    .clone();
+            }
+            "--start" => {
+                start = it
+                    .next()
+                    .ok_or_else(|| "--start requires a number".to_owned())?
+                    .parse::<f64>()
+                    .map_err(|_| "--start requires a number".to_owned())?;
+            }
+            "--step" => {
+                step = it
+                    .next()
+                    .ok_or_else(|| "--step requires a number".to_owned())?
+                    .parse::<f64>()
+                    .map_err(|_| "--step requires a number".to_owned())?;
+            }
+            "--length" => {
+                length = it
+                    .next()
+                    .ok_or_else(|| "--length requires a number".to_owned())?
+                    .parse::<usize>()
+                    .map_err(|_| "--length requires a number".to_owned())?;
+            }
+            "--repeats" => {
+                repeats = it
+                    .next()
+                    .ok_or_else(|| "--repeats requires a number".to_owned())?
+                    .parse::<usize>()
+                    .map_err(|_| "--repeats requires a number".to_owned())?;
+            }
+            "--factors" => {
+                factors = parse_mesh_factors(
+                    it.next()
+                        .ok_or_else(|| "--factors requires a list".to_owned())?,
+                )?;
+            }
+            "--column" => {
+                column = it
+                    .next()
+                    .ok_or_else(|| "--column requires a name".to_owned())?
+                    .clone();
+            }
+            "--drop-first" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--drop-first requires a value".to_owned())?;
+                drop_first = matches!(raw.to_ascii_lowercase().as_str(), "true" | "yes" | "1");
+            }
+            "--distribution" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--distribution requires a name".to_owned())?;
+                distribution = fp_core::calcdata::RandomDistribution::parse(raw)
+                    .ok_or_else(|| format!("invalid --distribution: {raw}"))?;
+            }
+            "--p1" => {
+                p1 = it
+                    .next()
+                    .ok_or_else(|| "--p1 requires a number".to_owned())?
+                    .parse::<f64>()
+                    .map_err(|_| "--p1 requires a number".to_owned())?;
+            }
+            "--p2" => {
+                p2 = it
+                    .next()
+                    .ok_or_else(|| "--p2 requires a number".to_owned())?
+                    .parse::<f64>()
+                    .map_err(|_| "--p2 requires a number".to_owned())?;
+            }
+            "--values" => {
+                values = it
+                    .next()
+                    .ok_or_else(|| "--values requires a number".to_owned())?
+                    .parse::<usize>()
+                    .map_err(|_| "--values requires a number".to_owned())?;
+            }
+            "--seed" => {
+                seed = it
+                    .next()
+                    .ok_or_else(|| "--seed requires a number".to_owned())?
+                    .parse::<u64>()
+                    .map_err(|_| "--seed requires a number".to_owned())?;
+            }
+            "--reps" => {
+                reps = it
+                    .next()
+                    .ok_or_else(|| "--reps requires a number".to_owned())?
+                    .parse::<usize>()
+                    .map_err(|_| "--reps requires a number".to_owned())?;
+            }
+            "--first-column" => {
+                first_column = it
+                    .next()
+                    .ok_or_else(|| "--first-column requires a name".to_owned())?
+                    .clone();
+            }
+            "--second-column" => {
+                second_column = it
+                    .next()
+                    .ok_or_else(|| "--second-column requires a name".to_owned())?
+                    .clone();
+            }
+            "--output" => {
+                output = Some(PathBuf::from(
+                    it.next()
+                        .ok_or_else(|| "--output requires a path".to_owned())?,
+                ));
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let needs_output = || -> Result<PathBuf, String> {
+        output
+            .clone()
+            .ok_or_else(|| "missing --output <csv> for this task".to_owned())
+    };
+    match task.as_str() {
+        "standardize" => {
+            let out = fp_core::calcdata::standardize(&df, &columns).map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "column" | "column-statistics" => {
+            let report = fp_core::calcdata::column_statistics_report(&df, &columns)
+                .map_err(|e| e.to_string())?;
+            print_analysis(&report);
+        }
+        "row" | "row-statistics" => {
+            let mut out = df.clone();
+            fp_core::calcdata::add_row_statistics(&mut out, &name, &columns, row_statistic)
+                .map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "pattern" | "patterned" => {
+            let out = fp_core::calcdata::patterned_data(&name, start, step, length, repeats)
+                .map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "mesh" => {
+            let out = fp_core::calcdata::mesh_data(&factors).map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "indicator" | "indicators" => {
+            let out = fp_core::calcdata::indicator_variables(&df, &column, drop_first)
+                .map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "transpose" => {
+            let out = fp_core::calcdata::transpose(&df, &columns).map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "product" | "matrix-product" => {
+            let out = fp_core::calcdata::matrix_product(&df, &columns, &df, &second_block)
+                .map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "random" | "random-data" => {
+            let out = fp_core::calcdata::random_data(&name, distribution, values, p1, p2, seed)
+                .map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "bootstrap" => {
+            let out = fp_core::calcdata::bootstrap(&df, &columns, reps, seed)
+                .map_err(|e| e.to_string())?;
+            write_frame(&out, &needs_output()?)?;
+        }
+        "randomize" | "randomization" => {
+            let report = fp_core::calcdata::randomization_analysis(
+                &df,
+                &first_column,
+                &second_column,
+                reps,
+                seed,
+            )
+            .map_err(|e| e.to_string())?;
+            print_analysis(&report);
+        }
+        other => {
+            return Err(format!(
+                "invalid --task: {other} (use standardize, column, row, pattern, mesh, \
+                 indicator, transpose, product, random, bootstrap or randomize)"
+            ));
         }
     }
     Ok(())

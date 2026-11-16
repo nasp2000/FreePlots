@@ -8,6 +8,14 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Added
 
+- Calc has a *Data and Calculations…* entry: standardize columns
+  (`z = (x − x̄)/s`), column and row statistics, patterned sequences,
+  full-factorial meshes, indicator (dummy) columns, block transpose,
+  matrix products (`Aᵀ·B`), random data (Normal, Uniform, Exponential),
+  non-parametric bootstrap resamples and a two-sample randomization test
+  with its null-distribution histogram. Every random task takes a seed and is
+  reproducible; the dialog has its own help page in both interface languages
+  and the CLI gained `data --task …`.
 - *Power and Sample Size…* has a *Linear Model (partial F test)* procedure:
   Cohen's `f²` of the terms under test, the tested terms `q` and the model
   terms `p`, with the non-central F of the partial test (`λ = f²·n`,
@@ -283,8 +291,12 @@ All notable changes to FreePlots are recorded here. The format follows
   step response, a perfectly separated classification with its confusion
   matrix, the out-of-bag error and the importance ranking of a forest with its
   reproducibility, and the invalid predictor, constant-response, single-class
-  and option cases. The analysis of means covers the balanced and
-  the unequal-size limits, an out-of-limits level, the missing-value count and
+  and option cases. The data calculations cover standardised columns,
+  column and row statistics with missing cells, patterned sequences, meshes,
+  indicator coding, transpose, the matrix product, reproducible random data,
+  bootstrap tables and the randomization test with its report and chart. The
+  analysis of means covers the balanced and the unequal-size limits, an
+  out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
   heatmap classes, the bubble size classes, the individual values, the

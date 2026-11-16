@@ -548,6 +548,21 @@ impl FreePlotsApp {
                     self.open_calc_dialog();
                     ui.close();
                 }
+                if menu_text_item(
+                    ui,
+                    self.catalog().label("Data and Calculations…"),
+                    None,
+                    self.data.is_some(),
+                )
+                .on_hover_text(
+                    "Standardize, summarize, pattern, mesh, code, transpose, multiply, sample \
+                     and resample the worksheet",
+                )
+                .clicked()
+                {
+                    self.open_data_calc_dialog();
+                    ui.close();
+                }
             });
 
             help_menu_button(ui, self.catalog().label("Stat"), |ui| {

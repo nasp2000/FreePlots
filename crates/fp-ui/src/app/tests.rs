@@ -1425,6 +1425,7 @@ fn the_new_dialogs_can_be_opened_and_painted() {
         FreePlotsApp::open_correlation_dialog,
         FreePlotsApp::open_crosstab_dialog,
         FreePlotsApp::open_curve_dialog,
+        FreePlotsApp::open_data_calc_dialog,
         FreePlotsApp::open_design_dialog,
         FreePlotsApp::open_doe_dialog,
         FreePlotsApp::open_dotplot_dialog,
@@ -1474,6 +1475,137 @@ fn power_dialog_covers_the_anova_and_regression_procedures() {
     app.power_n = "40".to_owned();
     app.run_power_dialog();
     assert!(app.session_text().contains("Regression"));
+}
+
+#[test]
+fn data_calc_dialog_standardizes_reports_and_resamples() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+        Column::new_f64("y", vec![2.0, 4.0, 6.0, 8.0, 10.0]),
+    ])
+    .expect("frame");
+    app.set_data(df, "values.csv".to_owned());
+
+    // Column statistics report to the Session.
+    app.open_data_calc_dialog();
+    app.data_task = DataTask::ColumnStatistics;
+    app.data_columns = vec!["x".to_owned(), "y".to_owned()];
+    app.run_data_calc_dialog();
+    assert!(
+        app.session_text().contains("Column Statistics"),
+        "{}",
+        app.session_text()
+    );
+
+    // Row statistics add a column to a new sheet.
+    app.open_data_calc_dialog();
+    app.data_task = DataTask::RowStatistics;
+    app.data_columns = vec!["x".to_owned(), "y".to_owned()];
+    app.data_row_statistic = fp_core::calcdata::RowStatistic::Sum;
+    app.data_name = "total".to_owned();
+    app.run_data_calc_dialog();
+    assert!(
+        app.data.as_ref().expect("data").column("total").is_ok(),
+        "{:?}",
+        app.status
+    );
+
+    // Standardizing opens a sheet with the z column.
+    app.open_data_calc_dialog();
+    app.data_task = DataTask::Standardize;
+    app.data_columns = vec!["x".to_owned()];
+    app.run_data_calc_dialog();
+    assert!(
+        app.data.as_ref().expect("data").column("x_z").is_ok(),
+        "{}",
+        app.status
+    );
+
+    // Patterned data and a bootstrap table open their own sheets.
+    app.open_data_calc_dialog();
+    app.data_task = DataTask::Patterned;
+    app.data_name = "t".to_owned();
+    app.data_start = "0".to_owned();
+    app.data_step = "2".to_owned();
+    app.data_length = 4;
+    app.data_repeats = 2;
+    app.run_data_calc_dialog();
+    assert_eq!(app.data.as_ref().expect("data").n_rows(), 8);
+
+    app.open_data_calc_dialog();
+    app.data_task = DataTask::Bootstrap;
+    app.data_columns = vec!["x".to_owned()];
+    app.data_reps = 3;
+    app.run_data_calc_dialog();
+    let boot = app.data.as_ref().expect("data");
+    assert!(boot.column("Sample").is_ok());
+    assert_eq!(boot.n_rows(), 15);
+
+    // Random data stay in the requested range.
+    app.open_data_calc_dialog();
+    app.data_task = DataTask::Random;
+    app.data_name = "r".to_owned();
+    app.data_distribution = fp_core::calcdata::RandomDistribution::Uniform;
+    app.data_first = "0".to_owned();
+    app.data_second = "1".to_owned();
+    app.data_count = 12;
+    app.run_data_calc_dialog();
+    let random = app.data.as_ref().expect("data");
+    assert_eq!(random.n_rows(), 12);
+
+    // The randomization test reports with a chart.
+    app.open_data_calc_dialog();
+    app.data_task = DataTask::Randomization;
+    app.data_first_column = "x".to_owned();
+    app.data_second_column = "y".to_owned();
+    app.data_reps = 199;
+    app.run_data_calc_dialog();
+    assert!(
+        app.session_text().contains("Randomization Test"),
+        "{}",
+        app.session_text()
+    );
+    assert!(app.plot().is_some());
+
+    // An empty selection is refused.
+    app.open_data_calc_dialog();
+    app.data_task = DataTask::Standardize;
+    app.data_columns.clear();
+    app.run_data_calc_dialog();
+    assert!(app.status.contains("column"), "{}", app.status);
+}
+
+#[test]
+fn the_data_calc_help_explains_the_tasks() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_data_calc_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About data and calculations…").click();
+    harness.run();
+    assert!(harness.state().show_data_calc_help);
+    harness.get_by_label("Data and calculations help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("SplitMix64");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda de dados e cálculos");
+    harness.get_by_label("Tarefas");
+    harness.get_by_label("Convenções");
+    harness.get_by_label("Exemplo");
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_data_calc_help);
 }
 
 #[test]

@@ -25,6 +25,7 @@ pub mod batch;
 pub mod boxcox;
 pub mod boxplot;
 pub mod calc;
+pub mod calcdata;
 pub mod cluster;
 pub mod contingency;
 pub mod correlation;

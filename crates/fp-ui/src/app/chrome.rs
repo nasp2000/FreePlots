@@ -210,6 +210,8 @@ impl FreePlotsApp {
         self.diagnostic_dialog(&ctx);
         self.power_dialog(&ctx);
         self.power_help_window(&ctx);
+        self.data_calc_dialog(&ctx);
+        self.data_calc_help_window(&ctx);
         self.test2_dialog(&ctx);
         self.regression_dialog(&ctx);
         self.best_subsets_dialog(&ctx);

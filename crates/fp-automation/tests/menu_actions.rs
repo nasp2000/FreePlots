@@ -99,6 +99,7 @@ const MENU_PATHS: &[&[&str]] = &[
     &["Data", "Date Difference…"],
     &["Data", "Add Days…"],
     &["Calc", "Calculator…"],
+    &["Calc", "Data and Calculations…"],
     &["Stat", "Basic Statistics", "Display Descriptive Statistics"],
     &[
         "Stat",
