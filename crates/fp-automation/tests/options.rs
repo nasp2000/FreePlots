@@ -315,6 +315,30 @@ fn the_power_dialog_solves_for_the_sample_size() {
 }
 
 #[test]
+fn the_power_dialog_runs_the_linear_model_partial_f() {
+    let mut ui = Automation::new();
+    ui.load_frame(frame(), "weights.csv");
+    open(
+        &mut ui,
+        &["Stat", "Basic Statistics", "Power and Sample Size…"],
+    );
+    ui.select("Test:", "Linear Model (partial F test)")
+        .expect("procedure");
+    ui.set_text("Effect size f²:", "0.15").expect("effect");
+    ui.set_text("Tested terms:", "3").expect("terms");
+    ui.set_text("Model terms:", "5").expect("model terms");
+    ui.set_text("Sample size:", "80").expect("sample size");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Linear Model (partial F test)"),
+        "{session}"
+    );
+    assert!(session.contains("Numerator df"), "{session}");
+    assert!(session.contains("Non-centrality"), "{session}");
+}
+
+#[test]
 fn the_power_dialog_reads_the_significance_and_the_power() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");

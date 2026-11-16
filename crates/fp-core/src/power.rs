@@ -9,7 +9,9 @@
 //!   chi-square that carries the variance estimate;
 //! * the **proportion test** uses the normal approximation of the sample
 //!   proportion under the true proportion;
-//! * the **correlation test** uses Fisher's `atanh` transformation.
+//! * the **correlation test** uses Fisher's `atanh` transformation;
+//! * the **linear model** uses the non-central F of the partial test, with
+//!   Cohen's `f²` of the terms under test.
 //!
 //! The documented behaviour has a power-and-sample-size dialog; its defaults
 //! were not documented, so the numbers are not claimed to match the documented behaviour —
@@ -35,6 +37,8 @@ pub enum PowerProcedure {
     Anova,
     /// Overall F test of a regression.
     Regression,
+    /// Partial F test of a linear model.
+    LinearModel,
 }
 
 impl PowerProcedure {
@@ -48,6 +52,7 @@ impl PowerProcedure {
             Self::Correlation => "Pearson Correlation",
             Self::Anova => "One-Way ANOVA",
             Self::Regression => "Regression (overall F test)",
+            Self::LinearModel => "Linear Model (partial F test)",
         }
     }
 
@@ -61,6 +66,7 @@ impl PowerProcedure {
             Self::Correlation => "correlation",
             Self::Anova => "anova",
             Self::Regression => "regression",
+            Self::LinearModel => "linear",
         }
     }
 
@@ -74,6 +80,7 @@ impl PowerProcedure {
             "correlation" | "pearson" | "r" => Some(Self::Correlation),
             "anova" | "one-way-anova" => Some(Self::Anova),
             "regression" | "reg" => Some(Self::Regression),
+            "linear" | "linear-model" | "glm" | "partial-f" => Some(Self::LinearModel),
             _ => None,
         }
     }
@@ -571,7 +578,111 @@ pub fn regression_sample_size(
     ))
 }
 
-/// Power of a Pearson correlation test (Fisher's transformation).
+/// Power of the partial F test of a linear model.
+///
+/// `f_squared` is Cohen's `f²` of the terms under test,
+/// `f² = (R²_full − R²_reduced)/(1 − R²_full)`; `terms` is the number of
+/// terms tested (the numerator degrees of freedom) and `predictors` the
+/// total number of terms of the model. The non-centrality is `f²·n` and the
+/// denominator has `n − predictors − 1` degrees of freedom.
+pub fn linear_model_power(
+    f_squared: f64,
+    terms: usize,
+    predictors: usize,
+    n: usize,
+    alpha: f64,
+) -> Result<f64> {
+    validate_alpha(alpha)?;
+    if terms == 0 {
+        return Err(Error::InvalidParameter {
+            name: "number of tested terms",
+            value: 0.0,
+        });
+    }
+    if predictors < terms {
+        return Err(Error::InvalidParameter {
+            name: "number of model terms",
+            value: predictors as f64,
+        });
+    }
+    if n <= predictors + 1 {
+        return Err(Error::SampleTooSmall {
+            n,
+            min: predictors + 2,
+        });
+    }
+    if !f_squared.is_finite() || f_squared < 0.0 {
+        return Err(Error::InvalidParameter {
+            name: "effect size f²",
+            value: f_squared,
+        });
+    }
+    let lambda = f_squared * n as f64;
+    f_test_power(lambda, terms, n - predictors - 1, alpha)
+}
+
+/// Sample size of the partial F test of a linear model.
+pub fn linear_model_sample_size(
+    f_squared: f64,
+    terms: usize,
+    predictors: usize,
+    alpha: f64,
+    power: f64,
+) -> Result<usize> {
+    validate_alpha(alpha)?;
+    validate_power(power)?;
+    if terms == 0 {
+        return Err(Error::InvalidParameter {
+            name: "number of tested terms",
+            value: 0.0,
+        });
+    }
+    if predictors < terms {
+        return Err(Error::InvalidParameter {
+            name: "number of model terms",
+            value: predictors as f64,
+        });
+    }
+    if !f_squared.is_finite() || f_squared <= 0.0 {
+        return Err(Error::InvalidParameter {
+            name: "effect size f²",
+            value: f_squared,
+        });
+    }
+    let mut n = predictors + 2;
+    while n < 1_000_000 {
+        let achieved = linear_model_power(f_squared, terms, predictors, n, alpha)?;
+        if achieved >= power {
+            return Ok(n);
+        }
+        n += 1;
+    }
+    Err(Error::Unsupported(
+        "the requested power is not reached with a sample size below 1000000".to_owned(),
+    ))
+}
+
+/// Cohen's `f²` of an `R²` increase: `(full − reduced)/(1 − full)`.
+///
+/// `full` is the coefficient of determination of the complete model and
+/// `reduced` the one of the model without the terms under test.
+pub fn r_squared_increase_to_f_squared(full: f64, reduced: f64) -> Result<f64> {
+    if !full.is_finite() || !(0.0..1.0).contains(&full) {
+        return Err(Error::InvalidParameter {
+            name: "coefficient of determination of the full model",
+            value: full,
+        });
+    }
+    if !reduced.is_finite() || !(0.0..1.0).contains(&reduced) || reduced > full {
+        return Err(Error::InvalidParameter {
+            name: "coefficient of determination of the reduced model",
+            value: reduced,
+        });
+    }
+    Ok((full - reduced) / (1.0 - full))
+}
+
+/// Power of the Pearson correlation test (Fisher's transformation).
 ///
 /// `rho` is the true population correlation.
 pub fn correlation_power(rho: f64, n: usize, alpha: f64) -> Result<f64> {
@@ -626,6 +737,7 @@ pub fn power_report(
     null_value: f64,
     n: usize,
     groups: usize,
+    terms: usize,
     alpha: f64,
     power: f64,
     alternative: Alternative,
@@ -654,6 +766,9 @@ pub fn power_report(
                 PowerProcedure::Regression => format!(
                     "population coefficient of determination {effect:.6} with {groups} predictors"
                 ),
+                PowerProcedure::LinearModel => format!(
+                    "Cohen's f² {effect:.6}, with {terms} of {groups} model term(s) under test"
+                ),
             },
         ),
         (
@@ -676,6 +791,11 @@ pub fn power_report(
                 PowerProcedure::Regression => {
                     "non-central F distribution with the non-centrality N·R²/(1 − R²)".to_owned()
                 }
+                PowerProcedure::LinearModel => {
+                    "partial F test: non-central F with the non-centrality f²·n, q numerator \
+                     degrees of freedom and n − p − 1 denominator degrees of freedom"
+                        .to_owned()
+                }
             },
         ),
     ];
@@ -690,6 +810,7 @@ pub fn power_report(
             PowerProcedure::Correlation => correlation_power(effect, n, alpha)?,
             PowerProcedure::Anova => anova_power(effect, groups, n, alpha)?,
             PowerProcedure::Regression => regression_power(effect, groups, n, alpha)?,
+            PowerProcedure::LinearModel => linear_model_power(effect, terms, groups, n, alpha)?,
         };
         (Some(achieved), None)
     } else {
@@ -706,6 +827,9 @@ pub fn power_report(
             PowerProcedure::Correlation => correlation_sample_size(effect, alpha, power)?,
             PowerProcedure::Anova => anova_sample_size(effect, groups, alpha, power)?,
             PowerProcedure::Regression => regression_sample_size(effect, groups, alpha, power)?,
+            PowerProcedure::LinearModel => {
+                linear_model_sample_size(effect, terms, groups, alpha, power)?
+            }
         };
         (None, Some(required))
     };
@@ -727,6 +851,17 @@ pub fn power_report(
     ];
     if let Some(achieved) = achieved {
         report.statistics.push(("Power", achieved));
+    }
+    if procedure == PowerProcedure::LinearModel {
+        let used = required.unwrap_or(n);
+        report.statistics.push(("Effect size f²", effect));
+        report.statistics.push(("Numerator df", terms as f64));
+        report
+            .statistics
+            .push(("Denominator df", (used - groups - 1) as f64));
+        report
+            .statistics
+            .push(("Non-centrality", effect * used as f64));
     }
     report.extra.push(Item::Message(match (achieved, required) {
         (Some(achieved), _) => format!(
@@ -835,10 +970,12 @@ mod tests {
             PowerProcedure::Correlation,
             PowerProcedure::Anova,
             PowerProcedure::Regression,
+            PowerProcedure::LinearModel,
         ] {
             let effect = match procedure {
                 PowerProcedure::Proportion => 0.6,
                 PowerProcedure::Regression => 0.3,
+                PowerProcedure::LinearModel => 0.15,
                 _ => 0.5,
             };
             let report = power_report(
@@ -847,6 +984,7 @@ mod tests {
                 0.5,
                 40,
                 3,
+                2,
                 0.05,
                 0.8,
                 Alternative::TwoSided,
@@ -862,6 +1000,7 @@ mod tests {
                 0.5,
                 0,
                 3,
+                2,
                 0.05,
                 0.8,
                 Alternative::TwoSided,
@@ -889,6 +1028,14 @@ mod tests {
         assert_eq!(
             PowerProcedure::parse("pearson"),
             Some(PowerProcedure::Correlation)
+        );
+        assert_eq!(
+            PowerProcedure::parse("linear"),
+            Some(PowerProcedure::LinearModel)
+        );
+        assert_eq!(
+            PowerProcedure::parse("partial-F"),
+            Some(PowerProcedure::LinearModel)
         );
         assert_eq!(PowerProcedure::parse("unknown"), None);
         assert_eq!(PowerProcedure::OneSampleT.as_str(), "t1");
@@ -921,6 +1068,63 @@ mod tests {
         let n = regression_sample_size(0.3, 2, 0.05, 0.8).expect("sample size");
         let achieved = regression_power(0.3, 2, n, 0.05).expect("regression power");
         assert!(achieved >= 0.8, "power {achieved}");
+    }
+
+    #[test]
+    fn the_linear_model_agrees_with_the_overall_regression_test() {
+        // With every term under test the partial F test is the overall test:
+        // R² = f²/(1 + f²) and the non-centrality is the same.
+        for (f_squared, predictors) in [(0.15, 3usize), (0.35, 1), (0.02, 5)] {
+            let r_squared = f_squared / (1.0 + f_squared);
+            let partial =
+                linear_model_power(f_squared, predictors, predictors, 80, 0.05).expect("partial");
+            let overall = regression_power(r_squared, predictors, 80, 0.05).expect("overall");
+            assert!(
+                (partial - overall).abs() < 1e-9,
+                "f² {f_squared}: partial {partial}, overall {overall}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_linear_model_power_grows_with_the_sample_size_and_reaches_the_target() {
+        let mut previous = 0.0;
+        for n in [20, 40, 80, 160] {
+            let power = linear_model_power(0.15, 3, 5, n, 0.05).expect("power");
+            assert!(power > previous, "n={n}, power {power}");
+            previous = power;
+        }
+        let n = linear_model_sample_size(0.15, 3, 5, 0.05, 0.8).expect("n");
+        assert!(n > 10, "n {n}");
+        let achieved = linear_model_power(0.15, 3, 5, n, 0.05).expect("power");
+        assert!(achieved >= 0.8, "power {achieved}");
+        // The size just below does not reach the target, so the search is
+        // minimal.
+        let below = linear_model_power(0.15, 3, 5, n - 1, 0.05).expect("power");
+        assert!(below < 0.8, "power below {below}");
+    }
+
+    #[test]
+    fn the_r_squared_increase_becomes_the_effect_size() {
+        let f_squared = r_squared_increase_to_f_squared(0.30, 0.20).expect("f²");
+        assert!((f_squared - 0.1 / 0.7).abs() < 1e-12, "{f_squared}");
+        // A reduced model at zero gives the usual R² relation.
+        let zero = r_squared_increase_to_f_squared(0.25, 0.0).expect("f²");
+        assert!((zero - 1.0 / 3.0).abs() < 1e-12, "{zero}");
+        assert!(r_squared_increase_to_f_squared(0.2, 0.3).is_err());
+        assert!(r_squared_increase_to_f_squared(1.0, 0.0).is_err());
+        assert!(r_squared_increase_to_f_squared(-0.1, 0.0).is_err());
+    }
+
+    #[test]
+    fn the_linear_model_rejects_invalid_requests() {
+        assert!(linear_model_power(0.15, 0, 5, 80, 0.05).is_err());
+        assert!(linear_model_power(0.15, 6, 5, 80, 0.05).is_err());
+        assert!(linear_model_power(0.15, 2, 5, 6, 0.05).is_err());
+        assert!(linear_model_power(-0.1, 2, 5, 80, 0.05).is_err());
+        assert!(linear_model_power(0.15, 2, 5, 80, 1.5).is_err());
+        assert!(linear_model_sample_size(0.0, 2, 5, 0.05, 0.8).is_err());
+        assert!(linear_model_sample_size(0.15, 2, 5, 0.05, 0.0).is_err());
     }
 
     #[test]

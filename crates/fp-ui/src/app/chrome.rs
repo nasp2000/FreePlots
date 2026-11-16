@@ -209,6 +209,7 @@ impl FreePlotsApp {
         self.date_shift_dialog(&ctx);
         self.diagnostic_dialog(&ctx);
         self.power_dialog(&ctx);
+        self.power_help_window(&ctx);
         self.test2_dialog(&ctx);
         self.regression_dialog(&ctx);
         self.best_subsets_dialog(&ctx);

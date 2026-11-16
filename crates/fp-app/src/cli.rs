@@ -87,7 +87,7 @@ Usage:
   FreePlots bartlett <file.csv> --response <y> --factor <f>
   FreePlots gof <file.csv> --column <name> --expected <v1,v2,...> [--parameters <n>]
   FreePlots grubbs <file.csv> --column <name> [--alpha <pct>]
-  FreePlots power --test <t1|t2|proportion|correlation> --effect <x> [--null <p>] [--n <n>] [--alpha <pct>] [--power <pct>] [--alternative <two-sided|less|greater>]
+  FreePlots power --test <t1|t2|proportion|correlation|anova|regression|linear> --effect <x> [--null <p>] [--n <n>] [--groups <n>] [--terms <n>] [--alpha <pct>] [--power <pct>] [--alternative <two-sided|less|greater>]
   FreePlots prop1 <file.csv> --column <name> [--p0 <p>] [--success <0|1>] [--method <exact|normal>] [--alternative <two-sided|less|greater>] [--confidence <pct>]
   FreePlots prop2 <file.csv> --columns <a,b> [--success <0|1>] [--alternative <two-sided|less|greater>] [--confidence <pct>]
   FreePlots var1 <file.csv> --column <name> [--variance <x>] [--alternative <two-sided|less|greater>] [--confidence <pct>]
@@ -2177,6 +2177,14 @@ fn parse_grubbs_args(args: &[String]) -> Result<GrubbsArgs, String> {
                         .clone(),
                 );
             }
+            "--terms" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--terms requires a number".to_owned())?;
+                terms = raw
+                    .parse::<usize>()
+                    .map_err(|_| format!("invalid --terms: {raw}"))?;
+            }
             "--alpha" => {
                 let raw = it
                     .next()
@@ -2222,6 +2230,7 @@ type PowerArgs = (
     f64,
     usize,
     usize,
+    usize,
     f64,
     f64,
     Alternative,
@@ -2233,6 +2242,7 @@ fn parse_power_args(args: &[String]) -> Result<PowerArgs, String> {
     let mut null_value = 0.0;
     let mut n = 0usize;
     let mut groups = 2usize;
+    let mut terms = 1usize;
     let mut alpha = 0.05;
     let mut power = 0.8;
     let mut alternative = Alternative::TwoSided;
@@ -2244,7 +2254,10 @@ fn parse_power_args(args: &[String]) -> Result<PowerArgs, String> {
                     .next()
                     .ok_or_else(|| "--test requires a name".to_owned())?;
                 procedure = Some(PowerProcedure::parse(raw).ok_or_else(|| {
-                    format!("invalid --test: {raw} (use t1, t2, proportion or correlation)")
+                    format!(
+                        "invalid --test: {raw} (use t1, t2, proportion, correlation, anova, \
+                         regression or linear)"
+                    )
                 })?);
             }
             "--effect" => {
@@ -2320,6 +2333,7 @@ fn parse_power_args(args: &[String]) -> Result<PowerArgs, String> {
         null_value,
         n,
         groups,
+        terms,
         alpha,
         power,
         alternative,
@@ -2327,13 +2341,14 @@ fn parse_power_args(args: &[String]) -> Result<PowerArgs, String> {
 }
 
 fn power(args: &[String]) -> Result<(), String> {
-    let (procedure, effect, null_value, n, groups, alpha, power, alternative) =
+    let (procedure, effect, null_value, n, groups, terms, alpha, power, alternative) =
         parse_power_args(args)?;
     let spec = AnalysisSpec::power(procedure, effect, n)
         .with_null_proportion(null_value)
         .with_power(power)
         .with_power_alpha(alpha)
         .with_power_groups(groups)
+        .with_power_terms(terms)
         .with_alternative(alternative);
     let df = fp_core::data::DataFrame::new(vec![]).map_err(|e| e.to_string())?;
     let out = run_local(&df, &spec).map_err(|e| e.to_string())?;
@@ -6233,11 +6248,15 @@ mod tests {
             "0.5".to_owned(),
             "--n".to_owned(),
             "40".to_owned(),
+            "--terms".to_owned(),
+            "2".to_owned(),
         ];
-        let (procedure, effect, _, n, _, _, _, _) = parse_power_args(&args).expect("arguments");
+        let (procedure, effect, _, n, _, terms, _, _, _) =
+            parse_power_args(&args).expect("arguments");
         assert_eq!(procedure, PowerProcedure::OneSampleT);
         assert!((effect - 0.5).abs() < 1e-12);
         assert_eq!(n, 40);
+        assert_eq!(terms, 2);
     }
 
     #[test]

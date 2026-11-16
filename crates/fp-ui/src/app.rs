@@ -1370,6 +1370,7 @@ pub struct FreePlotsApp {
     correlation_columns: String,
     show_diagnostic_dialog: bool,
     show_power_dialog: bool,
+    show_power_help: bool,
     power_procedure: PowerProcedure,
     power_effect: String,
     power_null: String,
@@ -1378,6 +1379,7 @@ pub struct FreePlotsApp {
     power_target: f64,
     power_alternative: Alternative,
     power_groups: usize,
+    power_terms: usize,
     diagnostic_kind: DiagnosticKind,
     diagnostic_column: String,
     diagnostic_expected: String,
@@ -4248,6 +4250,7 @@ impl FreePlotsApp {
         self.show_plot = false;
         self.show_poisson_dialog = false;
         self.show_power_dialog = false;
+        self.show_power_help = false;
         self.show_probability_plot_dialog = false;
         self.show_rank_dialog = false;
         self.show_runs_dialog = false;

@@ -714,6 +714,8 @@ pub enum AnalysisSpec {
         n: usize,
         /// Number of groups (ANOVA) or predictors (regression).
         groups: usize,
+        /// Number of terms under test (linear model).
+        terms: usize,
         /// Significance level.
         alpha: f64,
         /// Requested power.
@@ -1923,6 +1925,7 @@ impl AnalysisSpec {
             null_value: 0.0,
             n,
             groups: 2,
+            terms: 1,
             alpha: 0.05,
             power: 0.8,
             alternative: crate::hypothesis::Alternative::TwoSided,
@@ -1934,6 +1937,15 @@ impl AnalysisSpec {
     pub fn with_power_groups(mut self, groups: usize) -> Self {
         if let Self::Power { groups: slot, .. } = &mut self {
             *slot = groups;
+        }
+        self
+    }
+
+    /// Replaces the number of terms under test of the linear model.
+    #[must_use]
+    pub fn with_power_terms(mut self, terms: usize) -> Self {
+        if let Self::Power { terms: slot, .. } = &mut self {
+            *slot = terms;
         }
         self
     }
@@ -3717,12 +3729,13 @@ impl AnalysisSpec {
                 effect,
                 n,
                 groups,
+                terms,
                 alpha,
                 power,
                 ..
             } => format!(
                 "Power and sample size — {}, effect {effect}, alpha {alpha}, power {power}, n {n}, \
-                 groups {groups}",
+                 groups {groups}, terms {terms}",
                 procedure.name()
             ),
             Self::OneProportion {
@@ -8220,6 +8233,7 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
             null_value,
             n,
             groups,
+            terms,
             alpha,
             power,
             alternative,
@@ -8230,6 +8244,7 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
                 *null_value,
                 *n,
                 *groups,
+                *terms,
                 *alpha,
                 *power,
                 *alternative,
@@ -9211,6 +9226,20 @@ mod tests {
             out.results[0]
                 .to_session_text()
                 .contains("observation(s) are needed")
+        );
+
+        // The linear model carries the tested terms through the spec.
+        let spec = AnalysisSpec::power(crate::power::PowerProcedure::LinearModel, 0.15, 80)
+            .with_power_groups(5)
+            .with_power_terms(3);
+        let out = run_analysis(&df, &spec).expect("linear model power");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("Linear Model (partial F test)"), "{text}");
+        assert!(text.contains("Numerator df"), "{text}");
+        assert!(
+            spec.description().contains("terms 3"),
+            "{}",
+            spec.description()
         );
     }
 

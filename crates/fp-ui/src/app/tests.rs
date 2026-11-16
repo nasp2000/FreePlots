@@ -1477,6 +1477,81 @@ fn power_dialog_covers_the_anova_and_regression_procedures() {
 }
 
 #[test]
+fn power_dialog_runs_the_linear_model_partial_f() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0])]).expect("frame");
+    app.set_data(df, "values.csv".to_owned());
+
+    app.open_power_dialog();
+    app.power_procedure = PowerProcedure::LinearModel;
+    app.power_effect = "0.15".to_owned();
+    app.power_terms = 3;
+    app.power_groups = 5;
+    app.power_n = "80".to_owned();
+    app.run_power_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Linear Model (partial F test)"), "{text}");
+    assert!(text.contains("Numerator df"), "{text}");
+    assert!(text.contains("Non-centrality"), "{text}");
+
+    // Zero asks for the sample size that reaches the target.
+    app.open_power_dialog();
+    app.power_procedure = PowerProcedure::LinearModel;
+    app.power_effect = "0.15".to_owned();
+    app.power_terms = 3;
+    app.power_groups = 5;
+    app.power_n = "0".to_owned();
+    app.run_power_dialog();
+    assert!(
+        app.session_text().contains("Sample size"),
+        "{}",
+        app.session_text()
+    );
+
+    // A negative effect size is refused by the engine.
+    app.open_power_dialog();
+    app.power_procedure = PowerProcedure::LinearModel;
+    app.power_effect = "-0.1".to_owned();
+    app.power_terms = 3;
+    app.power_groups = 5;
+    app.power_n = "80".to_owned();
+    app.run_power_dialog();
+    assert!(app.status.contains("effect size f²"), "{}", app.status);
+}
+
+#[test]
+fn the_power_help_explains_the_procedures() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_power_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About power and sample size…").click();
+    harness.run();
+    assert!(harness.state().show_power_help);
+    harness.get_by_label("Power and sample size help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("partial F test");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da potência e tamanho amostral");
+    harness.get_by_label("Tamanhos de efeito");
+    harness.get_by_label("Modelo linear");
+    harness.get_by_label("Exemplo");
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_power_help);
+}
+
+#[test]
 fn power_dialog_reports_the_power_and_the_sample_size() {
     let mut app = FreePlotsApp::new();
     let df = DataFrame::new(vec![Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0])]).expect("frame");

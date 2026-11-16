@@ -1352,6 +1352,66 @@ impl UiCatalog {
             "Tolerance Interval…" => "Intervalo de tolerância…",
             "Chi-Square Test for Independence" => "Teste qui-quadrado de independência",
             "Power and Sample Size" => "Potência e tamanho amostral",
+            "Power and sample size help" => "Ajuda da potência e tamanho amostral",
+            "About power and sample size…" => "Acerca da potência e tamanho amostral…",
+            "Procedures, effect sizes and an example" => {
+                "Procedimentos, tamanhos de efeito e um exemplo"
+            }
+            "Effect sizes" => "Tamanhos de efeito",
+            "Linear model" => "Modelo linear",
+            "Effect size f²:" => "Tamanho de efeito f²:",
+            "Tested terms:" => "Termos em teste:",
+            "Model terms:" => "Termos do modelo:",
+            "The power of a test is the probability of rejecting the null hypothesis \
+             when the effect is the one you care about. A sample size of zero asks for \
+             the smallest size that reaches the requested power; a positive size \
+             reports the power of that size. Every procedure follows a published \
+             distribution: the t tests use the non-central t, the proportion test the \
+             normal approximation, the correlation test Fisher's transformation and the \
+             F tests the non-central F." => {
+                "A potência de um teste é a probabilidade de rejeitar a hipótese nula quando \
+                 o efeito é o que importa. Um tamanho amostral zero pede o menor tamanho que \
+                 atinge a potência pretendida; um tamanho positivo reporta a potência desse \
+                 tamanho. Cada procedimento segue uma distribuição publicada: os testes t usam \
+                 a t não central, o teste de proporções a aproximação normal, o teste de \
+                 correlação a transformação de Fisher e os testes F a F não central."
+            }
+            "The t tests take a standardised difference in units of the standard \
+             deviation; the proportion test the true proportion and the null one; the \
+             correlation test the population correlation; the ANOVA a standardised \
+             difference between the group that differs and the others; the overall \
+             regression the population R²; and the linear model Cohen's f² of the terms \
+             under test, f² = (R² full − R² reduced)/(1 − R² full)." => {
+                "Os testes t recebem uma diferença padronizada em unidades do desvio padrão; \
+                 o teste de proporções a proporção verdadeira e a nula; o teste de correlação a \
+                 correlação populacional; a ANOVA uma diferença padronizada entre o grupo que \
+                 difere e os restantes; a regressão global o R² populacional; e o modelo linear \
+                 o f² de Cohen dos termos em teste, f² = (R² completo − R² reduzido)/(1 − R² \
+                 completo)."
+            }
+            "The linear model runs the partial F test: the tested terms q and the model \
+             terms p give the numerator and denominator degrees of freedom, and the \
+             non-centrality is f² times the sample size. With q equal to p it is the \
+             overall regression test; with q equal to one it is the t test of a single \
+             coefficient. Use the tested terms for the R² increase you want to detect \
+             and the model terms for everything the model estimates." => {
+                "O modelo linear executa o teste F parcial: os termos em teste q e os termos do \
+                 modelo p dão os graus de liberdade do numerador e do denominador, e a \
+                 não-centralidade é f² vezes o tamanho amostral. Com q igual a p é o teste de \
+                 regressão global; com q igual a um é o teste t de um único coeficiente. Use os \
+                 termos em teste para o aumento de R² que quer detectar e os termos do modelo \
+                 para tudo o que o modelo estima."
+            }
+            "A standardised difference of 0.5 needs 34 observations for 80 % power in \
+             a one-sample test, and 17 per group for a two-sample test with a \
+             difference of 1. A linear model with f² = 0.15, three tested terms and \
+             five model terms needs about 80 observations for 80 % power at 5 %." => {
+                "Uma diferença padronizada de 0,5 precisa de 34 observações para 80 % de \
+                 potência num teste de uma amostra, e 17 por grupo num teste de duas amostras \
+                 com diferença de 1. Um modelo linear com f² = 0,15, três termos em teste e \
+                 cinco termos no modelo precisa de cerca de 80 observações para 80 % de \
+                 potência a 5 %."
+            }
             "Equivalence Test" => "Teste de equivalência",
             "Mann-Whitney Test" => "Teste de Mann-Whitney",
             "Wilcoxon Signed-Rank Test" => "Teste de Wilcoxon de sinais ordenados",

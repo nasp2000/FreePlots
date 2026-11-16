@@ -8,6 +8,14 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Added
 
+- *Power and Sample Size…* has a *Linear Model (partial F test)* procedure:
+  Cohen's `f²` of the terms under test, the tested terms `q` and the model
+  terms `p`, with the non-central F of the partial test (`λ = f²·n`,
+  `q` and `n − p − 1` degrees of freedom), the power or the smallest sample
+  size, and the report of both degrees of freedom and the non-centrality.
+  `q = p` reproduces the overall regression test and `q = 1` the t test of one
+  coefficient. The dialog gained its own help page in both interface
+  languages, and the CLI accepts `--terms` with `--test linear`.
 - The control-chart dialog has a *How to choose subgroups…* page with an
   overview, the data shapes the chart accepts and a worked example of a label
   column. It is available in both interface languages.

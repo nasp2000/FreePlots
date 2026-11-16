@@ -1858,11 +1858,17 @@ impl FreePlotsApp {
             self.set_error("The sample size must be a whole number (0 solves for it)");
             return;
         };
+        let groups = if self.power_procedure == PowerProcedure::LinearModel {
+            self.power_groups.max(self.power_terms).max(1)
+        } else {
+            self.power_groups.max(2)
+        };
         let spec = AnalysisSpec::power(self.power_procedure, effect, n)
             .with_null_proportion(null_value)
             .with_power((self.power_target / 100.0).clamp(0.001, 0.999))
             .with_power_alpha((self.power_alpha / 100.0).clamp(0.0001, 0.5))
-            .with_power_groups(self.power_groups.max(2))
+            .with_power_groups(groups)
+            .with_power_terms(self.power_terms.max(1))
             .with_alternative(self.power_alternative);
         let label = format!("Power and Sample Size: {}", self.power_procedure.name());
         self.execute_spec(spec, label);
@@ -1891,6 +1897,7 @@ impl FreePlotsApp {
                                 PowerProcedure::Correlation,
                                 PowerProcedure::Anova,
                                 PowerProcedure::Regression,
+                                PowerProcedure::LinearModel,
                             ] {
                                 ui.selectable_value(
                                     &mut self.power_procedure,
@@ -1904,13 +1911,14 @@ impl FreePlotsApp {
                         .hover_from(&label);
                 });
                 ui.horizontal(|ui| {
-                    let label = ui.label(match self.power_procedure {
+                    let label = ui.label(self.catalog().label(match self.power_procedure {
                         PowerProcedure::Proportion => "True proportion:",
                         PowerProcedure::Correlation => "Correlation:",
                         PowerProcedure::Anova => "Standardized difference:",
                         PowerProcedure::Regression => "Population R²:",
+                        PowerProcedure::LinearModel => "Effect size f²:",
                         _ => "Effect size:",
-                    });
+                    }));
                     ui.text_edit_singleline(&mut self.power_effect)
                         .labelled_by(label.id)
                         .hover_from(&label);
@@ -1923,19 +1931,38 @@ impl FreePlotsApp {
                             .hover_from(&label);
                     });
                 }
+                if self.power_procedure == PowerProcedure::LinearModel {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(self.catalog().label("Tested terms:"));
+                        ui.add(
+                            egui::DragValue::new(&mut self.power_terms)
+                                .range(1..=20)
+                                .speed(0.5),
+                        )
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    });
+                }
                 if matches!(
                     self.power_procedure,
-                    PowerProcedure::Anova | PowerProcedure::Regression
+                    PowerProcedure::Anova
+                        | PowerProcedure::Regression
+                        | PowerProcedure::LinearModel
                 ) {
                     ui.horizontal(|ui| {
-                        let label = ui.label(if self.power_procedure == PowerProcedure::Anova {
-                            "Groups:"
+                        let label = ui.label(self.catalog().label(match self.power_procedure {
+                            PowerProcedure::Anova => "Groups:",
+                            PowerProcedure::LinearModel => "Model terms:",
+                            _ => "Predictors:",
+                        }));
+                        let minimum = if self.power_procedure == PowerProcedure::LinearModel {
+                            self.power_terms.max(1)
                         } else {
-                            "Predictors:"
-                        });
+                            2
+                        };
                         ui.add(
                             egui::DragValue::new(&mut self.power_groups)
-                                .range(2..=20)
+                                .range(minimum..=40)
                                 .speed(0.5),
                         )
                         .labelled_by(label.id)
@@ -1997,6 +2024,18 @@ impl FreePlotsApp {
                     "A sample size of zero asks for the size that reaches the requested power; \
                      otherwise the power of that size is reported.",
                 );
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About power and sample size…"))
+                        .clicked()
+                    {
+                        self.show_power_help = true;
+                    }
+                    ui.small(
+                        self.catalog()
+                            .label("Procedures, effect sizes and an example"),
+                    );
+                });
                 ui.separator();
                 if ui.help_button(self.catalog().label("Run")).clicked() {
                     run = true;
@@ -2007,6 +2046,68 @@ impl FreePlotsApp {
             self.run_power_dialog();
         }
     }
+    /// Help page of the power and sample-size analysis.
+    pub(super) fn power_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_power_help {
+            return;
+        }
+        let mut open = self.show_power_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Power and sample size help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "The power of a test is the probability of rejecting the null hypothesis \
+                     when the effect is the one you care about. A sample size of zero asks for \
+                     the smallest size that reaches the requested power; a positive size \
+                     reports the power of that size. Every procedure follows a published \
+                     distribution: the t tests use the non-central t, the proportion test the \
+                     normal approximation, the correlation test Fisher's transformation and the \
+                     F tests the non-central F.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Effect sizes"));
+                ui.label(self.catalog().label(
+                    "The t tests take a standardised difference in units of the standard \
+                     deviation; the proportion test the true proportion and the null one; the \
+                     correlation test the population correlation; the ANOVA a standardised \
+                     difference between the group that differs and the others; the overall \
+                     regression the population R²; and the linear model Cohen's f² of the terms \
+                     under test, f² = (R² full − R² reduced)/(1 − R² full).",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Linear model"));
+                ui.label(self.catalog().label(
+                    "The linear model runs the partial F test: the tested terms q and the model \
+                     terms p give the numerator and denominator degrees of freedom, and the \
+                     non-centrality is f² times the sample size. With q equal to p it is the \
+                     overall regression test; with q equal to one it is the t test of a single \
+                     coefficient. Use the tested terms for the R² increase you want to detect \
+                     and the model terms for everything the model estimates.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A standardised difference of 0.5 needs 34 observations for 80 % power in \
+                     a one-sample test, and 17 per group for a two-sample test with a \
+                     difference of 1. A linear model with f² = 0.15, three tested terms and \
+                     five model terms needs about 80 observations for 80 % power at 5 %.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_power_help = open && !close;
+    }
+
     pub fn open_crosstab_dialog(&mut self) {
         self.crosstab_row = self.selected.clone().unwrap_or_default();
         self.crosstab_column = String::new();
