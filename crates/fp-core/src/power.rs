@@ -1124,7 +1124,7 @@ mod tests {
         assert!(linear_model_power(-0.1, 2, 5, 80, 0.05).is_err());
         assert!(linear_model_power(0.15, 2, 5, 80, 1.5).is_err());
         assert!(linear_model_sample_size(0.0, 2, 5, 0.05, 0.8).is_err());
-        assert!(linear_model_sample_size(0.15, 2, 5, 0.05, 0.0).is_err());
+        assert!(linear_model_sample_size(0.15, 2, 5, 0.05, 1.5).is_err());
     }
 
     #[test]
