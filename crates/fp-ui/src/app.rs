@@ -1274,7 +1274,6 @@ pub struct FreePlotsApp {
     data_step: String,
     data_length: usize,
     data_repeats: usize,
-    data_levels: usize,
     data_first: String,
     data_second: String,
     data_count: usize,

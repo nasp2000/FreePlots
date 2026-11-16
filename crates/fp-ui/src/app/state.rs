@@ -427,7 +427,6 @@ impl FreePlotsApp {
             data_step: "1".to_owned(),
             data_length: 10,
             data_repeats: 1,
-            data_levels: 3,
             data_first: "0".to_owned(),
             data_second: "1".to_owned(),
             data_count: 30,
