@@ -2543,7 +2543,13 @@ impl FreePlotsApp {
             self.set_error("The tree models need a response and a numeric predictor");
             return;
         }
-        self.tree_response = self.selected.clone().unwrap_or_else(|| numeric[0].clone());
+        // The response is the selected column, or the last one (the usual
+        // layout with the predictors first).
+        self.tree_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric.last().cloned().unwrap_or_default());
         self.tree_predictors = numeric
             .iter()
             .filter(|name| **name != self.tree_response)
