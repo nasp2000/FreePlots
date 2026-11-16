@@ -4032,6 +4032,67 @@ fn the_survival_analysis_rejects_a_zero_mission() {
     assert!(ui.status().contains("positive"), "{}", ui.status());
 }
 
+/// A step response with a noise predictor.
+fn step_frame() -> DataFrame {
+    let mut x1 = Vec::new();
+    let mut x2 = Vec::new();
+    let mut y = Vec::new();
+    for index in 0..40 {
+        let value = index as f64 / 39.0;
+        x1.push(value);
+        x2.push(((index * 37) % 17) as f64);
+        y.push(if value < 0.5 { 10.0 } else { 20.0 });
+    }
+    DataFrame::new(vec![
+        Column::new_f64("x1", x1),
+        Column::new_f64("x2", x2),
+        Column::new_f64("y", y),
+    ])
+    .expect("step frame")
+}
+
+#[test]
+fn the_cart_dialog_finds_the_step() {
+    let mut ui = Automation::new();
+    ui.load_frame(step_frame(), "step.csv");
+    open(&mut ui, &["Stat", "Regression", "CART and Random Forest…"]);
+    ui.select("Response:", "y").expect("response");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("CART — response y"), "{session}");
+    assert!(session.contains("Importance (%)"), "{session}");
+    assert!(ui.plot().is_some(), "the importance chart is drawn");
+}
+
+#[test]
+fn the_forest_dialog_reports_the_out_of_bag_error() {
+    let mut ui = Automation::new();
+    ui.load_frame(step_frame(), "step.csv");
+    open(&mut ui, &["Stat", "Regression", "CART and Random Forest…"]);
+    ui.select("Response:", "y").expect("response");
+    ui.click("Random forest").expect("mode");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(session.contains("Random Forest — response y"), "{session}");
+    assert!(session.contains("Out-of-bag"), "{session}");
+}
+
+#[test]
+fn the_tree_dialog_needs_a_predictor() {
+    let mut ui = Automation::new();
+    ui.load_frame(step_frame(), "step.csv");
+    open(&mut ui, &["Stat", "Regression", "CART and Random Forest…"]);
+    ui.select("Response:", "y").expect("response");
+    ui.click("x1").expect("drop x1");
+    ui.click("x2").expect("drop x2");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.status().contains("at least one predictor"),
+        "{}",
+        ui.status()
+    );
+}
+
 #[test]
 fn the_nonlinear_regression_fits_the_kinetics() {
     let mut ui = Automation::new();

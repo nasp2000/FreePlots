@@ -219,6 +219,8 @@ impl FreePlotsApp {
         self.predict_help_window(&ctx);
         self.stepwise_dialog(&ctx);
         self.anova_dialog(&ctx);
+        self.tree_dialog(&ctx);
+        self.tree_help_window(&ctx);
         self.survival_dialog(&ctx);
         self.survival_help_window(&ctx);
         self.nonlinear_dialog(&ctx);

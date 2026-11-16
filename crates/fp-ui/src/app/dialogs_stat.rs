@@ -2527,6 +2527,255 @@ impl FreePlotsApp {
         }
     }
 
+    /// Opens the CART and random forest dialog.
+    pub fn open_tree_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.len() < 2 {
+            self.set_error("The tree models need a response and a numeric predictor");
+            return;
+        }
+        self.tree_response = self.selected.clone().unwrap_or_else(|| numeric[0].clone());
+        self.tree_predictors = numeric
+            .iter()
+            .filter(|name| **name != self.tree_response)
+            .cloned()
+            .collect();
+        self.show_tree_dialog = true;
+    }
+
+    /// Runs the tree model of the dialog.
+    pub fn run_tree_dialog(&mut self) {
+        if self.tree_response.is_empty() {
+            self.set_error("Select the response column");
+            return;
+        }
+        let predictors: Vec<String> = self
+            .tree_predictors
+            .iter()
+            .filter(|name| **name != self.tree_response)
+            .cloned()
+            .collect();
+        if predictors.is_empty() {
+            self.set_error("Select at least one predictor");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let options = fp_core::tree::TreeOptions {
+            max_depth: self.tree_max_depth,
+            min_leaf: self.tree_min_leaf,
+            trees: self.tree_trees,
+            seed: self.tree_seed,
+        };
+        match fp_core::tree::analyze(
+            &df,
+            &self.tree_response,
+            &predictors,
+            self.tree_mode,
+            options,
+        ) {
+            Ok(output) => {
+                let label = format!("{}: {}", self.tree_mode.name(), self.tree_response);
+                self.apply_output(output, label);
+                self.show_tree_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// CART and random forest dialog: response, predictors, mode, options.
+    pub(super) fn tree_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_tree_dialog {
+            return;
+        }
+        let (numeric, all_columns): (Vec<String>, Vec<String>) = self
+            .data
+            .as_ref()
+            .map(|df| {
+                let numeric = df
+                    .columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                let all = df
+                    .columns()
+                    .iter()
+                    .map(|column| column.name().to_owned())
+                    .collect();
+                (numeric, all)
+            })
+            .unwrap_or_default();
+        let modes = [
+            (fp_core::tree::TreeMode::Cart, "CART"),
+            (fp_core::tree::TreeMode::Forest, "Random forest"),
+        ]
+        .map(|(mode, text)| (mode, self.catalog().label(text)));
+        let mut open = self.show_tree_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("CART and Random Forest"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(470.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Response:"));
+                    egui::ComboBox::from_id_salt("tree_response")
+                        .selected_text(if self.tree_response.is_empty() {
+                            "—".to_owned()
+                        } else {
+                            self.tree_response.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &all_columns {
+                                ui.selectable_value(
+                                    &mut self.tree_response,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    ui.help_label(self.catalog().label("Model:"));
+                    for (mode, text) in modes {
+                        ui.selectable_value(&mut self.tree_mode, mode, text);
+                    }
+                });
+                ui.help_label(self.catalog().label("Predictors:"));
+                egui::ScrollArea::vertical()
+                    .max_height(150.0)
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            if *name == self.tree_response {
+                                continue;
+                            }
+                            let mut selected = self.tree_predictors.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.tree_predictors.push(name.clone());
+                                } else {
+                                    self.tree_predictors.retain(|value| value != name);
+                                }
+                            }
+                        }
+                    });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Maximum depth:"));
+                    ui.add(egui::DragValue::new(&mut self.tree_max_depth).range(1..=20))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    let label = ui.help_label(self.catalog().label("Minimum leaf:"));
+                    ui.add(egui::DragValue::new(&mut self.tree_min_leaf).range(1..=100))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Trees:"));
+                    ui.add(egui::DragValue::new(&mut self.tree_trees).range(1..=1000))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    let label = ui.help_label(self.catalog().label("Seed:"));
+                    ui.add(egui::DragValue::new(&mut self.tree_seed).speed(1.0))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(self.catalog().label(
+                    "Numeric predictors only; a text response becomes a classification tree and \
+                     a numeric one a regression tree.",
+                ));
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About tree models…"))
+                        .clicked()
+                    {
+                        self.show_tree_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_tree_dialog = open && !run && !cancel;
+        if run {
+            self.run_tree_dialog();
+        }
+    }
+
+    /// Help page of the tree models.
+    pub(super) fn tree_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_tree_help {
+            return;
+        }
+        let mut open = self.show_tree_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Tree models help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "CART grows one binary tree: every node splits a numeric predictor at the \
+                     midpoint that most reduces the impurity — the within-node sum of squares \
+                     for a numeric response or the Gini index for a categorical one. The random \
+                     forest grows many trees on bootstrap samples, each split choosing from a \
+                     random subset of the predictors, and reports the out-of-bag error and the \
+                     variable importance.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose the response and at least one numeric predictor. A numeric \
+                     response gives a regression tree (leaves are means); a text response \
+                     gives a classification tree (leaves are the majority class, with a \
+                     confusion matrix). The growth stops at the maximum depth, at the minimum \
+                     number of observations per leaf and when no split reduces the impurity. \
+                     The forest uses the square root of the number of predictors per split and \
+                     the seed makes the run reproducible.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "A response that jumps from 10 to 20 at the middle of the predictor gives a \
+                     two-leaf tree whose only split is on that predictor, with R² near one. A \
+                     forest on a response driven by one predictor and a noise predictor ranks \
+                     the first far above the second and reports the out-of-bag error.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_tree_help = open && !close;
+    }
+
     /// Opens the nonlinear regression dialog.
     pub fn open_nonlinear_dialog(&mut self) {
         let Some(df) = self.data.as_ref() else {

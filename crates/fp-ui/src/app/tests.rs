@@ -11074,3 +11074,85 @@ fn the_survival_help_explains_the_comparison() {
     harness.run();
     assert!(!harness.state().show_survival_help);
 }
+
+#[test]
+fn tree_dialog_reaches_the_session_and_chart() {
+    let mut x1 = Vec::new();
+    let mut x2 = Vec::new();
+    let mut y = Vec::new();
+    for index in 0..40 {
+        let value = index as f64 / 39.0;
+        x1.push(value);
+        x2.push(((index * 37) % 17) as f64);
+        y.push(if value < 0.5 { 10.0 } else { 20.0 });
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("x1", x1),
+        Column::new_f64("x2", x2),
+        Column::new_f64("y", y),
+    ])
+    .expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "step.csv".to_owned());
+    app.open_tree_dialog();
+    app.tree_response = "y".to_owned();
+    app.tree_predictors = vec!["x1".to_owned(), "x2".to_owned()];
+    app.tree_mode = fp_core::tree::TreeMode::Cart;
+    app.run_tree_dialog();
+    let text = app.session_text();
+    assert!(text.contains("CART — response y"), "{text}");
+    assert!(text.contains("Importance (%)"), "{text}");
+    assert!(app.plot().is_some());
+
+    // The forest reports the out-of-bag error.
+    app.open_tree_dialog();
+    app.tree_response = "y".to_owned();
+    app.tree_predictors = vec!["x1".to_owned(), "x2".to_owned()];
+    app.tree_mode = fp_core::tree::TreeMode::Forest;
+    app.tree_trees = 30;
+    app.run_tree_dialog();
+    assert!(
+        app.session_text().contains("Out-of-bag"),
+        "{}",
+        app.session_text()
+    );
+
+    // No predictor is refused before the engine runs.
+    app.open_tree_dialog();
+    app.tree_response = "y".to_owned();
+    app.tree_predictors = Vec::new();
+    app.run_tree_dialog();
+    assert!(app.status.contains("predictor"), "{}", app.status);
+}
+
+#[test]
+fn the_tree_help_explains_the_models() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_tree_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About tree models…").click();
+    harness.run();
+    assert!(harness.state().show_tree_help);
+    harness.get_by_label("Tree models help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("Gini index");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda dos modelos de árvore");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_tree_help);
+}

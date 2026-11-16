@@ -158,6 +158,13 @@ All notable changes to FreePlots are recorded here. The format follows
   one main-effects panel per factor, one interaction panel per pair and the
   cube of the corner means for two or three factors, with the marginal means
   in the report. It has its own help page in both interface languages.
+- Regression has a *CART and Random Forest…* entry: one binary tree for a
+  numeric response (sum-of-squares splits, leaves are means) or a categorical
+  one (Gini splits, leaves are the majority class, confusion matrix), and a
+  random forest of bootstrap trees with the out-of-bag error and the variable
+  importance of both modes drawn as bars. The growth is pre-pruned by depth,
+  minimum leaf and minimum gain, and the seed makes the run reproducible. It
+  has its own help page in both interface languages.
 - Regression has a *Nonlinear Regression…* entry: least squares by
   Levenberg–Marquardt for the Michaelis–Menten, asymptotic, three-parameter
   logistic, Gompertz, Weibull growth and power models, with automatic starting
@@ -264,7 +271,11 @@ All notable changes to FreePlots are recorded here. The format follows
   closed-form exponential fit with censoring (total time over events, log
   likelihood, AIC and BIC), the percentile formulas of the three models, the
   mission reliability and hazard, the ordering by AIC and the invalid mission,
-  column and text cases. The analysis of means covers the balanced and
+  column and text cases. The tree models cover a two-leaf regression tree on a
+  step response, a perfectly separated classification with its confusion
+  matrix, the out-of-bag error and the importance ranking of a forest with its
+  reproducibility, and the invalid predictor, constant-response, single-class
+  and option cases. The analysis of means covers the balanced and
   the unequal-size limits, an out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the

@@ -162,6 +162,58 @@ impl UiCatalog {
                  0,58. O AIC e o BIC ordenam os três modelos, e o menor valor é o melhor \
                  compromisso entre ajuste e complexidade."
             }
+            "CART and Random Forest…" => "CART e floresta aleatória…",
+            "CART and Random Forest" => "CART e floresta aleatória",
+            "Tree models help" => "Ajuda dos modelos de árvore",
+            "About tree models…" => "Acerca dos modelos de árvore…",
+            "Random forest" => "Floresta aleatória",
+            "Predictors:" => "Preditores:",
+            "Maximum depth:" => "Profundidade máxima:",
+            "Minimum leaf:" => "Folha mínima:",
+            "Trees:" => "Árvores:",
+            "Seed:" => "Semente:",
+            "Numeric predictors only; a text response becomes a classification tree and \
+             a numeric one a regression tree." => {
+                "Apenas preditores numéricos; uma resposta de texto torna-se uma árvore de \
+                 classificação e uma numérica uma árvore de regressão."
+            }
+            "CART grows one binary tree: every node splits a numeric predictor at the \
+             midpoint that most reduces the impurity — the within-node sum of squares \
+             for a numeric response or the Gini index for a categorical one. The random \
+             forest grows many trees on bootstrap samples, each split choosing from a \
+             random subset of the predictors, and reports the out-of-bag error and the \
+             variable importance." => {
+                "O CART cresce uma árvore binária: cada nó divide um preditor numérico no \
+                 ponto médio que mais reduz a impureza — a soma de quadrados dentro do nó para \
+                 uma resposta numérica ou o índice de Gini para uma categórica. A floresta \
+                 aleatória cresce muitas árvores em amostras bootstrap, com cada divisão a \
+                 escolher um subconjunto aleatório dos preditores, e reporta o erro out-of-bag \
+                 e a importância das variáveis."
+            }
+            "Choose the response and at least one numeric predictor. A numeric \
+             response gives a regression tree (leaves are means); a text response \
+             gives a classification tree (leaves are the majority class, with a \
+             confusion matrix). The growth stops at the maximum depth, at the minimum \
+             number of observations per leaf and when no split reduces the impurity. \
+             The forest uses the square root of the number of predictors per split and \
+             the seed makes the run reproducible." => {
+                "Escolha a resposta e pelo menos um preditor numérico. Uma resposta numérica \
+                 dá uma árvore de regressão (as folhas são médias); uma resposta de texto dá \
+                 uma árvore de classificação (as folhas são a classe maioritária, com matriz de \
+                 confusão). O crescimento para na profundidade máxima, no número mínimo de \
+                 observações por folha e quando nenhuma divisão reduz a impureza. A floresta usa \
+                 a raiz quadrada do número de preditores por divisão e a semente torna a \
+                 execução reprodutível."
+            }
+            "A response that jumps from 10 to 20 at the middle of the predictor gives a \
+             two-leaf tree whose only split is on that predictor, with R² near one. A \
+             forest on a response driven by one predictor and a noise predictor ranks \
+             the first far above the second and reports the out-of-bag error." => {
+                "Uma resposta que salta de 10 para 20 a meio do preditor dá uma árvore de duas \
+                 folhas cuja única divisão é nesse preditor, com R² próximo de um. Uma floresta \
+                 sobre uma resposta explicada por um preditor e um preditor de ruído coloca o \
+                 primeiro muito acima do segundo e reporta o erro out-of-bag."
+            }
             "Nonlinear Regression…" => "Regressão não linear…",
             "Nonlinear Regression" => "Regressão não linear",
             "Nonlinear regression help" => "Ajuda da regressão não linear",
@@ -2075,6 +2127,7 @@ mod tests {
         "Kaplan–Meier",
         "Kaplan–Meier…",
         "Kruskal-Wallis…",
+        "CART",
         "Factor:",
         "Linear",
         "Gompertz",

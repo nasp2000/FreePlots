@@ -1214,6 +1214,16 @@ pub struct FreePlotsApp {
     timeseries_model: fp_core::timeseries::DecompositionModel,
     timeseries_season: usize,
     timeseries_horizon: usize,
+    /// CART and random forest dialog, help and inputs.
+    show_tree_dialog: bool,
+    show_tree_help: bool,
+    tree_response: String,
+    tree_predictors: Vec<String>,
+    tree_mode: fp_core::tree::TreeMode,
+    tree_max_depth: usize,
+    tree_min_leaf: usize,
+    tree_trees: usize,
+    tree_seed: u64,
     /// Survival analysis dialog, help and inputs.
     show_survival_dialog: bool,
     show_survival_help: bool,
@@ -4280,6 +4290,8 @@ impl FreePlotsApp {
         self.show_nonlinear_help = false;
         self.show_survival_dialog = false;
         self.show_survival_help = false;
+        self.show_tree_dialog = false;
+        self.show_tree_help = false;
         self.show_nested_dialog = false;
         self.show_nested_help = false;
         self.show_arima_dialog = false;

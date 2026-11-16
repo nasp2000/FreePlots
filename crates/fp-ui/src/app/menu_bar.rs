@@ -1077,6 +1077,20 @@ impl FreePlotsApp {
                         self.open_nonlinear_dialog();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("CART and Random Forest…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text(
+                        "Regression or classification trees and a random forest with out-of-bag error",
+                    )
+                    .clicked()
+                    {
+                        self.open_tree_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Best Subsets…"), None, self.data.is_some())
                         .on_hover_text("Every subset of the predictors ranked by R², adjusted R², Cp and s")
                         .clicked()
