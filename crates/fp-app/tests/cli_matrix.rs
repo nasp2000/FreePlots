@@ -69,6 +69,7 @@ const MATRIX: &[Case] = &[
     case("boxcox", &["{in}boxcox.csv", "--column", "x"]),
     case("boxplot", &["{in}groups.csv", "--column", "y", "--by", "g"]),
     case("calc", &["{in}normal.csv", "--name", "twice", "--expression", "data*2", "--output", "{out}calc.csv"]),
+    case("data", &["{in}normal.csv", "--task", "standardize", "--columns", "data", "--output", "{out}data.csv"]),
     case("capability", &["{in}normal.csv", "--column", "data", "--lsl", "15", "--usl", "25"]),
     case("ccd", &["{out}ccd.csv", "--factors", "A,B", "--center-points", "4"]),
     case("controlchart", &["{in}normal.csv", "--column", "data", "--chart", "imr"]),
