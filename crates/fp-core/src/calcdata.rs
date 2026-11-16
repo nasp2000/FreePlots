@@ -1366,8 +1366,8 @@ mod tests {
     fn the_transpose_swaps_rows_and_columns() {
         let df = frame();
         let out = transpose(&df, &["x".to_owned(), "y".to_owned()]).expect("transpose");
-        assert_eq!(out.n_rows(), 5);
-        assert_eq!(out.n_columns(), 2);
+        assert_eq!(out.n_rows(), 2);
+        assert_eq!(out.n_columns(), 5);
         assert_eq!(
             out.column("Row 1")
                 .expect("row")
