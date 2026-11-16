@@ -416,8 +416,10 @@ pub fn fit_with_start(
             backward[index] = value - step;
             let plus = residuals(&pairs, model, &forward);
             let minus = residuals(&pairs, model, &backward);
+            // The residuals are y − f, so the derivative of f is
+            // (f(θ+h) − f(θ−h))/(2h) = (minus − plus)/(2h).
             for row in 0..pairs.len() {
-                jacobian[row][index] = (plus[row] - minus[row]) / (2.0 * step);
+                jacobian[row][index] = (minus[row] - plus[row]) / (2.0 * step);
             }
         }
         let mut normal = vec![vec![0.0; parameters]; parameters];
@@ -509,7 +511,7 @@ pub fn fit_with_start(
         let plus = residuals(&pairs, model, &forward);
         let minus = residuals(&pairs, model, &backward);
         for row in 0..n {
-            jacobian[row][index] = (plus[row] - minus[row]) / (2.0 * step);
+            jacobian[row][index] = (minus[row] - plus[row]) / (2.0 * step);
         }
     }
     let mut normal = vec![vec![0.0; parameters]; parameters];
