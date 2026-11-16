@@ -652,7 +652,7 @@ pub fn fit(
             let correct = predicted
                 .iter()
                 .zip(&data.class)
-                .filter(|(found, truth)| *found == **truth)
+                .filter(|(found, truth)| **found == **truth)
                 .count();
             fit.accuracy = correct as f64 / data.n as f64;
             fit.confusion = confusion_matrix(&data.class, &predicted, data.classes.len());
@@ -1152,7 +1152,7 @@ mod tests {
             Column::new_f64("x2", x2),
             Column::new_f64("y", y),
         ]);
-        let fit = fit(
+        let forest = fit(
             &df,
             "y",
             &["x1".to_owned(), "x2".to_owned()],
@@ -1165,11 +1165,11 @@ mod tests {
             },
         )
         .expect("forest");
-        assert_eq!(fit.trees, 40);
-        assert!(fit.oob_error.unwrap().is_finite());
-        assert!(fit.oob_error.unwrap() < 1.0, "{:?}", fit.oob_error);
-        assert_eq!(fit.importance[0].0, "x1", "{:?}", fit.importance);
-        assert!(fit.importance[0].1 > 60.0, "{:?}", fit.importance);
+        assert_eq!(forest.trees, 40);
+        assert!(forest.oob_error.unwrap().is_finite());
+        assert!(forest.oob_error.unwrap() < 1.0, "{:?}", forest.oob_error);
+        assert_eq!(forest.importance[0].0, "x1", "{:?}", forest.importance);
+        assert!(forest.importance[0].1 > 60.0, "{:?}", forest.importance);
         // The run is reproducible with the same seed.
         let again = fit(
             &df,
@@ -1184,7 +1184,7 @@ mod tests {
             },
         )
         .expect("forest");
-        assert_eq!(fit.importance, again.importance);
+        assert_eq!(forest.importance, again.importance);
     }
 
     #[test]
