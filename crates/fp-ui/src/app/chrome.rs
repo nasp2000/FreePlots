@@ -219,6 +219,8 @@ impl FreePlotsApp {
         self.predict_help_window(&ctx);
         self.stepwise_dialog(&ctx);
         self.anova_dialog(&ctx);
+        self.nonlinear_dialog(&ctx);
+        self.nonlinear_help_window(&ctx);
         self.manova_dialog(&ctx);
         self.manova_help_window(&ctx);
         self.nested_dialog(&ctx);

@@ -2527,6 +2527,224 @@ impl FreePlotsApp {
         }
     }
 
+    /// Opens the nonlinear regression dialog.
+    pub fn open_nonlinear_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.len() < 2 {
+            self.set_error("The nonlinear regression needs two numeric columns");
+            return;
+        }
+        self.nonlinear_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[1].clone());
+        self.nonlinear_predictor = numeric
+            .iter()
+            .find(|name| **name != self.nonlinear_response)
+            .cloned()
+            .unwrap_or_default();
+        self.show_nonlinear_dialog = true;
+    }
+
+    /// Runs the nonlinear regression of the dialog.
+    pub fn run_nonlinear_dialog(&mut self) {
+        if self.nonlinear_response.is_empty() || self.nonlinear_predictor.is_empty() {
+            self.set_error("Select the response and the predictor");
+            return;
+        }
+        if self.nonlinear_response == self.nonlinear_predictor {
+            self.set_error("The response and the predictor must be different columns");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::nonlinear::analyze(
+            &df,
+            &self.nonlinear_response,
+            &self.nonlinear_predictor,
+            self.nonlinear_model,
+        ) {
+            Ok(output) => {
+                let label = format!(
+                    "Nonlinear regression: {} by {}",
+                    self.nonlinear_response, self.nonlinear_predictor
+                );
+                self.apply_output(output, label);
+                self.show_nonlinear_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+
+    /// Nonlinear regression dialog: response, predictor, model and help.
+    pub(super) fn nonlinear_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_nonlinear_dialog {
+            return;
+        }
+        let names: Vec<String> = self
+            .data
+            .as_ref()
+            .map(|df| {
+                df.columns()
+                    .iter()
+                    .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+                    .map(|column| column.name().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let models = [
+            (
+                fp_core::nonlinear::NonlinearModel::MichaelisMenten,
+                "Michaelis–Menten",
+            ),
+            (fp_core::nonlinear::NonlinearModel::Asymptotic, "Asymptotic"),
+            (
+                fp_core::nonlinear::NonlinearModel::Logistic,
+                "Logistic (3 parameters)",
+            ),
+            (fp_core::nonlinear::NonlinearModel::Gompertz, "Gompertz"),
+            (
+                fp_core::nonlinear::NonlinearModel::WeibullGrowth,
+                "Weibull growth",
+            ),
+            (fp_core::nonlinear::NonlinearModel::Power, "Power"),
+        ]
+        .map(|(model, text)| (model, self.catalog().label(text)));
+        let mut open = self.show_nonlinear_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Nonlinear Regression"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(460.0)
+            .show(ctx, |ui| {
+                for (title, value) in [
+                    ("Response:", &mut self.nonlinear_response),
+                    ("Predictor:", &mut self.nonlinear_predictor),
+                ] {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(title);
+                        egui::ComboBox::from_id_salt(format!("nonlinear_{title}"))
+                            .selected_text(if value.is_empty() {
+                                "—".to_owned()
+                            } else {
+                                value.clone()
+                            })
+                            .show_ui(ui, |ui| {
+                                for name in &names {
+                                    ui.selectable_value(value, name.clone(), name.as_str());
+                                }
+                            })
+                            .response
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Model:"));
+                    egui::ComboBox::from_id_salt("nonlinear_model")
+                        .selected_text(self.catalog().label(self.nonlinear_model.name()))
+                        .show_ui(ui, |ui| {
+                            for (model, text) in models {
+                                ui.selectable_value(&mut self.nonlinear_model, model, text);
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(self.catalog().label(&format!(
+                    "{}; the starting values come from the data range.",
+                    self.nonlinear_model.equation()
+                )));
+                ui.horizontal(|ui| {
+                    if ui
+                        .help_button(self.catalog().label("About nonlinear regression…"))
+                        .clicked()
+                    {
+                        self.show_nonlinear_help = true;
+                    }
+                    ui.small(self.catalog().label("Overview, data and an example"));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_nonlinear_dialog = open && !run && !cancel;
+        if run {
+            self.run_nonlinear_dialog();
+        }
+    }
+
+    /// Help page of the nonlinear regression.
+    pub(super) fn nonlinear_help_window(&mut self, ctx: &egui::Context) {
+        if !self.show_nonlinear_help {
+            return;
+        }
+        let mut open = self.show_nonlinear_help;
+        let mut close = false;
+        dialog_window(self.catalog().label("Nonlinear regression help"))
+            .without_clear()
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.strong(self.catalog().label("Overview"));
+                ui.label(self.catalog().label(
+                    "Nonlinear regression fits a curve that is not a straight line in its \
+                     parameters: the engine minimises the residual sum of squares with \
+                     Levenberg–Marquardt and reports the estimates, their standard errors and \
+                     the fitted curve over the observations.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Data"));
+                ui.label(self.catalog().label(
+                    "Choose a numeric response, a numeric predictor and one of the models: \
+                     Michaelis–Menten V·x/(K + x), asymptotic a + b·exp(−c·x), logistic \
+                     A/(1 + exp(−k(x − x₀))), Gompertz A·exp(−exp(−k(x − x₀))), Weibull growth \
+                     A·(1 − exp(−(x/λ)^k)) and power a·x^b. The power model needs positive \
+                     predictor values and the Weibull model non-negative ones. The starting \
+                     values come from the range of the data and the iteration stops when the \
+                     parameters move by less than 1e-9 relative or the sum of squares by less \
+                     than 1e-12.",
+                ));
+                ui.add_space(6.0);
+                ui.strong(self.catalog().label("Example"));
+                ui.label(self.catalog().label(
+                    "Enzyme rates against substrate concentration follow Michaelis–Menten: \
+                     twelve observations give V about 212.7 and K about 0.064, with R² near \
+                     0.96. A curve with no noise is recovered to the third digit, and a model \
+                     outside the range of the data warns that the iteration did not converge.",
+                ));
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Close")).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.show_nonlinear_help = open && !close;
+    }
+
     /// Opens the MANOVA dialog.
     pub fn open_manova_dialog(&mut self) {
         let Some(df) = self.data.as_ref() else {

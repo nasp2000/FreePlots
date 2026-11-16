@@ -3964,6 +3964,73 @@ fn nested_frame() -> DataFrame {
     .expect("nested frame")
 }
 
+/// The treated group of the enzyme-kinetics experiment.
+fn kinetics_frame() -> DataFrame {
+    DataFrame::new(vec![
+        Column::new_f64(
+            "x",
+            vec![
+                0.02, 0.02, 0.06, 0.06, 0.11, 0.11, 0.22, 0.22, 0.56, 0.56, 1.10, 1.10,
+            ],
+        ),
+        Column::new_f64(
+            "y",
+            vec![
+                76.0, 47.0, 97.0, 107.0, 123.0, 139.0, 159.0, 152.0, 191.0, 201.0, 207.0, 200.0,
+            ],
+        ),
+    ])
+    .expect("kinetics frame")
+}
+
+#[test]
+fn the_nonlinear_regression_fits_the_kinetics() {
+    let mut ui = Automation::new();
+    ui.load_frame(kinetics_frame(), "kinetics.csv");
+    open(&mut ui, &["Stat", "Regression", "Nonlinear Regression…"]);
+    ui.select("Response:", "y").expect("response");
+    ui.select("Predictor:", "x").expect("predictor");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Nonlinear Regression — y by x"),
+        "{session}"
+    );
+    assert!(session.contains("Michaelis–Menten"), "{session}");
+    assert!(session.contains("V·x/(K + x)"), "{session}");
+    assert!(ui.plot().is_some(), "the fitted curve is drawn");
+}
+
+#[test]
+fn the_nonlinear_regression_refuses_the_power_model_on_negative_values() {
+    let mut ui = Automation::new();
+    ui.load_frame(
+        DataFrame::new(vec![
+            Column::new_f64("x", vec![-1.0, 1.0, 2.0, 3.0, 4.0]),
+            Column::new_f64("y", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+        ])
+        .expect("frame"),
+        "negative.csv",
+    );
+    open(&mut ui, &["Stat", "Regression", "Nonlinear Regression…"]);
+    ui.select("Response:", "y").expect("response");
+    ui.select("Predictor:", "x").expect("predictor");
+    ui.select("Model:", "Power").expect("model");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("positive"), "{}", ui.status());
+}
+
+#[test]
+fn the_nonlinear_regression_needs_two_columns() {
+    let mut ui = Automation::new();
+    ui.load_frame(kinetics_frame(), "kinetics.csv");
+    open(&mut ui, &["Stat", "Regression", "Nonlinear Regression…"]);
+    ui.select("Response:", "y").expect("response");
+    ui.select("Predictor:", "y").expect("predictor");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("different"), "{}", ui.status());
+}
+
 #[test]
 fn the_manova_dialog_reports_the_four_statistics() {
     let mut ui = Automation::new();

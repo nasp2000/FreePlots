@@ -115,6 +115,49 @@ impl UiCatalog {
             "Equivalence Test…" => "Teste de equivalência…",
             "Nested ANOVA…" => "ANOVA encaixada…",
             "Nested ANOVA" => "ANOVA encaixada",
+            "Nonlinear Regression…" => "Regressão não linear…",
+            "Nonlinear Regression" => "Regressão não linear",
+            "Nonlinear regression help" => "Ajuda da regressão não linear",
+            "About nonlinear regression…" => "Acerca da regressão não linear…",
+            "Predictor:" => "Preditor:",
+            "Asymptotic" => "Assintótica",
+            "Logistic (3 parameters)" => "Logística (3 parâmetros)",
+            "Weibull growth" => "Crescimento de Weibull",
+            "Power" => "Potência",
+            "Nonlinear regression fits a curve that is not a straight line in its \
+             parameters: the engine minimises the residual sum of squares with \
+             Levenberg–Marquardt and reports the estimates, their standard errors and \
+             the fitted curve over the observations." => {
+                "A regressão não linear ajusta uma curva que não é linear nos parâmetros: o \
+                 motor minimiza a soma de quadrados dos resíduos com Levenberg–Marquardt e \
+                 reporta as estimativas, os respetivos erros padrão e a curva ajustada sobre \
+                 as observações."
+            }
+            "Choose a numeric response, a numeric predictor and one of the models: \
+             Michaelis–Menten V·x/(K + x), asymptotic a + b·exp(−c·x), logistic \
+             A/(1 + exp(−k(x − x₀))), Gompertz A·exp(−exp(−k(x − x₀))), Weibull growth \
+             A·(1 − exp(−(x/λ)^k)) and power a·x^b. The power model needs positive \
+             predictor values and the Weibull model non-negative ones. The starting \
+             values come from the range of the data and the iteration stops when the \
+             parameters move by less than 1e-9 relative or the sum of squares by less \
+             than 1e-12." => {
+                "Escolha uma resposta numérica, um preditor numérico e um dos modelos: \
+                 Michaelis–Menten V·x/(K + x), assintótica a + b·exp(−c·x), logística \
+                 A/(1 + exp(−k(x − x₀))), Gompertz A·exp(−exp(−k(x − x₀))), crescimento de \
+                 Weibull A·(1 − exp(−(x/λ)^k)) e potência a·x^b. O modelo de potência exige \
+                 preditores positivos e o de Weibull não negativos. Os valores iniciais vêm do \
+                 intervalo dos dados e a iteração para quando os parâmetros variam menos de \
+                 1e-9 em termos relativos ou a soma de quadrados menos de 1e-12."
+            }
+            "Enzyme rates against substrate concentration follow Michaelis–Menten: \
+             twelve observations give V about 212.7 and K about 0.064, with R² near \
+             0.96. A curve with no noise is recovered to the third digit, and a model \
+             outside the range of the data warns that the iteration did not converge." => {
+                "As velocidades enzimáticas contra a concentração de substrato seguem \
+                 Michaelis–Menten: doze observações dão V cerca de 212,7 e K cerca de 0,064, com \
+                 R² próximo de 0,96. Uma curva sem ruído é recuperada até ao terceiro dígito, e \
+                 um modelo fora do intervalo dos dados avisa que a iteração não convergiu."
+            }
             "MANOVA help" => "Ajuda do MANOVA",
             "Nested ANOVA help" => "Ajuda da ANOVA encaixada",
             "About MANOVA…" => "Acerca do MANOVA…",
@@ -1986,8 +2029,10 @@ mod tests {
         "Kruskal-Wallis…",
         "Factor:",
         "Linear",
+        "Gompertz",
         "MANOVA",
         "MANOVA…",
+        "Michaelis–Menten",
         "Mann-Whitney…",
         "OK",
         "Português",

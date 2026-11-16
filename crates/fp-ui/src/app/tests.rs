@@ -10936,3 +10936,73 @@ fn the_nested_help_explains_the_components() {
     harness.run();
     assert!(!harness.state().show_nested_help);
 }
+
+#[test]
+fn nonlinear_dialog_reaches_the_session_and_curve() {
+    let df = DataFrame::new(vec![
+        Column::new_f64(
+            "x",
+            vec![
+                0.02, 0.06, 0.11, 0.22, 0.56, 1.10, 0.02, 0.06, 0.11, 0.22, 0.56, 1.10,
+            ],
+        ),
+        Column::new_f64(
+            "y",
+            vec![
+                76.0, 97.0, 123.0, 159.0, 191.0, 207.0, 47.0, 107.0, 139.0, 152.0, 201.0, 200.0,
+            ],
+        ),
+    ])
+    .expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "kinetics.csv".to_owned());
+    app.open_nonlinear_dialog();
+    app.nonlinear_response = "y".to_owned();
+    app.nonlinear_predictor = "x".to_owned();
+    app.nonlinear_model = fp_core::nonlinear::NonlinearModel::MichaelisMenten;
+    app.run_nonlinear_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Nonlinear Regression — y by x"), "{text}");
+    assert!(text.contains("V·x/(K + x)"), "{text}");
+    assert!(text.contains("Parameter"), "{text}");
+    assert!(app.plot().is_some());
+
+    // A response equal to the predictor is refused before the engine runs.
+    app.open_nonlinear_dialog();
+    app.nonlinear_response = "y".to_owned();
+    app.nonlinear_predictor = "y".to_owned();
+    app.run_nonlinear_dialog();
+    assert!(app.status.contains("different"), "{}", app.status);
+}
+
+#[test]
+fn the_nonlinear_help_explains_the_models() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_nonlinear_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About nonlinear regression…").click();
+    harness.run();
+    assert!(harness.state().show_nonlinear_help);
+    harness.get_by_label("Nonlinear regression help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("Levenberg–Marquardt");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da regressão não linear");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_nonlinear_help);
+}

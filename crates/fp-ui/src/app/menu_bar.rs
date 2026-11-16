@@ -1063,6 +1063,20 @@ impl FreePlotsApp {
                         self.open_regression_dialog();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Nonlinear Regression…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text(
+                        "Least-squares fit of Michaelis-Menten, asymptotic, logistic, Gompertz, Weibull or power curves",
+                    )
+                    .clicked()
+                    {
+                        self.open_nonlinear_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Best Subsets…"), None, self.data.is_some())
                         .on_hover_text("Every subset of the predictors ranked by R², adjusted R², Cp and s")
                         .clicked()

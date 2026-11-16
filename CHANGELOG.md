@@ -152,6 +152,12 @@ All notable changes to FreePlots are recorded here. The format follows
   one main-effects panel per factor, one interaction panel per pair and the
   cube of the corner means for two or three factors, with the marginal means
   in the report. It has its own help page in both interface languages.
+- Regression has a *Nonlinear Regression…* entry: least squares by
+  Levenberg–Marquardt for the Michaelis–Menten, asymptotic, three-parameter
+  logistic, Gompertz, Weibull growth and power models, with automatic starting
+  values, asymptotic standard errors, t, p and the confidence interval of every
+  parameter, R², the iterations, the convergence and the fitted curve over the
+  observations. It has its own help page in both interface languages.
 - Regression has a *Best Subsets…* entry: it fits every non-empty subset of up
   to twelve numeric predictors, reports the two best models of each size by R²
   with their adjusted R², Mallows' Cp and s, and adds a table of the best
@@ -244,7 +250,11 @@ All notable changes to FreePlots are recorded here. The format follows
   statistics of a diagonal construction, the exact F with two groups and the
   invalid designs; the nested ANOVA covers the sums of squares, the hierarchical
   F tests, the variance components and percentages, a zero component and the
-  unbalanced and constant cases. The analysis of means covers the balanced and
+  unbalanced and constant cases. The nonlinear regression covers the published
+  Michaelis–Menten fit of the enzyme-kinetics experiment (estimates, standard
+  errors and R²), the recovery of the parameters of the other five models from
+  noise-free curves, explicit starting values and the invalid domains,
+  duplicate-column and short-sample cases. The analysis of means covers the balanced and
   the unequal-size limits, an out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the

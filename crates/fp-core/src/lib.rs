@@ -59,6 +59,7 @@ pub mod manova;
 pub mod matrixplot;
 pub mod mvchart;
 pub mod nested;
+pub mod nonlinear;
 pub mod nonparametric;
 pub mod optimal;
 pub mod optimize;
