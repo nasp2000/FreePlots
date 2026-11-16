@@ -295,7 +295,10 @@ All notable changes to FreePlots are recorded here. The format follows
   column and row statistics with missing cells, patterned sequences, meshes,
   indicator coding, transpose, the matrix product, reproducible random data,
   bootstrap tables and the randomization test with its report and chart. The
-  analysis of means covers the balanced and the unequal-size limits, an
+  linear-model power covers the agreement with the overall regression test,
+  the growth with the sample size and the minimal size, the R² increase, and
+  the invalid terms, model terms, sample and effect cases. The analysis of
+  means covers the balanced and the unequal-size limits, an
   out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the
