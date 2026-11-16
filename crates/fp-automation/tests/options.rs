@@ -3983,6 +3983,55 @@ fn kinetics_frame() -> DataFrame {
     .expect("kinetics frame")
 }
 
+/// Twelve times with the last three censored (status 0).
+fn survival_frame() -> DataFrame {
+    DataFrame::new(vec![
+        Column::new_f64(
+            "time",
+            vec![
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.0, 15.0,
+            ],
+        ),
+        Column::new_f64(
+            "status",
+            vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        ),
+    ])
+    .expect("survival frame")
+}
+
+#[test]
+fn the_survival_analysis_compares_the_models() {
+    let mut ui = Automation::new();
+    ui.load_frame(survival_frame(), "life.csv");
+    open(&mut ui, &["Stat", "Reliability", "Survival Analysis…"]);
+    ui.select("Censoring column:", "status").expect("censor");
+    ui.set_text("Mission time:", "5").expect("mission");
+    ui.click("Run").expect("run");
+    let session = ui.session();
+    assert!(
+        session.contains("Survival Analysis — time time"),
+        "{session}"
+    );
+    assert!(session.contains("Best by AIC"), "{session}");
+    assert!(session.contains("Weibull"), "{session}");
+    assert!(session.contains("Lognormal"), "{session}");
+    assert!(session.contains("B10"), "{session}");
+    let plot = ui.plot().expect("plot");
+    assert_eq!(plot.series.len(), 4);
+    assert_eq!(plot.series[0].label, "Kaplan–Meier");
+}
+
+#[test]
+fn the_survival_analysis_rejects_a_zero_mission() {
+    let mut ui = Automation::new();
+    ui.load_frame(survival_frame(), "life.csv");
+    open(&mut ui, &["Stat", "Reliability", "Survival Analysis…"]);
+    ui.set_text("Mission time:", "0").expect("mission");
+    ui.click("Run").expect("run");
+    assert!(ui.status().contains("positive"), "{}", ui.status());
+}
+
 #[test]
 fn the_nonlinear_regression_fits_the_kinetics() {
     let mut ui = Automation::new();

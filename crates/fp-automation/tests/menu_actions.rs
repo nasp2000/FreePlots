@@ -186,6 +186,7 @@ const MENU_PATHS: &[&[&str]] = &[
     &["Stat", "Reliability", "Accelerated Life Testing…"],
     &["Stat", "Reliability", "Step-Stress ALT…"],
     &["Stat", "Reliability", "Kaplan–Meier…"],
+    &["Stat", "Reliability", "Survival Analysis…"],
     &["Stat", "Reliability", "Weibull (censored)…"],
     &["Stat", "Reliability", "Exponential (censored)…"],
     &["Stat", "Reliability", "Lognormal (censored)…"],

@@ -91,6 +91,7 @@ pub mod special;
 pub mod stemleaf;
 pub mod stepwise;
 pub mod summary;
+pub mod survival;
 pub mod taguchi;
 pub mod tally;
 pub mod timeseries;

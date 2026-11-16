@@ -1214,6 +1214,13 @@ pub struct FreePlotsApp {
     timeseries_model: fp_core::timeseries::DecompositionModel,
     timeseries_season: usize,
     timeseries_horizon: usize,
+    /// Survival analysis dialog, help and inputs.
+    show_survival_dialog: bool,
+    show_survival_help: bool,
+    survival_time: String,
+    survival_censor: Option<String>,
+    survival_censor_value: String,
+    survival_mission: String,
     /// Nonlinear regression dialog, help and inputs.
     show_nonlinear_dialog: bool,
     show_nonlinear_help: bool,
@@ -4271,6 +4278,8 @@ impl FreePlotsApp {
         self.show_manova_help = false;
         self.show_nonlinear_dialog = false;
         self.show_nonlinear_help = false;
+        self.show_survival_dialog = false;
+        self.show_survival_help = false;
         self.show_nested_dialog = false;
         self.show_nested_help = false;
         self.show_arima_dialog = false;

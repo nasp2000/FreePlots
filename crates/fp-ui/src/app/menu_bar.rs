@@ -1314,6 +1314,20 @@ impl FreePlotsApp {
                         self.open_lognormal_dialog();
                         ui.close();
                     }
+                    if menu_text_item(
+                        ui,
+                        self.catalog().label("Survival Analysis…"),
+                        None,
+                        self.data.is_some(),
+                    )
+                    .on_hover_text(
+                        "Exponential, Weibull and lognormal fits compared by AIC and BIC",
+                    )
+                    .clicked()
+                    {
+                        self.open_survival_dialog();
+                        ui.close();
+                    }
                 });
                 help_menu_button(ui, self.catalog().label("Control Charts"), |ui| {
                     let ready = self.selection_is_numeric();

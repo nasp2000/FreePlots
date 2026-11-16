@@ -11006,3 +11006,71 @@ fn the_nonlinear_help_explains_the_models() {
     harness.run();
     assert!(!harness.state().show_nonlinear_help);
 }
+
+#[test]
+fn survival_dialog_reaches_the_session_and_plot() {
+    let df = DataFrame::new(vec![
+        Column::new_f64(
+            "time",
+            vec![
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.0, 15.0,
+            ],
+        ),
+        Column::new_f64(
+            "status",
+            vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        ),
+    ])
+    .expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(df, "life.csv".to_owned());
+    app.open_survival_dialog();
+    app.survival_time = "time".to_owned();
+    app.survival_censor = Some("status".to_owned());
+    app.survival_censor_value = "0".to_owned();
+    app.survival_mission = "5".to_owned();
+    app.run_survival_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Survival Analysis — time time"), "{text}");
+    assert!(text.contains("Best by AIC"), "{text}");
+    assert!(text.contains("R(5)"), "{text}");
+    assert_eq!(app.plot().expect("plot").series.len(), 4);
+
+    // A zero mission time is refused before the engine runs.
+    app.open_survival_dialog();
+    app.survival_mission = "0".to_owned();
+    app.run_survival_dialog();
+    assert!(app.status.contains("positive"), "{}", app.status);
+}
+
+#[test]
+fn the_survival_help_explains_the_comparison() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.show_survival_dialog = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("About survival analysis…").click();
+    harness.run();
+    assert!(harness.state().show_survival_help);
+    harness.get_by_label("Survival analysis help");
+    harness.get_by_label("Overview");
+    harness.get_by_label_contains("Kaplan–Meier estimate");
+    harness.get_by_label("Example");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Ajuda da análise de sobrevivência");
+    harness.get_by_label("Visão geral");
+    harness.get_by_label("Exemplo");
+
+    harness.get_by_label("Fechar").click();
+    harness.run();
+    assert!(!harness.state().show_survival_help);
+}

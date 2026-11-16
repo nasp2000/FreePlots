@@ -59,6 +59,12 @@ All notable changes to FreePlots are recorded here. The format follows
   normal approximation) and *Poisson Goodness-of-Fit…* (chi-square with
   estimated or given mean), with a shared help page in both interface
   languages.
+- Reliability has a *Survival Analysis…* entry: the exponential, Weibull and
+  lognormal life models fitted by maximum likelihood to the same right-censored
+  data and compared by the log-likelihood, AIC and BIC (ordered by AIC), with
+  the percentile lives B1/B5/B10/B50, the reliability and hazard at a mission
+  time and the fitted curves drawn over the Kaplan–Meier estimate. It has its
+  own help page in both interface languages.
 - Basic Statistics has a *2×2 Crossover Equivalence…* entry: the
   within-subject treatment difference of a two-period crossover with a TOST
   against configurable lower and upper limits, the 90 % interval of a 95 %
@@ -254,7 +260,11 @@ All notable changes to FreePlots are recorded here. The format follows
   Michaelis–Menten fit of the enzyme-kinetics experiment (estimates, standard
   errors and R²), the recovery of the parameters of the other five models from
   noise-free curves, explicit starting values and the invalid domains,
-  duplicate-column and short-sample cases. The analysis of means covers the balanced and
+  duplicate-column and short-sample cases. The survival comparison covers the
+  closed-form exponential fit with censoring (total time over events, log
+  likelihood, AIC and BIC), the percentile formulas of the three models, the
+  mission reliability and hazard, the ordering by AIC and the invalid mission,
+  column and text cases. The analysis of means covers the balanced and
   the unequal-size limits, an out-of-limits level, the missing-value count and
   the invalid alpha, single-level and constant-sample cases. The graph
   gallery covers the count/sum/mean bars, the line and area series, the

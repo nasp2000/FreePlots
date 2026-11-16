@@ -115,6 +115,53 @@ impl UiCatalog {
             "Equivalence Test…" => "Teste de equivalência…",
             "Nested ANOVA…" => "ANOVA encaixada…",
             "Nested ANOVA" => "ANOVA encaixada",
+            "Survival Analysis…" => "Análise de sobrevivência…",
+            "Survival Analysis" => "Análise de sobrevivência",
+            "Survival analysis help" => "Ajuda da análise de sobrevivência",
+            "About survival analysis…" => "Acerca da análise de sobrevivência…",
+            "Time column:" => "Coluna de tempo:",
+            "Censoring column:" => "Coluna de censura:",
+            "Censoring value:" => "Valor de censura:",
+            "Mission time:" => "Tempo de missão:",
+            "None (all events)" => "Nenhuma (todas as falhas)",
+            "The censoring value marks right-censored observations; the mission time \
+             gives the reliability and the hazard of every fitted model." => {
+                "O valor de censura marca observações censuradas à direita; o tempo de missão \
+                 dá a fiabilidade e a taxa de falha de cada modelo ajustado."
+            }
+            "The survival analysis fits the exponential, Weibull and lognormal life \
+             models to right-censored data and compares them by the maximized \
+             log-likelihood, the AIC and the BIC. It also gives the percentile lives \
+             B1, B5, B10 and B50 of every model and the reliability and hazard at a \
+             mission time, and draws the fitted curves over the Kaplan–Meier estimate." => {
+                "A análise de sobrevivência ajusta os modelos de vida exponencial, Weibull e \
+                 lognormal a dados censurados à direita e compara-os pela verosimilhança \
+                 maximizada, pelo AIC e pelo BIC. Dá também os percentis de vida B1, B5, B10 e \
+                 B50 de cada modelo e a fiabilidade e a taxa de falha num tempo de missão, e \
+                 desenha as curvas ajustadas sobre a estimativa de Kaplan–Meier."
+            }
+            "Choose the numeric time column, an optional censoring column and the \
+             censoring value: an observation whose censoring column equals that value \
+             is treated as right-censored, every other one as a failure. Without a \
+             censoring column every observation is a failure. Times must be positive \
+             and at least one failure is needed. The mission time must be positive; \
+             the dialog starts it at the median of the times." => {
+                "Escolha a coluna numérica do tempo, uma coluna de censura opcional e o valor \
+                 de censura: uma observação cuja coluna de censura seja igual a esse valor é \
+                 tratada como censurada à direita e todas as outras como falhas. Sem coluna de \
+                 censura todas as observações são falhas. Os tempos têm de ser positivos e é \
+                 precisa pelo menos uma falha. O tempo de missão tem de ser positivo; o \
+                 diálogo começa-o na mediana dos tempos."
+            }
+            "Twelve times with the last three censored give an exponential mean of \
+             82/9; its B10 is about 0.96, its B50 about 6.32 and its reliability at \
+             5 is about 0.58. The AIC and the BIC order the three models, and the \
+             smallest value is the best compromise between fit and complexity." => {
+                "Doze tempos com os últimos três censurados dão uma média exponencial de \
+                 82/9; o B10 é cerca de 0,96, o B50 cerca de 6,32 e a fiabilidade em 5 cerca de \
+                 0,58. O AIC e o BIC ordenam os três modelos, e o menor valor é o melhor \
+                 compromisso entre ajuste e complexidade."
+            }
             "Nonlinear Regression…" => "Regressão não linear…",
             "Nonlinear Regression" => "Regressão não linear",
             "Nonlinear regression help" => "Ajuda da regressão não linear",
