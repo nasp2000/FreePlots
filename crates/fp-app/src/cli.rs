@@ -2177,14 +2177,6 @@ fn parse_grubbs_args(args: &[String]) -> Result<GrubbsArgs, String> {
                         .clone(),
                 );
             }
-            "--terms" => {
-                let raw = it
-                    .next()
-                    .ok_or_else(|| "--terms requires a number".to_owned())?;
-                terms = raw
-                    .parse::<usize>()
-                    .map_err(|_| format!("invalid --terms: {raw}"))?;
-            }
             "--alpha" => {
                 let raw = it
                     .next()
@@ -2292,6 +2284,14 @@ fn parse_power_args(args: &[String]) -> Result<PowerArgs, String> {
                 groups = raw
                     .parse::<usize>()
                     .map_err(|_| format!("invalid --groups: {raw}"))?;
+            }
+            "--terms" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--terms requires a number".to_owned())?;
+                terms = raw
+                    .parse::<usize>()
+                    .map_err(|_| format!("invalid --terms: {raw}"))?;
             }
             "--alpha" => {
                 let raw = it
