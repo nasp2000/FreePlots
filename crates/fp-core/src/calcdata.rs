@@ -515,10 +515,10 @@ pub fn indicator_variables(df: &DataFrame, column: &str, drop_first: bool) -> Re
     let source = df.column(column)?;
     let mut levels: Vec<String> = Vec::new();
     for row in 0..source.len() {
-        if let Some(label) = source.label(row) {
-            if !levels.contains(&label) {
-                levels.push(label);
-            }
+        if let Some(label) = source.label(row)
+            && !levels.contains(&label)
+        {
+            levels.push(label);
         }
     }
     if levels.is_empty() {
@@ -564,7 +564,7 @@ pub fn random_data(
     seed: u64,
 ) -> Result<DataFrame> {
     check_name(name)?;
-    if n == 0 || n > 100_000 {
+    if !(1..=100_000).contains(&n) {
         return Err(Error::Unsupported(
             "the number of values must be between 1 and 100000".to_owned(),
         ));
@@ -629,7 +629,7 @@ pub fn bootstrap(df: &DataFrame, columns: &[String], reps: usize, seed: u64) -> 
     if columns.is_empty() {
         return Err(Error::Unsupported("select at least one column".to_owned()));
     }
-    if reps == 0 || reps > 1000 {
+    if !(1..=1000).contains(&reps) {
         return Err(Error::Unsupported(
             "the number of resamples must be between 1 and 1000".to_owned(),
         ));
@@ -772,7 +772,7 @@ fn build_histogram(values: &[f64], bins: usize) -> Vec<(f64, usize)> {
     }
     let mut lo = values.iter().copied().fold(f64::INFINITY, f64::min);
     let mut hi = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-    if !(hi > lo) {
+    if hi <= lo {
         lo -= 1.0;
         hi += 1.0;
     }
