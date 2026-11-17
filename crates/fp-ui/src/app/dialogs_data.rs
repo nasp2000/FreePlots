@@ -2397,30 +2397,64 @@ impl FreePlotsApp {
                             });
                             let count = self.data_mesh_count.clamp(1, 3);
                             for index in 0..count {
+                                let name_label = self.catalog().label(match index {
+                                    0 => "Name 1:",
+                                    1 => "Name 2:",
+                                    _ => "Name 3:",
+                                });
                                 ui.horizontal(|ui| {
+                                    let label = ui.help_label(name_label);
                                     ui.add(
                                         egui::TextEdit::singleline(
                                             &mut self.data_mesh_names[index],
                                         )
-                                        .desired_width(70.0),
-                                    );
+                                        .desired_width(110.0),
+                                    )
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                                });
+                                let first_label = self.catalog().label(match index {
+                                    0 => "First 1:",
+                                    1 => "First 2:",
+                                    _ => "First 3:",
+                                });
+                                let last_label = self.catalog().label(match index {
+                                    0 => "Last 1:",
+                                    1 => "Last 2:",
+                                    _ => "Last 3:",
+                                });
+                                let levels_label = self.catalog().label(match index {
+                                    0 => "Levels 1:",
+                                    1 => "Levels 2:",
+                                    _ => "Levels 3:",
+                                });
+                                ui.horizontal(|ui| {
+                                    let label = ui.help_label(first_label);
                                     ui.add(
                                         egui::TextEdit::singleline(&mut self.data_mesh_from[index])
                                             .desired_width(50.0),
-                                    );
+                                    )
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                                    let label = ui.help_label(last_label);
                                     ui.add(
                                         egui::TextEdit::singleline(&mut self.data_mesh_to[index])
                                             .desired_width(50.0),
-                                    );
+                                    )
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
+                                    let label = ui.help_label(levels_label);
                                     ui.add(
                                         egui::DragValue::new(&mut self.data_mesh_levels[index])
                                             .range(2..=100),
-                                    );
+                                    )
+                                    .labelled_by(label.id)
+                                    .hover_from(&label);
                                 });
                             }
                             ui.small(self.catalog().label(
-                                "Each row is name, first level, last level and number of \
-                                 equally spaced levels.",
+                                "Each factor is a name, the first and last level and the number \
+                                 of equally spaced levels; the first factor varies fastest.",
                             ));
                         }
                         DataTask::Indicators => {

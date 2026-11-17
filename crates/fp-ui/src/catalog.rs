@@ -1358,6 +1358,23 @@ impl UiCatalog {
             "About data and calculations…" => "Acerca de dados e cálculos…",
             "Tasks, conventions and an example" => "Tarefas, convenções e um exemplo",
             "Task:" => "Tarefa:",
+            "Name 1:" => "Nome 1:",
+            "Name 2:" => "Nome 2:",
+            "Name 3:" => "Nome 3:",
+            "First 1:" => "Primeiro 1:",
+            "First 2:" => "Primeiro 2:",
+            "First 3:" => "Primeiro 3:",
+            "Last 1:" => "Último 1:",
+            "Last 2:" => "Último 2:",
+            "Last 3:" => "Último 3:",
+            "Levels 1:" => "Níveis 1:",
+            "Levels 2:" => "Níveis 2:",
+            "Levels 3:" => "Níveis 3:",
+            "Each factor is a name, the first and last level and the number \
+             of equally spaced levels; the first factor varies fastest." => {
+                "Cada factor é um nome, o primeiro e o último nível e o número de níveis \
+                 igualmente espaçados; o primeiro factor varia mais rápido."
+            }
             "Statistic:" => "Estatística:",
             "New column:" => "Nova coluna:",
             "Start:" => "Início:",

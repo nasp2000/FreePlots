@@ -315,6 +315,92 @@ fn the_power_dialog_solves_for_the_sample_size() {
 }
 
 #[test]
+fn the_mesh_and_indicator_tasks_follow_the_reference_order() {
+    let mut ui = Automation::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+        Column::new_f64("y", vec![2.0, 4.0, 6.0, 8.0, 10.0]),
+        Column::new_text(
+            "g",
+            ["b", "a", "b", "c", "a"]
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+        ),
+    ])
+    .expect("frame");
+    ui.load_frame(df, "qa.csv");
+
+    // Mesh: the first factor varies fastest and the labels reach every field.
+    open(&mut ui, &["Calc", "Data and Calculations…"]);
+    ui.select("Task:", "Mesh data").expect("task");
+    ui.set_text("Factors:", "2").expect("factors");
+    ui.set_text("Name 1:", "A").expect("name 1");
+    ui.set_text("First 1:", "0").expect("first 1");
+    ui.set_text("Last 1:", "10").expect("last 1");
+    ui.set_text("Levels 1:", "3").expect("levels 1");
+    ui.set_text("Name 2:", "B").expect("name 2");
+    ui.set_text("First 2:", "1").expect("first 2");
+    ui.set_text("Last 2:", "2").expect("last 2");
+    ui.set_text("Levels 2:", "2").expect("levels 2");
+    ui.click("Run").expect("run");
+    let mesh = ui.app().data().expect("mesh sheet");
+    assert_eq!(mesh.n_rows(), 6);
+    let a = mesh
+        .column("A")
+        .expect("A")
+        .numeric(fp_core::data::MissingPolicy::Drop)
+        .expect("A values");
+    let b = mesh
+        .column("B")
+        .expect("B")
+        .numeric(fp_core::data::MissingPolicy::Drop)
+        .expect("B values");
+    assert_eq!(a, vec![0.0, 5.0, 10.0, 0.0, 5.0, 10.0]);
+    assert_eq!(b, vec![1.0, 1.0, 1.0, 2.0, 2.0, 2.0]);
+
+    // Indicators: ascending levels with the first (a) dropped.
+    ui.load_frame(
+        DataFrame::new(vec![
+            Column::new_f64("x", vec![1.0, 2.0, 3.0, 4.0, 5.0]),
+            Column::new_f64("y", vec![2.0, 4.0, 6.0, 8.0, 10.0]),
+            Column::new_text(
+                "g",
+                ["b", "a", "b", "c", "a"]
+                    .iter()
+                    .map(|value| (*value).to_owned())
+                    .collect(),
+            ),
+        ])
+        .expect("frame"),
+        "qa.csv",
+    );
+    open(&mut ui, &["Calc", "Data and Calculations…"]);
+    ui.select("Task:", "Indicator variables").expect("task");
+    ui.select("Factor column:", "g").expect("factor");
+    ui.click("Run").expect("run");
+    let indicators = ui.app().data().expect("indicator sheet");
+    let names: Vec<&str> = indicators
+        .columns()
+        .iter()
+        .map(fp_core::data::Column::name)
+        .collect();
+    assert_eq!(names, vec!["x", "y", "g", "g_b", "g_c"]);
+    let b = indicators
+        .column("g_b")
+        .expect("g_b")
+        .numeric(fp_core::data::MissingPolicy::Drop)
+        .expect("g_b values");
+    let c = indicators
+        .column("g_c")
+        .expect("g_c")
+        .numeric(fp_core::data::MissingPolicy::Drop)
+        .expect("g_c values");
+    assert_eq!(b, vec![1.0, 0.0, 1.0, 0.0, 0.0]);
+    assert_eq!(c, vec![0.0, 0.0, 0.0, 1.0, 0.0]);
+}
+
+#[test]
 fn the_data_calc_dialog_standardizes_and_tests() {
     let mut ui = Automation::new();
     ui.load_frame(frame(), "weights.csv");
