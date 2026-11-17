@@ -390,17 +390,13 @@ pub fn fit(df: &DataFrame, responses: &[String], factor: &str) -> Result<ManovaF
     } else {
         f64::INFINITY
     };
-    let (df1_hl, df2_hl, f_hl) = if nn > 0.0 {
-        let b = (pf + 2.0 * nn) * (q + 2.0 * nn) / (2.0 * (2.0 * nn + 1.0) * (nn - 1.0));
-        let df1 = pf * q;
-        let df2 = 4.0 + (pf * q + 2.0) / (b - 1.0);
-        let c = (df2 - 2.0) / (2.0 * nn);
-        (df1, df2, df2 / df1 * hotelling / c)
-    } else {
-        let df1 = s * (2.0 * m + s + 1.0);
-        let df2 = s * (s * nn + 1.0);
-        (df1, df2, df2 / df1 / s * hotelling)
-    };
+    // Rao's transformation for the Hotelling–Lawley trace: the numerator has
+    // s(2m + s + 1) degrees of freedom and the denominator 2(sn + 1), whichever
+    // sign n has. Using a smaller denominator here understated the p-value and
+    // disagreed with the published transformation.
+    let df1_hl = s * (2.0 * m + s + 1.0);
+    let df2_hl = 2.0 * (s * nn + 1.0);
+    let f_hl = df2_hl / df1_hl * hotelling / s;
     let df1_roy = pf.max(q);
     let df2_roy = v - df1_roy + q;
     let f_roy = df2_roy / df1_roy * roy;
@@ -667,6 +663,64 @@ mod tests {
             .to_session_text();
         assert!(report.contains("MANOVA — 2 responses"), "{report}");
         assert!(report.contains("Pillai's trace"), "{report}");
+    }
+
+    #[test]
+    fn the_hotelling_f_uses_the_rao_denominator() {
+        // Three groups of four observations on two responses, the design that
+        // exposed the wrong denominator: n = (v − p − 1)/2 = 3, so Rao's
+        // transformation has 4 numerator and 2(sn + 1) = 14 denominator
+        // degrees of freedom. The trace is 165.9200359 and the F 290.36006.
+        let pattern = [
+            (0.1, -0.2),
+            (-0.2, 0.1),
+            (0.0, 0.0),
+            (0.1, 0.1),
+            (-0.1, 0.2),
+            (0.2, -0.1),
+            (0.0, 0.0),
+            (-0.1, -0.1),
+            (0.05, 0.15),
+            (0.15, -0.05),
+            (-0.15, 0.05),
+            (0.05, 0.05),
+        ];
+        let means = [(0.0, 0.0), (1.0, 2.0), (2.0, 1.0)];
+        let mut y1 = Vec::new();
+        let mut y2 = Vec::new();
+        let mut groups = Vec::new();
+        for (group, (mean1, mean2)) in means.iter().enumerate() {
+            for index in 0..4 {
+                let (offset1, offset2) = pattern[group * 4 + index];
+                y1.push(mean1 + offset1);
+                y2.push(mean2 + offset2);
+                groups.push(format!("G{}", group + 1));
+            }
+        }
+        let df = frame(vec![
+            Column::new_f64("y1", y1),
+            Column::new_f64("y2", y2),
+            Column::new_text("g", groups),
+        ]);
+        let model = fit(&df, &["y1".to_owned(), "y2".to_owned()], "g").expect("manova");
+        let hotelling = model
+            .statistics
+            .iter()
+            .find(|statistic| statistic.name == "Hotelling-Lawley trace")
+            .expect("hotelling");
+        assert!(
+            (hotelling.value - 165.920_035_938_903_77).abs() < 1e-6,
+            "{}",
+            hotelling.value
+        );
+        assert_eq!(hotelling.df1, 4.0);
+        assert!((hotelling.df2 - 14.0).abs() < 1e-12, "{}", hotelling.df2);
+        assert!(
+            (hotelling.f - 290.360_062_893_081_6).abs() < 1e-6,
+            "{}",
+            hotelling.f
+        );
+        assert!(hotelling.p.is_finite(), "{}", hotelling.p);
     }
 
     #[test]

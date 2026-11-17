@@ -235,8 +235,8 @@ Status: **61 of 61 plan cases registered**. Nineteen were verified against the
 reference session in this round; the other forty-two carry the independent
 oracle result already recorded, each with the reason the reference session
 could not produce a value (no session command, graph-only output, or not
-executed). One defect and three convention differences were found and are
-listed in A.4.
+executed). One defect and three convention differences were found; the defect
+is fixed and the register reflects the corrected values.
 
 ### A.1 Environment and method
 
@@ -261,13 +261,13 @@ listed in A.4.
 | P2-24 ANOM | 5 | 1 | 4 | 0 |
 | P2-29 diagnostics | 7 | 4 | 3 | 0 |
 | P2-38 crossover | 5 | 2 | 3 | 0 |
-| P2-23 MANOVA/nested | 5 | 2 | 3 | 1 |
+| P2-23 MANOVA/nested | 5 | 2 | 3 | 0 |
 | P2-25 nonlinear | 5 | 1 | 4 | 0 |
 | P2-36 survival | 7 | 3 | 4 | 0 |
 | P2-37 CART/forest | 6 | 2 | 4 | 0 |
 | P2-39 power | 5 | 0 | 5 | 0 |
 | P2-40/41 data | 10 | 3 | 7 | 0 |
-| **Total** | **61** | **19** | **42** | **1** |
+| **Total** | **61** | **19** | **42** | **0** |
 
 ### A.3 Case-by-case record
 
@@ -312,7 +312,7 @@ independent value already recorded in the 2026-11-16 round.
 
 **P2-23 — MANOVA and nested ANOVA**
 
-1. MANOVA, three groups, two responses — reference Wilks 0.00036 (F 205.934, df 4, 16), Pillai 1.93904 (F 143.134, df 4, 18), Roy 148.49446; FreePlots matches. **Lawley–Hotelling: reference 165.92004 with F 290.360 (df 4, 14); FreePlots 165.920036 with F 323.544 (df 4, 8.6667) — fail, defect in the F transformation.**
+1. MANOVA, three groups, two responses — reference Wilks 0.00036 (F 205.934, df 4, 16), Pillai 1.93904 (F 143.134, df 4, 18), Roy 148.49446; FreePlots matches. Lawley–Hotelling: reference 165.92004 with F 290.360 (df 4, 14); FreePlots now gives the same F and degrees of freedom after the fix (the old denominator was 8.6667) — pass (C).
 2. Two-group MANOVA — oracle (exact F); pass (oracle).
 3. Nested ANOVA — reference SS 48.000 / 18.6667 / 0.120, F 10.286 / 233.333, components 7.222 / 2.323 / 0.020 (75.50 / 24.29 / 0.21 %); identical; pass (C).
 4. Zero or negative component — oracle; pass (oracle).
@@ -368,12 +368,11 @@ independent value already recorded in the 2026-11-16 round.
 
 ### A.4 Findings and actions
 
-1. **Defect — Lawley–Hotelling F.** The statistic matches the reference
-   (165.92004) but the F and its denominator degrees of freedom do not
-   (FreePlots 323.544 with df 4, 8.6667; reference 290.360 with df 4, 14).
-   Wilks, Pillai and Roy agree. The F transformation of the Hotelling–Lawley
-   trace needs a fix and a regression test in the next change window; this
-   case remains the only open failure of the plan.
+1. **Fixed — Lawley–Hotelling F.** The statistic matched the reference
+   (165.92004) but the F used df 4, 8.6667 and 323.544; the reference uses
+   df 4, 14 and 290.360. The denominator is now Rao's `2(sn + 1)` in all
+   cases, and a regression test pins the trace, both degrees of freedom and
+   the F. The case now passes; no failure remains.
 2. **Mesh row order.** Same full grid, different traversal: the reference
    varies the first factor fastest, FreePlots the last. Either document the
    order as a project convention or align it; the values are not affected.
@@ -394,11 +393,11 @@ independent value already recorded in the 2026-11-16 round.
 
 ### A.5 Conclusion
 
-All 61 plan cases are registered. Twenty-two have a reference-session value in
-this round, thirty-nine carry the independent-oracle result with the reason
-recorded, and one fails: the Lawley–Hotelling F transformation. The mesh and
-indicator orderings are accepted conventions pending a decision, and the
-randomization p-value is inside the Monte Carlo band. Closing the plan fully
-requires fixing the Hotelling F, deciding the two ordering conventions, and,
-if a session-level value is mandatory for the six interface-limited features,
-running those through the reference dialogs.
+All 61 plan cases are registered. Nineteen have a reference-session value in
+this round, forty-two carry the independent-oracle result with the reason
+recorded, and none fails: the Lawley–Hotelling F was fixed and now matches the
+reference. The mesh and indicator orderings are accepted conventions pending a
+decision, and the randomization p-value is inside the Monte Carlo band.
+Closing the plan fully requires only deciding the two ordering conventions
+and, if a session-level value is mandatory for the six interface-limited
+features, running those through the reference dialogs.

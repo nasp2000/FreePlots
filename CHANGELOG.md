@@ -208,6 +208,15 @@ All notable changes to FreePlots are recorded here. The format follows
   Phase I F limit. Both take a subgroup size and drop the rows with a missing
   value.
 
+### Fixed
+
+- MANOVA's Hotelling–Lawley F test now uses Rao's denominator degrees of
+  freedom `2(sn + 1)`: the statistic was already right, but the F and its
+  p-value were computed against a smaller denominator, so they disagreed with
+  the published transformation (and with the reference session). A regression
+  test pins the trace, both degrees of freedom and the F.
+- The MANOVA regression tests cover the case that exposed the denominator.
+
 ### Changed
 
 - The tests for the label column cover interleaved labels, rows with a missing
