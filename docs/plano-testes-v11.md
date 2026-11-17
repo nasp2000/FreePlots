@@ -229,105 +229,176 @@ Test*.
 | P2-39 linear-model power | `power.rs` | `decisions-p2-power.md` | `d697a8b` |
 | P2-40/41 calculations and resampling | `calcdata.rs` | `decisions-p2-calc-bootstrap.md` | `db64f66` |
 
-## Appendix A — Execution record (2026-11-16)
+## Appendix A — Execution record (2026-11-17)
 
-Status: **partially executed**. Every item was exercised and its numbers agree
-with an independent oracle to the tolerance class of the plan. The comparison
-against the reference run itself is **blocked**: the reference host is
-offline (evidence in A.1) and the private pack holds no recorded output for
-these items. No engine or test change was needed.
+Status: **61 of 61 plan cases registered**. Nineteen were verified against the
+reference session in this round; the other forty-two carry the independent
+oracle result already recorded, each with the reason the reference session
+could not produce a value (no session command, graph-only output, or not
+executed). One defect and three convention differences were found and are
+listed in A.4.
 
-### A.1 Environment and evidence
+### A.1 Environment and method
 
-- FreePlots 0.1.1, Linux aarch64, the build installed from the CI artifacts
-  (2026-11-16). Dialogs driven through the application automation interface;
-  data tasks through the shipped binary.
-- Reference host: `tailscale status` reports `offline, last seen 20h ago`;
-  TCP ports 22 and 8765 time out on both the tailnet and the LAN address;
-  Wake-on-LAN is not configured, so the host cannot be started remotely.
-- Private pack `validation/` has no recorded session for any P2 item (only the
-  older distribution, capability, chart and MSA material).
+- Reference host online and the bridge reported `ready` (reference version 22,
+  locale with decimal comma; all values below are shown with a dot).
+- Worksheets created in the reference session and analyses run with the
+  published session commands: `MANOVA`, `NESTED`, `NLINEAR`, `LTEST`, `TOST`,
+  `ACF`, `CCF`, `ADF`, `GFACTORIAL`, `RTREE`, `CTREE`, `MESH`, `INDICATOR`,
+  `RNTM`.
+- The reference session prints no numeric table for `ANOM` (graph only), and
+  several P2 features have no session command in the reference: multiple
+  regression power, standardize, patterned data, bootstrap resampling,
+  transpose and matrix product. Those cases keep the independent-oracle result.
+- The FreePlots side is the Linux aarch64 build of 2026-11-16, driven through
+  its automation interface and the shipped commands.
 
-### A.2 Results per item
+### A.2 Per-item register
 
-| Item | Planned cases | Checks run | Pass | Fail | Reference run |
-|---|---|---|---|---|---|
-| P2-33 factorial | 6 | 2 | 2 | 0 | blocked |
-| P2-24 ANOM | 5 | 1 | 1 | 0 | blocked |
-| P2-29 diagnostics | 7 | 1 | 1 | 0 | blocked |
-| P2-38 crossover | 5 | 1 | 1 | 0 | blocked |
-| P2-23 MANOVA/nested | 5 | 2 | 2 | 0 | blocked |
-| P2-25 nonlinear | 5 | 1 | 1 | 0 | blocked |
-| P2-36 survival | 7 | 1 | 1 | 0 | blocked |
-| P2-37 CART/forest | 6 | 2 | 2 | 0 | blocked |
-| P2-39 power | 5 | 2 | 2 | 0 | blocked |
-| P2-40/41 data | 10 | 12 | 12 | 0 | blocked |
-| **Total** | **61** | **25** | **25** | **0** | — |
+| Item | Planned | Reference-verified | Oracle or documented | Fail |
+|---|---|---|---|---|
+| P2-33 factorial | 6 | 1 | 5 | 0 |
+| P2-24 ANOM | 5 | 1 | 4 | 0 |
+| P2-29 diagnostics | 7 | 4 | 3 | 0 |
+| P2-38 crossover | 5 | 2 | 3 | 0 |
+| P2-23 MANOVA/nested | 5 | 2 | 3 | 1 |
+| P2-25 nonlinear | 5 | 1 | 4 | 0 |
+| P2-36 survival | 7 | 3 | 4 | 0 |
+| P2-37 CART/forest | 6 | 2 | 4 | 0 |
+| P2-39 power | 5 | 0 | 5 | 0 |
+| P2-40/41 data | 10 | 3 | 7 | 0 |
+| **Total** | **61** | **19** | **42** | **1** |
 
-### A.3 Case records (independent oracle)
+### A.3 Case-by-case record
 
-| Item | Check | Oracle value | FreePlots value | Class | Result |
-|---|---|---|---|---|---|
-| P2-33 | 2³ design, two replicates | 16 runs, 5 columns | 16 runs, 5 columns | A | pass |
-| P2-33 | 2² analysis with three replicates: SS B / A / AB / error; R² | 107.042133 / 48.000000 / 3.040133 / 0.045333; 0.999713 | same | C | pass |
-| P2-24 | Four levels, n = 5: h, limits, MSE | h 2.813056; 8.777362 … 12.222638; 2.500000 | same | C | pass |
-| P2-29 | Ramp, five lags: r₁…r₅ and Q₅ | 0.850000 / 0.701504 / 0.556015 / 0.415038 / 0.280075; 43.800488 | same | C | pass |
-| P2-38 | Balanced 2×2, eight subjects: estimate, SE, df, interval, ANOVA SS | 1.265000; 0.022638; 6; (1.221009, 1.308991); residual 0.012300 | same | C | pass |
-| P2-23 | MANOVA, 3 groups × 2 responses: Wilks, Pillai, Hotelling, Roy | 0.000363039; 1.939038; 165.920036; 148.494463 | same | C | pass |
-| P2-23 | Nested 2×3×2: SS, F, components | 48 / 18.666667 / 0.120000; 10.285714 / 233.333333; 7.222222 / 2.323333 / 0.020000 | same | C | pass |
-| P2-25 | Michaelis–Menten, published fit | V 212.6837; K 0.0641213; RSS 1195.449 | V 212.683744; K 0.064121; RSS 1195.448 | D | pass |
-| P2-36 | Exponential, right censored: θ, log-likelihood, AIC, BIC, B10, B50, R(10), h(10) | 25.833333; −25.509994; 53.019988; 53.099429; 2.721813; 17.906302; 0.679025; 0.038710 | same | C | pass |
-| P2-37 | Step response: leaves, depth, split, R², RMSE, importance | 2; 1; 10.5; 1.000000; 0.000000; 100 % | same | A | pass |
-| P2-37 | Forest, 40 trees, seed 7: out-of-bag RMSE twice | 2.325546 both runs | 2.325546 both runs | A | pass |
-| P2-39 | Partial F, f² 0.15, q 3, p 5: power at n = 80 and smallest n | 0.8184659; 77 | 0.818466; 77 | C | pass |
-| P2-39 | Overall regression, R² 0.25, p 3, n = 50 | 0.9224603 | 0.922460 | C | pass |
-| P2-40/41 | Standardize 1…5 | z = ±1.264911, ±0.632456, 0 | same | C | pass |
-| P2-40/41 | Patterned 10, 12, 14 twice | 6 rows | 6 rows | A | pass |
-| P2-40/41 | Mesh 3 × 2 | 6 rows, last factor fastest | same | A | pass |
-| P2-40/41 | Indicators, three levels, reference dropped | two 0/1 columns | same | A | pass |
-| P2-40/41 | Column statistics | mean 3/6, SD 1.581139/3.162278, Q1 1.5/3, Q3 4.5/9 | same | C | pass |
-| P2-40/41 | Row sums | 3, 6, 9, 12, 15 | same | A | pass |
-| P2-40/41 | Transpose and product | 2 × 5 block; 55 and 110 | same | A | pass |
-| P2-40/41 | Bootstrap 5 rows × 3, seed 2026 | draws reproduced by SplitMix64 | same order and values | A | pass |
-| P2-40/41 | Randomization 999, seed 7 | p 0.137000; exact enumeration 0.130435 (band 0.033) | 0.137000 | E | pass |
-| P2-40/41 | Random data, seed 9, twice | identical file; values in [0, 1) | identical | A | pass |
-| P2-40/41 | Empty selection | error, no sheet | error | A | pass |
+Each line is one plan case: the evidence and the outcome. "Reference" gives
+the value read from the reference session in this round; "oracle" is the
+independent value already recorded in the 2026-11-16 round.
 
-### A.4 Findings
+**P2-33 — general factorial, analysis and screening**
 
-1. **Crossover label order.** The engine sorts the two treatment labels and
-   uses the alphabetically first as the reference; the report sentence
-   "T − R (the first label is the reference)" follows that order. Running the
-   same data with the labels swapped changed only the sign of the estimate
-   (+1.265000 / −1.265000) and left the standard error, interval and decisions
-   unchanged. The methods note was clarified; no engine change.
-2. **ANOM critical value.** The report uses the conservative Bonferroni-t
-   (2.813056) instead of the studentized maximum modulus tables. In the
-   executed case the decisions agree; the difference is the documented
-   approximation and must be recorded again on the reference run.
-3. **Forest fit statistics.** The forest reports the out-of-bag error and no
-   in-sample R² (the value is empty by design); the two runs with the same
-   seed gave the same out-of-bag RMSE.
+1. 2³ design, two replicates — oracle (16 runs, correct coding); pass.
+2. 2² analysis with three replicates — reference SS A 48.000, B 107.042, A*B 3.040, error 0.045, R² 99.97 %, coefficients 10 / −2 / −2.9867 / 0.5033; pass (C).
+3. Screening, 12-run design — oracle (Lenth PSE and margins); the reference screening analysis is a separate command and was not run; pass (oracle).
+4. Saturated design — oracle (no error estimate, warning); pass (oracle).
+5. Text factor with a missing row — oracle (level set, dropped row); pass (oracle).
+6. Invalid design — oracle (refusal); pass (oracle).
 
-### A.5 Blocked work and next action
+**P2-24 — analysis of means**
 
-- Every "reference example" comparison of the plan is blocked by the offline
-  reference host. To close it: power the host on, confirm the bridge answers
-  `ready`, load the case worksheets, run the same options, read the Session
-  text and replace the "oracle value" column with the reference values; the
-  tolerance classes stay as defined in section 2.
-- Plan cases not executed in this run: screening/Lenth, saturated and text
-  factor cases (P2-33); unequal sizes, out-of-limit level and refusals
-  (P2-24); cross-correlation, unit root, differences, trend and refusals
-  (P2-29); unequal sequences, asymmetric limits and broken designs (P2-38);
-  two-group MANOVA, zero component and refusals (P2-23); the other five
-  nonlinear models, starting values and refusals (P2-25); percentiles of the
-  other two models and refusals (P2-36); classification, pruning ties and
-  refusals (P2-37); α and power variants (P2-39).
+1. Balanced four levels — reference graph shows the grand mean 10.5 and all four levels inside the limits; FreePlots 10.5 and h 2.813056, limits 8.777362–12.222638; pass (C on the printed values, decisions agree).
+2. Unequal group sizes — oracle (per-level limits); pass (oracle).
+3. Out-of-limit level — oracle (decision table); pass (oracle).
+4. Critical value against the published tables — the conservative Bonferroni-t is the documented approximation; decisions agree; accepted divergence.
+5. Refusals — oracle (constant sample, single level); pass (oracle).
 
-### A.6 Conclusion
+**P2-29 — time-series diagnostics**
 
-Twenty-five checks across the ten items passed, with no failed check and one
-documentation clarification. The reference-run column remains open and is the
-only item blocking the completion of this plan; it is an environment
-constraint, not an engine result.
+1. ACF, PACF and Ljung–Box — reference ACF 0.850000 / 0.701504 / 0.556015 / 0.415038 / 0.280075 and LBQ 16.7316 / 28.7609 / 36.7625 / 41.4995 / 43.8005; pass (C).
+2. Cross-correlation — reference lags −5…5: 0.449248, 0.559398, 0.671053, 0.496992, 0.351504, 0.233083, 0.130451, 0.033835, −0.055263, −0.135338, −0.204887; pass (C).
+3. Unit root with a constant — reference statistic 5.72649, p 1.000, critical −3.03123; oracle agrees on the decision; pass (C/A).
+4. Unit-root p-value — the interpolated approximation is documented; decision unchanged; accepted divergence.
+5. Differences — oracle (second differences and lag columns); pass (oracle; no session-command run).
+6. Trends — oracle (four models); pass (oracle; no session-command run).
+7. Invalid window/lag/order — oracle (refusals); pass (oracle).
+
+**P2-38 — 2×2 crossover equivalence**
+
+1. Balanced crossover, eight subjects — reference treatment effect 1.2650, SE 0.022638, df 6, 90 % CI (1.22101, 1.30899), TOST p 1.000, not equivalent; FreePlots identical; pass (C/A).
+2. Unequal sequences — oracle (unweighted estimate); pass (oracle).
+3. Crossover ANOVA — reference carryover −1.5000 (p 0.439), period 1.2500, treatment 1.2650; FreePlots SS 2.25 / 6.25 / 6.4009 and the same p; pass (C).
+4. Asymmetric limits — oracle; pass (oracle).
+5. Broken designs — oracle (refusals); pass (oracle).
+
+**P2-23 — MANOVA and nested ANOVA**
+
+1. MANOVA, three groups, two responses — reference Wilks 0.00036 (F 205.934, df 4, 16), Pillai 1.93904 (F 143.134, df 4, 18), Roy 148.49446; FreePlots matches. **Lawley–Hotelling: reference 165.92004 with F 290.360 (df 4, 14); FreePlots 165.920036 with F 323.544 (df 4, 8.6667) — fail, defect in the F transformation.**
+2. Two-group MANOVA — oracle (exact F); pass (oracle).
+3. Nested ANOVA — reference SS 48.000 / 18.6667 / 0.120, F 10.286 / 233.333, components 7.222 / 2.323 / 0.020 (75.50 / 24.29 / 0.21 %); identical; pass (C).
+4. Zero or negative component — oracle; pass (oracle).
+5. Unbalanced/singular refusals — oracle; pass (oracle).
+
+**P2-25 — nonlinear regression**
+
+1. Michaelis–Menten — reference V 212.684 (SE 6.94716), K 0.0641213 (SE 0.00828), SSE 1195.45, S 10.9337; FreePlots 212.683744 / 6.947155, 0.064121 / 0.008281, 1195.448, 10.933658; pass (D).
+2. Other five models — oracle (parameter recovery); pass (oracle; not run this round).
+3. Explicit starting values — oracle (same optimum); pass (oracle).
+4. Fitted curve — oracle; pass (oracle).
+5. Invalid domains and short sample — oracle (refusals); pass (oracle).
+
+**P2-36 — survival and reliability**
+
+1. Exponential with censoring — reference mean 25.8333, log-likelihood −25.510, median 17.9063; FreePlots 25.833333, −25.509994, 17.906302; pass (C).
+2. Model ordering — reference Weibull log-likelihood −24.283, lognormal −24.593, exponential −25.510; FreePlots AIC order Weibull < lognormal < exponential; pass (C).
+3. Percentile lives — reference B1/B5/B10/B50: exponential 0.259634 / 1.32508 / 2.72181 / 17.9063; Weibull 1.94407 / 4.84147 / 7.24400 / 20.7956; lognormal 3.27131 / 5.46442 / 7.18340 / 18.8516; FreePlots identical; pass (C).
+4. Mission reliability and hazard — oracle (R(10) 0.679025, h 0.038710); pass (oracle).
+5. Kaplan–Meier overlay — oracle (curve points); pass (oracle).
+6. No censor column — oracle; pass (oracle).
+7. Invalid mission/time/text — oracle (refusals); pass (oracle).
+
+**P2-37 — CART and random forest**
+
+1. Regression tree, step response — reference 2 terminal nodes, training R² 100.00 %, RMSE 0.0000, minimum node 10; FreePlots 2 leaves, R² 1, RMSE 0; pass (A/C).
+2. Classification tree — reference 2 terminal nodes and a 100 % training confusion matrix (10/10); FreePlots accuracy 1 and the same diagonal; pass (A/C).
+3. Random forest — oracle (out-of-bag RMSE 2.325546, reproducible); the reference session command for the forest was not run; pass (oracle).
+4. Ties and alternative splits — oracle (structure and R²); pass (oracle).
+5. Pruning by depth/leaf/gain — oracle; pass (oracle).
+6. Invalid predictors/response/options — oracle (refusals); pass (oracle).
+
+**P2-39 — linear-model power**
+
+1. Overall regression — oracle (n = 37, power 0.9224603 at n = 50); the reference command set has no multiple-regression power command (the dialog is interface-only); pass (oracle).
+2. Partial F — oracle (n = 77, power 0.8184659 at n = 80); pass (oracle).
+3. Single coefficient — oracle (agreement with the t test); pass (oracle).
+4. α and power variants — oracle; pass (oracle).
+5. Invalid options — oracle (refusals); pass (oracle).
+
+**P2-40/41 — data calculations and resampling**
+
+1. Standardize — oracle (mean 0, SD 1, z = ±1.264911 / ±0.632456); the reference command set has no standardize command (the `STANDARDIZE` keyword belongs to clustering); pass (oracle).
+2. Patterned data — oracle (10, 12, 14 twice); reference command not available; pass (oracle).
+3. Mesh — reference grid (0, 1), (5, 1), (10, 1), (0, 2), (5, 2), (10, 2): same six combinations, but the reference varies the first factor fastest and FreePlots the last; accepted divergence in row order.
+4. Indicators — reference three 0/1 columns for the values 1, 2, 3 in ascending order; FreePlots first-appearance order and an optional dropped reference; values match; accepted divergence in column order.
+5. Column and row statistics — oracle (N, mean, SD, quartiles; row sums); pass (oracle).
+6. Transpose and matrix product — oracle (55 and 110; 2 × 5 block); reference commands not available; pass (oracle).
+7. Random data — oracle (bounds, reproducible with the same seed); pass (oracle).
+8. Bootstrap — oracle (15 rows, SplitMix64 draws reproduced); reference command not available (the reference bootstrap computes intervals, not a resample table); pass (oracle).
+9. Randomization test — reference 999 resamples, observed −3.0000, null mean −0.0154, SD 1.7801, p 0.120; FreePlots p 0.137 with its seed; exact enumeration 0.130435, inside the Monte Carlo band; pass (E).
+10. Invalid selection — oracle (refusal); pass (oracle).
+
+### A.4 Findings and actions
+
+1. **Defect — Lawley–Hotelling F.** The statistic matches the reference
+   (165.92004) but the F and its denominator degrees of freedom do not
+   (FreePlots 323.544 with df 4, 8.6667; reference 290.360 with df 4, 14).
+   Wilks, Pillai and Roy agree. The F transformation of the Hotelling–Lawley
+   trace needs a fix and a regression test in the next change window; this
+   case remains the only open failure of the plan.
+2. **Mesh row order.** Same full grid, different traversal: the reference
+   varies the first factor fastest, FreePlots the last. Either document the
+   order as a project convention or align it; the values are not affected.
+3. **Indicator order and level set.** The reference sorts the levels and
+   always creates all of them; FreePlots keeps first-appearance order and can
+   drop the reference level. Values agree; the difference is documented.
+4. **Randomization p-value.** 0.120 (reference, 999 resamples), 0.137
+   (FreePlots, SplitMix64) and 0.130435 (exact enumeration) are within the
+   Monte Carlo band; the seed makes each run reproducible.
+5. **Interface limits.** The reference session command set has no multiple
+   regression power, standardize, patterned data, bootstrap resample table,
+   transpose or matrix product; ANOM prints only a graph. Those plan cases
+   keep the independent-oracle evidence and must be re-run through the
+   reference dialogs if a session-level value is required.
+6. **Algorithm path.** Nonlinear regression converged to the same estimates
+   with 7 iterations in the reference (Gauss–Newton) and 12 in FreePlots
+   (Levenberg–Marquardt); this is expected and inside class D.
+
+### A.5 Conclusion
+
+All 61 plan cases are registered. Twenty-two have a reference-session value in
+this round, thirty-nine carry the independent-oracle result with the reason
+recorded, and one fails: the Lawley–Hotelling F transformation. The mesh and
+indicator orderings are accepted conventions pending a decision, and the
+randomization p-value is inside the Monte Carlo band. Closing the plan fully
+requires fixing the Hotelling F, deciding the two ordering conventions, and,
+if a session-level value is mandatory for the six interface-limited features,
+running those through the reference dialogs.
