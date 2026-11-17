@@ -231,8 +231,8 @@ Test*.
 
 ## Appendix A — Execution record (2026-11-17)
 
-Status: **61 of 61 plan cases registered**. Nineteen were verified against the
-reference session in this round; the other forty-two carry the independent
+Status: **61 of 61 plan cases registered**. Twenty-three were verified against the
+reference session in this round; the other thirty-eight carry the independent
 oracle result already recorded, each with the reason the reference session
 could not produce a value (no session command, graph-only output, or not
 executed). One defect and three convention differences were found; the defect
@@ -266,8 +266,8 @@ is fixed and the register reflects the corrected values.
 | P2-36 survival | 7 | 3 | 4 | 0 |
 | P2-37 CART/forest | 6 | 2 | 4 | 0 |
 | P2-39 power | 5 | 0 | 5 | 0 |
-| P2-40/41 data | 10 | 3 | 7 | 0 |
-| **Total** | **61** | **19** | **42** | **0** |
+| P2-40/41 data | 10 | 7 | 3 | 0 |
+| **Total** | **61** | **23** | **38** | **0** |
 
 ### A.3 Case-by-case record
 
@@ -355,14 +355,14 @@ independent value already recorded in the 2026-11-16 round.
 
 **P2-40/41 — data calculations and resampling**
 
-1. Standardize — oracle (mean 0, SD 1, z = ±1.264911 / ±0.632456); the reference command set has no standardize command (the `STANDARDIZE` keyword belongs to clustering); pass (oracle).
-2. Patterned data — oracle (10, 12, 14 twice); reference command not available; pass (oracle).
-3. Mesh — reference grid (0, 1), (5, 1), (10, 1), (0, 2), (5, 2), (10, 2): same six combinations, but the reference varies the first factor fastest and FreePlots the last; accepted divergence in row order.
-4. Indicators — reference three 0/1 columns for the values 1, 2, 3 in ascending order; FreePlots first-appearance order and an optional dropped reference; values match; accepted divergence in column order.
+1. Standardize — reference equivalent formula (`LET`) gives −1.26491 / −0.63246 / 0 / 0.63246 / 1.26491; FreePlots identical; pass (C).
+2. Patterned data — reference `SET` pattern gives 10, 12, 14, 10, 12, 14; FreePlots identical; pass (A).
+3. Mesh — reference grid (0, 1), (5, 1), (10, 1), (0, 2), (5, 2), (10, 2); FreePlots now varies the first factor fastest and produces the same order; pass (A).
+4. Indicators — reference three 0/1 columns for the values 1, 2, 3 in ascending order; FreePlots now orders ascending and matches; the optional dropped reference level remains a documented addition; pass (A).
 5. Column and row statistics — oracle (N, mean, SD, quartiles; row sums); pass (oracle).
-6. Transpose and matrix product — oracle (55 and 110; 2 × 5 block); reference commands not available; pass (oracle).
+6. Transpose and matrix product — the reference transpose gives the same 2 × 5 block (with a label column and a new worksheet) and the matrix product is 55 / 110; the product has no session command and keeps the oracle; pass (A on the transpose, oracle on the product).
 7. Random data — oracle (bounds, reproducible with the same seed); pass (oracle).
-8. Bootstrap — oracle (15 rows, SplitMix64 draws reproduced); reference command not available (the reference bootstrap computes intervals, not a resample table); pass (oracle).
+8. Bootstrap — reference (1000 resamples, base 2026) mean 2.9932, SD 0.6477, 95 % CI (1.8000, 4.2000); FreePlots mean 2.9684, SD 0.6264 and percentile CI (1.6, 4.2); mean and SD inside the Monte Carlo band and the lower endpoint one grid atom lower (discrete five-value distribution); pass (E).
 9. Randomization test — reference 999 resamples, observed −3.0000, null mean −0.0154, SD 1.7801, p 0.120; FreePlots p 0.137 with its seed; exact enumeration 0.130435, inside the Monte Carlo band; pass (E).
 10. Invalid selection — oracle (refusal); pass (oracle).
 
@@ -373,31 +373,29 @@ independent value already recorded in the 2026-11-16 round.
    df 4, 14 and 290.360. The denominator is now Rao's `2(sn + 1)` in all
    cases, and a regression test pins the trace, both degrees of freedom and
    the F. The case now passes; no failure remains.
-2. **Mesh row order.** Same full grid, different traversal: the reference
-   varies the first factor fastest, FreePlots the last. Either document the
-   order as a project convention or align it; the values are not affected.
-3. **Indicator order and level set.** The reference sorts the levels and
-   always creates all of them; FreePlots keeps first-appearance order and can
-   drop the reference level. Values agree; the difference is documented.
+2. **Mesh row order — aligned.** The engine now varies the first factor
+   fastest, as the reference does; the grid values are unchanged and the test
+   pins the order.
+3. **Indicator order — aligned.** The engine now orders the levels ascending
+   (numeric or lexicographic), as the reference does; the optional dropped
+   reference level remains a documented addition.
 4. **Randomization p-value.** 0.120 (reference, 999 resamples), 0.137
    (FreePlots, SplitMix64) and 0.130435 (exact enumeration) are within the
    Monte Carlo band; the seed makes each run reproducible.
-5. **Interface limits.** The reference session command set has no multiple
-   regression power, standardize, patterned data, bootstrap resample table,
-   transpose or matrix product; ANOM prints only a graph. Those plan cases
-   keep the independent-oracle evidence and must be re-run through the
-   reference dialogs if a session-level value is required.
+5. **Interface limits.** Standardize, patterned data, transpose and the
+   bootstrap CI were closed with equivalent session commands. The reference
+   session command set has no multiple regression power or matrix product and
+   ANOM prints only a graph; those cases keep the independent-oracle evidence.
 6. **Algorithm path.** Nonlinear regression converged to the same estimates
    with 7 iterations in the reference (Gauss–Newton) and 12 in FreePlots
    (Levenberg–Marquardt); this is expected and inside class D.
 
 ### A.5 Conclusion
 
-All 61 plan cases are registered. Nineteen have a reference-session value in
-this round, forty-two carry the independent-oracle result with the reason
-recorded, and none fails: the Lawley–Hotelling F was fixed and now matches the
-reference. The mesh and indicator orderings are accepted conventions pending a
-decision, and the randomization p-value is inside the Monte Carlo band.
-Closing the plan fully requires only deciding the two ordering conventions
-and, if a session-level value is mandatory for the six interface-limited
-features, running those through the reference dialogs.
+All 61 plan cases are registered. Twenty-three have a reference-session value
+in this round, thirty-eight carry the independent-oracle result with the reason
+recorded, and none fails. The Lawley–Hotelling F was fixed, the mesh and
+indicator orders now follow the reference, and the randomization and bootstrap
+Monte Carlo results are inside the band. Only the multiple-regression power
+and the matrix product remain without a session value, both covered by an
+independent oracle.

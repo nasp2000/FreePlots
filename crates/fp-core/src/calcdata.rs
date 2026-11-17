@@ -442,6 +442,8 @@ pub fn patterned_data(
 
 /// Full-factorial mesh over one to three numeric factors.
 ///
+/// The first factor varies fastest and the last one slowest.
+///
 /// # Errors
 ///
 /// [`Error::Unsupported`] for zero or more than three factors, a repeated or
@@ -485,9 +487,11 @@ pub fn mesh_data(factors: &[MeshFactor]) -> Result<DataFrame> {
     }
     let mut columns = Vec::with_capacity(factors.len());
     for (position, factor) in factors.iter().enumerate() {
-        let stride = factors[position + 1..]
+        // The first factor varies fastest and the last one slowest, which is
+        // the traversal of the published mesh command.
+        let stride = factors[..position]
             .iter()
-            .map(|next| next.levels)
+            .map(|previous| previous.levels)
             .product::<usize>()
             .max(1);
         let values: Vec<f64> = (0..rows)
@@ -503,8 +507,9 @@ pub fn mesh_data(factors: &[MeshFactor]) -> Result<DataFrame> {
 
 /// Appends one 0/1 column per level of a categorical column.
 ///
-/// The levels are ordered by first appearance; `drop_first` omits the first
-/// level, so the remaining columns are independent of the intercept.
+/// The levels are ordered ascending (numerically when the column is numeric,
+/// otherwise lexicographically); `drop_first` omits the first level, so the
+/// remaining columns are independent of the intercept.
 ///
 /// # Errors
 ///
@@ -513,14 +518,20 @@ pub fn mesh_data(factors: &[MeshFactor]) -> Result<DataFrame> {
 /// for a repeated column name.
 pub fn indicator_variables(df: &DataFrame, column: &str, drop_first: bool) -> Result<DataFrame> {
     let source = df.column(column)?;
-    let mut levels: Vec<String> = Vec::new();
+    // Levels are ordered ascending: numerically for a numeric column,
+    // otherwise lexicographically, as the published indicator command does.
+    let mut levels: Vec<(Option<f64>, String)> = Vec::new();
     for row in 0..source.len() {
         if let Some(label) = source.label(row)
-            && !levels.contains(&label)
+            && !levels.iter().any(|(_, existing)| existing == &label)
         {
-            levels.push(label);
+            levels.push((source.value(row), label));
         }
     }
+    levels.sort_by(|left, right| match (left.0, right.0) {
+        (Some(a), Some(b)) => a.total_cmp(&b),
+        _ => left.1.cmp(&right.1),
+    });
     if levels.is_empty() {
         return Err(Error::EmptySample);
     }
@@ -531,7 +542,7 @@ pub fn indicator_variables(df: &DataFrame, column: &str, drop_first: bool) -> Re
     }
     let start = usize::from(drop_first);
     let mut out = df.clone();
-    for level in levels.iter().skip(start) {
+    for (_, level) in levels.iter().skip(start) {
         let values: Vec<f64> = (0..source.len())
             .map(|row| match source.label(row) {
                 Some(label) if label == *level => 1.0,
@@ -1154,8 +1165,8 @@ mod tests {
             .expect("b")
             .numeric(MissingPolicy::Drop)
             .expect("b");
-        assert_eq!(a, vec![0.0, 0.0, 5.0, 5.0, 10.0, 10.0]);
-        assert_eq!(b, vec![1.0, 2.0, 1.0, 2.0, 1.0, 2.0]);
+        assert_eq!(a, vec![0.0, 5.0, 10.0, 0.0, 5.0, 10.0]);
+        assert_eq!(b, vec![1.0, 1.0, 1.0, 2.0, 2.0, 2.0]);
         assert!(mesh_data(&[]).is_err());
         assert!(
             mesh_data(&[
@@ -1217,17 +1228,17 @@ mod tests {
         .expect("frame");
         let out = indicator_variables(&df, "g", true).expect("indicators");
         assert_eq!(out.n_columns(), 3);
-        let a = out.column("g_a").expect("g_a");
+        let b = out.column("g_b").expect("g_b");
         assert_eq!(
-            a.numeric(MissingPolicy::Drop).expect("a"),
-            vec![0.0, 1.0, 0.0, 0.0]
+            b.numeric(MissingPolicy::Drop).expect("b"),
+            vec![1.0, 0.0, 1.0, 0.0]
         );
         let c = out.column("g_c").expect("g_c");
         assert_eq!(
             c.numeric(MissingPolicy::Drop).expect("c"),
             vec![0.0, 0.0, 0.0, 1.0]
         );
-        assert!(out.column("g_b").is_err());
+        assert!(out.column("g_a").is_err());
 
         let full = indicator_variables(&df, "g", false).expect("full");
         assert_eq!(full.n_columns(), 4);

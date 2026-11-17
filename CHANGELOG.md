@@ -219,6 +219,12 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Changed
 
+- Mesh data and indicator variables follow the documented reference order:
+  the mesh varies the first factor fastest (the last one slowest) and the
+  indicator columns are ordered by ascending level instead of first
+  appearance. The values are unchanged; the row and column order now matches
+  the published transformation. Tests and method notes were updated.
+
 - The tests for the label column cover interleaved labels, rows with a missing
   measurement or label, a chart family that does not accept the column and a
   singleton subgroup. Capability adds the pooled grouped estimate, the dropped
