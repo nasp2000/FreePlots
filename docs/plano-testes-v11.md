@@ -419,7 +419,57 @@ Verdict: the Hotelling–Lawley F now agrees with the recorded reference within
 the documented class C tolerance; the only missing piece is a live reference
 re-run, blocked by the offline host.
 
-### A.7 Conclusion
+### A.7 Live UI test (2026-11-18)
+
+**Build and method:** installed Linux aarch64 build from CI run 44344641298
+(public `ec3b41f`, FreePlots 0.1.1), driven headlessly through the MCP
+automation on a 24 × 18 worksheet. The build has no screenshot renderer
+("headless screenshots are not compiled in"), so the evidence is the MCP
+session/status log, stored privately at
+`~/Code/fpwork/private-validation/notes/ui-live-2026-11-18.json`.
+
+**Menu sweep:** the 120 paths of the dialog catalogue were exercised except the
+five native File dialogs (*Open CSV…*, *Open Project…*, *Save CSV As…*,
+*Save Project As…*, *Sample projects…*), which open the operating-system
+picker. Each of the **115** paths opened a window or produced a status/session
+reaction and was closed with Escape: **115/115 pass, 0 failures**.
+
+**Action cases:** 19 menu-driven runs with fields and Run/OK, each checked
+against the report, the status or the plot.
+
+| Case | Evidence | Verdict |
+|---|---|---|
+| 1-Sample t | report "1-Sample t: weight / height" | pass |
+| One-Way ANOVA | report "One-Way ANOVA: weight by batch" | pass |
+| I–MR chart | report "I–MR chart: weight" (OK button) | pass |
+| Capability | report "Capability: weight" (OK button) | pass |
+| Histogram | plot "Histogram: weight" | pass |
+| Scatterplot | plot "Scatterplot: weight vs height" | pass |
+| Calculator | status "Column w2 added" | pass |
+| Power, linear model | report "Linear Model (partial F test)" | pass |
+| MANOVA | report with Hotelling–Lawley 290.360 | pass |
+| ANOM | report "Analysis of Means: weight by batch" | pass |
+| CART | report "CART: weight" | pass |
+| Survival analysis | report "Survival analysis: time" | pass |
+| Autocorrelation | report "Autocorrelation: weight" | pass |
+| General factorial design | status "General factorial design — 8 runs" | pass |
+| 2×2 crossover | report with estimate 1.265 (five columns selected) | pass |
+| Nonlinear regression | report "Nonlinear regression: weight by height" | pass |
+| Nested ANOVA | report "Nested ANOVA: weight" | pass |
+| Data and Calculations, mesh | status "Mesh with 6 row(s)" | pass |
+| Help → Keyboard shortcuts | window opened | pass |
+
+**Observations:** the 2×2 crossover dialog derives its five columns from the
+worksheet order, so a worksheet with the response last needs the five combos
+chosen explicitly (it then runs correctly); the I–MR and capability dialogs
+confirm with *OK*, the others with *Run*. The five native File pickers were
+not driven through the menu; file loading was covered by the MCP open and the
+batch dialog, and the native pickers remain covered by the CI GUI smoke job.
+
+**Verdict:** the menus, the main dialogs and their representative options run
+on the installed build with no failure; no regression was found.
+
+### A.8 Conclusion
 
 All 61 plan cases are registered. Twenty-three have a reference-session value
 in this round, thirty-eight carry the independent-oracle result with the reason
