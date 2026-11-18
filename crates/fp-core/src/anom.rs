@@ -126,6 +126,14 @@ fn validate_alpha(alpha: f64) -> Result<()> {
     Ok(())
 }
 
+/// Chi density with `df` degrees of freedom, used by the SMM integral.
+fn chi_density(value: f64, df: f64) -> f64 {
+    if value <= 0.0 {
+        return 0.0;
+    }
+    chi_square_density(value * value, df) * 2.0 * value
+}
+
 /// Chi-square density with `df` degrees of freedom, used by the SMM integral.
 fn chi_square_density(value: f64, df: f64) -> f64 {
     if value <= 0.0 {
@@ -154,7 +162,7 @@ fn smm_cdf(h: f64, k: usize, df: f64) -> f64 {
         } else {
             4.0
         };
-        total += weight * p.max(0.0).powi(k as i32) * chi_square_density(value, df);
+        total += weight * p.max(0.0).powi(k as i32) * chi_density(value, df);
     }
     (total * step / 3.0).clamp(0.0, 1.0)
 }

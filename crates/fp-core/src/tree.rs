@@ -1309,15 +1309,23 @@ mod tests {
 
     #[test]
     fn the_cart_cross_validation_reports_the_held_out_fit() {
-        let df = step_frame();
+        // A wide gap between the two levels keeps every fold's split
+        // unambiguous, so the held-out fit must be exact.
+        let mut x = Vec::new();
+        let mut y = Vec::new();
+        for value in [1.0, 2.0, 3.0, 4.0, 5.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0] {
+            x.push(value);
+            y.push(if value < 10.0 { 10.0 } else { 20.0 });
+        }
+        let df = frame(vec![Column::new_f64("x", x), Column::new_f64("y", y)]);
         let forest = fit(
             &df,
             "y",
-            &["x1".to_owned(), "x2".to_owned()],
+            &["x".to_owned()],
             TreeMode::Cart,
             TreeOptions {
-                min_leaf: 5,
-                max_depth: 4,
+                min_leaf: 2,
+                max_depth: 3,
                 folds: 3,
                 ..TreeOptions::default()
             },
@@ -1331,7 +1339,7 @@ mod tests {
             fit(
                 &df,
                 "y",
-                &["x1".to_owned()],
+                &["x".to_owned()],
                 TreeMode::Forest,
                 TreeOptions {
                     folds: 3,
