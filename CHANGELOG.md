@@ -6,6 +6,8 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-18
+
 ### Added
 
 - Calc has a *Data and Calculations…* entry: standardize columns
