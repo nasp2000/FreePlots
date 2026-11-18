@@ -251,7 +251,13 @@ is fixed and the register reflects the corrected values.
   regression power, standardize, patterned data, bootstrap resampling,
   transpose and matrix product. Those cases keep the independent-oracle result.
 - The FreePlots side is the Linux aarch64 build of 2026-11-16, driven through
-  its automation interface and the shipped commands.
+  its automation interface and the shipped commands; the post-fix check in A.6
+  used the CI build of run 44344641298 (2026-11-18).
+- On 2026-11-18 the reference host was offline (`tailscale status` reported
+  "offline, last seen 11h ago"; TCP 22 and 8765 timed out; SSH returned
+  "Connection timed out"). The reference re-run is therefore blocked; A.6
+  compares the fresh FreePlots run with the reference values recorded on
+  2026-11-17 and does not invent new reference numbers.
 
 ### A.2 Per-item register
 
@@ -312,7 +318,7 @@ independent value already recorded in the 2026-11-16 round.
 
 **P2-23 — MANOVA and nested ANOVA**
 
-1. MANOVA, three groups, two responses — reference Wilks 0.00036 (F 205.934, df 4, 16), Pillai 1.93904 (F 143.134, df 4, 18), Roy 148.49446; FreePlots matches. Lawley–Hotelling: reference 165.92004 with F 290.360 (df 4, 14); FreePlots now gives the same F and degrees of freedom after the fix (the old denominator was 8.6667) — pass (C).
+1. MANOVA, three groups, two responses — reference Wilks 0.00036 (F 205.934, df 4, 16), Pillai 1.93904 (F 143.134, df 4, 18), Roy 148.49446; FreePlots matches. Lawley–Hotelling: reference 165.92004 with F 290.360 (df 4, 14); the post-fix FreePlots build gives 165.920036 with F 290.360063 (df 4, 14) — pass (C). The fresh run and the reference re-run status are in A.6.
 2. Two-group MANOVA — oracle (exact F); pass (oracle).
 3. Nested ANOVA — reference SS 48.000 / 18.6667 / 0.120, F 10.286 / 233.333, components 7.222 / 2.323 / 0.020 (75.50 / 24.29 / 0.21 %); identical; pass (C).
 4. Zero or negative component — oracle; pass (oracle).
@@ -390,7 +396,30 @@ independent value already recorded in the 2026-11-16 round.
    with 7 iterations in the reference (Gauss–Newton) and 12 in FreePlots
    (Levenberg–Marquardt); this is expected and inside class D.
 
-### A.5 Conclusion
+### A.6 Post-fix MANOVA re-check (2026-11-18)
+
+A fresh Linux aarch64 build from CI run 44344641298 (public `ec3b41f`, which
+contains the Rao fix) was driven through the MANOVA dialog on the same data:
+
+| Statistic | Reference (2026-11-17) | FreePlots post-fix (2026-11-18) | Verdict |
+|---|---|---|---|
+| Wilks' lambda | 0.00036, F 205.934, df 4, 16 | 0.000363, F 205.934127, df 4, 16 | matches |
+| Pillai's trace | 1.93904, F 143.134, df 4, 18 | 1.939038, F 143.133901, df 4, 18 | matches |
+| Lawley–Hotelling | 165.92004, F 290.360, df 4, 14 | 165.920036, F 290.360063, df 4, 14 | **matches** (1e−6, class C) |
+| Roy's greatest root | 148.49446 | 148.494463 | matches |
+
+The reference re-run itself is **blocked**: `tailscale status` reported the
+workstation offline (last seen 11 h), `nc` to ports 22 and 8765 timed out and
+`ssh` returned "Connection timed out" on 2026-11-18. No reference number was
+re-generated in this round; the reference column is the value recorded on
+2026-11-17. The post-fix FreePlots values are the ones the application printed,
+and the same case is pinned by `the_hotelling_f_uses_the_rao_denominator`.
+
+Verdict: the Hotelling–Lawley F now agrees with the recorded reference within
+the documented class C tolerance; the only missing piece is a live reference
+re-run, blocked by the offline host.
+
+### A.7 Conclusion
 
 All 61 plan cases are registered. Twenty-three have a reference-session value
 in this round, thirty-eight carry the independent-oracle result with the reason
