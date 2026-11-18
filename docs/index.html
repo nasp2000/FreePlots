@@ -20,8 +20,8 @@
     </a>
     <nav aria-label="Sections">
       <a href="#demos">Demos</a>
+      <a href="#why">Why</a>
       <a href="#features">Features</a>
-      <a href="#analyses">Analyses</a>
     </nav>
     <a class="btn primary sm" href="#download">Download</a>
   </div>
@@ -78,47 +78,73 @@
     </div>
   </section>
 
-  <section id="features" class="band alt">
+  <section id="why" class="band alt">
     <div class="wrap">
-      <h2>Worksheet, analyses, report.</h2>
-      <ul class="ledger feats">
-        <li><h3>An editable worksheet</h3><p>Paste or import CSV, Excel and FreePlots projects. Sort, subset, format columns, rename columns and undo. Dates stay dates, missing values stay missing.</p></li>
-        <li><h3>Quality and process tools</h3><p>Capability with normal and non-normal fits, gauge R&amp;R, linearity, attribute agreement, Pareto, tolerance intervals and distribution comparison.</p></li>
-        <li><h3>Control charts</h3><p>I-MR, X-bar and R, X-bar and S, EWMA, CUSUM, P, NP, C, U and G charts, with the tests for special causes and the signals listed in the report.</p></li>
-        <li><h3>Design of experiments</h3><p>Two-level factorials, Plackett-Burman, Box-Behnken and central composite designs, with factorial, response-surface and Taguchi analyses and a response optimizer.</p></li>
-        <li><h3>Reports you can hand over</h3><p>Every analysis writes a typed report to the Session. Export the Session as PDF or HTML, or copy the graph as SVG, PNG or JPEG.</p></li>
-        <li><h3>Small and portable</h3><p>One executable, no installer and no administrator rights. No account, no telemetry and no network access. Settings live next to the program.</p></li>
+      <h2>Why FreePlots?</h2>
+      <p class="standfirst">Free, open source, portable and designed to keep your data under your control.</p>
+      <ul class="ledger">
+        <li><h3>Built with Rust</h3><p>Fast native code in one executable, with no runtime to install.</p></li>
+        <li><h3>MIT License</h3><p>Open source with a permissive licence: use it, study it and build on it.</p></li>
+        <li><h3>No telemetry</h3><p>The application does not collect or send usage data.</p></li>
+        <li><h3>Portable application</h3><p>One file, no installer and no administrator rights.</p></li>
+        <li><h3>No subscription</h3><p>No account, no recurring fee and no paid tier.</p></li>
+        <li><h3>Offline</h3><p>Every analysis runs on your machine; no network connection is required.</p></li>
       </ul>
     </div>
   </section>
 
-  <section id="analyses" class="band">
+  <section id="features" class="band">
     <div class="wrap">
-      <h2>What is inside today.</h2>
-      <div class="cols">
+      <h2>Explore the features.</h2>
+      <p class="standfirst">Statistical analysis, quality engineering, design of experiments and statistical graphics. Every item below is in version 0.1.2.</p>
+      <div class="areas">
         <div>
-          <h3>Statistics</h3>
+          <h3>Statistical Analysis</h3>
           <ul>
             <li>Descriptive statistics, by group</li>
-            <li>Probability plots: 10 distributions</li>
-            <li>Anderson-Darling, Kolmogorov-Smirnov, Ryan-Joiner, D’Agostino-Pearson normality tests</li>
-            <li>t tests, equivalence, proportions and variances</li>
-            <li>Mann-Whitney, Wilcoxon, Kruskal-Wallis, Friedman, Mood, sign tests</li>
-            <li>Correlation, partial correlation, chi-square, Grubbs, tolerance intervals, Box-Cox</li>
+            <li>Hypothesis tests: t, equivalence, proportions, variances and non-parametric</li>
+            <li>ANOVA: one-way, two-way, general linear model, MANOVA and nested</li>
+            <li>Regression: multiple, stepwise, logistic, ordinal, Poisson, nonlinear, CART and random forests</li>
+            <li>PCA, k-means and reliability analysis</li>
+            <li>Time series: ARIMA, decomposition, smoothing and diagnostics</li>
           </ul>
         </div>
         <div>
-          <h3>Modelling</h3>
+          <h3>Quality Engineering</h3>
           <ul>
-            <li>Regression: multiple, stepwise, ordinal, Poisson, binary logistic</li>
-            <li>ANOVA: one-way, two-way, equal-variance tests</li>
-            <li>PCA, k-means, Hotelling T-squared</li>
-            <li>Moving average, decomposition, Holt-Winters</li>
-            <li>Reliability: ALT, step-stress, Kaplan-Meier, censored fits</li>
-            <li>Curve fitting and distribution comparison</li>
+            <li>Process capability, normal and non-normal</li>
+            <li>Capability sixpack and attribute capability</li>
+            <li>Gauge R&amp;R, linearity, Gage Type 1 and attribute agreement</li>
+            <li>Pareto analysis</li>
+            <li>Tolerance intervals</li>
+            <li>Distribution identification across fourteen distributions</li>
+            <li>Acceptance sampling, variables and attributes</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Design of Experiments</h3>
+          <ul>
+            <li>Full and fractional factorial designs</li>
+            <li>Plackett-Burman designs</li>
+            <li>Box-Behnken designs</li>
+            <li>Response surface methodology</li>
+            <li>Optimal, mixture and Taguchi designs</li>
+            <li>Factorial plots and response optimizer</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Statistical Graphics</h3>
+          <ul>
+            <li>Normal probability plots and probability distribution plots</li>
+            <li>Scatterplots, correlograms and interval plots</li>
+            <li>Histograms, boxplots, ECDF, dotplots and matrix plots</li>
+            <li>Control charts: I-MR, X-bar and R, X-bar and S, EWMA, CUSUM, P, NP, C, U and G</li>
+            <li>Run, acceptance and T charts</li>
+            <li>Multivariate T-squared, generalized variance and MEWMA charts</li>
           </ul>
         </div>
       </div>
+      <p class="note">Every item above is implemented in the published version. Planned analyses are not listed.</p>
     </div>
   </section>
 
