@@ -2186,10 +2186,25 @@ impl FreePlotsApp {
                 }
             }
             DataTask::Bootstrap => {
-                match fp_core::calcdata::bootstrap(&df, &columns, self.data_reps, self.data_seed) {
-                    Ok(out) => {
+                match fp_core::calcdata::bootstrap_intervals(
+                    &df,
+                    &columns,
+                    self.data_reps,
+                    self.data_seed,
+                    0.95,
+                ) {
+                    Ok((out, intervals)) => {
                         let rows = out.n_rows();
                         self.set_data(out, "Bootstrap samples".to_owned());
+                        let mut note =
+                            String::from("Bootstrap percentile intervals (95 % of the mean):\n");
+                        for interval in &intervals {
+                            note.push_str(&format!(
+                                "  {} mean {:.6}, interval ({:.6}, {:.6})\n",
+                                interval.column, interval.mean, interval.lower, interval.upper
+                            ));
+                        }
+                        self.append_session(&note);
                         done(self, format!("Bootstrap table with {rows} row(s)"));
                     }
                     Err(error) => self.set_error(error.to_string()),
@@ -2582,7 +2597,8 @@ impl FreePlotsApp {
                             });
                             ui.small(self.catalog().label(
                                 "Each resample copies the whole rows with replacement; the table \
-                                 has a Sample column and every selected column.",
+                                 has a Sample column and every selected column, and the Session \
+                                 receives the percentile interval of the mean.",
                             ));
                         }
                         DataTask::Randomization => {

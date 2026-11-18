@@ -217,6 +217,15 @@ All notable changes to FreePlots are recorded here. The format follows
   test pins the trace, both degrees of freedom and the F.
 - The MANOVA regression tests cover the case that exposed the denominator.
 
+- CART has an optional k-fold cross-validation (*Validation folds:* in the
+  dialog): the report adds the held-out R² and RMSE (or accuracy) beside the
+  in-sample fit. The random forest keeps its out-of-bag error.
+- The 2×2 crossover equivalence dialog has a *Reference:* choice (automatic
+  or one of the treatment labels); the estimate and the interval are always
+  test − reference.
+- The bootstrap task reports the percentile interval of the mean in the
+  Session beside the resample table.
+
 ### Changed
 
 - Mesh data and indicator variables follow the documented reference order:
@@ -226,6 +235,10 @@ All notable changes to FreePlots are recorded here. The format follows
   the published transformation. Tests and method notes were updated, and the
   mesh factor fields now carry a label per factor so every control is reachable
   by the accessibility layer and by the automation helpers.
+- ANOM uses the studentized maximum modulus quantile for the decision limits
+  instead of the conservative Bonferroni-t value; the critical value is
+  computed by numerical integration of its distribution. The published
+  ANOM-specific tables can differ in the last digits.
 
 - The tests for the label column cover interleaved labels, rows with a missing
   measurement or label, a chart family that does not accept the column and a

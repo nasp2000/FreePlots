@@ -579,7 +579,7 @@ fn label(column: &Column, row: usize) -> Option<String> {
 /// per sequence and [`Error::ConstantSample`] when the differences carry no
 /// variance.
 #[allow(clippy::too_many_arguments)]
-pub fn crossover_fit(
+pub fn crossover_fit_with_reference(
     df: &DataFrame,
     response: &str,
     subject: &str,
@@ -589,6 +589,7 @@ pub fn crossover_fit(
     lower: f64,
     upper: f64,
     confidence: f64,
+    reference: Option<&str>,
 ) -> Result<CrossoverFit> {
     validate_confidence(confidence)?;
     if !lower.is_finite() || !upper.is_finite() || lower >= upper {
@@ -676,8 +677,26 @@ pub fn crossover_fit(
             "a 2×2 crossover needs exactly two sequence labels".to_owned(),
         ));
     }
-    let reference = treatments[0].clone();
-    let test = treatments[1].clone();
+    let (reference, test) = match reference {
+        Some(chosen) => {
+            let reference = treatments
+                .iter()
+                .find(|label| label.as_str() == chosen)
+                .cloned()
+                .ok_or_else(|| {
+                    Error::Unsupported(format!(
+                        "the reference treatment {chosen} is not in the data"
+                    ))
+                })?;
+            let test = treatments
+                .iter()
+                .find(|label| **label != reference)
+                .cloned()
+                .unwrap_or_default();
+            (reference, test)
+        }
+        None => (treatments[0].clone(), treatments[1].clone()),
+    };
 
     let mut subjects: Vec<CrossoverSubject> = Vec::with_capacity(by_subject.len());
     let mut orders: Vec<Option<(String, String)>> = vec![None; sequences.len()];
@@ -947,11 +966,35 @@ pub fn crossover_fit(
     })
 }
 
-/// Builds the report of the 2×2 crossover equivalence test.
+/// Fits a 2×2 crossover with the alphabetically first treatment as the
+/// reference.
 ///
 /// # Errors
 ///
-/// The errors of [`crossover_fit`].
+/// The errors of [`crossover_fit_with_reference`].
+#[allow(clippy::too_many_arguments)]
+pub fn crossover_fit(
+    df: &DataFrame,
+    response: &str,
+    subject: &str,
+    sequence: &str,
+    period: &str,
+    treatment: &str,
+    lower: f64,
+    upper: f64,
+    confidence: f64,
+) -> Result<CrossoverFit> {
+    crossover_fit_with_reference(
+        df, response, subject, sequence, period, treatment, lower, upper, confidence, None,
+    )
+}
+
+/// Builds the report of the 2×2 crossover with the alphabetically first
+/// treatment as the reference.
+///
+/// # Errors
+///
+/// The errors of [`crossover_fit_with_reference`].
 #[allow(clippy::too_many_arguments)]
 pub fn crossover(
     df: &DataFrame,
@@ -964,8 +1007,32 @@ pub fn crossover(
     upper: f64,
     confidence: f64,
 ) -> Result<AnalysisResult> {
-    let fit = crossover_fit(
-        df, response, subject, sequence, period, treatment, lower, upper, confidence,
+    crossover_with_reference(
+        df, response, subject, sequence, period, treatment, lower, upper, confidence, None,
+    )
+}
+
+/// Builds the report of the 2×2 crossover equivalence test with an explicit
+/// reference treatment.
+///
+/// # Errors
+///
+/// The errors of [`crossover_fit_with_reference`].
+#[allow(clippy::too_many_arguments)]
+pub fn crossover_with_reference(
+    df: &DataFrame,
+    response: &str,
+    subject: &str,
+    sequence: &str,
+    period: &str,
+    treatment: &str,
+    lower: f64,
+    upper: f64,
+    confidence: f64,
+    reference: Option<&str>,
+) -> Result<AnalysisResult> {
+    let fit = crossover_fit_with_reference(
+        df, response, subject, sequence, period, treatment, lower, upper, confidence, reference,
     )?;
     let mut result = base_result(
         format!("2×2 Crossover Equivalence — response {response}"),
@@ -998,7 +1065,7 @@ pub fn crossover(
         }
     }
     result.extra.push(Item::Message(format!(
-        "Treatment difference: {} − {} (the first label is the reference)",
+        "Treatment difference: {} − {} (test − reference)",
         fit.test, fit.reference
     )));
     result.extra.push(Item::Table {
@@ -1337,6 +1404,56 @@ mod tests {
         assert!(text.contains("2×2 Crossover Equivalence"), "{text}");
         assert!(text.contains("equivalent"), "{text}");
         assert!(text.contains("Subject(Sequence)"), "{text}");
+    }
+
+    #[test]
+    fn the_crossover_reference_can_be_chosen() {
+        let df = balanced_crossover();
+        let auto = crossover_fit(
+            &df,
+            "y",
+            "subject",
+            "sequence",
+            "period",
+            "treatment",
+            -0.5,
+            0.5,
+            0.95,
+        )
+        .expect("automatic");
+        assert_eq!(auto.reference, "R");
+        let chosen = crossover_fit_with_reference(
+            &df,
+            "y",
+            "subject",
+            "sequence",
+            "period",
+            "treatment",
+            -0.5,
+            0.5,
+            0.95,
+            Some("T"),
+        )
+        .expect("chosen");
+        assert_eq!(chosen.reference, "T");
+        assert_eq!(chosen.test, "R");
+        assert!((chosen.estimate + auto.estimate).abs() < 1e-12);
+        assert!((chosen.standard_error - auto.standard_error).abs() < 1e-12);
+        assert!(
+            crossover_fit_with_reference(
+                &df,
+                "y",
+                "subject",
+                "sequence",
+                "period",
+                "treatment",
+                -0.5,
+                0.5,
+                0.95,
+                Some("X"),
+            )
+            .is_err()
+        );
     }
 
     #[test]

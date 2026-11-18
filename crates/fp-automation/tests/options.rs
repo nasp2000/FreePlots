@@ -4347,6 +4347,19 @@ fn the_crossover_equivalence_dialog_reports_the_decision() {
     assert!(session.contains("Sequence (carryover)"), "{session}");
     assert!(session.contains("equivalent"), "{session}");
     assert!(ui.status().contains("2x2 crossover"), "{}", ui.status());
+
+    // The reference treatment can be chosen explicitly.
+    open(
+        &mut ui,
+        &["Stat", "Basic Statistics", "2×2 Crossover Equivalence…"],
+    );
+    ui.select("Reference:", "T").expect("reference");
+    ui.click("Run").expect("run");
+    assert!(
+        ui.session().contains("Treatment difference: R − T"),
+        "{}",
+        ui.session()
+    );
 }
 
 #[test]

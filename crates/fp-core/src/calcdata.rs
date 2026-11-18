@@ -143,6 +143,21 @@ pub struct ColumnSummary {
     pub max: f64,
 }
 
+/// Percentile bootstrap interval of the mean of one column.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BootstrapInterval {
+    /// Column name.
+    pub column: String,
+    /// Mean of the original sample.
+    pub mean: f64,
+    /// Lower percentile of the resampled means.
+    pub lower: f64,
+    /// Upper percentile of the resampled means.
+    pub upper: f64,
+    /// Confidence level of the interval.
+    pub confidence: f64,
+}
+
 /// Result of the two-sample randomization test.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RandomizationResult {
@@ -693,6 +708,86 @@ pub fn bootstrap(df: &DataFrame, columns: &[String], reps: usize, seed: u64) -> 
         )?);
     }
     DataFrame::new(out)
+}
+
+/// Percentile interval of the mean from the bootstrap table.
+///
+/// The table is the long output of [`bootstrap`]: `reps` blocks of `n` rows.
+/// The interval is the `(1 − confidence)/2` and `(1 + confidence)/2`
+/// percentiles of the resampled means.
+///
+/// # Errors
+///
+/// The errors of [`bootstrap`], [`Error::InvalidParameter`] for a confidence
+/// outside `(0, 1)` and [`Error::Unsupported`] for an empty selection.
+pub fn bootstrap_intervals(
+    df: &DataFrame,
+    columns: &[String],
+    reps: usize,
+    seed: u64,
+    confidence: f64,
+) -> Result<(DataFrame, Vec<BootstrapInterval>)> {
+    if !confidence.is_finite() || !(0.0..1.0).contains(&confidence) {
+        return Err(Error::InvalidParameter {
+            name: "confidence",
+            value: confidence,
+        });
+    }
+    let table = bootstrap(df, columns, reps, seed)?;
+    let n = df.n_rows();
+    let mut intervals = Vec::with_capacity(columns.len());
+    for name in columns {
+        let source = df.column(name)?;
+        let mean = source.sample(MissingPolicy::Drop)?.mean()?;
+        let column = table.column(name)?;
+        let mut means = Vec::with_capacity(reps);
+        for sample in 0..reps {
+            let start = sample * n;
+            let values: Vec<f64> = (start..start + n)
+                .filter_map(|row| {
+                    if column.is_missing(row) {
+                        None
+                    } else {
+                        column.value(row)
+                    }
+                })
+                .collect();
+            if !values.is_empty() {
+                means.push(values.iter().sum::<f64>() / values.len() as f64);
+            }
+        }
+        means.sort_by(f64::total_cmp);
+        let lower = percentile(&means, 0.5 * (1.0 - confidence));
+        let upper = percentile(&means, 0.5 * (1.0 + confidence));
+        intervals.push(BootstrapInterval {
+            column: name.clone(),
+            mean,
+            lower,
+            upper,
+            confidence,
+        });
+    }
+    Ok((table, intervals))
+}
+
+/// Linear interpolation between the ordered values with `h = (n + 1)p`.
+fn percentile(sorted: &[f64], p: f64) -> f64 {
+    if sorted.is_empty() {
+        return f64::NAN;
+    }
+    if sorted.len() == 1 {
+        return sorted[0];
+    }
+    let position = p.clamp(0.0, 1.0) * (sorted.len() + 1) as f64;
+    if position <= 1.0 {
+        return sorted[0];
+    }
+    if position >= sorted.len() as f64 {
+        return sorted[sorted.len() - 1];
+    }
+    let lower = position.floor() as usize;
+    let weight = position - lower as f64;
+    sorted[lower - 1] * (1.0 - weight) + sorted[lower] * weight
 }
 
 /// Two-sample randomization test of the difference in means.
@@ -1324,6 +1419,24 @@ mod tests {
         let text =
             DataFrame::new(vec![Column::new_text("g", vec!["a".to_owned(); 5])]).expect("frame");
         assert!(bootstrap(&text, &["g".to_owned()], 2, 1).is_err());
+    }
+
+    #[test]
+    fn the_bootstrap_interval_brackets_the_mean() {
+        let df = frame();
+        let (table, intervals) =
+            bootstrap_intervals(&df, &["x".to_owned()], 200, 2026, 0.95).expect("bootstrap");
+        assert_eq!(table.n_rows(), 1000);
+        let interval = &intervals[0];
+        assert!((interval.mean - 3.0).abs() < 1e-12, "{}", interval.mean);
+        assert!(interval.lower < 3.0, "{}", interval.lower);
+        assert!(interval.upper > 3.0, "{}", interval.upper);
+        assert!(interval.lower >= 1.0 && interval.upper <= 5.0);
+        let again =
+            bootstrap_intervals(&df, &["x".to_owned()], 200, 2026, 0.95).expect("bootstrap");
+        assert_eq!(intervals, again.1);
+        assert!(bootstrap_intervals(&df, &[], 10, 1, 0.95).is_err());
+        assert!(bootstrap_intervals(&df, &["x".to_owned()], 10, 1, 1.5).is_err());
     }
 
     #[test]

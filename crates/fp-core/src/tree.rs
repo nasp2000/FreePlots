@@ -57,6 +57,8 @@ pub struct TreeOptions {
     pub trees: usize,
     /// Seed of the random generator.
     pub seed: u64,
+    /// Folds of the CART cross-validation (`0` disables it).
+    pub folds: usize,
 }
 
 impl Default for TreeOptions {
@@ -66,6 +68,7 @@ impl Default for TreeOptions {
             min_leaf: 5,
             trees: 100,
             seed: 2026,
+            folds: 0,
         }
     }
 }
@@ -132,6 +135,12 @@ pub struct TreeFit {
     pub n: usize,
     /// Rows excluded for a missing value.
     pub excluded: usize,
+    /// Cross-validated coefficient of determination (regression, CART only).
+    pub cv_r_squared: f64,
+    /// Cross-validated root mean square error (regression, CART only).
+    pub cv_rmse: f64,
+    /// Cross-validated accuracy (classification, CART only).
+    pub cv_accuracy: f64,
 }
 
 fn value(column: &Column, row: usize) -> Option<f64> {
@@ -566,6 +575,75 @@ fn confusion_matrix(actual: &[usize], predicted: &[usize], classes: usize) -> Ve
     matrix
 }
 
+/// Cross-validated fit statistics of a CART tree.
+fn cross_validate(data: &Training, options: &TreeOptions) -> (f64, f64, f64) {
+    let folds = options.folds;
+    let mut rng = SplitMix64::new(options.seed ^ 0xA5A5_5A5A_1234_5678);
+    let mut order: Vec<usize> = (0..data.n).collect();
+    for position in (1..data.n).rev() {
+        let swap = (rng.next_u64() % (position as u64 + 1)) as usize;
+        order.swap(position, swap);
+    }
+    let fold_size = data.n.div_ceil(folds);
+    let predictors = data.x.first().map_or(0, Vec::len);
+    let mut predictions: Vec<(usize, f64)> = Vec::new();
+    for fold in 0..folds {
+        let start = fold * fold_size;
+        let end = ((fold + 1) * fold_size).min(data.n);
+        if start >= end {
+            continue;
+        }
+        let test = &order[start..end];
+        let mut in_test = vec![false; data.n];
+        for &row in test {
+            in_test[row] = true;
+        }
+        let train_rows: Vec<usize> = (0..data.n).filter(|row| !in_test[*row]).collect();
+        if train_rows.len() < 2 {
+            continue;
+        }
+        let train = Training {
+            x: train_rows.iter().map(|row| data.x[*row].clone()).collect(),
+            y: train_rows.iter().map(|row| data.y[*row]).collect(),
+            class: train_rows.iter().map(|row| data.class[*row]).collect(),
+            classes: data.classes.clone(),
+            classification: data.classification,
+            n: train_rows.len(),
+        };
+        let (nodes, _) = grow(&train, options, None, predictors);
+        for &row in test {
+            predictions.push((row, predict(&nodes, &data.x[row])));
+        }
+    }
+    if predictions.is_empty() {
+        return (f64::NAN, f64::NAN, f64::NAN);
+    }
+    if data.classification {
+        let correct = predictions
+            .iter()
+            .filter(|(row, found)| found.round() as usize == data.class[*row])
+            .count();
+        (
+            f64::NAN,
+            f64::NAN,
+            correct as f64 / predictions.len() as f64,
+        )
+    } else {
+        let mean =
+            predictions.iter().map(|(row, _)| data.y[*row]).sum::<f64>() / predictions.len() as f64;
+        let sse: f64 = predictions
+            .iter()
+            .map(|(row, found)| (data.y[*row] - found).powi(2))
+            .sum();
+        let sst: f64 = predictions
+            .iter()
+            .map(|(row, _)| (data.y[*row] - mean).powi(2))
+            .sum();
+        let r_squared = if sst > 0.0 { 1.0 - sse / sst } else { f64::NAN };
+        (r_squared, (sse / predictions.len() as f64).sqrt(), f64::NAN)
+    }
+}
+
 /// Fits the CART tree or the random forest.
 ///
 /// # Errors
@@ -600,6 +678,19 @@ pub fn fit(
             name: "number of trees",
             value: options.trees as f64,
         });
+    }
+    if options.folds == 1 || options.folds > 10 {
+        return Err(Error::InvalidParameter {
+            name: "cross-validation folds",
+            value: options.folds as f64,
+        });
+    }
+    if mode == TreeMode::Forest && options.folds >= 2 {
+        return Err(Error::Unsupported(
+            "cross-validation folds apply to CART; the random forest reports the out-of-bag \
+             error"
+                .to_owned(),
+        ));
     }
     let (data, excluded) = prepare(df, response, predictors)?;
     if data.n < 2 * options.min_leaf {
@@ -639,6 +730,9 @@ pub fn fit(
         depth: 0,
         n: data.n,
         excluded,
+        cv_r_squared: f64::NAN,
+        cv_rmse: f64::NAN,
+        cv_accuracy: f64::NAN,
     };
 
     if mode == TreeMode::Cart {
@@ -683,6 +777,12 @@ pub fn fit(
         }
         fit.nodes = nodes;
         fit.importance = normalize(predictors, &importance);
+        if options.folds >= 2 {
+            let (cv_r_squared, cv_rmse, cv_accuracy) = cross_validate(&data, &options);
+            fit.cv_r_squared = cv_r_squared;
+            fit.cv_rmse = cv_rmse;
+            fit.cv_accuracy = cv_accuracy;
+        }
         return Ok(fit);
     }
 
@@ -848,9 +948,16 @@ pub fn analyze(
         if let Some(error) = fit.oob_error {
             statistics.push(("Out-of-bag error", error));
         }
+        if fit.cv_accuracy.is_finite() {
+            statistics.push(("CV accuracy", fit.cv_accuracy));
+        }
     } else {
         statistics.push(("R²", fit.r_squared));
         statistics.push(("RMSE", fit.rmse));
+        if fit.cv_r_squared.is_finite() {
+            statistics.push(("CV R²", fit.cv_r_squared));
+            statistics.push(("CV RMSE", fit.cv_rmse));
+        }
         if let Some(error) = fit.oob_error {
             statistics.push(("Out-of-bag RMSE", error));
         }
@@ -935,6 +1042,19 @@ pub fn analyze(
             "pre-pruning by the maximum depth, the minimum leaf and a minimum gain; there is no \
              cost-complexity pruning"
                 .to_owned(),
+        ),
+        (
+            "Validation".to_owned(),
+            if options.folds >= 2 {
+                format!(
+                    "the tree is validated by {}-fold cross-validation; the forest reports the \
+                     out-of-bag error",
+                    options.folds
+                )
+            } else {
+                "the tree reports the in-sample fit; the forest reports the out-of-bag error"
+                    .to_owned()
+            },
         ),
         (
             "Forest".to_owned(),
@@ -1188,6 +1308,41 @@ mod tests {
     }
 
     #[test]
+    fn the_cart_cross_validation_reports_the_held_out_fit() {
+        let df = step_frame();
+        let forest = fit(
+            &df,
+            "y",
+            &["x1".to_owned(), "x2".to_owned()],
+            TreeMode::Cart,
+            TreeOptions {
+                min_leaf: 5,
+                max_depth: 4,
+                folds: 3,
+                ..TreeOptions::default()
+            },
+        )
+        .expect("cross-validated tree");
+        assert!(forest.cv_r_squared > 0.99, "{}", forest.cv_r_squared);
+        assert!(forest.cv_rmse < 1e-9, "{}", forest.cv_rmse);
+        assert!(forest.cv_accuracy.is_nan());
+        // The forest has the out-of-bag error instead.
+        assert!(
+            fit(
+                &df,
+                "y",
+                &["x1".to_owned()],
+                TreeMode::Forest,
+                TreeOptions {
+                    folds: 3,
+                    ..TreeOptions::default()
+                }
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn the_trees_reject_invalid_requests() {
         let df = step_frame();
         assert!(
@@ -1277,6 +1432,19 @@ mod tests {
                 TreeMode::Cart,
                 TreeOptions {
                     min_leaf: 500,
+                    ..TreeOptions::default()
+                }
+            )
+            .is_err()
+        );
+        assert!(
+            fit(
+                &df,
+                "y",
+                &["x1".to_owned()],
+                TreeMode::Cart,
+                TreeOptions {
+                    folds: 1,
                     ..TreeOptions::default()
                 }
             )

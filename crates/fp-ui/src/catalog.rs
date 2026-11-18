@@ -196,14 +196,18 @@ impl UiCatalog {
              confusion matrix). The growth stops at the maximum depth, at the minimum \
              number of observations per leaf and when no split reduces the impurity. \
              The forest uses the square root of the number of predictors per split and \
-             the seed makes the run reproducible." => {
+             the seed makes the run reproducible. For CART, the validation folds give a \
+             k-fold cross-validated R squared and RMSE (or accuracy); the forest reports \
+             the out-of-bag error." => {
                 "Escolha a resposta e pelo menos um preditor numérico. Uma resposta numérica \
                  dá uma árvore de regressão (as folhas são médias); uma resposta de texto dá \
                  uma árvore de classificação (as folhas são a classe maioritária, com matriz de \
                  confusão). O crescimento para na profundidade máxima, no número mínimo de \
                  observações por folha e quando nenhuma divisão reduz a impureza. A floresta usa \
                  a raiz quadrada do número de preditores por divisão e a semente torna a \
-                 execução reprodutível."
+                 execução reprodutível. Para o CART, as dobras de validação dão o R quadrado \
+                 e o RMSE (ou a exactidão) por validação cruzada; a floresta reporta o erro \
+                 out-of-bag."
             }
             "A response that jumps from 10 to 20 at the middle of the predictor gives a \
              two-leaf tree whose only split is on that predictor, with R² near one. A \
@@ -379,15 +383,17 @@ impl UiCatalog {
             "Use one row per observation with the response, the subject, the sequence, \
              the period and the treatment. Every subject needs both periods with the two \
              treatments in the order of its sequence, and the two sequences must be \
-             opposite. The first treatment label is the reference and the difference is \
-             test − reference. The limits may be asymmetric; the confidence level of the \
-             decision reports the (1 − 2α) interval, so 95 % gives the 90 % interval." => {
+             opposite. The reference is the alphabetically first treatment unless you \
+             choose another in Reference, and the difference is test − reference. The \
+             limits may be asymmetric; the confidence level of the decision reports the \
+             (1 − 2α) interval, so 95 % gives the 90 % interval." => {
                 "Use uma linha por observação com a resposta, o sujeito, a sequência, o período \
                  e o tratamento. Cada sujeito precisa dos dois períodos com os dois tratamentos \
-                 na ordem da sua sequência, e as duas sequências têm de ser opostas. A primeira \
-                 etiqueta de tratamento é a referência e a diferença é teste − referência. Os \
-                 limites podem ser assimétricos; o nível de confiança da decisão reporta o \
-                 intervalo (1 − 2α), pelo que 95 % dá o intervalo a 90 %."
+                 na ordem da sua sequência, e as duas sequências têm de ser opostas. A referência \
+                 é a primeira etiqueta por ordem alfabética, salvo se escolher outra em \
+                 Referência, e a diferença é teste − referência. Os limites podem ser \
+                 assimétricos; o nível de confiança da decisão reporta o intervalo (1 − 2α), \
+                 pelo que 95 % dá o intervalo a 90 %."
             }
             "Eight subjects, four in each sequence, with a period effect of one and a \
              treatment difference of 0.2, give an estimate of 0.2 and a period row that \
@@ -429,22 +435,22 @@ impl UiCatalog {
             "Choose a numeric response and a factor with at least two levels of two or \
              more observations. The limits are the weighted grand mean plus or minus \
              h times the standard error √(MSE·(N − nᵢ)/(N·nᵢ)); with equal sizes \
-             that is √(MSE·(k − 1)/N). The critical value h is the conservative \
-             Bonferroni-t value t(1 − alpha/(2k), N − k), an approximation of the \
-             studentized maximum modulus tables." => {
+             that is √(MSE·(k − 1)/N). The critical value h is the studentized \
+             maximum modulus quantile for k levels and N − k degrees of freedom, \
+             computed by numerical integration of its distribution." => {
                 "Escolha uma resposta numérica e um factor com pelo menos dois níveis de dois \
                  ou mais valores. Os limites são a média global ponderada mais ou menos h \
                  vezes o erro padrão √(MSE·(N − nᵢ)/(N·nᵢ)); com tamanhos iguais é \
-                 √(MSE·(k − 1)/N). O valor crítico h é o valor t de Bonferroni \
-                 t(1 − alfa/(2k), N − k), conservador, uma aproximação das tabelas da \
-                 studentized maximum modulus."
+                 √(MSE·(k − 1)/N). O valor crítico h é o quantil da studentized maximum \
+                 modulus para k níveis e N − k graus de liberdade, calculado por integração \
+                 numérica da sua distribuição."
             }
             "Three levels with three observations each, means 11, 14 and 21 and MSE \
-             one, at five percent: h is about 3.29 and the limits are 15.33 ± 1.55. \
+             one, at five percent: h is about 3.19 and the limits are 15.33 ± 1.51. \
              The level with mean 21 lies above the upper limit and the level with mean \
              11 below the lower limit, so both differ from the grand mean." => {
                 "Três níveis com três observações cada, médias 11, 14 e 21 e MSE igual a um, \
-                 a cinco por cento: h é cerca de 3,29 e os limites são 15,33 ± 1,55. O nível \
+                 a cinco por cento: h é cerca de 3,19 e os limites são 15,33 ± 1,51. O nível \
                  com média 21 fica acima do limite superior e o nível com média 11 abaixo do \
                  limite inferior, pelo que ambos diferem da média global."
             }
@@ -1358,6 +1364,8 @@ impl UiCatalog {
             "About data and calculations…" => "Acerca de dados e cálculos…",
             "Tasks, conventions and an example" => "Tarefas, convenções e um exemplo",
             "Task:" => "Tarefa:",
+            "Reference:" => "Referência:",
+            "Validation folds:" => "Dobras de validação:",
             "Name 1:" => "Nome 1:",
             "Name 2:" => "Nome 2:",
             "Name 3:" => "Nome 3:",
@@ -1416,9 +1424,11 @@ impl UiCatalog {
                  coluna do primeiro bloco e uma coluna por coluna do segundo."
             }
             "Each resample copies the whole rows with replacement; the table \
-             has a Sample column and every selected column." => {
+             has a Sample column and every selected column, and the Session \
+             receives the percentile interval of the mean." => {
                 "Cada reamostra copia as linhas inteiras com reposição; a tabela tem uma \
-                 coluna Sample e todas as colunas escolhidas."
+                 coluna Sample e todas as colunas escolhidas, e a Session recebe o intervalo \
+                 percentílico da média."
             }
             "The dialog works on the active worksheet. Standardize, the indicator \
              columns and the row statistics add columns to it (in a new sheet), while \

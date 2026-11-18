@@ -2555,6 +2555,7 @@ impl FreePlotsApp {
             .filter(|name| **name != self.tree_response)
             .cloned()
             .collect();
+        self.tree_folds = 0;
         self.show_tree_dialog = true;
     }
 
@@ -2583,6 +2584,11 @@ impl FreePlotsApp {
             min_leaf: self.tree_min_leaf,
             trees: self.tree_trees,
             seed: self.tree_seed,
+            folds: if self.tree_mode == fp_core::tree::TreeMode::Cart {
+                self.tree_folds
+            } else {
+                0
+            },
         };
         match fp_core::tree::analyze(
             &df,
@@ -2701,6 +2707,14 @@ impl FreePlotsApp {
                         .labelled_by(label.id)
                         .hover_from(&label);
                 });
+                if self.tree_mode == fp_core::tree::TreeMode::Cart {
+                    ui.horizontal(|ui| {
+                        let label = ui.help_label(self.catalog().label("Validation folds:"));
+                        ui.add(egui::DragValue::new(&mut self.tree_folds).range(0..=10))
+                            .labelled_by(label.id)
+                            .hover_from(&label);
+                    });
+                }
                 ui.small(self.catalog().label(
                     "Numeric predictors only; a text response becomes a classification tree and \
                      a numeric one a regression tree.",
@@ -2762,7 +2776,9 @@ impl FreePlotsApp {
                      confusion matrix). The growth stops at the maximum depth, at the minimum \
                      number of observations per leaf and when no split reduces the impurity. \
                      The forest uses the square root of the number of predictors per split and \
-                     the seed makes the run reproducible.",
+                     the seed makes the run reproducible. For CART, the validation folds give a \
+                     k-fold cross-validated R squared and RMSE (or accuracy); the forest reports \
+                     the out-of-bag error.",
                 ));
                 ui.add_space(6.0);
                 ui.strong(self.catalog().label("Example"));

@@ -444,6 +444,7 @@ impl FreePlotsApp {
         ] {
             *field = others.get(index).cloned().unwrap_or_default();
         }
+        self.crossover_reference.clear();
         self.show_crossover_dialog = true;
     }
 
@@ -466,7 +467,13 @@ impl FreePlotsApp {
             return;
         };
         let confidence = (self.crossover_confidence / 100.0).clamp(0.5, 0.999);
-        match fp_core::equivalence::crossover(
+        let reference = self.crossover_reference.clone();
+        let reference = if reference.is_empty() {
+            None
+        } else {
+            Some(reference.as_str())
+        };
+        match fp_core::equivalence::crossover_with_reference(
             &df,
             &self.crossover_response,
             &self.crossover_subject,
@@ -476,6 +483,7 @@ impl FreePlotsApp {
             lower,
             upper,
             confidence,
+            reference,
         ) {
             Ok(result) => {
                 let label = format!("2x2 crossover: {}", self.crossover_response);
@@ -513,6 +521,23 @@ impl FreePlotsApp {
                     .map(|column| column.name().to_owned())
                     .collect();
                 (numeric, all)
+            })
+            .unwrap_or_default();
+        let treatments: Vec<String> = self
+            .data
+            .as_ref()
+            .and_then(|df| df.column(&self.crossover_treatment).ok())
+            .map(|column| {
+                let mut found: Vec<String> = Vec::new();
+                for row in 0..column.len() {
+                    if let Some(label) = column.label(row)
+                        && !found.contains(&label)
+                    {
+                        found.push(label);
+                    }
+                }
+                found.sort();
+                found
             })
             .unwrap_or_default();
         let mut open = self.show_crossover_dialog;
@@ -568,6 +593,33 @@ impl FreePlotsApp {
                             .hover_from(&label);
                     });
                 }
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(self.catalog().label("Reference:"));
+                    egui::ComboBox::from_id_salt("crossover_reference")
+                        .selected_text(if self.crossover_reference.is_empty() {
+                            self.catalog().label("Automatic").to_owned()
+                        } else {
+                            self.crossover_reference.clone()
+                        })
+                        .show_ui(ui, |ui| {
+                            let automatic = self.catalog().label("Automatic");
+                            ui.selectable_value(
+                                &mut self.crossover_reference,
+                                String::new(),
+                                automatic,
+                            );
+                            for name in &treatments {
+                                ui.selectable_value(
+                                    &mut self.crossover_reference,
+                                    name.clone(),
+                                    name.as_str(),
+                                );
+                            }
+                        })
+                        .response
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
                 ui.horizontal(|ui| {
                     let label = ui.help_label(self.catalog().label("Lower limit:"));
                     ui.text_edit_singleline(&mut self.crossover_lower)
@@ -648,9 +700,10 @@ impl FreePlotsApp {
                     "Use one row per observation with the response, the subject, the sequence, \
                      the period and the treatment. Every subject needs both periods with the two \
                      treatments in the order of its sequence, and the two sequences must be \
-                     opposite. The first treatment label is the reference and the difference is \
-                     test − reference. The limits may be asymmetric; the confidence level of the \
-                     decision reports the (1 − 2α) interval, so 95 % gives the 90 % interval.",
+                     opposite. The reference is the alphabetically first treatment unless you \
+                     choose another in Reference, and the difference is test − reference. The \
+                     limits may be asymmetric; the confidence level of the decision reports the \
+                     (1 − 2α) interval, so 95 % gives the 90 % interval.",
                 ));
                 ui.add_space(6.0);
                 ui.strong(self.catalog().label("Example"));
@@ -2514,15 +2567,15 @@ impl FreePlotsApp {
                     "Choose a numeric response and a factor with at least two levels of two or \
                      more observations. The limits are the weighted grand mean plus or minus \
                      h times the standard error √(MSE·(N − nᵢ)/(N·nᵢ)); with equal sizes \
-                     that is √(MSE·(k − 1)/N). The critical value h is the conservative \
-                     Bonferroni-t value t(1 − alpha/(2k), N − k), an approximation of the \
-                     studentized maximum modulus tables.",
+                     that is √(MSE·(k − 1)/N). The critical value h is the studentized \
+                     maximum modulus quantile for k levels and N − k degrees of freedom, \
+                     computed by numerical integration of its distribution.",
                 ));
                 ui.add_space(6.0);
                 ui.strong(self.catalog().label("Example"));
                 ui.label(self.catalog().label(
                     "Three levels with three observations each, means 11, 14 and 21 and MSE \
-                     one, at five percent: h is about 3.29 and the limits are 15.33 ± 1.55. \
+                     one, at five percent: h is about 3.19 and the limits are 15.33 ± 1.51. \
                      The level with mean 21 lies above the upper limit and the level with mean \
                      11 below the lower limit, so both differ from the grand mean.",
                 ));

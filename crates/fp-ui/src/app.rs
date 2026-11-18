@@ -1298,6 +1298,7 @@ pub struct FreePlotsApp {
     tree_min_leaf: usize,
     tree_trees: usize,
     tree_seed: u64,
+    tree_folds: usize,
     /// Survival analysis dialog, help and inputs.
     show_survival_dialog: bool,
     show_survival_help: bool,
@@ -1330,6 +1331,7 @@ pub struct FreePlotsApp {
     crossover_sequence: String,
     crossover_period: String,
     crossover_treatment: String,
+    crossover_reference: String,
     crossover_lower: String,
     crossover_upper: String,
     crossover_confidence: f64,

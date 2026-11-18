@@ -11315,6 +11315,19 @@ fn tree_dialog_reaches_the_session_and_chart() {
     assert!(text.contains("Importance (%)"), "{text}");
     assert!(app.plot().is_some());
 
+    // The CART cross-validation reports held-out statistics.
+    app.open_tree_dialog();
+    app.tree_response = "y".to_owned();
+    app.tree_predictors = vec!["x1".to_owned(), "x2".to_owned()];
+    app.tree_mode = fp_core::tree::TreeMode::Cart;
+    app.tree_folds = 3;
+    app.run_tree_dialog();
+    assert!(
+        app.session_text().contains("CV R²"),
+        "{}",
+        app.session_text()
+    );
+
     // The forest reports the out-of-bag error.
     app.open_tree_dialog();
     app.tree_response = "y".to_owned();

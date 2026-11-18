@@ -8,11 +8,11 @@
 //! `X̄̄ ± h · √(MSE·(N − nᵢ)/(N·nᵢ))`; when every level has the same size this
 //! reduces to `X̄̄ ± h · √(MSE·(k − 1)/N)`.
 //!
-//! The exact critical value `h` is the studentized maximum modulus quantile,
-//! which the engine does not have. This module uses the conservative
-//! Bonferroni-t value `t(1 − α/(2k), N − k)` and says so in the report, the
-//! help and the documentation; it is a documented approximation, not a
-//! reproduction of the published tables.
+//! The critical value `h` is the **studentized maximum modulus** quantile,
+//! computed by numerical integration of its distribution
+//! `E_V[(2Φ(h√(V/df)) − 1)^k]` with `V ~ χ²(df)` and `df = N − k`. The
+//! published ANOM tables use the same quantity; the engine's value is
+//! computed rather than read from a table.
 
 use std::collections::BTreeMap;
 
@@ -20,7 +20,7 @@ use crate::data::{Column, ColumnData, DataFrame};
 use crate::error::{Error, Result};
 use crate::plot::{AxisSpec, PlotSpec, Point, Scale, Segment, Tick, linear_axis};
 use crate::report::{AnalysisResult, Item, standard_warnings};
-use crate::special::student_t_quantile;
+use crate::special::{ln_gamma, normal_cdf, student_t_quantile};
 use crate::workflow::AnalysisOutput;
 
 /// Position of a level mean relative to the decision limits.
@@ -126,6 +126,59 @@ fn validate_alpha(alpha: f64) -> Result<()> {
     Ok(())
 }
 
+/// Chi-square density with `df` degrees of freedom, used by the SMM integral.
+fn chi_square_density(value: f64, df: f64) -> f64 {
+    if value <= 0.0 {
+        return 0.0;
+    }
+    let half = df / 2.0;
+    ((half - 1.0) * value.ln() - value / 2.0 - half * 2.0f64.ln() - ln_gamma(half)).exp()
+}
+
+/// Studentized maximum modulus CDF: `E_V[(2Φ(h√(V/df)) − 1)^k]`.
+fn smm_cdf(h: f64, k: usize, df: f64) -> f64 {
+    // Integrate over the chi scale s = √V, whose density vanishes at zero for
+    // every df > 1 (ANOM always has at least two observations per level).
+    const INTERVALS: usize = 2000;
+    let upper = df.sqrt() + 10.0 * (2.0 * df).sqrt();
+    let step = upper / INTERVALS as f64;
+    let root = df.sqrt();
+    let mut total = 0.0;
+    for index in 0..=INTERVALS {
+        let value = step * index as f64;
+        let p = 2.0 * normal_cdf(h * value / root) - 1.0;
+        let weight = if index == 0 || index == INTERVALS {
+            1.0
+        } else if index % 2 == 0 {
+            2.0
+        } else {
+            4.0
+        };
+        total += weight * p.max(0.0).powi(k as i32) * chi_square_density(value, df);
+    }
+    (total * step / 3.0).clamp(0.0, 1.0)
+}
+
+/// Studentized maximum modulus quantile for `k` statistics and `df` degrees
+/// of freedom.
+fn smm_quantile(k: usize, df: f64, alpha: f64) -> f64 {
+    if k == 1 {
+        // One statistic: the SMM is the ordinary two-sided t quantile.
+        return student_t_quantile(1.0 - alpha / 2.0, df);
+    }
+    let mut low = 0.0;
+    let mut high = 10.0;
+    for _ in 0..60 {
+        let middle = 0.5 * (low + high);
+        if smm_cdf(middle, k, df) < 1.0 - alpha {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    0.5 * (low + high)
+}
+
 /// Fits the analysis of means of `response` by `factor`.
 ///
 /// # Errors
@@ -208,8 +261,7 @@ pub fn fit(df: &DataFrame, response: &str, factor: &str, alpha: f64) -> Result<A
         return Err(Error::ConstantSample);
     }
     let mse = ss_within / df_error;
-    // Bonferroni-t approximation of the studentized maximum modulus quantile.
-    let critical = student_t_quantile(1.0 - alpha / (2.0 * k as f64), df_error);
+    let critical = smm_quantile(k, df_error, alpha);
     let first = groups.values().next().map_or(0, Vec::len);
     let balanced = groups.values().all(|values| values.len() == first);
 
@@ -432,8 +484,8 @@ pub fn analyze(df: &DataFrame, response: &str, factor: &str, alpha: f64) -> Resu
         ),
         (
             "Critical value".to_owned(),
-            "h is the conservative Bonferroni-t value t(1 − α/(2k), N − k), an approximation \
-             of the studentized maximum modulus quantile used by the published tables"
+            "h is the studentized maximum modulus quantile for k levels and N − k degrees of \
+             freedom, computed by numerical integration of its distribution"
                 .to_owned(),
         ),
         (
@@ -445,8 +497,9 @@ pub fn analyze(df: &DataFrame, response: &str, factor: &str, alpha: f64) -> Resu
     ];
     result.warnings = standard_warnings(result.n, result.excluded, 0);
     result.warnings.push(
-        "the critical value is a Bonferroni-t approximation and has not been compared with the \
-         studentized maximum modulus tables"
+        "the critical value is computed by numerical integration of the studentized maximum \
+         modulus distribution; the published ANOM tables can differ slightly because the group \
+         means are correlated"
             .to_owned(),
     );
     Ok(AnalysisOutput {
@@ -485,8 +538,12 @@ mod tests {
         assert!((model.df - 6.0).abs() < 1e-12);
         assert!((model.grand_mean - 46.0 / 3.0).abs() < 1e-12);
         assert!((model.mse - 1.0).abs() < 1e-12);
-        let expected_h = student_t_quantile(1.0 - 0.05 / 6.0, 6.0);
+        let expected_h = smm_quantile(3, 6.0, 0.05);
         assert!((model.critical - expected_h).abs() < 1e-12);
+        assert!(
+            (expected_h - 3.192_587_520_920_811).abs() < 1e-9,
+            "{expected_h}"
+        );
         // Balanced limits: h·√(MSE·(k − 1)/N).
         let half = expected_h * (2.0_f64 / 9.0).sqrt();
         for group in &model.groups {
@@ -497,6 +554,13 @@ mod tests {
             verdicts,
             vec![Verdict::Below, Verdict::Within, Verdict::Above]
         );
+    }
+
+    #[test]
+    fn the_smm_quantile_reduces_to_the_t_for_one_statistic() {
+        let one = smm_quantile(1, 10.0, 0.05);
+        let t = student_t_quantile(0.975, 10.0);
+        assert!((one - t).abs() < 1e-9, "{one} vs {t}");
     }
 
     #[test]

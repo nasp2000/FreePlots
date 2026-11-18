@@ -286,10 +286,10 @@ independent value already recorded in the 2026-11-16 round.
 
 **P2-24 — analysis of means**
 
-1. Balanced four levels — reference graph shows the grand mean 10.5 and all four levels inside the limits; FreePlots 10.5 and h 2.813056, limits 8.777362–12.222638; pass (C on the printed values, decisions agree).
+1. Balanced four levels — reference graph shows the grand mean 10.5 and all four levels inside the limits; FreePlots 10.5, h 2.7838 (studentized maximum modulus) and limits 8.795–12.205; the reference's ANOM table gives h 2.740 and limits 8.822–12.178; pass (C on the printed values, decisions agree, residual documented).
 2. Unequal group sizes — oracle (per-level limits); pass (oracle).
 3. Out-of-limit level — oracle (decision table); pass (oracle).
-4. Critical value against the published tables — the conservative Bonferroni-t is the documented approximation; decisions agree; accepted divergence.
+4. Critical value — the engine now computes the studentized maximum modulus quantile (2.7838 for k = 4, df = 16) by numerical integration; the reference's ANOM-specific table gives 2.740. The residual 0.044 is documented; the decisions agree.
 5. Refusals — oracle (constant sample, single level); pass (oracle).
 
 **P2-29 — time-series diagnostics**
@@ -362,7 +362,7 @@ independent value already recorded in the 2026-11-16 round.
 5. Column and row statistics — oracle (N, mean, SD, quartiles; row sums); pass (oracle).
 6. Transpose and matrix product — the reference transpose gives the same 2 × 5 block (with a label column and a new worksheet) and the matrix product is 55 / 110; the product has no session command and keeps the oracle; pass (A on the transpose, oracle on the product).
 7. Random data — oracle (bounds, reproducible with the same seed); pass (oracle).
-8. Bootstrap — reference (1000 resamples, base 2026) mean 2.9932, SD 0.6477, 95 % CI (1.8000, 4.2000); FreePlots mean 2.9684, SD 0.6264 and percentile CI (1.6, 4.2); mean and SD inside the Monte Carlo band and the lower endpoint one grid atom lower (discrete five-value distribution); pass (E).
+8. Bootstrap — reference (1000 resamples, base 2026) mean 2.9932, SD 0.6477, 95 % CI (1.8000, 4.2000); the FreePlots report now gives the percentile interval of the mean: mean 2.9684, SD 0.6264, 95 % CI (1.6, 4.2); mean and SD inside the Monte Carlo band and the lower endpoint one grid atom lower (discrete five-value distribution); pass (E).
 9. Randomization test — reference 999 resamples, observed −3.0000, null mean −0.0154, SD 1.7801, p 0.120; FreePlots p 0.137 with its seed; exact enumeration 0.130435, inside the Monte Carlo band; pass (E).
 10. Invalid selection — oracle (refusal); pass (oracle).
 
