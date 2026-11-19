@@ -20,6 +20,7 @@
     </a>
     <nav aria-label="Sections">
       <a href="#demos">Demos</a>
+      <a href="#examples">Examples</a>
       <a href="#why">Why</a>
       <a href="#features">Features</a>
     </nav>
@@ -78,7 +79,40 @@
     </div>
   </section>
 
-  <section id="why" class="band alt">
+  <section id="examples" class="band alt">
+    <div class="wrap">
+      <h2>Real statistical problems. Real solutions.</h2>
+      <p class="standfirst">Three questions from a production line, answered in the application. Each case carries its data file and the menu path, so the same report is one import away.</p>
+      <div class="cases">
+        <article class="case">
+          <figure class="shot"><img src="img/process-capability.png" alt="FreePlots capability report for shaft diameters: histogram with the fitted normal curve, Cp 1.64 and Cpk 1.60 in the plot panel, and the full report in the Session" width="1280" height="720" loading="lazy"></figure>
+          <div class="case-copy">
+            <h3>Is my process capable?</h3>
+            <p>One hundred and fifty shaft diameters against limits at 49.5 and 50.5 mm. The report gives Cp 1.64 and Cpk 1.60, and the Anderson-Darling test does not reject normality (p 0.96), so the capability figures stand.</p>
+            <p class="case-data">Data: <a href="datasets/shaft-diameter.csv">shaft-diameter.csv</a>, 150 rows. Stat &gt; Quality Tools &gt; Capability Analysis.</p>
+          </div>
+        </article>
+        <article class="case">
+          <figure class="shot"><img src="img/control-chart.png" alt="FreePlots I-MR chart of fill volumes: the individuals chart with six points above the upper control limit after run 40, the moving range chart and the signal table in the Session" width="1280" height="720" loading="lazy"></figure>
+          <div class="case-copy">
+            <h3>Is my process stable?</h3>
+            <p>Sixty fill volumes from one filler. The individuals chart flags six points after run 40, all above the upper limit of 506.2 ml, and the report lists each signal with the test that found it.</p>
+            <p class="case-data">Data: <a href="datasets/fill-volume.csv">fill-volume.csv</a>, 60 rows. Stat &gt; Control Charts &gt; I-MR.</p>
+          </div>
+        </article>
+        <article class="case">
+          <figure class="shot"><img src="img/gage-rr.png" alt="FreePlots Gage R&amp;R report: 16.1 percent Gage R&amp;R, the ANOVA table and the variance components for ten parts, three operators and two trials" width="1280" height="720" loading="lazy"></figure>
+          <div class="case-copy">
+            <h3>Can I trust my measurement system?</h3>
+            <p>Ten parts, three operators and two trials each. The gauge contributes 16.1% of the study variation, in the marginal band of the published guideline, and the report shows it separates almost nine categories of parts.</p>
+            <p class="case-data">Data: <a href="datasets/gauge-rr.csv">gauge-rr.csv</a>, 60 rows. Stat &gt; Quality Tools &gt; Gage R&amp;R.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="why" class="band">
     <div class="wrap">
       <h2>Why FreePlots?</h2>
       <p class="standfirst">Free, open source, portable and designed to keep your data under your control.</p>
@@ -93,7 +127,7 @@
     </div>
   </section>
 
-  <section id="features" class="band">
+  <section id="features" class="band alt">
     <div class="wrap">
       <h2>Explore the features.</h2>
       <p class="standfirst">Statistical analysis, quality engineering, design of experiments and statistical graphics. Every item below is in version 0.1.2.</p>
