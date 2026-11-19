@@ -4057,6 +4057,34 @@ fn the_summary_help_explains_the_commands() {
 }
 
 #[test]
+fn an_invalid_z_input_keeps_the_dialog_open() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(subgroup_frame(), "parts.csv".to_owned());
+    app.show_zp_dialog = true;
+    app.zp_kind = ZpKind::Z;
+    app.zp_column = "weight".to_owned();
+    app.zp_null = "20".to_owned();
+    app.zp_sigma = "abc".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("OK").click();
+    harness.run();
+
+    assert!(
+        harness.state().show_zp_dialog,
+        "a rejected value must not close the dialog"
+    );
+    assert_eq!(harness.state().zp_null, "20", "the entries are kept");
+    assert_eq!(harness.state().zp_sigma, "abc", "the entries are kept");
+    assert!(harness.state().error.is_some(), "the error is reported");
+}
+
+#[test]
 fn the_z_and_poisson_help_explains_the_tests() {
     use egui_kittest::{Harness, kittest::Queryable};
 

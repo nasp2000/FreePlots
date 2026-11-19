@@ -564,6 +564,24 @@ mod tests {
     }
 
     #[test]
+    fn a_project_keeps_missing_values() {
+        let frame = DataFrame::new(vec![Column::new_f64("value", vec![10.5, f64::NAN, 12.25])])
+            .expect("frame");
+        let json = to_project_json(&frame, "missing.fpp").expect("write");
+        assert!(
+            json.contains("null"),
+            "a missing real is written as null by serde_json"
+        );
+        let back = from_project_json(&json).expect("read");
+        let column = back.column("value").expect("column");
+        assert!(!column.is_missing(0));
+        assert!(column.is_missing(1), "the null is read back as missing");
+        assert_eq!(column.value(0), Some(10.5));
+        assert_eq!(column.value(1), None);
+        assert_eq!(column.value(2), Some(12.25));
+    }
+
+    #[test]
     fn a_schema_one_project_is_read_as_one_worksheet() {
         // Write a schema-2 file, then fold it back into the schema-1 shape.
         let frame = DataFrame::new(vec![Column::new_f64("x", vec![1.5, 2.5])]).expect("frame");

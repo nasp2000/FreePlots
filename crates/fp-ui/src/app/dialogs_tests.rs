@@ -1210,7 +1210,7 @@ impl FreePlotsApp {
     }
 
     /// Runs the test selected in the Z and Poisson dialog.
-    pub fn run_zp_dialog(&mut self) {
+    pub fn run_zp_dialog(&mut self) -> bool {
         let number = |text: &str| {
             text.trim()
                 .parse::<f64>()
@@ -1219,21 +1219,21 @@ impl FreePlotsApp {
         };
         let Some(df) = self.data.clone() else {
             self.set_error("No worksheet open: use File → Open CSV…");
-            return;
+            return false;
         };
         if self.zp_column.is_empty() {
             self.set_error("Select the column to analyse");
-            return;
+            return false;
         }
         let outcome = match self.zp_kind {
             ZpKind::Z => {
                 let Some(null_mean) = number(&self.zp_null) else {
                     self.set_error("Enter the null mean");
-                    return;
+                    return false;
                 };
                 let Some(sigma) = number(&self.zp_sigma) else {
                     self.set_error("Enter the known standard deviation");
-                    return;
+                    return false;
                 };
                 fp_core::zpoisson::z_test(
                     &df,
@@ -1247,11 +1247,11 @@ impl FreePlotsApp {
             ZpKind::PoissonOne => {
                 let Some(length) = number(&self.zp_length) else {
                     self.set_error("Enter the length of observation");
-                    return;
+                    return false;
                 };
                 let Some(null_rate) = number(&self.zp_null) else {
                     self.set_error("Enter the null rate");
-                    return;
+                    return false;
                 };
                 fp_core::zpoisson::poisson_one(
                     &df,
@@ -1266,15 +1266,15 @@ impl FreePlotsApp {
             ZpKind::PoissonTwo => {
                 if self.zp_column2.is_empty() {
                     self.set_error("Select the second counts column");
-                    return;
+                    return false;
                 }
                 let Some(first_length) = number(&self.zp_length1) else {
                     self.set_error("Enter the first length of observation");
-                    return;
+                    return false;
                 };
                 let Some(second_length) = number(&self.zp_length2) else {
                     self.set_error("Enter the second length of observation");
-                    return;
+                    return false;
                 };
                 fp_core::zpoisson::poisson_two(
                     &df,
@@ -1295,7 +1295,7 @@ impl FreePlotsApp {
                         Some(value) => Some(value),
                         None => {
                             self.set_error("The Poisson mean must be a number or blank");
-                            return;
+                            return false;
                         }
                     }
                 };
@@ -1307,8 +1307,12 @@ impl FreePlotsApp {
                 self.append_session(&format!("{}\n", result.to_session_text()));
                 self.status = format!("{}: {}", self.zp_kind.name(), self.zp_column);
                 self.show_zp_dialog = false;
+                true
             }
-            Err(error) => self.set_error(error.to_string()),
+            Err(error) => {
+                self.set_error(error.to_string());
+                false
+            }
         }
     }
 
@@ -1512,10 +1516,8 @@ impl FreePlotsApp {
                     }
                 });
             });
-        self.show_zp_dialog = open && !run && !cancel;
-        if run {
-            self.run_zp_dialog();
-        }
+        let keep_open = if run { !self.run_zp_dialog() } else { true };
+        self.show_zp_dialog = open && !cancel && keep_open;
     }
 
     /// Help page of the Z and Poisson tests.

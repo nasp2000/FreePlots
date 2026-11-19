@@ -5,7 +5,7 @@
 //! **empty ≠ 0 ≠ `NaN`**. A missing value is recorded as such and the policy
 //! applied is reported in the result.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{Error, Result};
 use crate::special::{chi_square_quantile, student_t_quantile};
@@ -150,12 +150,27 @@ impl DType {
     }
 }
 
+/// Reads a real column, accepting `null` where the value is missing.
+///
+/// `serde_json` writes a `NaN` as `null`; reading it back as `f64` would fail
+/// and a project with missing measurements could not be opened.
+fn deserialize_f64_values<'de, D>(deserializer: D) -> std::result::Result<Vec<f64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let values = <Vec<Option<f64>>>::deserialize(deserializer)?;
+    Ok(values
+        .into_iter()
+        .map(|value| value.unwrap_or(f64::NAN))
+        .collect())
+}
+
 /// Content of a column.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "values", rename_all = "snake_case")]
 pub enum ColumnData {
     /// Real values.
-    F64(Vec<f64>),
+    F64(#[serde(deserialize_with = "deserialize_f64_values")] Vec<f64>),
     /// Integer values.
     I64(Vec<i64>),
     /// Text.
