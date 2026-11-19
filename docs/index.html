@@ -116,7 +116,8 @@
   <section id="why" class="band">
     <div class="wrap">
       <h2>Why FreePlots?</h2>
-      <p class="standfirst">Free, open source, portable and designed to keep your data under your control.</p>
+      <p class="standfirst">Practical statistical tools for quality engineering, process improvement and data analysis. Free, open source, portable and designed to keep your data under your control.</p>
+      <p class="note">The coverage is deepest in quality engineering, SPC, capability, measurement systems analysis and design of experiments. It is not a full replacement for every method in a commercial suite, and the <a href="#limitations">known limitations</a> are documented.</p>
       <ul class="ledger">
         <li><h3>Built with Rust</h3><p>Fast native code in one executable, with no runtime to install.</p></li>
         <li><h3>MIT License</h3><p>Open source with a permissive licence: use it, study it and build on it.</p></li>
@@ -179,7 +180,7 @@
           </ul>
         </div>
       </div>
-      <p class="note">Every item above is implemented in the published version. Planned analyses are not listed.</p>
+      <p class="note">Every item above is implemented in the published version. Planned analyses are not listed. The <a href="#docs">documentation</a> shows one analysis from the data to the report.</p>
     </div>
   </section>
 
@@ -226,6 +227,7 @@
           <tr><td><a href="datasets/gauge-rr.csv">gauge-rr.csv</a></td><td>60</td><td>4</td><td>Gauge R&amp;R</td></tr>
         </tbody>
       </table>
+      <p class="note">Everything above is in 0.1.2. <a href="#download">Download it</a> and follow the same steps.</p>
     </div>
   </section>
 
@@ -293,12 +295,47 @@
   <section id="download" class="band dl">
     <div class="wrap">
       <h2>Get version 0.1.2.</h2>
-      <p class="standfirst">One file per system. No installer, no account.</p>
-      <p class="dl-row">
-        <a class="btn primary" href="https://github.com/nasp2000/FreePlots/releases/tag/v0.1.2">Download for Windows</a>
-        <a class="btn ghost" href="https://github.com/nasp2000/FreePlots/releases/tag/v0.1.2">Download for Raspberry Pi</a>
-      </p>
-      <p class="note">All releases live on <a href="https://github.com/nasp2000/FreePlots/releases">GitHub Releases</a>. Source and build instructions ship in the repository.</p>
+      <p class="standfirst">One portable file per system. No installer, no account, no administrator rights.</p>
+      <div class="packages">
+        <article class="package">
+          <div class="pkg-head">
+            <h3>Windows x86-64</h3>
+            <span class="pkg-size">10.2 MB zip</span>
+          </div>
+          <dl class="pkg-facts">
+            <div><dt>System</dt><dd>Windows, 64-bit desktop</dd></div>
+            <div><dt>Architecture</dt><dd>x86-64</dd></div>
+            <div><dt>Version</dt><dd>0.1.2</dd></div>
+            <div><dt>Released</dt><dd>18 November 2026</dd></div>
+            <div><dt>Archive</dt><dd class="mono">FreePlots-windows-x86_64.zip</dd></div>
+          </dl>
+          <p>Unzip it and run FreePlots.exe. Windows may warn about an unsigned download: choose More info, then Run anyway.</p>
+          <div class="pkg-cta"><a class="btn primary" href="https://github.com/nasp2000/FreePlots/releases/tag/v0.1.2">Download for Windows</a></div>
+        </article>
+        <article class="package">
+          <div class="pkg-head">
+            <h3>Linux aarch64</h3>
+            <span class="pkg-size">10.8 MB zip</span>
+          </div>
+          <dl class="pkg-facts">
+            <div><dt>System</dt><dd>Linux, 64-bit ARM (Raspberry Pi 4 and 5)</dd></div>
+            <div><dt>Architecture</dt><dd>aarch64</dd></div>
+            <div><dt>Version</dt><dd>0.1.2</dd></div>
+            <div><dt>Released</dt><dd>18 November 2026</dd></div>
+            <div><dt>Archive</dt><dd class="mono">FreePlots-rpi4-aarch64.zip</dd></div>
+          </dl>
+          <p>Unzip it and run FreePlots from a terminal or a file manager. The binary is already executable.</p>
+          <div class="pkg-cta"><a class="btn ghost" href="https://github.com/nasp2000/FreePlots/releases/tag/v0.1.2">Download for Raspberry Pi</a></div>
+        </article>
+      </div>
+      <h3 class="subhead">System requirements</h3>
+      <dl class="reqs">
+        <div><dt>Windows x86-64</dt><dd>A 64-bit Windows desktop. No runtime to install.</dd></div>
+        <div><dt>Linux aarch64</dt><dd>A 64-bit ARM Linux desktop with X11 or Wayland, tested on a Raspberry Pi 4.</dd></div>
+        <div><dt>Disk</dt><dd>About 10 MB for the archive, 23 to 24 MB extracted.</dd></div>
+        <div><dt>Network</dt><dd>The application does not need one after the download.</dd></div>
+      </dl>
+      <p class="note">Verify the archive against <a href="https://github.com/nasp2000/FreePlots/releases/tag/v0.1.2">SHA256SUMS</a> before extracting. <a href="https://github.com/nasp2000/FreePlots">Source code</a>, <a href="https://github.com/nasp2000/FreePlots/releases/tag/v0.1.2">release notes</a> and <a href="https://github.com/nasp2000/FreePlots/releases">all releases</a> are on GitHub.</p>
     </div>
   </section>
 </main>
