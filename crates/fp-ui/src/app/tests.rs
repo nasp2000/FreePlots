@@ -4057,6 +4057,44 @@ fn the_summary_help_explains_the_commands() {
 }
 
 #[test]
+fn the_store_dialog_keeps_its_buttons_on_screen() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let columns: Vec<Column> = (0..20)
+        .map(|index| Column::new_f64(format!("c{index}"), vec![1.0, 2.0, 3.0]))
+        .collect();
+    let frame = DataFrame::new(columns).expect("frame");
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame, "wide.csv".to_owned());
+    app.open_store_dialog();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    let ok = harness.get_by_label("OK");
+    let rect = ok.rect();
+    assert!(
+        rect.max.y <= 800.0,
+        "the confirm button must stay inside the window, got {rect:?}"
+    );
+
+    harness.get_by_label("OK").click();
+    harness.run();
+
+    assert!(!harness.state().show_store_dialog, "the dialog closes");
+    let data = harness.state().data().expect("data");
+    assert!(
+        data.column("Variable").is_ok(),
+        "the Variable column is added"
+    );
+    assert!(
+        data.column("Mean").is_ok(),
+        "the default statistics are stored"
+    );
+}
+
+#[test]
 fn an_invalid_z_input_keeps_the_dialog_open() {
     use egui_kittest::{Harness, kittest::Queryable};
 

@@ -987,16 +987,21 @@ impl FreePlotsApp {
             .default_width(440.0)
             .show(ctx, |ui| {
                 ui.help_label("Variables:");
-                for name in &numeric {
-                    let mut selected = self.store_columns.contains(name);
-                    if ui.help_checkbox(&mut selected, name).changed() {
-                        if selected {
-                            self.store_columns.push(name.clone());
-                        } else {
-                            self.store_columns.retain(|value| value != name);
+                egui::ScrollArea::vertical()
+                    .max_height(200.0)
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        for name in &numeric {
+                            let mut selected = self.store_columns.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.store_columns.push(name.clone());
+                                } else {
+                                    self.store_columns.retain(|value| value != name);
+                                }
+                            }
                         }
-                    }
-                }
+                    });
                 ui.help_label("Statistics:");
                 let stats = [
                     fp_core::summary::StoreStat::N,
@@ -1273,16 +1278,21 @@ impl FreePlotsApp {
             .default_width(420.0)
             .show(ctx, |ui| {
                 ui.help_label("Columns:");
-                for name in &names {
-                    let mut selected = self.tally_columns.contains(name);
-                    if ui.help_checkbox(&mut selected, name).changed() {
-                        if selected {
-                            self.tally_columns.push(name.clone());
-                        } else {
-                            self.tally_columns.retain(|value| value != name);
+                egui::ScrollArea::vertical()
+                    .max_height(220.0)
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        for name in &names {
+                            let mut selected = self.tally_columns.contains(name);
+                            if ui.help_checkbox(&mut selected, name).changed() {
+                                if selected {
+                                    self.tally_columns.push(name.clone());
+                                } else {
+                                    self.tally_columns.retain(|value| value != name);
+                                }
+                            }
                         }
-                    }
-                }
+                    });
                 ui.small(
                     "Counts of the unique values of each column, with percent and cumulative \
                      columns. Missing values are excluded.",
