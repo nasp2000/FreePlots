@@ -23,6 +23,7 @@
       <a href="#examples">Examples</a>
       <a href="#why">Why</a>
       <a href="#features">Features</a>
+      <a href="#docs">Docs</a>
     </nav>
     <a class="btn primary sm" href="#download">Download</a>
   </div>
@@ -182,6 +183,113 @@
     </div>
   </section>
 
+  <section id="docs" class="band">
+    <div class="wrap">
+      <h2>Documentation and sample data.</h2>
+      <p class="standfirst">From the download to a finished report, and the data files that go with the examples above.</p>
+      <div class="docs">
+        <div>
+          <h3>Install</h3>
+          <ol class="steps">
+            <li>Download the zip for your system from the release page and check it against SHA256SUMS.</li>
+            <li>Unzip it anywhere. The folder holds the executable, the licence, the licence inventory, the third-party notices and the SBOM.</li>
+            <li>Run FreePlots.exe on Windows or FreePlots on the Raspberry Pi. No installer and no administrator rights.</li>
+          </ol>
+          <h3>First report</h3>
+          <ol class="steps">
+            <li>File &gt; Open CSV… previews the encoding, the delimiter and the header before the grid fills.</li>
+            <li>Select a column, open the Stat menu and choose an analysis.</li>
+            <li>The report appears in the Session and stays there; graphs open in their own window.</li>
+          </ol>
+        </div>
+        <div>
+          <h3>A complete example</h3>
+          <p class="note">Using shaft-diameter.csv from the first case above.</p>
+          <ol class="steps">
+            <li>Open the file and choose Diameter in the Column box.</li>
+            <li>Stat &gt; Quality Tools &gt; Capability Analysis, type 49.5 in LSL and 50.5 in USL, then OK.</li>
+            <li>The report gives Cp 1.64 and Cpk 1.60 against the limits, and Pp 1.63 and Ppk 1.59 from the overall standard deviation.</li>
+            <li>The Anderson-Darling p-value of 0.96 does not reject normality, so the normal model behind those indices holds for this sample.</li>
+          </ol>
+          <p class="note">The expected defective rate in parts per million appears in the same report, for the within and the overall estimates.</p>
+        </div>
+      </div>
+      <h3 id="datasets" class="subhead">Sample datasets</h3>
+      <p class="note">Small synthetic files, safe to share, that reproduce the examples above.</p>
+      <table class="datasets">
+        <thead>
+          <tr><th>File</th><th>Rows</th><th>Columns</th><th>Used for</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="datasets/shaft-diameter.csv">shaft-diameter.csv</a></td><td>150</td><td>2</td><td>Process capability</td></tr>
+          <tr><td><a href="datasets/fill-volume.csv">fill-volume.csv</a></td><td>60</td><td>2</td><td>Control charts</td></tr>
+          <tr><td><a href="datasets/gauge-rr.csv">gauge-rr.csv</a></td><td>60</td><td>4</td><td>Gauge R&amp;R</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="project" class="band alt">
+    <div class="wrap">
+      <h2>Where the project stands.</h2>
+      <p class="standfirst">What shipped, what changes between releases, what is planned, and the limits that come with it.</p>
+      <div class="project">
+        <div>
+          <h3 id="roadmap">Roadmap</h3>
+          <ul>
+            <li><strong>Shipped, 0.1.2, 18 November 2026.</strong> The four areas above, from descriptive statistics to design of experiments, with their reports and graphs.</li>
+            <li><strong>In development.</strong> Fixes, documentation and translation updates land on main between releases; the next version ships them when the full suite is green.</li>
+            <li><strong>Planned.</strong> A signed Windows executable, when a code-signing certificate is available. Until then SmartScreen may warn on a downloaded copy.</li>
+          </ul>
+        </div>
+        <div>
+          <h3 id="limitations">Known limitations</h3>
+          <ul>
+            <li><strong>Two platforms.</strong> Windows x86-64 and Linux aarch64 for the Raspberry Pi 4 and 5. There is no macOS build and no x86 Linux build.</li>
+            <li><strong>Unsigned Windows executable.</strong> SmartScreen may warn on a downloaded copy.</li>
+            <li><strong>No update check.</strong> The application never connects to the network; new versions come from the release page.</li>
+            <li><strong>Large samples in plots.</strong> Plots are thinned to a bounded number of points and the time-series and survival tables list at most 500 rows; the statistics still use every observation.</li>
+            <li><strong>Approximate intervals.</strong> Capability intervals use published approximations and the report names them in its warnings.</li>
+            <li><strong>Two interface languages.</strong> English and Portuguese.</li>
+          </ul>
+        </div>
+        <div>
+          <h3 id="changelog">Changelog</h3>
+          <p class="note">0.1.2, 18 November 2026</p>
+          <ul>
+            <li>Data calculations, random data, bootstrap and a randomization test.</li>
+            <li>CART and random forests, nonlinear regression, best subsets, prediction and partial least squares.</li>
+            <li>Power and sample size with the linear-model partial F test, 2×2 crossover equivalence and the runs and Z tests.</li>
+            <li>General linear model, MANOVA, nested ANOVA and analysis of means.</li>
+            <li>Survival analysis, ARIMA and diagnostics, general factorial designs.</li>
+            <li>Capability sixpack, attribute capability, T charts, CUSUM and acceptance charts, Johnson transformation, Gage R&amp;R and attribute agreement.</li>
+            <li>Fixed: the Hotelling-Lawley denominator and the mesh factor labels.</li>
+          </ul>
+          <p class="note">Full history in the <a href="https://github.com/nasp2000/FreePlots/blob/main/CHANGELOG.md">changelog</a>; the <a href="https://github.com/nasp2000/FreePlots/releases/tag/v0.1.2">release notes</a> carry the same list.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="feedback" class="band">
+    <div class="wrap">
+      <h2>Feedback.</h2>
+      <p class="standfirst">Bugs and feature requests go to the issue tracker. Security reports follow the private advisory process in the security policy.</p>
+      <p class="feedback">
+        <a class="btn ghost" href="https://github.com/nasp2000/FreePlots/issues">Open an issue</a>
+        <a class="btn ghost" href="https://github.com/nasp2000/FreePlots/blob/main/SECURITY.md">Security policy</a>
+      </p>
+      <div class="disclaimer" id="disclaimer">
+        <h3>Statistical disclaimer</h3>
+        <p>FreePlots is provided as a statistical analysis tool for informational and professional use.</p>
+        <p>Although reasonable efforts are made to ensure the accuracy and reliability of calculations, no guarantee is made that all results are error-free or suitable for any particular purpose.</p>
+        <p>Users are responsible for validating input data, statistical assumptions, calculation results and their interpretation before making decisions based on the software.</p>
+        <p>FreePlots should not be used as the sole basis for safety-critical, regulatory, engineering or quality-related decisions without independent verification by qualified professionals.</p>
+        <p>The software is provided "AS IS", without warranties of any kind, subject to the terms of its MIT License.</p>
+      </div>
+    </div>
+  </section>
+
   <section id="download" class="band dl">
     <div class="wrap">
       <h2>Get version 0.1.2.</h2>
@@ -202,8 +310,10 @@
       <span>FreePlots</span>
     </a>
     <nav aria-label="Project">
+      <a href="#docs">Documentation</a>
       <a href="https://github.com/nasp2000/FreePlots">Source</a>
       <a href="https://github.com/nasp2000/FreePlots/releases">Releases</a>
+      <a href="https://github.com/nasp2000/FreePlots/issues">Issues</a>
       <a href="https://github.com/nasp2000/FreePlots/blob/main/docs/reference-corpus.md">Reference values</a>
     </nav>
     <p class="licence">MIT licence. Built in Rust.</p>
