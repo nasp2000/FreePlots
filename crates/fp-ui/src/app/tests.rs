@@ -4082,6 +4082,93 @@ fn test_graph() -> fp_core::plot::PlotSpec {
 }
 
 #[test]
+fn editing_the_axis_labels_reaches_a_panel_plot() {
+    let mut panel_a = test_graph();
+    panel_a.x_axis.label = "line_a".to_owned();
+    panel_a.y_axis.label = "Percent".to_owned();
+    let mut panel_b = test_graph();
+    panel_b.x_axis.label = "line_b".to_owned();
+    panel_b.y_axis.label = "Percent".to_owned();
+    // The grid keeps the axes of the first panel in its outer spec, while each
+    // panel is rendered with its own axes.
+    let plot =
+        fp_core::plot::panel_plot(vec![panel_a, panel_b], 2, "Test graph").expect("panel plot");
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(plot);
+    app.show_plot = true;
+
+    app.open_graph_labels();
+    assert_eq!(app.graph_label_x, "line_a");
+    assert_eq!(app.graph_label_y, "Percent");
+    app.graph_label_x = "Time".to_owned();
+    app.graph_label_y = "Percentile".to_owned();
+    app.preview_graph_labels();
+    let svg = fp_core::plot::render_svg_with(app.plot.as_ref().expect("plot"), app.graph_overlay());
+    assert!(
+        svg.contains("Time"),
+        "the edited X label must reach the panels"
+    );
+    assert!(
+        svg.contains("Percentile"),
+        "the edited Y label must reach the panels"
+    );
+    assert!(
+        !svg.contains("line_b>"),
+        "the stale panel label must be replaced"
+    );
+
+    app.reset_graph_edits();
+    let svg = fp_core::plot::render_svg_with(app.plot.as_ref().expect("plot"), app.graph_overlay());
+    assert!(svg.contains("line_a"), "the reset restores the X label");
+    assert!(svg.contains("line_b"), "the reset restores every panel");
+    assert!(svg.contains("Percent"), "the reset restores the Y label");
+}
+
+#[test]
+fn an_open_graph_editor_stays_above_the_docked_graph() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(test_graph());
+    app.show_plot = true;
+    app.show_data_display = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1200.0, 800.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.run();
+
+    let checkbox = harness.get_by_label("Symbols");
+    let dialog_pos = checkbox.rect().center();
+    let dialog_layer = harness
+        .ctx
+        .layer_id_at(dialog_pos)
+        .expect("the editor has a layer");
+    // Clicking the graph is what raises its window; the editor must stay above
+    // it, or its controls become unreachable.
+    let graph_pos = egui::pos2(120.0, 200.0);
+    for pressed in [true, false] {
+        harness.event(egui::Event::PointerButton {
+            pos: graph_pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+    }
+    harness.run();
+
+    let after = harness
+        .ctx
+        .layer_id_at(dialog_pos)
+        .expect("the editor is still mounted");
+    assert_eq!(
+        after, dialog_layer,
+        "the graph window must stay below an open editor"
+    );
+    assert_eq!(after.order, egui::Order::Foreground);
+}
+
+#[test]
 fn a_graph_follows_the_level_of_the_dialog_owner() {
     let mut app = FreePlotsApp::new();
     // No dialog: the graph is a normal window and the level is sent once.

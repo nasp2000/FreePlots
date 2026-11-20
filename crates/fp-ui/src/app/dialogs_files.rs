@@ -1129,6 +1129,9 @@ impl FreePlotsApp {
         let brush = self.brush_marks.clone();
         let dialog_response = dialog_window(title)
             .without_clear()
+            // The docked graph sits below the dialogs and their context menus:
+            // clicking it must never bury a form that is open over it.
+            .order(egui::Order::Middle)
             .id(egui::Id::new("graph_window"))
             .open(&mut open)
             .default_pos(egui::pos2(8.0, 64.0))

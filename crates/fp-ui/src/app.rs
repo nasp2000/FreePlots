@@ -983,6 +983,17 @@ struct DesirabilityRow {
     importance: String,
 }
 
+/// Labels of a graph before the first presentation edit, so "Reset graph
+/// edits" restores the automatic texts of the outer spec and of every panel.
+#[derive(Debug, Clone, Default)]
+pub(super) struct GraphAutoLabels {
+    pub(super) title: String,
+    pub(super) x: String,
+    pub(super) y: String,
+    /// Axis labels of each panel, in panel order.
+    pub(super) panels: Vec<(String, String)>,
+}
+
 /// classic statistical-desktop application state.
 #[derive(Debug)]
 pub struct FreePlotsApp {
@@ -1705,7 +1716,7 @@ pub struct FreePlotsApp {
     /// reference lines never travel to an unrelated graph.
     pub(super) graph_overlay_title: Option<String>,
     /// Labels before the first edit, for "Reset graph edits".
-    pub(super) graph_auto: Option<(String, String, String)>,
+    pub(super) graph_auto: Option<GraphAutoLabels>,
     pub(super) show_graph_labels: bool,
     pub(super) graph_label_title: String,
     pub(super) graph_label_subtitle: String,
@@ -2454,16 +2465,27 @@ impl FreePlotsApp {
 
     /// Dialog builder for a graph editor, pinned to the right of the floating
     /// graph window when it is visible.
-    fn graph_editor_dialog(&self, title: impl Into<String>) -> DialogWindow<'static> {
+    fn graph_editor_dialog(
+        &self,
+        ctx: &egui::Context,
+        title: impl Into<String>,
+    ) -> DialogWindow<'static> {
         let mut dialog = dialog_window(title.into())
             .without_clear()
             .collapsible(false)
             .resizable(false)
             .default_width(376.0);
         if let Some(rect) = self.graph_dialog_rect {
+            // Pin the editor inside the graph window but keep it on screen, so
+            // a graph near an edge never pushes its dialog out of view.
             let width = 372.0;
-            let x = (rect.right() - width - 6.0).max(rect.left());
-            dialog = dialog.fixed_pos(egui::pos2(x, rect.top() + 4.0));
+            let margin = 8.0;
+            let screen = ctx.content_rect();
+            let max_x = (screen.right() - width - margin).max(screen.left() + margin);
+            let max_y = (screen.bottom() - 160.0).max(screen.top() + margin);
+            let x = (rect.right() - width - 6.0).clamp(screen.left() + margin, max_x);
+            let y = (rect.top() + 4.0).clamp(screen.top() + margin, max_y);
+            dialog = dialog.fixed_pos(egui::pos2(x, y));
         }
         dialog
     }
@@ -5642,11 +5664,16 @@ impl<'a> DialogWindow<'a> {
         self
     }
 
+    /// Puts the window in the given layer order.
+    fn order(mut self, order: egui::Order) -> Self {
+        self.inner = self.inner.order(order);
+        self
+    }
+
     fn default_size(mut self, value: impl Into<egui::Vec2>) -> Self {
         self.inner = self.inner.default_size(value);
         self
     }
-
     fn id(mut self, id: egui::Id) -> Self {
         self.inner = self.inner.id(id);
         self

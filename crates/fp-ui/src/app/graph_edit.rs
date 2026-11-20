@@ -40,15 +40,23 @@ impl FreePlotsApp {
             return;
         };
         if self.graph_auto.is_none() {
-            self.graph_auto = Some((
-                plot.title.clone(),
-                plot.x_axis.label.clone(),
-                plot.y_axis.label.clone(),
-            ));
+            self.graph_auto = Some(GraphAutoLabels {
+                title: plot.title.clone(),
+                x: plot.x_axis.label.clone(),
+                y: plot.y_axis.label.clone(),
+                panels: plot
+                    .panels
+                    .iter()
+                    .map(|panel| (panel.x_axis.label.clone(), panel.y_axis.label.clone()))
+                    .collect(),
+            });
         }
+        // A panel grid draws each panel with its own axes, so the editor shows
+        // the labels of the first panel instead of the outer copy.
+        let first = plot.panels.first().unwrap_or(plot);
         self.graph_label_title = plot.title.clone();
-        self.graph_label_x = plot.x_axis.label.clone();
-        self.graph_label_y = plot.y_axis.label.clone();
+        self.graph_label_x = first.x_axis.label.clone();
+        self.graph_label_y = first.y_axis.label.clone();
         self.graph_label_subtitle = self.graph_overlay.subtitle.clone().unwrap_or_default();
         self.graph_label_footer = self.graph_overlay.footer.clone().unwrap_or_default();
         self.show_graph_labels = true;
@@ -192,7 +200,7 @@ impl FreePlotsApp {
         }
         let mut open = self.show_data_display;
         let catalog = self.catalog();
-        self.graph_editor_dialog(catalog.label("Data display"))
+        self.graph_editor_dialog(ctx, catalog.label("Data display"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -500,12 +508,16 @@ impl FreePlotsApp {
     /// Removes every presentation edit and restores the automatic labels.
     pub fn reset_graph_edits(&mut self) {
         self.graph_overlay = GraphOverlay::default();
-        if let Some((title, x, y)) = self.graph_auto.take()
+        if let Some(auto) = self.graph_auto.take()
             && let Some(plot) = &mut self.plot
         {
-            plot.title = title;
-            plot.x_axis.label = x;
-            plot.y_axis.label = y;
+            plot.title = auto.title;
+            plot.x_axis.label = auto.x;
+            plot.y_axis.label = auto.y;
+            for (panel, (x, y)) in plot.panels.iter_mut().zip(auto.panels) {
+                panel.x_axis.label = x;
+                panel.y_axis.label = y;
+            }
         }
         self.status = "Graph edits reset".to_owned();
     }
@@ -538,11 +550,19 @@ impl FreePlotsApp {
     }
 
     /// Applies the graph labels while the dialog is open (live preview).
-    fn preview_graph_labels(&mut self) {
+    pub(super) fn preview_graph_labels(&mut self) {
+        let x = self.graph_label_x.trim().to_owned();
+        let y = self.graph_label_y.trim().to_owned();
         if let Some(plot) = &mut self.plot {
             plot.title = self.graph_label_title.trim().to_owned();
-            plot.x_axis.label = self.graph_label_x.trim().to_owned();
-            plot.y_axis.label = self.graph_label_y.trim().to_owned();
+            plot.x_axis.label = x.clone();
+            plot.y_axis.label = y.clone();
+            // Every panel is rendered with its own axes, so an edit has to
+            // reach all of them for the change to be visible.
+            for panel in &mut plot.panels {
+                panel.x_axis.label = x.clone();
+                panel.y_axis.label = y.clone();
+            }
         }
         let subtitle = self.graph_label_subtitle.trim();
         self.graph_overlay.subtitle = (!subtitle.is_empty()).then(|| subtitle.to_owned());
@@ -643,7 +663,7 @@ impl FreePlotsApp {
         let mut open = self.show_graph_labels;
         let mut apply = false;
         let catalog = self.catalog();
-        self.graph_editor_dialog(self.catalog().label("Graph options"))
+        self.graph_editor_dialog(ctx, self.catalog().label("Graph options"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -694,7 +714,7 @@ impl FreePlotsApp {
         let mut open = self.show_graph_annotation;
         let mut add = false;
         let catalog = self.catalog();
-        self.graph_editor_dialog(self.catalog().label("Add note to the graph"))
+        self.graph_editor_dialog(ctx, self.catalog().label("Add note to the graph"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -757,7 +777,7 @@ impl FreePlotsApp {
         let mut front = None;
         let catalog = self.catalog();
         let notes = self.graph_overlay.annotations.clone();
-        self.graph_editor_dialog(catalog.label("Notes"))
+        self.graph_editor_dialog(ctx, catalog.label("Notes"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -824,7 +844,7 @@ impl FreePlotsApp {
         let mut apply = false;
         let mut remove = false;
         let catalog = self.catalog();
-        self.graph_editor_dialog(catalog.label("Data labels"))
+        self.graph_editor_dialog(ctx, catalog.label("Data labels"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -887,7 +907,7 @@ impl FreePlotsApp {
         let mut open = self.show_percentiles;
         let mut add = false;
         let catalog = self.catalog();
-        self.graph_editor_dialog(catalog.label("Percentile lines"))
+        self.graph_editor_dialog(ctx, catalog.label("Percentile lines"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -941,7 +961,7 @@ impl FreePlotsApp {
         let mut open = self.show_panel_layout;
         let mut apply = false;
         let catalog = self.catalog();
-        self.graph_editor_dialog(catalog.label("Panel layout"))
+        self.graph_editor_dialog(ctx, catalog.label("Panel layout"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -983,7 +1003,7 @@ impl FreePlotsApp {
         let mut apply = false;
         let mut automatic = false;
         let catalog = self.catalog();
-        self.graph_editor_dialog(catalog.label("Axis scale"))
+        self.graph_editor_dialog(ctx, catalog.label("Axis scale"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -1040,7 +1060,7 @@ impl FreePlotsApp {
         let mut apply = false;
         let mut reset = false;
         let catalog = self.catalog();
-        self.graph_editor_dialog(self.catalog().label("Graph text"))
+        self.graph_editor_dialog(ctx, self.catalog().label("Graph text"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
@@ -1133,7 +1153,7 @@ impl FreePlotsApp {
         let mut open = self.show_reference_line;
         let mut add = false;
         let catalog = self.catalog();
-        self.graph_editor_dialog(self.catalog().label("Reference line"))
+        self.graph_editor_dialog(ctx, self.catalog().label("Reference line"))
             .without_clear()
             .open(&mut open)
             .collapsible(false)
