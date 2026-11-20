@@ -6,6 +6,8 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-20
+
 ### Fixed
 
 - A project with empty cells opens again: the missing values were written as
