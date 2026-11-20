@@ -167,10 +167,8 @@ impl FreePlotsApp {
             self.set_error("Enter at least one percentile");
             return;
         }
-        let mut values: Vec<f64> = match self.percentile_axis {
-            ReferenceAxis::Vertical => plot.points.iter().map(|point| point.x).collect(),
-            ReferenceAxis::Horizontal => plot.points.iter().map(|point| point.y).collect(),
-        };
+        let mut values = Vec::new();
+        Self::collect_axis_values(plot, self.percentile_axis, &mut values);
         if values.is_empty() {
             self.set_error("The graph has no points to take percentiles from");
             return;
@@ -192,6 +190,22 @@ impl FreePlotsApp {
         }
         self.show_percentiles = false;
         self.status = format!("{added} percentile line(s) added");
+    }
+
+    /// Collects the coordinate of every plotted point, including the points of
+    /// the panels of a grid.
+    fn collect_axis_values(
+        plot: &fp_core::plot::PlotSpec,
+        axis: ReferenceAxis,
+        out: &mut Vec<f64>,
+    ) {
+        out.extend(plot.points.iter().map(|point| match axis {
+            ReferenceAxis::Vertical => point.x,
+            ReferenceAxis::Horizontal => point.y,
+        }));
+        for panel in &plot.panels {
+            Self::collect_axis_values(panel, axis, out);
+        }
     }
 
     pub(super) fn data_display_window(&mut self, ctx: &egui::Context) {

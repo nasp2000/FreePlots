@@ -4169,6 +4169,36 @@ fn an_open_graph_editor_stays_above_the_docked_graph() {
 }
 
 #[test]
+fn the_data_display_checkboxes_reach_the_overlay() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(graph_with_points());
+    app.show_plot = true;
+    app.show_data_display = true;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1200.0, 800.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("Symbols").click();
+    harness.run();
+    assert!(!harness.state().graph_overlay.show_symbols);
+    harness.get_by_label("Lines").click();
+    harness.run();
+    assert!(!harness.state().graph_overlay.show_lines);
+    harness.get_by_label("Bands / bars").click();
+    harness.run();
+    assert!(!harness.state().graph_overlay.show_bands);
+
+    harness.get_by_label("Show all").click();
+    harness.run();
+    assert!(harness.state().graph_overlay.show_symbols);
+    assert!(harness.state().graph_overlay.show_lines);
+    assert!(harness.state().graph_overlay.show_bands);
+}
+
+#[test]
 fn a_graph_follows_the_level_of_the_dialog_owner() {
     let mut app = FreePlotsApp::new();
     // No dialog: the graph is a normal window and the level is sent once.
@@ -9965,6 +9995,279 @@ fn graph_actions_reject_a_missing_graph_and_bad_values() {
     app.rotate_note(3, 15.0);
     app.bring_note_to_front(3);
     assert!(app.graph_overlay.annotations.is_empty());
+}
+
+fn graph_with_points() -> fp_core::plot::PlotSpec {
+    let mut plot = test_graph();
+    plot.points = vec![
+        fp_core::plot::Point { x: 2.0, y: 3.0 },
+        fp_core::plot::Point { x: 6.0, y: 7.0 },
+    ];
+    plot
+}
+
+#[test]
+fn every_graph_label_field_reaches_the_render() {
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(test_graph());
+    app.show_plot = true;
+    let svg = |app: &FreePlotsApp| {
+        fp_core::plot::render_svg_with(app.plot.as_ref().expect("plot"), app.graph_overlay())
+    };
+
+    app.open_graph_labels();
+    app.graph_label_title = "Audit title".to_owned();
+    app.apply_graph_labels();
+    assert!(svg(&app).contains(">Audit title</text>"));
+
+    app.open_graph_labels();
+    app.graph_label_subtitle = "Audit subtitle".to_owned();
+    app.apply_graph_labels();
+    assert!(svg(&app).contains(">Audit subtitle</text>"));
+
+    app.open_graph_labels();
+    app.graph_label_footer = "Audit footer".to_owned();
+    app.apply_graph_labels();
+    assert!(svg(&app).contains(">Audit footer</text>"));
+
+    app.open_graph_labels();
+    app.graph_label_x = "Time (s)".to_owned();
+    app.graph_label_y = "Response %".to_owned();
+    app.apply_graph_labels();
+    let rendered = svg(&app);
+    assert!(rendered.contains(">Time (s)</text>"));
+    assert!(rendered.contains(">Response %</text>"));
+
+    // Clearing a field removes the line again.
+    app.open_graph_labels();
+    app.graph_label_subtitle = String::new();
+    app.graph_label_footer = String::new();
+    app.apply_graph_labels();
+    let rendered = svg(&app);
+    assert!(!rendered.contains("Audit subtitle"));
+    assert!(!rendered.contains("Audit footer"));
+
+    app.reset_graph_edits();
+    let rendered = svg(&app);
+    assert!(!rendered.contains("Audit"), "the reset removes the edits");
+    assert!(rendered.contains(">Test graph</text>"));
+}
+
+#[test]
+fn data_label_modes_reach_the_render() {
+    use fp_core::plot::DataLabelMode;
+
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(graph_with_points());
+    app.show_plot = true;
+    let svg = |app: &FreePlotsApp| {
+        fp_core::plot::render_svg_with(app.plot.as_ref().expect("plot"), app.graph_overlay())
+    };
+
+    app.open_data_labels();
+    app.data_label_mode = DataLabelMode::Index;
+    app.apply_data_labels(false);
+    let rendered = svg(&app);
+    assert!(
+        rendered.contains(">1</text>"),
+        "the first point is numbered"
+    );
+    assert!(
+        rendered.contains(">2</text>"),
+        "the second point is numbered"
+    );
+
+    app.open_data_labels();
+    app.data_label_mode = DataLabelMode::YValue;
+    app.apply_data_labels(false);
+    let rendered = svg(&app);
+    assert!(rendered.contains(">3.0000</text>"));
+    assert!(rendered.contains(">7.0000</text>"));
+
+    app.apply_data_labels(true);
+    assert!(
+        !svg(&app).contains(">3.0000</text>"),
+        "the labels are removed"
+    );
+}
+
+#[test]
+fn notes_reach_the_render_and_follow_their_actions() {
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(graph_with_points());
+    app.show_plot = true;
+    let svg = |app: &FreePlotsApp| {
+        fp_core::plot::render_svg_with(app.plot.as_ref().expect("plot"), app.graph_overlay())
+    };
+
+    app.open_graph_annotation();
+    app.annotation_text = "spot".to_owned();
+    app.annotation_x = 25.0;
+    app.annotation_y = 75.0;
+    app.add_graph_annotation();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    let rendered = svg(&app);
+    let line = rendered
+        .lines()
+        .find(|line| line.contains(">spot</text>"))
+        .expect("the note is drawn");
+    // 600x400 frame: ML 70, MT 50, pw 500, ph 290.
+    assert!(line.contains("x=\"195.0\""), "{line}");
+    assert!(line.contains("y=\"279.5\""), "{line}");
+
+    app.rotate_note(0, 15.0);
+    assert!(svg(&app).contains("rotate(15"));
+    assert_eq!(svg(&app).matches(">spot</text>").count(), 1);
+
+    app.duplicate_note(0);
+    assert_eq!(svg(&app).matches(">spot</text>").count(), 2);
+    app.bring_note_to_front(0);
+    assert_eq!(svg(&app).matches(">spot</text>").count(), 2);
+    app.delete_note(0);
+    assert_eq!(svg(&app).matches(">spot</text>").count(), 1);
+
+    // The order in the SVG follows the list; "to front" moves a note up.
+    app.graph_overlay.annotations.clear();
+    app.open_graph_annotation();
+    app.annotation_text = "first".to_owned();
+    app.add_graph_annotation();
+    app.open_graph_annotation();
+    app.annotation_text = "second".to_owned();
+    app.add_graph_annotation();
+    let rendered = svg(&app);
+    let first = rendered.find(">first<").expect("first note");
+    let second = rendered.find(">second<").expect("second note");
+    assert!(first < second, "notes keep their order");
+    app.bring_note_to_front(0);
+    let rendered = svg(&app);
+    let first = rendered.find(">first<").expect("first note");
+    let second = rendered.find(">second<").expect("second note");
+    assert!(second < first, "to front draws the note on top");
+}
+
+#[test]
+fn reference_line_fields_reach_the_render() {
+    use fp_core::plot::ReferenceAxis;
+
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(graph_with_points());
+    app.show_plot = true;
+    let svg = |app: &FreePlotsApp| {
+        fp_core::plot::render_svg_with(app.plot.as_ref().expect("plot"), app.graph_overlay())
+    };
+
+    app.open_reference_line();
+    app.reference_axis = ReferenceAxis::Vertical;
+    app.reference_value = "4,5".to_owned();
+    app.reference_label = "upper limit".to_owned();
+    app.add_reference_line();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    let rendered = svg(&app);
+    assert!(rendered.contains(">upper limit</text>"));
+    assert!(rendered.contains("stroke-dasharray=\"4 3\""));
+
+    app.open_reference_line();
+    app.reference_axis = ReferenceAxis::Horizontal;
+    app.reference_value = "6".to_owned();
+    app.reference_label = "target".to_owned();
+    app.add_reference_line();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    let rendered = svg(&app);
+    assert!(rendered.contains(">target</text>"));
+    assert_eq!(rendered.matches("stroke-dasharray=\"4 3\"").count(), 2);
+}
+
+#[test]
+fn a_panel_grid_carries_every_graph_edit() {
+    use fp_core::plot::{DataLabelMode, ReferenceAxis};
+
+    let mut second = graph_with_points();
+    second.x_axis.label = "line_b".to_owned();
+    let plot = fp_core::plot::panel_plot(vec![graph_with_points(), second], 2, "Grid")
+        .expect("panel plot");
+    let mut app = FreePlotsApp::new();
+    app.plot = Some(plot);
+    app.show_plot = true;
+    let svg = |app: &FreePlotsApp| {
+        fp_core::plot::render_svg_with(app.plot.as_ref().expect("plot"), app.graph_overlay())
+    };
+
+    // The title, subtitle and footer belong to the whole grid.
+    app.open_graph_labels();
+    app.graph_label_title = "Grid title".to_owned();
+    app.graph_label_subtitle = "Grid subtitle".to_owned();
+    app.graph_label_footer = "Grid footer".to_owned();
+    app.apply_graph_labels();
+    let rendered = svg(&app);
+    assert_eq!(rendered.matches(">Grid title</text>").count(), 1);
+    assert_eq!(rendered.matches(">Grid subtitle</text>").count(), 1);
+    assert_eq!(rendered.matches(">Grid footer</text>").count(), 1);
+
+    // Data labels are drawn inside every panel.
+    app.open_data_labels();
+    app.data_label_mode = DataLabelMode::Index;
+    app.apply_data_labels(false);
+    let rendered = svg(&app);
+    assert!(
+        rendered.matches(">1</text>").count() >= 2,
+        "one label per panel"
+    );
+    app.apply_data_labels(true);
+
+    // Percentiles are taken from the points of the panels, not from the empty
+    // outer spec.
+    app.open_percentiles();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    app.percentile_axis = ReferenceAxis::Vertical;
+    app.percentile_values = "50".to_owned();
+    app.add_percentile_lines();
+    assert!(app.error.is_none(), "{:?}", app.error);
+    assert_eq!(app.graph_overlay.reference_lines.len(), 1);
+    let rendered = svg(&app);
+    assert!(
+        rendered.matches(">P50</text>").count() >= 2,
+        "the percentile line must be drawn in every panel"
+    );
+}
+
+#[test]
+fn a_panel_grid_carries_the_presentation_edits() {
+    use graph_edit::GraphAction;
+
+    let mut app = FreePlotsApp::new();
+    app.load_sample("Two probability plots");
+    let ctx = egui::Context::default();
+    let svg = |app: &FreePlotsApp| {
+        fp_core::plot::render_svg_with(app.plot.as_ref().expect("plot"), app.graph_overlay())
+    };
+    let baseline = svg(&app);
+
+    app.apply_graph_action(&ctx, GraphAction::GridToggle);
+    assert_ne!(svg(&app), baseline, "the grid reaches every panel");
+    app.apply_graph_action(&ctx, GraphAction::GridToggle);
+    assert_eq!(svg(&app), baseline);
+
+    app.open_graph_text();
+    app.graph_text_family = fp_core::plot::GraphFontFamily::Serif;
+    app.graph_text_size = 16.0;
+    app.apply_graph_text();
+    assert_ne!(svg(&app), baseline, "the typeface reaches every panel");
+    app.graph_overlay = fp_core::plot::GraphOverlay::default();
+    assert_eq!(svg(&app), baseline);
+
+    app.graph_overlay.show_symbols = false;
+    assert_ne!(svg(&app), baseline, "the symbols reach every panel");
+    app.graph_overlay.show_symbols = true;
+    assert_eq!(svg(&app), baseline);
+
+    app.graph_overlay.show_lines = false;
+    assert_ne!(svg(&app), baseline, "the lines reach every panel");
+    app.graph_overlay.show_lines = true;
+
+    app.graph_overlay.show_bands = false;
+    assert_ne!(svg(&app), baseline, "the bands reach every panel");
+    app.graph_overlay.show_bands = true;
+    assert_eq!(svg(&app), baseline);
 }
 
 #[test]
