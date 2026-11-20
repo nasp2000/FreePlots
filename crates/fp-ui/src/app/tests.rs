@@ -11918,3 +11918,645 @@ fn the_tree_help_explains_the_models() {
     harness.run();
     assert!(!harness.state().show_tree_help);
 }
+
+#[test]
+fn the_toolbar_column_chooser_selects_the_column_in_the_grid() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    assert_eq!(harness.state().selected_cell(), Some((0, 0)));
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::ComboBox, "Column:")
+        .click();
+    harness.run();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Button, "batch")
+        .click();
+    harness.run();
+    assert_eq!(harness.state().selected_column(), Some("batch"));
+    assert_eq!(
+        harness.state().selected_cell(),
+        Some((1, 0)),
+        "the grid must follow the column chosen in the toolbar"
+    );
+    assert!(
+        harness.state().column_summary().starts_with("batch:"),
+        "the column summary must follow the toolbar: {}",
+        harness.state().column_summary()
+    );
+}
+
+#[test]
+fn turning_off_native_plot_windows_closes_the_native_graph() {
+    use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.native_plot_windows = true;
+    app.run_probability_plot();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    assert!(
+        harness.state().plot_viewport.is_some(),
+        "the native graph window is open"
+    );
+    // Tools → Native plot windows unchecks this setting; the graph must move
+    // into the main window instead of staying in the orphaned native one.
+    harness.state_mut().native_plot_windows = false;
+    harness.run();
+    assert!(
+        harness.state().plot_viewport.is_none(),
+        "the native graph window must close when the graph docks"
+    );
+    assert!(
+        harness.state().show_plot,
+        "the graph stays open, now docked in the main window"
+    );
+}
+
+/// Opens a top-level menu and clicks one of its rows.
+fn click_menu(harness: &mut egui_kittest::Harness<'_, FreePlotsApp>, menu: &str, item: &str) {
+    use egui_kittest::kittest::Queryable;
+
+    harness.get_by_label(menu).click();
+    harness.run();
+    harness.get_by_label(item).click();
+    harness.run();
+}
+
+#[test]
+fn the_file_menu_opens_saves_and_exports_every_kind() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.session = "Report".to_owned();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    click_menu(&mut harness, "File", "Open CSV…");
+    assert!(harness.state().show_open);
+    assert_eq!(harness.state().open_kind, FileKind::Csv);
+    harness.state_mut().show_open = false;
+    harness.run();
+
+    click_menu(&mut harness, "File", "Open Project…");
+    assert!(harness.state().show_open);
+    assert_eq!(harness.state().open_kind, FileKind::Project);
+    harness.state_mut().show_open = false;
+    harness.run();
+
+    click_menu(&mut harness, "File", "Open Excel…");
+    assert!(harness.state().show_open);
+    assert_eq!(harness.state().open_kind, FileKind::Xlsx);
+    harness.state_mut().show_open = false;
+    harness.run();
+
+    click_menu(&mut harness, "File", "Save CSV As…");
+    assert!(harness.state().show_save);
+    assert_eq!(harness.state().save_kind, FileKind::Csv);
+    assert_eq!(harness.state().save_path, "weights.csv");
+    harness.state_mut().show_save = false;
+    harness.run();
+
+    click_menu(&mut harness, "File", "Save Project As…");
+    assert!(harness.state().show_save);
+    assert_eq!(harness.state().save_kind, FileKind::Project);
+    assert_eq!(harness.state().save_path, "weights.fpp");
+    harness.state_mut().show_save = false;
+    harness.run();
+
+    click_menu(&mut harness, "File", "Print…");
+    let print = harness
+        .state_mut()
+        .take_print_request()
+        .expect("the print request");
+    assert!(print.to_string_lossy().ends_with("FreePlots-session.pdf"));
+
+    click_menu(&mut harness, "File", "Export Session PDF…");
+    assert_eq!(harness.state().save_kind, FileKind::Pdf);
+    assert_eq!(harness.state().save_path, "session.pdf");
+    harness.state_mut().show_save = false;
+    harness.run();
+
+    click_menu(&mut harness, "File", "Export Session HTML…");
+    assert_eq!(harness.state().save_kind, FileKind::Html);
+    assert_eq!(harness.state().save_path, "session.html");
+    harness.state_mut().show_save = false;
+    harness.run();
+
+    click_menu(&mut harness, "File", "Batch descriptive statistics…");
+    assert!(harness.state().show_batch_dialog);
+    assert_eq!(harness.state().batch_column, "weight");
+    harness.state_mut().show_batch_dialog = false;
+    harness.run();
+
+    click_menu(&mut harness, "File", "Sample projects…");
+    assert!(harness.state().show_samples_dialog);
+    harness.state_mut().show_samples_dialog = false;
+    harness.run();
+
+    let sheets = harness.state().worksheet_count();
+    click_menu(&mut harness, "File", "New Worksheet");
+    assert_eq!(harness.state().worksheet_count(), sheets + 1);
+
+    // Exit asks the window system to close the window.
+    harness.get_by_label("File").click();
+    harness.run();
+    harness.get_by_label("Exit").click();
+    harness.step();
+    let closed = harness.output().viewport_output.values().any(|viewport| {
+        viewport
+            .commands
+            .iter()
+            .any(|command| matches!(command, egui::ViewportCommand::Close))
+    });
+    assert!(closed, "Exit must ask the window to close");
+}
+
+#[test]
+fn the_edit_menu_reaches_the_cells_and_the_session() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.session = "Report".to_owned();
+    app.select_cell(0, 0);
+    app.set_edit_buffer("99");
+    assert!(app.commit_cell());
+    app.select_cell(0, 0);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    click_menu(&mut harness, "Edit", "Undo");
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 0)
+            .as_deref(),
+        Some("12.5")
+    );
+    click_menu(&mut harness, "Edit", "Redo");
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 0)
+            .as_deref(),
+        Some("99")
+    );
+
+    click_menu(&mut harness, "Edit", "Select All");
+    assert_eq!(harness.state().selection_bounds(), Some((0, 0, 1, 4)));
+
+    // The clipboard command is emitted in the frame the click is handled, so
+    // only that frame is stepped.
+    harness.get_by_label("Edit").click();
+    harness.run();
+    harness.get_by_label("Copy").click();
+    harness.step();
+    let copied = harness.output().platform_output.commands.iter().any(
+        |command| matches!(command, egui::OutputCommand::CopyText(text) if text.contains("99\tA")),
+    );
+    assert!(copied, "Copy must fill the clipboard");
+    assert!(harness.state().clipboard.contains("99\tA"));
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    click_menu(&mut harness, "Edit", "Cut");
+    assert!(
+        harness.state().data().expect("frame").cell_is_missing(0, 0),
+        "Cut must clear the cells it copied"
+    );
+
+    // Paste starts at the active cell, so put the cursor back on C1.
+    harness.state_mut().select_cell(0, 0);
+    harness.run();
+    click_menu(&mut harness, "Edit", "Paste");
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 0)
+            .as_deref(),
+        Some("99")
+    );
+
+    click_menu(&mut harness, "Edit", "Clear Cells");
+    assert!(harness.state().data().expect("frame").cell_is_missing(0, 0));
+
+    click_menu(&mut harness, "Edit", "Find…");
+    assert!(harness.state().show_find_dialog);
+    harness.state_mut().show_find_dialog = false;
+    harness.run();
+
+    click_menu(&mut harness, "Edit", "Format Cells…");
+    assert!(harness.state().show_format_dialog);
+    harness.state_mut().show_format_dialog = false;
+    harness.run();
+
+    click_menu(&mut harness, "Edit", "Conditional formatting…");
+    assert!(harness.state().show_conditional_dialog);
+    harness.state_mut().show_conditional_dialog = false;
+    harness.run();
+
+    click_menu(&mut harness, "Edit", "Rename Column…");
+    assert!(harness.state().show_rename);
+    assert_eq!(harness.state().rename_target, Some(0));
+    assert_eq!(harness.state().rename_text, "weight");
+    harness.state_mut().show_rename = false;
+    harness.run();
+
+    click_menu(&mut harness, "Edit", "Clear Session");
+    assert!(harness.state().session_text().is_empty());
+}
+
+#[test]
+fn the_tools_menu_changes_zoom_theme_windows_language_and_plugins() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("Tools").click();
+    harness.run();
+    harness.get_by_label("Zoom ▶").click();
+    harness.run();
+    harness.get_by_label("150%").click();
+    harness.run();
+    assert!((harness.state().zoom - 1.5).abs() < 0.01);
+
+    harness.get_by_label("Tools").click();
+    harness.run();
+    harness.get_by_label("Dark mode").click();
+    harness.run();
+    assert!(harness.state().dark_mode);
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    harness.get_by_label("Tools").click();
+    harness.run();
+    harness.get_by_label("Native plot windows").click();
+    harness.run();
+    assert!(!harness.state().native_plot_windows);
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    harness.get_by_label("Tools").click();
+    harness.run();
+    harness.get_by_label("Data quality summary").click();
+    harness.run();
+    assert!(
+        harness.state().session_text().contains("Data Quality"),
+        "the plugin menu must run the plugin"
+    );
+
+    harness.get_by_label("Tools").click();
+    harness.run();
+    harness.get_by_label("Português").click();
+    harness.run();
+    assert_eq!(harness.state().language, fp_core::i18n::Lang::Portuguese);
+    harness.get_by_label("Ficheiro");
+}
+
+#[test]
+fn the_help_menu_shows_every_document_and_link() {
+    use egui_kittest::Harness;
+
+    let app = FreePlotsApp::new();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    click_menu(&mut harness, "Help", "Show the tour");
+    assert!(harness.state().show_tour);
+    harness.state_mut().show_tour = false;
+    harness.run();
+
+    click_menu(&mut harness, "Help", "Keyboard shortcuts");
+    assert!(harness.state().show_shortcuts);
+    harness.state_mut().show_shortcuts = false;
+    harness.run();
+
+    click_menu(&mut harness, "Help", "Where the settings are stored…");
+    assert!(harness.state().show_settings_info);
+    harness.state_mut().show_settings_info = false;
+    harness.run();
+
+    click_menu(&mut harness, "Help", "Diagnostics…");
+    assert!(harness.state().show_diagnostics);
+    harness.state_mut().show_diagnostics = false;
+    harness.run();
+
+    click_menu(&mut harness, "Help", "Check for updates");
+    assert_eq!(
+        harness.state_mut().take_open_url_request().as_deref(),
+        Some("https://github.com/nasp2000/FreePlots/releases/latest")
+    );
+
+    click_menu(&mut harness, "Help", "Assistant for agents…");
+    assert!(harness.state().show_agents_dialog);
+    harness.state_mut().show_agents_dialog = false;
+    harness.run();
+
+    click_menu(&mut harness, "Help", "Third-party licences…");
+    assert!(harness.state().show_licences);
+    harness.state_mut().show_licences = false;
+    harness.run();
+
+    click_menu(&mut harness, "Help", "About FreePlots");
+    assert!(harness.state().show_about);
+}
+
+#[test]
+fn the_toolbar_actions_reach_the_app() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.set_native_plot_windows(false);
+    app.session = "Report".to_owned();
+    app.select_cell(0, 0);
+    app.set_edit_buffer("99");
+    assert!(app.commit_cell());
+    app.select_cell(0, 0);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("Open CSV (Ctrl+O)").click();
+    harness.run();
+    assert!(harness.state().show_open);
+    assert_eq!(harness.state().open_kind, FileKind::Csv);
+    harness.state_mut().show_open = false;
+    harness.run();
+
+    harness.get_by_label("Save CSV (Ctrl+S)").click();
+    harness.run();
+    assert!(harness.state().show_save);
+    assert_eq!(harness.state().save_kind, FileKind::Csv);
+    harness.state_mut().show_save = false;
+    harness.run();
+
+    harness.get_by_label("Undo (Ctrl+Z)").click();
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 0)
+            .as_deref(),
+        Some("12.5")
+    );
+    harness.get_by_label("Redo (Ctrl+Y)").click();
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 0)
+            .as_deref(),
+        Some("99")
+    );
+
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::ComboBox, "Distribution:")
+        .click();
+    harness.run();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Button, "Weibull")
+        .click();
+    harness.run();
+    assert_eq!(harness.state().distribution, DistributionKind::Weibull);
+
+    harness.get_by_label("Probability Plot").click();
+    harness.run();
+    assert!(harness.state().show_probability_plot_dialog);
+    harness.state_mut().show_probability_plot_dialog = false;
+    harness.run();
+
+    // A disabled icon is greyed out and must not act.
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::ComboBox, "Column:")
+        .click();
+    harness.run();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Button, "batch")
+        .click();
+    harness.run();
+    harness.get_by_label("Probability Plot").click();
+    harness.run();
+    assert!(
+        !harness.state().show_probability_plot_dialog,
+        "a greyed toolbar icon must not open its dialog"
+    );
+
+    harness.get_by_label("Clear Session output").click();
+    harness.run();
+    assert!(harness.state().session_text().is_empty());
+
+    harness.get_by_label("Samples").click();
+    harness.run();
+    assert!(harness.state().show_samples_dialog);
+}
+
+#[test]
+fn the_status_bar_controls_reach_the_view() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.zoom = 1.8;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("...").click();
+    harness.run();
+    harness.get_by_label("Reset zoom").click();
+    harness.run();
+    assert!((harness.state().zoom - 1.0).abs() < 0.01);
+
+    harness.get_by_label("...").click();
+    harness.run();
+    harness.get_by_label("Dark mode").click();
+    harness.run();
+    assert!(harness.state().dark_mode);
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    harness.get_by_label("...").click();
+    harness.run();
+    harness.get_by_label("Grid lines").click();
+    harness.run();
+    assert!(!harness.state().show_grid_lines);
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    harness.get_by_label("...").click();
+    harness.run();
+    harness.get_by_label("Session panel").click();
+    harness.run();
+    assert!(!harness.state().show_session);
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    harness.get_by_label("...").click();
+    harness.run();
+    harness.get_by_label("About FreePlots").click();
+    harness.run();
+    assert!(harness.state().show_about);
+    harness.state_mut().show_about = false;
+    harness.run();
+
+    harness.get_by_label(">_").click();
+    harness.run();
+    assert!(harness.state().show_calc_dialog);
+    harness.state_mut().show_calc_dialog = false;
+    harness.run();
+
+    // The zoom buttons sit next to the worksheet "+" tab button, so the
+    // bottom-most one is the status-bar control.
+    let plus = harness
+        .get_all_by_label("+")
+        .max_by(|left, right| {
+            left.rect()
+                .center()
+                .y
+                .partial_cmp(&right.rect().center().y)
+                .expect("finite y")
+        })
+        .expect("a + button");
+    plus.click();
+    harness.run();
+    assert!(harness.state().zoom > 1.0);
+    harness.get_by_label("−").click();
+    harness.run();
+    assert!((harness.state().zoom - 1.0).abs() < 0.01);
+
+    harness
+        .get_by_label("Show or hide the Session panel")
+        .click();
+    harness.run();
+    assert!(harness.state().show_session);
+    harness.get_by_label("Show or hide the grid lines").click();
+    harness.run();
+    assert!(harness.state().show_grid_lines);
+    assert!(
+        !harness
+            .get_all_by_label("5 rows × 2 columns")
+            .collect::<Vec<_>>()
+            .is_empty(),
+        "the status bar must show the worksheet size"
+    );
+}
+
+#[test]
+fn the_window_menu_reopens_a_closed_graph() {
+    use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.set_native_plot_windows(false);
+    app.run_probability_plot();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    assert!(harness.state().show_plot);
+    harness.state_mut().show_plot = false;
+    harness.run();
+    assert!(!harness.state().show_plot);
+
+    click_menu(&mut harness, "Window", "Show the graph");
+    assert!(harness.state().show_plot);
+    assert!(harness.state().plot_focus_countdown > 0);
+}
+
+#[test]
+fn the_worksheet_tab_menu_renames_closes_and_opens_sheets() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.add_sheet();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    assert_eq!(harness.state().worksheet_count(), 2);
+
+    let tab = harness.get_by_label("Worksheet 2").rect().center();
+    open_cell_menu(&mut harness, tab);
+    harness.get_by_label("Rename…").click();
+    harness.run();
+    assert!(harness.state().show_sheet_rename);
+    assert_eq!(harness.state().sheet_rename_target, 1);
+    harness.get_by_label("Cancel").click();
+    harness.run();
+    assert!(!harness.state().show_sheet_rename);
+
+    let tab = harness.get_by_label("Worksheet 2").rect().center();
+    open_cell_menu(&mut harness, tab);
+    harness.get_by_label("New worksheet").click();
+    harness.run();
+    assert_eq!(harness.state().worksheet_count(), 3);
+
+    let tab = harness.get_by_label("Worksheet 2").rect().center();
+    open_cell_menu(&mut harness, tab);
+    harness.get_by_label("Close worksheet").click();
+    harness.run();
+    assert_eq!(harness.state().worksheet_count(), 2);
+    assert!(
+        !harness
+            .state()
+            .sheet_names()
+            .contains(&"Worksheet 2".to_owned())
+    );
+}
+
+#[test]
+fn the_status_bar_zoom_slider_sets_the_zoom() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    assert!((harness.state().zoom - 1.0).abs() < 0.01);
+    let slider = harness.get_by_role(egui::accesskit::Role::Slider);
+    slider.click();
+    harness.run();
+    assert!(
+        (harness.state().zoom - 1.0).abs() > 0.01,
+        "clicking the zoom slider must move the zoom: {}",
+        harness.state().zoom
+    );
+    assert!((0.5..=2.5).contains(&harness.state().zoom));
+}

@@ -5591,7 +5591,12 @@ fn paint_icon(painter: &egui::Painter, c: egui::Pos2, icon: ToolIcon, stroke: eg
 }
 
 fn tool_icon(ui: &mut egui::Ui, icon: ToolIcon, tooltip: &str, enabled: bool) -> egui::Response {
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(26.0, 24.0), egui::Sense::click());
+    let sense = if enabled {
+        egui::Sense::click()
+    } else {
+        egui::Sense::hover()
+    };
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(26.0, 24.0), sense);
     let visuals = ui.style().interact(&response);
     if enabled && (response.hovered() || response.is_pointer_button_down_on()) {
         ui.painter()

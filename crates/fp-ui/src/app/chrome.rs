@@ -314,23 +314,23 @@ impl FreePlotsApp {
     pub(super) fn toolbar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let ready = self.selection_is_numeric();
-            if tool_icon(ui, ToolIcon::Open, "Open CSV", true).clicked() {
+            if tool_icon(ui, ToolIcon::Open, "Open CSV (Ctrl+O)", true).clicked() {
                 self.begin_open(FileKind::Csv);
             }
-            if tool_icon(ui, ToolIcon::Save, "Save CSV", true).clicked() {
+            if tool_icon(ui, ToolIcon::Save, "Save CSV (Ctrl+S)", true).clicked() {
                 self.begin_save(FileKind::Csv);
             }
-            if tool_icon(ui, ToolIcon::Undo, "Undo", true).clicked() {
+            if tool_icon(ui, ToolIcon::Undo, "Undo (Ctrl+Z)", true).clicked() {
                 self.undo();
             }
-            if tool_icon(ui, ToolIcon::Redo, "Redo", true).clicked() {
+            if tool_icon(ui, ToolIcon::Redo, "Redo (Ctrl+Y)", true).clicked() {
                 self.redo();
             }
             let plot_label = self.catalog().label("Probability Plot");
             if tool_icon(ui, ToolIcon::Plot, plot_label, ready).clicked() {
                 self.open_probability_plot_dialog();
             }
-            if tool_icon(ui, ToolIcon::Clear, "Clear Session", true).clicked() {
+            if tool_icon(ui, ToolIcon::Clear, "Clear Session output", true).clicked() {
                 self.session.clear();
             }
             let samples = self.catalog().label("Samples");
@@ -348,12 +348,19 @@ impl FreePlotsApp {
                 .map(|df| df.columns().iter().map(|c| c.name().to_owned()).collect())
                 .unwrap_or_default();
             let current = self.selected.clone().unwrap_or_else(|| "—".to_owned());
+            let row = self.selected_cell.map_or(0, |(_, row)| row);
             egui::ComboBox::from_id_salt("fp_column")
                 .selected_text(current)
                 .width(160.0)
                 .show_ui(ui, |ui| {
-                    for name in &names {
-                        ui.selectable_value(&mut self.selected, Some(name.clone()), name.as_str());
+                    for (index, name) in names.iter().enumerate() {
+                        let active = self.selected.as_deref() == Some(name.as_str());
+                        if ui.selectable_label(active, name.as_str()).clicked() && !active {
+                            // The chooser is the worksheet selection: the grid,
+                            // the formula bar and the column summary follow it,
+                            // so the next analysis reads the column on screen.
+                            self.select_cell(index, row);
+                        }
                     }
                 })
                 .response

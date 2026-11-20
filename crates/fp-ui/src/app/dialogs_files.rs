@@ -1098,8 +1098,10 @@ impl FreePlotsApp {
             return;
         }
         // An open editor docks to the right, so the window grows to keep the
-        // plot at its usual size next to the form.
-        if self.native_plot_windows && self.plot_viewport.take().is_some() {
+        // plot at its usual size next to the form. Any native viewport left
+        // behind (the setting was switched off, or an editor opened) has to be
+        // closed here or the same graph would stay in two windows.
+        if self.plot_viewport.take().is_some() {
             ctx.send_viewport_cmd_to(Self::graph_viewport_id(), egui::ViewportCommand::Close);
             self.forget_graph_window_level();
         }

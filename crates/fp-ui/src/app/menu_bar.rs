@@ -1872,7 +1872,9 @@ impl FreePlotsApp {
                 if menu_icon_item(
                     ui,
                     ToolIcon::Plot,
-                    self.catalog().label("Probability Plot"),
+                    // The window shows whatever graph the last analysis drew,
+                    // not only a probability plot.
+                    self.catalog().label("Show the graph"),
                     None,
                     self.plot.is_some(),
                 )

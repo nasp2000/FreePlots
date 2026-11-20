@@ -767,6 +767,7 @@ impl UiCatalog {
             "Dark" => "Escuro",
             "Light" => "Claro",
             "Zoom" => "Zoom",
+            "Show the graph" => "Mostrar o gráfico",
             "Session panel" => "Painel da sessão",
             "Grid lines" => "Linhas da grelha",
             "Native plot windows" => "Janelas nativas dos gráficos",
