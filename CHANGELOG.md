@@ -6,6 +6,17 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A project with empty cells opens again: the missing values were written as
+  `null` and refused when the file was read.
+- The Z and Poisson dialog stays open when a value is rejected and keeps what
+  was typed.
+- The *Store Descriptive Statistics* and *Tally* dialogs keep their buttons
+  inside the window on a worksheet with many columns.
+- A graph opens above the window that produced it and takes the focus; the
+  *Window > Probability Plot* entry raises it again.
+
 ## [0.1.2] - 2026-11-18
 
 ### Added
