@@ -230,6 +230,19 @@ fn every_menu_item_changes_the_interface() {
     for path in MENU_PATHS {
         let mut ui = Automation::new();
         ui.load_frame(full_frame(), "full.csv");
+        // Undo and Redo are disabled until there is history, so give the
+        // worksheet a change to undo (and put Redo back on the stack) before
+        // measuring the row.
+        match *path {
+            ["Edit", "Undo"] => {
+                ui.open_menu(&["Data", "Add Row"]).expect("row to undo");
+            }
+            ["Edit", "Redo"] => {
+                ui.open_menu(&["Data", "Add Row"]).expect("row to undo");
+                ui.open_menu(&["Edit", "Undo"]).expect("undo the row");
+            }
+            _ => {}
+        }
         let before_status = ui.status().to_owned();
         let before_session = ui.session().to_owned();
         let before_windows = ui.window_titles();
