@@ -4056,6 +4056,88 @@ fn the_summary_help_explains_the_commands() {
     assert!(!harness.state().show_summary_help);
 }
 
+fn test_graph() -> fp_core::plot::PlotSpec {
+    let axis = |label: &str| fp_core::plot::AxisSpec {
+        label: label.to_owned(),
+        scale: fp_core::plot::Scale::Linear,
+        min: 0.0,
+        max: 10.0,
+        ticks: Vec::new(),
+        minor: Vec::new(),
+    };
+    fp_core::plot::PlotSpec {
+        title: "Test graph".to_owned(),
+        x_axis: axis("x"),
+        y_axis: axis("y"),
+        size: (600, 400),
+        points: Vec::new(),
+        lines: Vec::new(),
+        bands: Vec::new(),
+        series: Vec::new(),
+        panels: Vec::new(),
+        panel_columns: 0,
+        secondary: None,
+        notes: Vec::new(),
+    }
+}
+
+#[test]
+fn a_graph_follows_the_level_of_the_dialog_owner() {
+    let mut app = FreePlotsApp::new();
+    // No dialog: the graph is a normal window and the level is sent once.
+    assert_eq!(
+        app.sync_graph_window_level(),
+        Some(egui::WindowLevel::Normal)
+    );
+    assert_eq!(app.sync_graph_window_level(), None);
+
+    // A dialog puts the main window on top; the graph follows so a graph
+    // opened from the dialog can be raised above it.
+    app.dialogs_on_top = true;
+    assert_eq!(
+        app.sync_graph_window_level(),
+        Some(egui::WindowLevel::AlwaysOnTop)
+    );
+    assert_eq!(app.sync_graph_window_level(), None);
+
+    // The dialog closes: the graph returns to a normal window.
+    app.dialogs_on_top = false;
+    assert_eq!(
+        app.sync_graph_window_level(),
+        Some(egui::WindowLevel::Normal)
+    );
+
+    // A closed viewport forgets the level, so the next graph sends it again.
+    app.forget_graph_window_level();
+    assert_eq!(
+        app.sync_graph_window_level(),
+        Some(egui::WindowLevel::Normal)
+    );
+}
+
+#[test]
+fn a_new_graph_asks_for_the_focus() {
+    let mut app = FreePlotsApp::new();
+    app.plot_focus_countdown = 0;
+    app.adopt_plot(Some(test_graph()));
+    assert!(app.show_plot);
+    assert_eq!(
+        app.plot_focus_countdown,
+        FreePlotsApp::PLOT_FOCUS_FRAMES,
+        "a new graph must be brought to the front"
+    );
+
+    // A graph replaces the previous one: the new one is raised again.
+    app.plot_focus_countdown = 0;
+    app.adopt_plot(Some(test_graph()));
+    assert_eq!(app.plot_focus_countdown, FreePlotsApp::PLOT_FOCUS_FRAMES);
+
+    // Clearing a graph does not ask for the focus.
+    app.adopt_plot(None);
+    assert_eq!(app.plot_focus_countdown, 0);
+    assert!(!app.show_plot);
+}
+
 #[test]
 fn the_store_dialog_keeps_its_buttons_on_screen() {
     use egui_kittest::{Harness, kittest::Queryable};

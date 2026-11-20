@@ -748,6 +748,8 @@ impl FreePlotsApp {
             zoom: 1.0,
             date_format: DateFormat::Iso,
             native_plot_windows: true,
+            plot_window_level: None,
+            plot_focus_countdown: 0,
             plot_viewport: None,
         }
     }

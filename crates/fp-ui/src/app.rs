@@ -1803,9 +1803,20 @@ pub struct FreePlotsApp {
     date_format: DateFormat,
     native_plot_windows: bool,
     plot_viewport: Option<Arc<AtomicBool>>,
+    /// Level last sent to the native graph viewport.
+    plot_window_level: Option<egui::WindowLevel>,
+    /// Frames left to ask the window manager for the graph viewport focus.
+    ///
+    /// The viewport is created deferred, so a single command sent in the
+    /// frame that adopts the plot would reach a window that does not exist
+    /// yet; the request is repeated for the first frames of the window.
+    plot_focus_countdown: u8,
 }
 
 impl FreePlotsApp {
+    /// Frames the graph viewport asks for the focus after it is created.
+    const PLOT_FOCUS_FRAMES: u8 = 3;
+
     /// Moves the live worksheet fields into the active tab.
     fn save_active_sheet(&mut self) {
         if let Some(sheet) = self.sheets.get_mut(self.active_sheet) {
@@ -2890,6 +2901,35 @@ impl FreePlotsApp {
         self.background_analyses = enabled;
     }
 
+    /// Level the native graph window must use in this frame.
+    ///
+    /// A graph opened from a dialog must not end up behind the window that
+    /// owns the dialog: while a dialog makes the main window stay on top, the
+    /// graph follows the same level and can be raised above it.
+    fn desired_graph_window_level(&self) -> egui::WindowLevel {
+        if self.dialogs_on_top {
+            egui::WindowLevel::AlwaysOnTop
+        } else {
+            egui::WindowLevel::Normal
+        }
+    }
+
+    /// Returns the level the graph viewport must be given, once.
+    pub(super) fn sync_graph_window_level(&mut self) -> Option<egui::WindowLevel> {
+        let level = self.desired_graph_window_level();
+        if self.plot_window_level == Some(level) {
+            return None;
+        }
+        self.plot_window_level = Some(level);
+        Some(level)
+    }
+
+    /// Clears the level cache when the native graph viewport closes.
+    pub(super) fn forget_graph_window_level(&mut self) {
+        self.plot_window_level = None;
+        self.plot_focus_countdown = 0;
+    }
+
     /// Adopts a new graph and drops the content edits of the previous one.
     ///
     /// Font size, colours, grid and the other presentation defaults stay (the
@@ -2911,6 +2951,12 @@ impl FreePlotsApp {
             self.graph_overlay_title = Some(next.title.clone());
         }
         self.show_plot = plot.is_some();
+        if plot.is_some() {
+            // A new graph opens above the window that produced it.
+            self.plot_focus_countdown = Self::PLOT_FOCUS_FRAMES;
+        } else {
+            self.plot_focus_countdown = 0;
+        }
         self.plot = plot;
     }
 

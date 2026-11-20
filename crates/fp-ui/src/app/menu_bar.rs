@@ -1879,6 +1879,7 @@ impl FreePlotsApp {
                 .clicked()
                 {
                     self.show_plot = true;
+                    self.plot_focus_countdown = Self::PLOT_FOCUS_FRAMES;
                     ui.close();
                 }
             });

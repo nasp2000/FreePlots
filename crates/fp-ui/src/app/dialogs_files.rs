@@ -938,14 +938,17 @@ impl FreePlotsApp {
         }
         self.show_agents_dialog = open;
     }
+    /// Identifier of the native graph viewport.
+    fn graph_viewport_id() -> egui::ViewportId {
+        egui::ViewportId::from_hash_of("fp_graph")
+    }
+
     pub(super) fn graph_window(&mut self, ctx: &egui::Context) {
         if !self.show_plot {
             if self.plot_viewport.take().is_some() {
-                ctx.send_viewport_cmd_to(
-                    egui::ViewportId::from_hash_of("fp_graph"),
-                    egui::ViewportCommand::Close,
-                );
+                ctx.send_viewport_cmd_to(Self::graph_viewport_id(), egui::ViewportCommand::Close);
             }
+            self.forget_graph_window_level();
             return;
         }
         while let Ok(action) = self.plot_action_rx.try_recv() {
@@ -954,8 +957,21 @@ impl FreePlotsApp {
         if self.native_plot_windows && !self.any_graph_editor_open() {
             let Some(plot) = self.plot.clone() else {
                 self.show_plot = false;
+                self.forget_graph_window_level();
                 return;
             };
+            // A graph opened from a dialog follows the level of the window
+            // that owns the dialog, so it is not hidden behind it.
+            if let Some(level) = self.sync_graph_window_level() {
+                ctx.send_viewport_cmd_to(
+                    Self::graph_viewport_id(),
+                    egui::ViewportCommand::WindowLevel(level),
+                );
+            }
+            if self.plot_focus_countdown > 0 {
+                ctx.send_viewport_cmd_to(Self::graph_viewport_id(), egui::ViewportCommand::Focus);
+                self.plot_focus_countdown -= 1;
+            }
             // The statistics block lives beside the frame, so a plot that
             // carries one opens in a wider window and keeps its plot size.
             let default_size = if plot.panels.is_empty() {
@@ -991,8 +1007,10 @@ impl FreePlotsApp {
                     .with_title(title)
                     .with_inner_size(default_size)
                     // A graph that opens behind the worksheet hides the context
-                    // menu under it; ask the window manager for the focus.
-                    .with_active(true),
+                    // menu under it; ask the window manager for the focus and
+                    // follow the level of the dialog owner.
+                    .with_active(true)
+                    .with_window_level(self.desired_graph_window_level()),
                 move |ui, _class| {
                     if ui.ctx().input(|input| input.pointer.any_pressed()) {
                         ui.ctx().send_viewport_cmd(egui::ViewportCommand::Focus);
@@ -1082,10 +1100,8 @@ impl FreePlotsApp {
         // An open editor docks to the right, so the window grows to keep the
         // plot at its usual size next to the form.
         if self.native_plot_windows && self.plot_viewport.take().is_some() {
-            ctx.send_viewport_cmd_to(
-                egui::ViewportId::from_hash_of("fp_graph"),
-                egui::ViewportCommand::Close,
-            );
+            ctx.send_viewport_cmd_to(Self::graph_viewport_id(), egui::ViewportCommand::Close);
+            self.forget_graph_window_level();
         }
         let mut open = self.show_plot;
         let editing = self.any_graph_editor_open();
