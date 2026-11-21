@@ -6,6 +6,28 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-21
+
+### Fixed
+
+- Editing the X and Y axis labels updates every panel of the graph, and the
+  label editor stays above the graph it edits.
+- Percentile lines can be added to a panel grid: the dialog reads the points of
+  every panel instead of refusing the values.
+- The toolbar column chooser moves the worksheet selection, a greyed toolbar
+  icon no longer reacts to clicks, turning native plot windows off closes the
+  graph left in the old window, and the *Window* menu opens the graph the last
+  analysis drew.
+- The Open and Save dialogs stay open when the path is empty, Escape cancels a
+  pending close and the replace prompt, and a folder with the destination name
+  is no longer announced as a file to replace.
+- Opening a project replaces the whole workspace: a one-sheet project no longer
+  leaves the previous worksheet behind.
+- Escape closes the settings, diagnostics, licences, agents, tour and
+  sheet-rename windows.
+- Redo repeats an undone edit, and *Predict…* is reached under
+  *Stat > Regression*.
+
 ## [0.1.3] - 2026-11-20
 
 ### Fixed
