@@ -12900,6 +12900,21 @@ fn a_csv_and_a_project_roundtrip_keep_every_cell() {
         }
     }
 
+    // A one-sheet project also replaces the workspace: no stale tab stays
+    // behind when the runner opens it.
+    let mut single = FreePlotsApp::new();
+    single.set_data(frame(), "old.csv".to_owned());
+    single.load_project_sheets(
+        vec![("Only".to_owned(), mixed.clone())],
+        "one.fpp".to_owned(),
+    );
+    assert_eq!(single.worksheet_count(), 1);
+    assert_eq!(single.sheet_names(), vec!["Only".to_owned()]);
+    assert_eq!(
+        single.data().expect("frame").cell_text(0, 0).as_deref(),
+        Some("1.5")
+    );
+
     std::fs::remove_dir_all(&dir).ok();
 }
 

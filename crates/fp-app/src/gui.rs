@@ -205,16 +205,12 @@ impl eframe::App for Desktop {
                     .map(|(df, encoding)| {
                         Some((df, format!("{} [{encoding}]", request.path), Vec::new()))
                     }),
+                    // A project is a document: every worksheet it holds
+                    // replaces the workspace, so a one-sheet project must not
+                    // leave the previous data behind in another tab.
                     FileKind::Project => crate::platform::load_project_sheets(path).map(|sheets| {
-                        if sheets.len() > 1 {
-                            self.app.load_project_sheets(sheets, request.path.clone());
-                            None
-                        } else {
-                            sheets
-                                .into_iter()
-                                .next()
-                                .map(|(_, df)| (df, request.path.clone(), Vec::new()))
-                        }
+                        self.app.load_project_sheets(sheets, request.path.clone());
+                        None
                     }),
                     FileKind::Html
                     | FileKind::Pdf
