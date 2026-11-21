@@ -4460,6 +4460,12 @@ impl FreePlotsApp {
             self.overwrite_pending = None;
         }
         self.show_save = false;
+        self.show_settings_info = false;
+        self.show_diagnostics = false;
+        self.show_licences = false;
+        self.show_agents_dialog = false;
+        self.show_tour = false;
+        self.show_sheet_rename = false;
         self.show_find_dialog = false;
         self.show_overwrite = false;
         self.show_samples_dialog = false;

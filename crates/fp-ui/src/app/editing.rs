@@ -703,6 +703,11 @@ impl FreePlotsApp {
     pub fn selected_column(&self) -> Option<&str> {
         self.selected.as_deref()
     }
+    /// The text last copied from the worksheet, kept for the menu Paste.
+    #[must_use]
+    pub fn clipboard_text(&self) -> &str {
+        &self.clipboard
+    }
     pub fn clear_selected_cell(&mut self) {
         self.clear_selection();
     }
