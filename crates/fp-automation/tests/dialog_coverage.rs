@@ -157,7 +157,7 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["Stat", "Basic Statistics", "Store Descriptive Statistics…"],
     &["Stat", "Basic Statistics", "Covariance…"],
     &["Stat", "Basic Statistics", "Tally…"],
-    &["Stat", "Basic Statistics", "Predict…"],
+    &["Stat", "Regression", "Predict…"],
     &["Stat", "Control Charts", "CUSUM Chart…"],
     &["Stat", "Control Charts", "Acceptance Chart…"],
     &["Stat", "Control Charts", "T Chart (Rare Events)…"],
@@ -328,10 +328,17 @@ fn fingerprint(ui: &mut Automation) -> Fingerprint {
 /// a report to clear, a text column to move away from).
 fn prepare_action(ui: &mut Automation, path: &[&str]) {
     match *path {
-        ["Edit", "Undo"] | ["Edit", "Redo"] => {
+        ["Edit", "Undo"] => {
             ui.app_mut().select_cell(0, 0);
             ui.app_mut().set_edit_buffer("99");
             assert!(ui.app_mut().commit_cell(), "the edit for {path:?}");
+            ui.app_mut().select_cell(0, 0);
+        }
+        ["Edit", "Redo"] => {
+            ui.app_mut().select_cell(0, 0);
+            ui.app_mut().set_edit_buffer("99");
+            assert!(ui.app_mut().commit_cell(), "the edit for {path:?}");
+            ui.app_mut().undo();
             ui.app_mut().select_cell(0, 0);
         }
         ["Edit", "Paste"] => {
