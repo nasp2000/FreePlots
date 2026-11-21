@@ -12568,3 +12568,539 @@ fn the_status_bar_zoom_slider_sets_the_zoom() {
     );
     assert!((0.5..=2.5).contains(&harness.state().zoom));
 }
+
+#[test]
+fn the_open_dialog_requests_the_chosen_file() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    // Typing a project path and pressing Open emits the request.
+    harness.state_mut().begin_open(FileKind::Project);
+    harness.run();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::TextInput, "Path to a .fpp project:")
+        .click();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::TextInput, "Path to a .fpp project:")
+        .type_text("/tmp/job.fpp");
+    harness.run();
+    harness.get_by_label("Open").click();
+    harness.run();
+    let request = harness
+        .state_mut()
+        .take_open_request()
+        .expect("the project open request");
+    assert_eq!(request.path, "/tmp/job.fpp");
+    assert_eq!(request.kind, FileKind::Project);
+    assert!(!harness.state().show_open);
+
+    // A CSV goes through the preview so its options can be chosen.
+    harness.state_mut().begin_open(FileKind::Csv);
+    harness.state_mut().open_path = "/tmp/weights.csv".to_owned();
+    harness.run();
+    harness.get_by_label("Open").click();
+    harness.run();
+    assert_eq!(
+        harness.state_mut().take_preview_request().as_deref(),
+        Some("/tmp/weights.csv")
+    );
+    assert!(harness.state().open_request.is_none());
+    assert!(!harness.state().show_open);
+
+    // An empty field keeps the dialog open instead of closing with nothing.
+    harness.state_mut().begin_open(FileKind::Project);
+    harness.state_mut().open_path.clear();
+    harness.run();
+    harness.get_by_label("Open").click();
+    harness.run();
+    assert!(
+        harness.state().show_open,
+        "an empty path must not close the dialog"
+    );
+    assert!(harness.state().open_request.is_none());
+    assert!(harness.state().preview_request.is_none());
+
+    // Browse asks the runner for the native dialog and fills the field back.
+    harness.get_by_label("Browse…").click();
+    harness.run();
+    let browse = harness
+        .state_mut()
+        .take_browse_request()
+        .expect("the browse request");
+    assert!(!browse.save);
+    assert!(browse.filters.iter().any(|filter| filter.contains("*.fpp")));
+    harness
+        .state_mut()
+        .set_browsed_path("/home/user/job.fpp".to_owned(), false);
+    harness.run();
+    assert_eq!(harness.state().open_path(), "/home/user/job.fpp");
+
+    harness.get_by_label("Cancel").click();
+    harness.run();
+    assert!(!harness.state().show_open);
+    assert!(harness.state().open_request.is_none());
+}
+
+#[test]
+fn the_save_dialog_carries_the_comma_option_and_the_browse() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let dir = std::env::temp_dir().join(format!("fp-save-dialog-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let destination = dir.join("weights-out.csv");
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.state_mut().begin_save(FileKind::Csv);
+    harness.run();
+    assert_eq!(harness.state().save_path(), "weights.csv");
+
+    // The comma option starts on (the app's default) and reaches the request.
+    assert!(harness.state().save_decimal_comma);
+    harness
+        .get_by_label("Portuguese Excel format (`;` and decimal comma)")
+        .click();
+    harness.run();
+    assert!(!harness.state().save_decimal_comma);
+
+    harness.get_by_label("Browse…").click();
+    harness.run();
+    let browse = harness
+        .state_mut()
+        .take_browse_request()
+        .expect("the save browse request");
+    assert!(browse.save);
+    assert!(browse.filters.iter().any(|filter| filter.contains("*.csv")));
+    harness
+        .state_mut()
+        .set_browsed_path(destination.display().to_string(), true);
+    harness.run();
+    assert_eq!(
+        harness.state().save_path(),
+        destination.display().to_string()
+    );
+
+    harness.get_by_label("Save").click();
+    harness.run();
+    let request = harness
+        .state_mut()
+        .take_save_request()
+        .expect("the save request");
+    assert_eq!(request.path, destination.display().to_string());
+    assert_eq!(request.kind, FileKind::Csv);
+    assert!(!request.decimal_comma);
+    assert!(!harness.state().show_save);
+
+    // An empty destination keeps the dialog (and the pending close) alive.
+    // The project must be dirty, or the pending close would go through now.
+    harness.state_mut().dirty = true;
+    harness.state_mut().begin_save(FileKind::Csv);
+    harness.state_mut().save_path.clear();
+    harness.state_mut().close_after_save = true;
+    harness.run();
+    harness.get_by_label("Save").click();
+    harness.run();
+    assert!(
+        harness.state().show_save,
+        "an empty path must not close the dialog"
+    );
+    assert!(harness.state().save_request.is_none());
+    assert!(harness.state().close_after_save);
+
+    harness.get_by_label("Cancel").click();
+    harness.run();
+    assert!(!harness.state().show_save);
+    assert!(!harness.state().close_after_save);
+
+    // Escape closes the prompt and cancels the close waiting for the save.
+    harness.state_mut().begin_save(FileKind::Csv);
+    harness.state_mut().save_path.clear();
+    harness.state_mut().close_after_save = true;
+    harness.run();
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+    assert!(!harness.state().show_save);
+    assert!(!harness.state().close_after_save);
+
+    // The suggested name follows the source stem and the requested format.
+    harness.state_mut().save_path = "weights.csv".to_owned();
+    harness.state_mut().begin_save(FileKind::Project);
+    assert_eq!(harness.state().save_path(), "weights.fpp");
+    harness.state_mut().save_path = "custom.csv".to_owned();
+    harness.state_mut().begin_save(FileKind::Csv);
+    assert_eq!(harness.state().save_path(), "custom.csv");
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn every_file_kind_offers_a_matching_browse_filter() {
+    let kinds = [
+        (FileKind::Csv, "*.csv"),
+        (FileKind::Project, "*.fpp"),
+        (FileKind::Html, "*.html"),
+        (FileKind::Pdf, "*.pdf"),
+        (FileKind::Xlsx, "*.xlsx"),
+        (FileKind::Svg, "*.svg"),
+        (FileKind::GraphPdf, "*.pdf"),
+        (FileKind::Png, "*.png"),
+        (FileKind::Jpeg, "*.jpg"),
+    ];
+    for (kind, extension) in kinds {
+        for save in [false, true] {
+            let mut app = FreePlotsApp::new();
+            app.request_browse(kind, save);
+            let request = app.take_browse_request().expect("browse request");
+            assert_eq!(request.save, save, "{kind:?}");
+            assert!(!request.title.is_empty(), "{kind:?}");
+            assert!(
+                request
+                    .filters
+                    .iter()
+                    .any(|filter| filter.contains(extension)),
+                "{kind:?} save={save} has no {extension} filter: {:?}",
+                request.filters
+            );
+            assert!(
+                request.filters.iter().any(|filter| filter.contains("*.*")),
+                "{kind:?} save={save} cannot choose a different file"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_batch_dialog_browses_for_a_folder_and_needs_one() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.open_batch_dialog();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.get_by_label("Browse…").click();
+    harness.run();
+    let request = harness
+        .state_mut()
+        .take_folder_request()
+        .expect("the folder request");
+    assert!(!request.title.is_empty());
+    harness
+        .state_mut()
+        .set_browsed_folder("/tmp/batch".to_owned());
+    harness.run();
+    assert_eq!(harness.state().batch_folder, "/tmp/batch");
+
+    // Without a folder the dialog stays open and says what is missing.
+    harness.state_mut().batch_folder.clear();
+    harness.get_by_label("Run").click();
+    harness.run();
+    assert!(harness.state().show_batch_dialog);
+    assert!(
+        harness.state().status().contains("folder"),
+        "{}",
+        harness.state().status()
+    );
+
+    // With a folder and a numeric column the request reaches the runner.
+    harness
+        .state_mut()
+        .set_browsed_folder("/tmp/batch".to_owned());
+    harness.run();
+    harness.get_by_label("Run").click();
+    harness.run();
+    assert!(!harness.state().show_batch_dialog);
+    let request = harness
+        .state_mut()
+        .take_batch_request()
+        .expect("the batch request");
+    assert_eq!(request.folder, "/tmp/batch");
+    assert_eq!(request.column, "weight");
+}
+
+#[test]
+fn a_csv_and_a_project_roundtrip_keep_every_cell() {
+    use fp_core::data::Column;
+
+    let dir = std::env::temp_dir().join(format!("fp-roundtrip-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let project = dir.join("job.fpp");
+
+    let mixed = DataFrame::new(vec![
+        Column::new_f64("x", vec![1.5, f64::NAN, 3.0]),
+        Column::new_text("label", vec!["a".to_owned(), String::new(), "c".to_owned()]),
+    ])
+    .expect("frame");
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.add_sheet();
+    app.set_data(mixed.clone(), "mixed.csv".to_owned());
+
+    // CSV keeps the delimiter and the missing cells.
+    let text = fp_core::io::write_csv_string(&mixed, false).expect("csv text");
+    let read =
+        fp_core::io::read_csv_str(&text, fp_core::io::detect_options(&text)).expect("csv read");
+    for row in 0..mixed.n_rows() {
+        for column in 0..mixed.n_columns() {
+            assert_eq!(read.cell_text(column, row), mixed.cell_text(column, row));
+            assert_eq!(
+                read.cell_is_missing(column, row),
+                mixed.cell_is_missing(column, row)
+            );
+        }
+    }
+
+    // The same data with a decimal comma also reads back unchanged.
+    let text = fp_core::io::write_csv_string(&mixed, true).expect("csv text");
+    assert!(text.contains(';'), "{text}");
+    let read =
+        fp_core::io::read_csv_str(&text, fp_core::io::detect_options(&text)).expect("csv read");
+    assert_eq!(read.cell_text(0, 0).as_deref(), Some("1.5"));
+
+    // A project file keeps every worksheet and cell.
+    let sheets = app.project_sheets();
+    fp_core::io::save_project_sheets(&sheets, &project, "job.fpp").expect("save project");
+    let loaded = fp_core::io::load_project_sheets(&project).expect("load project");
+    let mut restored = FreePlotsApp::new();
+    restored.load_project_sheets(loaded, project.display().to_string());
+    assert_eq!(restored.sheet_names(), app.sheet_names());
+    assert!(!restored.dirty, "a loaded project starts clean");
+    let restored_sheets = restored.project_sheets();
+    for (name, df) in app.project_sheets() {
+        let back = restored_sheets
+            .iter()
+            .find(|(sheet, _)| *sheet == name)
+            .map(|(_, data)| data)
+            .unwrap_or_else(|| panic!("missing sheet {name}"));
+        assert_eq!(back.n_rows(), df.n_rows(), "{name}");
+        assert_eq!(back.n_columns(), df.n_columns(), "{name}");
+        for row in 0..df.n_rows() {
+            for column in 0..df.n_columns() {
+                assert_eq!(back.cell_text(column, row), df.cell_text(column, row));
+                assert_eq!(
+                    back.cell_is_missing(column, row),
+                    df.cell_is_missing(column, row)
+                );
+            }
+        }
+    }
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn the_remaining_shortcuts_reach_the_worksheet() {
+    use egui_kittest::Harness;
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::O);
+    harness.run();
+    assert!(harness.state().show_open);
+    assert_eq!(harness.state().open_kind, FileKind::Csv);
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::S);
+    harness.run();
+    assert!(harness.state().show_save);
+    assert_eq!(harness.state().save_kind, FileKind::Csv);
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::P);
+    harness.run();
+    assert!(harness.state_mut().take_print_request().is_some());
+
+    harness.state_mut().zoom = 1.0;
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Plus);
+    harness.run();
+    assert!(harness.state().zoom > 1.0);
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Minus);
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Num0);
+    harness.run();
+    assert!((harness.state().zoom - 1.0).abs() < 0.01);
+
+    // Copy, cut and paste through the keys and the paste event.
+    harness.state_mut().select_cell(0, 0);
+    harness.run();
+    // The desktop runner turns Ctrl+C and Ctrl+X into these events.
+    harness.event(egui::Event::Copy);
+    harness.step();
+    assert_eq!(
+        harness.state().clipboard,
+        "12.5",
+        "one selected cell is copied"
+    );
+    harness.event(egui::Event::Cut);
+    harness.run();
+    assert!(harness.state().data().expect("frame").cell_is_missing(0, 0));
+    harness.event(egui::Event::Paste("7\tB".to_owned()));
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 0)
+            .as_deref(),
+        Some("7")
+    );
+
+    // Undo and redo through the keys.
+    harness.state_mut().select_cell(0, 0);
+    harness.state_mut().set_edit_buffer("42");
+    assert!(harness.state_mut().commit_cell());
+    harness.state_mut().select_cell(0, 0);
+    harness.run();
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 0)
+            .as_deref(),
+        Some("7")
+    );
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Y);
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 0)
+            .as_deref(),
+        Some("42")
+    );
+
+    // Fill down and right from the current selection.
+    harness.state_mut().select_cell(0, 0);
+    harness.key_press_modifiers(egui::Modifiers::SHIFT, egui::Key::ArrowDown);
+    harness.key_press_modifiers(egui::Modifiers::SHIFT, egui::Key::ArrowDown);
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::D);
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(0, 2)
+            .as_deref(),
+        Some("42")
+    );
+    harness.state_mut().select_cell(0, 0);
+    harness.key_press_modifiers(egui::Modifiers::SHIFT, egui::Key::ArrowRight);
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::R);
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .data()
+            .expect("frame")
+            .cell_text(1, 0)
+            .as_deref(),
+        Some("42")
+    );
+}
+
+#[test]
+fn switching_the_language_relabels_an_open_dialog() {
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    app.begin_save(FileKind::Csv);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_ui_state(|ui, app| app.show(ui), app);
+    harness.run();
+    harness.get_by_label("Save");
+    harness.get_by_label("Cancel");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::Portuguese);
+    harness.run();
+    harness.get_by_label("Guardar");
+    harness.get_by_label("Cancelar");
+
+    harness
+        .state_mut()
+        .set_language(fp_core::i18n::Lang::English);
+    harness.run();
+    harness.get_by_label("Save");
+    harness.get_by_label("Cancel");
+}
+
+#[test]
+fn a_plugin_run_leaves_the_worksheet_untouched() {
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+    let before: Vec<Option<String>> = (0..2)
+        .flat_map(|column| (0..5).map(move |row| (column, row)))
+        .map(|(column, row)| app.data().expect("frame").cell_text(column, row))
+        .collect();
+
+    app.run_plugin("data-quality");
+    assert!(app.session_text().contains("Data Quality"));
+    let after: Vec<Option<String>> = (0..2)
+        .flat_map(|column| (0..5).map(move |row| (column, row)))
+        .map(|(column, row)| app.data().expect("frame").cell_text(column, row))
+        .collect();
+    assert_eq!(before, after, "a report plugin must not edit the sheet");
+
+    app.run_plugin("does-not-exist");
+    assert!(app.status().contains("does-not-exist"), "{}", app.status());
+}
+
+#[test]
+fn a_directory_is_not_an_overwrite_and_escape_cancels_the_prompt() {
+    let dir = std::env::temp_dir().join(format!("fp-write-dir-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+
+    let mut app = FreePlotsApp::new();
+    app.set_data(frame(), "weights.csv".to_owned());
+
+    // A folder with the destination name is not a file to replace: the write
+    // goes ahead and the runner reports why it cannot create the file.
+    app.request_write(dir.display().to_string(), FileKind::Csv, false);
+    assert!(!app.show_overwrite, "a folder must not ask to be replaced");
+    let request = app.take_save_request().expect("the write request");
+    assert_eq!(request.path, dir.display().to_string());
+
+    // A real file still asks first, and Escape cancels without writing.
+    let existing = dir.join("out.csv");
+    std::fs::write(&existing, "old").expect("fixture");
+    app.request_write(existing.display().to_string(), FileKind::Csv, false);
+    assert!(app.show_overwrite);
+    assert!(app.save_request.is_none());
+    app.close_dialogs();
+    assert!(!app.show_overwrite);
+    assert!(app.overwrite_pending.is_none());
+    assert!(app.save_request.is_none());
+
+    std::fs::remove_dir_all(&dir).ok();
+}

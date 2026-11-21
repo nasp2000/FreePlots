@@ -53,6 +53,8 @@ impl FreePlotsApp {
                     }
                     if ui.help_button(self.catalog().label("Open")).clicked() || submitted {
                         let path = self.open_path.trim();
+                        // An empty field keeps the dialog open: closing it
+                        // without a path only loses the user's place.
                         if !path.is_empty() {
                             if kind == FileKind::Csv {
                                 self.preview_request = Some(path.to_owned());
@@ -64,8 +66,8 @@ impl FreePlotsApp {
                                     csv_options: None,
                                 });
                             }
+                            self.show_open = false;
                         }
-                        self.show_open = false;
                     }
                     if ui.help_button(self.catalog().label("Cancel")).clicked() {
                         self.show_open = false;
@@ -165,10 +167,12 @@ impl FreePlotsApp {
                     }
                     if ui.help_button(self.catalog().label("Save")).clicked() || submitted {
                         let path = self.save_path.trim().to_owned();
+                        // Nothing to write yet: keep the dialog (and a close
+                        // waiting for this save) instead of discarding both.
                         if !path.is_empty() {
                             self.request_write(path, kind, self.save_decimal_comma);
+                            self.show_save = false;
                         }
-                        self.show_save = false;
                     }
                     if ui.help_button(self.catalog().label("Cancel")).clicked() {
                         self.show_save = false;

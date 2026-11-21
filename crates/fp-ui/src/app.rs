@@ -4451,6 +4451,14 @@ impl FreePlotsApp {
         self.show_unstack_dialog = false;
         self.show_weibull_dialog = false;
         self.show_open = false;
+        // Closing the save or replace prompt with Escape must cancel what it
+        // was about to do, exactly like its Cancel button.
+        if self.show_save {
+            self.close_after_save = false;
+        }
+        if self.show_overwrite {
+            self.overwrite_pending = None;
+        }
         self.show_save = false;
         self.show_find_dialog = false;
         self.show_overwrite = false;
@@ -4616,7 +4624,9 @@ impl FreePlotsApp {
 
     /// Writes `path`, asking first when it already exists.
     pub fn request_write(&mut self, path: String, kind: FileKind, decimal_comma: bool) {
-        if std::path::Path::new(&path).exists() {
+        // Only a real file is replaced. A directory with that name is not an
+        // overwrite: the write below fails and reports why.
+        if std::path::Path::new(&path).is_file() {
             self.overwrite_pending = Some((path, kind, decimal_comma));
             self.show_overwrite = true;
             return;
