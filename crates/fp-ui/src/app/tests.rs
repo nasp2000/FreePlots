@@ -11982,12 +11982,20 @@ fn turning_off_native_plot_windows_closes_the_native_graph() {
 }
 
 /// Opens a top-level menu and clicks one of its rows.
+///
+/// A row can share its name with a toolbar icon (`Clear Session` is both a
+/// menu row and an icon); the popup is painted below the top bar, so the
+/// lowest match is the menu row.
 fn click_menu(harness: &mut egui_kittest::Harness<'_, FreePlotsApp>, menu: &str, item: &str) {
     use egui_kittest::kittest::Queryable;
 
     harness.get_by_label(menu).click();
     harness.run();
-    harness.get_by_label(item).click();
+    let row = harness
+        .get_all_by_label(item)
+        .max_by(|left, right| left.rect().center().y.total_cmp(&right.rect().center().y))
+        .unwrap_or_else(|| panic!("the {menu} menu has no row {item:?}"));
+    row.click();
     harness.run();
 }
 
@@ -12374,7 +12382,7 @@ fn the_toolbar_actions_reach_the_app() {
         "a greyed toolbar icon must not open its dialog"
     );
 
-    harness.get_by_label("Clear Session output").click();
+    harness.get_by_label("Clear Session").click();
     harness.run();
     assert!(harness.state().session_text().is_empty());
 

@@ -258,7 +258,7 @@ fn the_widget_tree_exposes_the_menu_and_toolbar() {
         );
     }
     assert!(
-        labels.iter().any(|label| label == "Open CSV"),
+        labels.iter().any(|label| label == "Open CSV (Ctrl+O)"),
         "missing the toolbar: {labels:?}"
     );
 }

@@ -330,7 +330,7 @@ impl FreePlotsApp {
             if tool_icon(ui, ToolIcon::Plot, plot_label, ready).clicked() {
                 self.open_probability_plot_dialog();
             }
-            if tool_icon(ui, ToolIcon::Clear, "Clear Session output", true).clicked() {
+            if tool_icon(ui, ToolIcon::Clear, "Clear Session", true).clicked() {
                 self.session.clear();
             }
             let samples = self.catalog().label("Samples");
