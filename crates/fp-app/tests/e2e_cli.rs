@@ -12,6 +12,29 @@ fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_FreePlots")
 }
 
+/// Runs one interpreter candidate and says whether it is a usable Python.
+///
+/// Starting is not enough: an application execution alias (a Windows Store
+/// stub, for example) starts but exits non-zero with a message, and a program
+/// may answer without being Python. The exit status and the `--version` banner
+/// are both required, so the bridge is never run with a stub.
+fn usable_python(probe: impl FnOnce() -> std::io::Result<std::process::Output>) -> bool {
+    probe().is_ok_and(|output| {
+        output.status.success()
+            && String::from_utf8_lossy(&output.stdout)
+                .to_ascii_lowercase()
+                .contains("python")
+    })
+}
+
+/// The first candidate whose `--version` answers as a working interpreter.
+fn find_python(candidates: &[&'static str]) -> Option<&'static str> {
+    candidates
+        .iter()
+        .copied()
+        .find(|name| usable_python(|| Command::new(name).arg("--version").output()))
+}
+
 fn temp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "fp-e2e-{tag}-{}-{}",
@@ -3112,10 +3135,7 @@ fn the_python_bridge_reads_the_session() {
         eprintln!("the Python example is missing; the bridge check was skipped");
         return;
     };
-    let python = ["python3", "python"]
-        .into_iter()
-        .find(|name| Command::new(name).arg("--version").output().is_ok());
-    let Some(python) = python else {
+    let Some(python) = find_python(&["python3", "python"]) else {
         eprintln!("no Python interpreter; the bridge check was skipped");
         return;
     };
@@ -3136,6 +3156,43 @@ fn the_python_bridge_reads_the_session() {
     assert!(stdout.contains("sd=0.866025"), "{stdout}");
     assert!(stdout.contains("t=1.732051"), "{stdout}");
     fs::remove_dir_all(&dir).ok();
+}
+
+// A candidate that starts but fails must not be taken for the interpreter.
+// An application execution alias starts and exits non-zero with a message, so
+// the probe used to select it and the bridge then failed with that message.
+#[test]
+fn the_python_probe_rejects_a_stub_that_starts_but_fails() {
+    #[cfg(windows)]
+    let stub = || Command::new("cmd").args(["/c", "exit 9009"]).output();
+    #[cfg(unix)]
+    let stub = || Command::new("sh").args(["-c", "exit 9009"]).output();
+    assert!(
+        !usable_python(stub),
+        "a candidate that exits non-zero must not be accepted"
+    );
+
+    // A program that succeeds but does not answer as Python is refused too.
+    #[cfg(windows)]
+    let other = || Command::new("cmd").args(["/c", "echo hello"]).output();
+    #[cfg(unix)]
+    let other = || Command::new("sh").args(["-c", "echo hello"]).output();
+    assert!(
+        !usable_python(other),
+        "an answer without the version banner must not be accepted"
+    );
+
+    // A candidate that cannot be started is refused.
+    assert!(!usable_python(|| {
+        Command::new("fp-no-such-interpreter").output()
+    }));
+
+    // A real interpreter, when the machine has one, is accepted.
+    if let Some(python) = find_python(&["python3", "python"]) {
+        assert!(usable_python(|| {
+            Command::new(python).arg("--version").output()
+        }));
+    }
 }
 
 // An option that is present without its value used to be treated as absent
