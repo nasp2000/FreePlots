@@ -496,13 +496,17 @@ mod tests {
         for variable in 0..3 {
             assert!((extraction.loadings[0][variable] - (2.0f64 / 3.0).sqrt()).abs() < 1e-12);
         }
+        // With two factors the total explained variance is the sum of the
+        // two eigenvalues, whatever basis the degenerate plane gets.
         let two = from_correlation(&matrix, 2, Rotation::None).expect("factors");
-        for variable in 0..3 {
-            let communality: f64 = (0..2)
-                .map(|factor| two.loadings[factor][variable].powi(2))
-                .sum();
-            assert!((communality - 1.0).abs() < 1e-12);
-        }
+        let total: f64 = (0..3)
+            .map(|variable| {
+                (0..2)
+                    .map(|factor| two.loadings[factor][variable].powi(2))
+                    .sum::<f64>()
+            })
+            .sum();
+        assert!((total - 2.5).abs() < 1e-12, "{total}");
     }
 
     #[test]

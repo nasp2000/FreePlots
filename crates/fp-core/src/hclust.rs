@@ -262,6 +262,7 @@ pub fn fit(
     }
     let mut sizes = vec![1usize; 2 * n];
     let mut active = vec![true; 2 * n];
+    let mut members: Vec<Vec<usize>> = (0..n).map(|leaf| vec![leaf]).collect();
     let mut merges = Vec::with_capacity(n - 1);
     for step in 0..(n - 1) {
         let mut best = (0usize, 1usize);
@@ -280,6 +281,9 @@ pub fn fit(
         let (left, right) = best;
         let id = n + step;
         sizes[id] = sizes[left] + sizes[right];
+        let mut combined = members[left].clone();
+        combined.extend(&members[right]);
+        members.push(combined);
         merges.push(Merge {
             left,
             right,
@@ -307,40 +311,35 @@ pub fn fit(
         active[id] = true;
     }
 
-    // Cut after the first n - k merges: union-find over those merges.
-    let mut parent: Vec<usize> = (0..(2 * n - 1)).collect();
-    fn find(parent: &mut [usize], mut id: usize) -> usize {
-        while parent[id] != id {
-            parent[id] = parent[parent[id]];
-            id = parent[id];
+    // Cut after the first n - k merges: every observation takes the first
+    // observation of the last cluster that absorbed it.
+    let mut labels: Vec<usize> = (0..n).collect();
+    for step in 0..(n - k) {
+        let id = n + step;
+        let first = members[id][0];
+        for leaf in &members[id] {
+            labels[*leaf] = first;
         }
-        id
-    }
-    for merge in merges.iter().take(n - k) {
-        let left = find(&mut parent, merge.left);
-        let right = find(&mut parent, merge.right);
-        parent[left] = right;
     }
     let mut roots: Vec<usize> = Vec::new();
-    let mut labels: Vec<usize> = Vec::with_capacity(n);
-    for leaf in 0..n {
-        let root = find(&mut parent, leaf);
-        let label = match roots.iter().position(|value| *value == root) {
+    let mut assignments: Vec<usize> = Vec::with_capacity(n);
+    for label in labels {
+        let index = match roots.iter().position(|value| *value == label) {
             Some(position) => position,
             None => {
-                roots.push(root);
+                roots.push(label);
                 roots.len() - 1
             }
         };
-        labels.push(label);
+        assignments.push(index);
     }
     let k = roots.len();
     let mut counts = vec![0usize; k];
-    for label in &labels {
+    for label in &assignments {
         counts[*label] += 1;
     }
     let mut means = vec![vec![0.0; columns.len()]; k];
-    for (row, label) in labels.iter().enumerate() {
+    for (row, label) in assignments.iter().enumerate() {
         for (column, value) in means[*label].iter_mut().enumerate() {
             *value += data[row][column];
         }
@@ -371,7 +370,7 @@ pub fn fit(
         merges,
         order,
         k,
-        assignments: labels,
+        assignments,
         sizes: counts,
         means,
     })
@@ -623,14 +622,15 @@ mod tests {
         let columns = ["x".to_owned(), "y".to_owned()];
         let complete = fit(&df, &columns, Linkage::Complete, false, 2).expect("fit");
         let heights: Vec<f64> = complete.merges.iter().map(|merge| merge.height).collect();
-        // 1-2 at 1, 4-8 at 4, then the farthest pair is 1-8 at 7.
+        // 1-2 at 1, then {1,2} with 4 at max(3, 2) = 3, and 1-8 at 7.
         assert!((heights[0] - 1.0).abs() < 1e-12);
-        assert!((heights[1] - 4.0).abs() < 1e-12);
+        assert!((heights[1] - 3.0).abs() < 1e-12);
         assert!((heights[2] - 7.0).abs() < 1e-12);
         let average = fit(&df, &columns, Linkage::Average, false, 2).expect("fit");
         let heights: Vec<f64> = average.merges.iter().map(|merge| merge.height).collect();
-        // The mean over the four pairs (3, 2, 7, 6) is 4.5.
-        assert!((heights[2] - 4.5).abs() < 1e-12);
+        // {1,2} with 4 at (3 + 2)/2 = 2.5, then (2·6.5 + 4)/3 = 17/3.
+        assert!((heights[1] - 2.5).abs() < 1e-12);
+        assert!((heights[2] - 17.0 / 3.0).abs() < 1e-12);
     }
 
     #[test]
