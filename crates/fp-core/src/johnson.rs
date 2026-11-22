@@ -770,7 +770,7 @@ fn report(
          documented output"
             .to_owned(),
     );
-    Ok(result)
+    result
 }
 
 /// Fits a Johnson distribution, reports the fit and optionally its capability.

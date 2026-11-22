@@ -3572,6 +3572,7 @@ impl AnalysisSpec {
                 size,
                 capability,
                 confidence,
+                opportunities,
                 ..
             } => {
                 let scope = if let Some(sizes) = sizes {
