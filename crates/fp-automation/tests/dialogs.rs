@@ -129,3 +129,47 @@ fn the_ewma_dialog_reads_the_smoothing_parameter() {
     assert!(ui.session().contains("EWMA"), "{}", ui.session());
     assert!(ui.session().contains("0.3"), "{}", ui.session());
 }
+
+// The defectives column is picked from a combo whose whole field is the click
+// target: with a narrow button the user had to hit the arrow, and the popup
+// had no reserved scroll bar on a wide worksheet.
+#[test]
+fn the_attribute_capability_column_combo_opens_from_the_field() {
+    let mut ui = Automation::new();
+    let defectives: Vec<f64> = (0..18).map(|index| (index % 3) as f64).collect();
+    let frame = DataFrame::new(vec![
+        Column::new_f64("alpha_col", defectives),
+        Column::new_f64("beta_col", vec![100.0; 18]),
+    ])
+    .expect("frame");
+    ui.load_frame(frame, "defects.csv");
+    ui.open_menu(&["Stat", "Quality Tools", "Attribute Capability…"])
+        .expect("open the dialog");
+    let combo = ui
+        .widgets()
+        .into_iter()
+        .rev()
+        .find(|widget| {
+            widget.role == "ComboBox" && widget.label.as_deref() == Some("Defects column:")
+        })
+        .expect("the column combo");
+    let [left, top, right, bottom] = combo.rect;
+    assert!(
+        right - left >= 190.0,
+        "the combo is only {:.0} points wide: the field must be the click target",
+        right - left
+    );
+    // A pointer click in the middle of the field opens the list; the arrow is
+    // on the right edge.
+    ui.click_at(egui::pos2((left + right) / 2.0, (top + bottom) / 2.0));
+    assert!(
+        ui.widgets()
+            .iter()
+            .any(|widget| widget.label.as_deref() == Some("beta_col") && widget.role == "Button"),
+        "the column list did not open from the middle of the field"
+    );
+    ui.click("beta_col").expect("select the second column");
+    ui.click("OK").expect("run");
+    let session = ui.session();
+    assert!(session.contains("column beta_col"), "{session}");
+}

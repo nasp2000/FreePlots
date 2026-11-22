@@ -463,4 +463,35 @@ mod tests {
         invalid.rql = 0.010_1;
         assert!(create(&invalid).is_err());
     }
+
+    // A plan is a decision, not a sample: "Observations (n) 0" and the
+    // "Compared plans 0" row made a plan-only report look like an empty run.
+    #[test]
+    fn a_plan_without_a_sample_reports_no_observation_rows() {
+        let text = analyze(&options(), None).expect("plan").results[0].to_session_text();
+        assert!(!text.contains("Observations (n)"), "{text}");
+        assert!(!text.contains("Excluded (non-finite)"), "{text}");
+        assert!(!text.contains("Compared plans"), "{text}");
+        assert!(text.contains("Sample size"), "{text}");
+    }
+
+    #[test]
+    fn a_sample_keeps_the_observation_rows() {
+        let plan = create(&options()).expect("plan");
+        let text = analyze(&options(), Some(&vec![9.5; plan.n]))
+            .expect("sample")
+            .results[0]
+            .to_session_text();
+        assert!(text.contains("Observations (n)"), "{text}");
+    }
+
+    #[test]
+    fn the_compared_plans_are_counted_only_when_they_are_asked_for() {
+        let mut compare = options();
+        compare.compare = vec![(19, 1.95), (40, 2.1)];
+        let text = analyze(&compare, None).expect("compare").results[0].to_session_text();
+        assert!(text.contains("Compared plans"), "{text}");
+        assert!(text.contains("Plan (n, k)"), "{text}");
+        assert!(!text.contains("Observations (n)"), "{text}");
+    }
 }

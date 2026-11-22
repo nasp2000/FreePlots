@@ -499,4 +499,43 @@ mod tests {
             .is_err()
         );
     }
+
+    // A study with many subgroups must keep the summary (PPM, DPMO, yield and
+    // process Z) on screen: the Session sticks to the bottom of the text, so an
+    // unbounded table pushed the statistics out of the window.
+    #[test]
+    fn a_long_subgroup_table_is_summarised_after_ten_rows() {
+        let counts: Vec<f64> = (0..30).map(|index| (index % 3) as f64).collect();
+        let df = DataFrame::new(vec![
+            Column::new_f64("def", counts),
+            Column::new_f64("n", vec![100.0; 30]),
+        ])
+        .expect("frame");
+        let out = analyze(
+            &df,
+            AttributeCapabilityKind::Binomial,
+            "def",
+            Some("n"),
+            None,
+            0.95,
+        )
+        .expect("capability");
+        let text = out.results[0].to_session_text();
+        assert!(
+            text.contains("lists the first 10 of 30 subgroups"),
+            "{text}"
+        );
+        assert!(text.contains("… 20 more"), "{text}");
+        let table_rows = text
+            .lines()
+            .skip_while(|line| !line.starts_with("Subgroup"))
+            .skip(2)
+            .take_while(|line| !line.trim().is_empty())
+            .count();
+        assert_eq!(table_rows, 11, "{text}");
+        // The summary is still above the table.
+        let z = text.find("Process Z").expect("process Z");
+        let table = text.find("\nSubgroup").expect("table");
+        assert!(z < table, "{text}");
+    }
 }
