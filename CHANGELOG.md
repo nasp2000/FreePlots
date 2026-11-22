@@ -8,6 +8,17 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Added
 
+- `FreePlots script <file>` runs a batch of commands: one command per line,
+  `#` comments, `set NAME value` variables expanded as `${NAME}`, `echo` and
+  `--keep-going`; the examples under `crates/fp-app/examples/python` run the
+  command line from Python and parse the Session text.
+- `FreePlots import` reads `.mpj` projects: the OLE2 container and its
+  streams are parsed, `mpjinfo` lists them, and the worksheet is imported when
+  the project carries the portable text form (the binary worksheet payload is
+  documented as not decoded).
+- The engine is validated against the NIST StRD datasets Norris (linear
+  regression and its ANOVA table) and Pontius (quadratic), with the certified
+  values and the recorded deviations.
 - *Mixture Analysis…* fits the Scheffé canonical linear, quadratic or special
   cubic models to runs whose components sum to one: the coefficients with
   their standard errors and tests, R², adjusted R² and RMSE, and the fitted

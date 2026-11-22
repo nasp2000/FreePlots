@@ -1,0 +1,4 @@
+# A script runs one command per line; # starts a comment.
+set greeting hello
+echo ${greeting} from the script
+help

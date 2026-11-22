@@ -133,6 +133,9 @@ Usage:
   FreePlots subset <in.csv> <out.csv> --column <name> --op <op> --value <text>
   FreePlots bbdesign <output.csv> --factors <A,B,C> [--center-points <n>] [--randomize] [--seed <n>]
   FreePlots mixture <file.csv> --response <name> --components <a,b,c> [--model <linear|quadratic|cubic>] [--svg <file>]
+  FreePlots script <file.txt> [--keep-going]          Run one command per line (# comments, set NAME value, echo)
+  FreePlots import <file.mpj|file.mtp> --output <file.csv> [--sheet <name>]
+  FreePlots mpjinfo <file.mpj>                        List the streams of an .mpj project
   FreePlots pbdesign <output.csv> --runs <n> [--randomize] [--seed <n>]
   FreePlots doctor
   FreePlots --version
@@ -175,6 +178,9 @@ Example:
 /// CLI entry point.
 /// The language of the reports, chosen with `--lang`.
 static LANGUAGE: AtomicU8 = AtomicU8::new(0);
+
+/// Nesting depth of the running scripts (a script may call another one).
+static SCRIPT_DEPTH: AtomicU8 = AtomicU8::new(0);
 
 /// The language of the reports.
 fn language() -> fp_core::i18n::Lang {
@@ -239,6 +245,15 @@ fn run_local(
 }
 
 pub fn run(args: &[String]) -> Result<(), String> {
+    // `--script <file>` runs a batch of the same commands; the script line is
+    // expanded and dispatched through this function, so every command behaves
+    // exactly as it does on the command line.
+    if args
+        .first()
+        .is_some_and(|arg| arg == "--script" || arg == "script")
+    {
+        return run_script(&args[1..]);
+    }
     let (args, lang) = split_language(args)?;
     set_language(lang);
     let args = args.as_slice();
@@ -252,6 +267,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
             Ok(())
         }
         Some("doctor") => doctor(),
+        Some("script") => run_script(&args[1..]),
+        Some("import") => import_file(&args[1..]),
+        Some("mpjinfo" | "mpj-info" | "project") => project_info(&args[1..]),
         Some("analyze") => analyze(&args[1..]),
         Some("describe") => describe(&args[1..]),
         Some("normality") => normality(&args[1..]),
@@ -6883,6 +6901,228 @@ fn mixture(args: &[String]) -> Result<(), String> {
     if let (Some(path), Some(plot)) = (svg, out.plot) {
         std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
         eprintln!("graph written: {}", path.display());
+    }
+    Ok(())
+}
+
+/// Splits a script line into tokens; double quotes group and `\` escapes.
+fn split_tokens(line: &str) -> Result<Vec<String>, String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut quoted = false;
+    let mut chars = line.chars();
+    while let Some(character) = chars.next() {
+        match character {
+            '"' => quoted = !quoted,
+            '\\' => {
+                if let Some(next) = chars.next() {
+                    current.push(next);
+                }
+            }
+            value if value.is_whitespace() && !quoted => {
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+            }
+            value => current.push(value),
+        }
+    }
+    if quoted {
+        return Err("unterminated quote".to_owned());
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    Ok(tokens)
+}
+
+/// Replaces `${name}` with the value of the script variable.
+fn substitute(text: &str, variables: &[(String, String)]) -> Result<String, String> {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find("${") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        let Some(end) = after.find('}') else {
+            return Err(format!("unterminated variable in {text}"));
+        };
+        let name = &after[..end];
+        let value = variables
+            .iter()
+            .rev()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.clone())
+            .ok_or_else(|| format!("undefined variable {name}"))?;
+        out.push_str(&value);
+        rest = &after[end + 1..];
+    }
+    out.push_str(rest);
+    Ok(out)
+}
+
+/// Runs a script: one command per line, `#` comments, `set NAME value` and
+/// `echo text`.
+fn run_script(args: &[String]) -> Result<(), String> {
+    if SCRIPT_DEPTH.load(std::sync::atomic::Ordering::Relaxed) >= 8 {
+        return Err("scripts are nested more than eight deep".to_owned());
+    }
+    let mut keep_going = false;
+    let mut path: Option<PathBuf> = None;
+    for arg in args {
+        if arg == "--keep-going" {
+            keep_going = true;
+        } else if arg.starts_with('-') {
+            return Err(format!("unknown option: {arg}"));
+        } else if path.is_none() {
+            path = Some(PathBuf::from(arg));
+        } else {
+            return Err("only one script file is accepted".to_owned());
+        }
+    }
+    let path = path.ok_or_else(|| "missing script file".to_owned())?;
+    let text =
+        std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let mut variables: Vec<(String, String)> = Vec::new();
+    let mut failures: Vec<String> = Vec::new();
+    let mut commands = 0usize;
+    SCRIPT_DEPTH.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let outcome = (|| -> Result<(), String> {
+        for (number, raw) in text.lines().enumerate() {
+            let line = raw.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let tokens =
+                split_tokens(line).map_err(|error| format!("line {}: {error}", number + 1))?;
+            let tokens: Vec<String> = tokens
+                .iter()
+                .map(|token| substitute(token, &variables))
+                .collect::<Result<_, _>>()
+                .map_err(|error| format!("line {}: {error}", number + 1))?;
+            if tokens.is_empty() {
+                continue;
+            }
+            match tokens[0].as_str() {
+                "set" | "@set" => {
+                    if tokens.len() < 3 {
+                        return Err(format!("line {}: set needs a name and a value", number + 1));
+                    }
+                    variables.push((tokens[1].clone(), tokens[2..].join(" ")));
+                }
+                "echo" => println!("{}", tokens[1..].join(" ")),
+                _ => {
+                    commands += 1;
+                    if let Err(error) = run(&tokens) {
+                        if keep_going {
+                            failures.push(format!("line {}: {error}", number + 1));
+                        } else {
+                            return Err(format!("line {}: {error}", number + 1));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    })();
+    SCRIPT_DEPTH.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    outcome?;
+    if failures.is_empty() {
+        eprintln!("script {}: {commands} command(s)", path.display());
+        Ok(())
+    } else {
+        eprintln!(
+            "script {}: {} of {commands} command(s) failed",
+            path.display(),
+            failures.len()
+        );
+        for failure in &failures {
+            eprintln!("  {failure}");
+        }
+        Err(format!("{} script command(s) failed", failures.len()))
+    }
+}
+
+/// Imports an `.mpj` project or a portable worksheet into a CSV file.
+fn import_file(args: &[String]) -> Result<(), String> {
+    let mut input: Option<PathBuf> = None;
+    let mut output: Option<PathBuf> = None;
+    let mut sheet: Option<String> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--output" | "-o" => {
+                output = Some(PathBuf::from(
+                    it.next()
+                        .ok_or_else(|| "--output requires a path".to_owned())?,
+                ));
+            }
+            "--sheet" | "--worksheet" => {
+                sheet = Some(
+                    it.next()
+                        .ok_or_else(|| "--sheet requires a stream name".to_owned())?
+                        .clone(),
+                );
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if input.is_some() {
+                    return Err("only one project file is accepted".to_owned());
+                }
+                input = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let input = input.ok_or_else(|| "missing project or portable worksheet".to_owned())?;
+    let output = output.ok_or_else(|| "missing --output <file.csv>".to_owned())?;
+    let bytes = std::fs::read(&input).map_err(|error| format!("{}: {error}", input.display()))?;
+    let extension = input
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let frame = (if extension == "mtp" {
+        fp_core::mpj::portable_worksheet(&bytes)
+    } else {
+        fp_core::mpj::project_worksheet(&bytes, sheet.as_deref())
+    })
+    .map_err(|error| error.to_string())?;
+    let csv = io::write_csv_string(&frame, false).map_err(|error| error.to_string())?;
+    std::fs::write(&output, csv).map_err(|error| format!("{}: {error}", output.display()))?;
+    println!(
+        "Imported {} row(s) and {} column(s) from {}",
+        frame.n_rows(),
+        frame.n_columns(),
+        input.display()
+    );
+    eprintln!("worksheet written: {}", output.display());
+    Ok(())
+}
+
+/// Lists the streams of a compound file (an `.mpj` project).
+fn project_info(args: &[String]) -> Result<(), String> {
+    let path = args
+        .iter()
+        .find(|arg| !arg.starts_with('-'))
+        .ok_or_else(|| "missing project file".to_owned())?;
+    let bytes = std::fs::read(path).map_err(|error| format!("{path}: {error}"))?;
+    let project = fp_core::mpj::parse_container(&bytes).map_err(|error| error.to_string())?;
+    println!("Streams: {}", project.streams.len());
+    for stream in &project.streams {
+        let portable = stream
+            .bytes
+            .starts_with(fp_core::mpj::PORTABLE_HEADER.as_bytes());
+        println!(
+            "{:<24} {:>10} bytes{}",
+            stream.name,
+            stream.size,
+            if portable {
+                "  (portable worksheet)"
+            } else {
+                ""
+            }
+        );
     }
     Ok(())
 }

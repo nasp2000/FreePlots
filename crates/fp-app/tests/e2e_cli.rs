@@ -2965,6 +2965,179 @@ fn the_mixture_command_reports_the_scheffe_coefficients() {
     fs::remove_dir_all(&dir).ok();
 }
 
+// A script runs a batch of commands; the variables and the echo helper are
+// expanded and a failing line stops the script with its number.
+#[test]
+fn the_script_command_runs_a_batch_of_commands() {
+    let dir = temp_dir("script-l7");
+    let csv = dir.join("weights.csv");
+    fs::write(&csv, "weight\n9\n10\n11\n9\n10\n11\n9\n10\n11\n").expect("write csv");
+    let script = dir.join("batch.txt");
+    fs::write(
+        &script,
+        format!(
+            "# a comment\n\
+             set file {}\n\
+             set column weight\n\
+             echo running ${column}\n\
+             describe ${{file}} --column ${{column}}\n\
+             ttest1 ${{file}} --column ${{column}} --mean 9.5\n",
+            csv.display()
+        ),
+    )
+    .expect("write script");
+    let out = Command::new(bin())
+        .args(["script", script.to_str().expect("path")])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("running weight"), "{stdout}");
+    assert!(stdout.contains("10.000000"), "{stdout}");
+    assert!(stdout.contains("1.732051"), "{stdout}");
+
+    // A failing command stops the script and names the line.
+    let failing = dir.join("fails.txt");
+    fs::write(
+        &failing,
+        "echo before\ndescribe missing.csv --column weight\n",
+    )
+    .expect("write");
+    let out = Command::new(bin())
+        .args(["script", failing.to_str().expect("path")])
+        .output()
+        .expect("run binary");
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("line 2"), "{stderr}");
+
+    // --keep-going runs the rest and still reports a failure.
+    let out = Command::new(bin())
+        .args(["script", failing.to_str().expect("path"), "--keep-going"])
+        .output()
+        .expect("run binary");
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("before"));
+    fs::remove_dir_all(&dir).ok();
+}
+
+// The import command reads a portable worksheet and a project, and mpjinfo
+// lists the streams of the container.
+#[test]
+fn the_import_command_reads_worksheets_and_projects() {
+    let dir = temp_dir("import-l7");
+    let portable = dir.join("portable.mtp");
+    fs::write(
+        &portable,
+        format!(
+            "{} 18\n\
+%      3      1      5      0        weight\n\
+12.5 13.0 13.5 14.0 *\n\
+%      3      2      5      0        batch\n\
+1 1 2 2 2\n",
+            fp_core::mpj::PORTABLE_HEADER
+        ),
+    )
+    .expect("write portable");
+    let output = dir.join("portable.csv");
+    let out = Command::new(bin())
+        .args([
+            "import",
+            portable.to_str().expect("path"),
+            "--output",
+            output.to_str().expect("path"),
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let csv = fs::read_to_string(&output).expect("read csv");
+    let mut lines = csv.lines();
+    assert_eq!(lines.next(), Some("weight,batch"));
+    assert_eq!(lines.next(), Some("12.5,1"));
+    assert_eq!(lines.next(), Some("13,1"));
+    assert!(csv.contains("14,2"));
+
+    let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/cli");
+    let project = fixtures.join("project.mpj");
+    let out = Command::new(bin())
+        .args(["mpjinfo", project.to_str().expect("path")])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("Worksheets"), "{stdout}");
+    assert!(stdout.contains("portable worksheet"), "{stdout}");
+
+    let output = dir.join("project.csv");
+    let out = Command::new(bin())
+        .args([
+            "import",
+            project.to_str().expect("path"),
+            "--output",
+            output.to_str().expect("path"),
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let csv = fs::read_to_string(&output).expect("read csv");
+    assert!(csv.contains("12.5"), "{csv}");
+    fs::remove_dir_all(&dir).ok();
+}
+
+// The Python example runs the CLI and reads the Session text back.
+#[test]
+fn the_python_bridge_reads_the_session() {
+    let dir = temp_dir("python-l7");
+    let csv = dir.join("weights.csv");
+    fs::write(&csv, "weight\n9\n10\n11\n9\n10\n11\n9\n10\n11\n").expect("write csv");
+    let example =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/python/example_descriptive.py");
+    let Ok(example) = example.canonicalize() else {
+        eprintln!("the Python example is missing; the bridge check was skipped");
+        return;
+    };
+    let python = ["python3", "python"]
+        .into_iter()
+        .find(|name| Command::new(name).arg("--version").output().is_ok());
+    let Some(python) = python else {
+        eprintln!("no Python interpreter; the bridge check was skipped");
+        return;
+    };
+    let out = Command::new(python)
+        .arg(&example)
+        .arg(&csv)
+        .arg("weight")
+        .env("FREEPLOTS_BIN", bin())
+        .output()
+        .expect("run python");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("mean=10.000000"), "{stdout}");
+    assert!(stdout.contains("sd=0.866025"), "{stdout}");
+    assert!(stdout.contains("t=1.732051"), "{stdout}");
+    fs::remove_dir_all(&dir).ok();
+}
+
 // An option that is present without its value used to be treated as absent
 // when it was the last argument, so the command silently ran with its default
 // instead of telling the caller that the value was missing.

@@ -64,6 +64,7 @@ pub mod logrank;
 pub mod manova;
 pub mod matrixplot;
 pub mod mixture;
+pub mod mpj;
 pub mod mvchart;
 pub mod nested;
 pub mod nonlinear;
