@@ -145,7 +145,7 @@ fn chain(fat: &[u32], start: u32) -> Result<Vec<u32>> {
     Ok(sectors)
 }
 
-fn sector_slice(bytes: &[u8], header: &Header, id: u32) -> Result<&[u8]> {
+fn sector_slice<'a>(bytes: &'a [u8], header: &Header, id: u32) -> Result<&'a [u8]> {
     let start = (id as usize + 1)
         .checked_mul(header.sector)
         .ok_or_else(|| Error::Unsupported("sector offset overflow".to_owned()))?;
