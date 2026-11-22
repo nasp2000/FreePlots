@@ -1124,6 +1124,11 @@ mod tests {
         let values: Vec<f64> = (0..100)
             .map(|index| 1.0 + (0.05 * f64::from(index)).exp())
             .collect();
+        // The support of SL is (epsilon, infinity): the fitted epsilon itself
+        // is outside it, whatever its sign.
+        let sample = sample(values.clone());
+        let fitted = Johnson::fit(&sample, JohnsonFamily::Sl).expect("fit");
+        let outside = fitted.epsilon();
         let mut df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
         let error = add_transformation_with_spec(
             &mut df,
@@ -1135,10 +1140,17 @@ mod tests {
         )
         .expect_err("inverted limits");
         assert!(matches!(error, Error::InvalidParameter { .. }), "{error}");
-        // SL is defined above epsilon: a limit at zero cannot be transformed.
-        let error =
-            add_transformation_with_spec(&mut df, "x", JohnsonChoice::Sl, "x_j", Some(0.0), None)
-                .expect_err("outside the range");
+        // SL is defined above epsilon: the endpoint itself cannot be
+        // transformed.
+        let error = add_transformation_with_spec(
+            &mut df,
+            "x",
+            JohnsonChoice::Sl,
+            "x_j",
+            Some(outside),
+            None,
+        )
+        .expect_err("outside the range");
         assert!(error.to_string().contains("outside the range"), "{error}");
         // Neither error wrote the column.
         assert_eq!(df.n_columns(), 1);
