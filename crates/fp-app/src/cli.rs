@@ -80,6 +80,9 @@ Usage:
   FreePlots t2chart <file.csv> --columns <a,b> [--subgroup <n>] [--confidence <pct>] [--svg <file>]
   FreePlots pca <file.csv> --columns <a,b,c,...> [--keep <n>] [--svg <file>]
   FreePlots kmeans <file.csv> --columns <a,b> --clusters <n> [--raw] [--seed <n>] [--svg <file>]
+  FreePlots hclust <file.csv> --columns <a,b> [--linkage <single|complete|average|ward>] [--clusters <n>] [--raw] [--svg <file>]
+  FreePlots discriminant <file.csv> --predictors <a,b> --group <name> [--svg <file>]
+  FreePlots factor <file.csv> --columns <a,b,c> [--factors <n>] [--rotation <none|varimax>] [--svg <file>]
   FreePlots correlate <file.csv> --columns <a,b,c>
   FreePlots curvefit <file.csv> --x <name> --y <name> [--model <polynomial|poly2..poly5|exponential|power>] [--confidence <pct>] [--svg <file>]
   FreePlots anova2 <file.csv> --response <y> --factor-a <a> --factor-b <b>
@@ -292,6 +295,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
         Some("t2chart" | "hotelling") => t2_chart(&args[1..]),
         Some("pca" | "principal-components") => pca(&args[1..]),
         Some("kmeans" | "cluster") => kmeans(&args[1..]),
+        Some("hclust" | "hierarchical") => hclust(&args[1..]),
+        Some("discriminant" | "lda") => discriminant(&args[1..]),
+        Some("factor" | "factoranalysis" | "factor-analysis") => factor(&args[1..]),
         Some("correlate" | "correlation") => correlate(&args[1..]),
         Some("curvefit" | "curve-fit") => curve_fit(&args[1..]),
         Some("anova2" | "two-way-anova") => anova_two(&args[1..]),
@@ -6459,6 +6465,201 @@ fn johnson(args: &[String]) -> Result<(), String> {
         results: vec![result],
         plot: None,
     });
+    Ok(())
+}
+
+fn hclust(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut columns: Vec<String> = Vec::new();
+    let mut linkage = fp_core::hclust::Linkage::Average;
+    let mut clusters = 2usize;
+    let mut standardise = true;
+    let mut svg: Option<PathBuf> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--columns" | "--variables" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| format!("{arg} requires a comma-separated list"))?;
+                for name in raw.split(',') {
+                    let name = name.trim();
+                    if !name.is_empty() {
+                        columns.push(name.to_owned());
+                    }
+                }
+            }
+            "--linkage" => {
+                let raw = it.next().ok_or_else(|| {
+                    "--linkage requires single, complete, average or ward".to_owned()
+                })?;
+                linkage = fp_core::hclust::Linkage::parse(raw)
+                    .ok_or_else(|| format!("invalid --linkage: {raw}"))?;
+            }
+            "--clusters" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--clusters requires an integer".to_owned())?;
+                clusters = raw
+                    .parse::<usize>()
+                    .map_err(|_| format!("invalid --clusters: {raw}"))?;
+            }
+            "--raw" => standardise = false,
+            "--svg" => {
+                svg = Some(PathBuf::from(
+                    it.next()
+                        .ok_or_else(|| "--svg requires a path".to_owned())?,
+                ));
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    if columns.len() < 2 {
+        return Err("missing --columns <a,b,...> (at least two)".to_owned());
+    }
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let out = fp_core::hclust::analyze(&df, &columns, linkage, standardise, clusters)
+        .map_err(|e| e.to_string())?;
+    print_analysis(&out);
+    if let (Some(path), Some(plot)) = (svg, out.plot) {
+        std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("graph written: {}", path.display());
+    }
+    Ok(())
+}
+
+fn discriminant(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut predictors: Vec<String> = Vec::new();
+    let mut group: Option<String> = None;
+    let mut svg: Option<PathBuf> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--predictors" | "--columns" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| format!("{arg} requires a comma-separated list"))?;
+                for name in raw.split(',') {
+                    let name = name.trim();
+                    if !name.is_empty() {
+                        predictors.push(name.to_owned());
+                    }
+                }
+            }
+            "--group" | "--factor" => {
+                group = Some(
+                    it.next()
+                        .ok_or_else(|| format!("{arg} requires a column name"))?
+                        .clone(),
+                );
+            }
+            "--svg" => {
+                svg = Some(PathBuf::from(
+                    it.next()
+                        .ok_or_else(|| "--svg requires a path".to_owned())?,
+                ));
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    if predictors.is_empty() {
+        return Err("missing --predictors <a,b,...>".to_owned());
+    }
+    let group = group.ok_or_else(|| "missing --group <name>".to_owned())?;
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let out =
+        fp_core::discriminant::analyze(&df, &predictors, &group).map_err(|e| e.to_string())?;
+    print_analysis(&out);
+    if let (Some(path), Some(plot)) = (svg, out.plot) {
+        std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("graph written: {}", path.display());
+    }
+    Ok(())
+}
+
+fn factor(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut columns: Vec<String> = Vec::new();
+    let mut factors = 2usize;
+    let mut rotation = fp_core::factor::Rotation::Varimax;
+    let mut svg: Option<PathBuf> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--columns" | "--variables" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| format!("{arg} requires a comma-separated list"))?;
+                for name in raw.split(',') {
+                    let name = name.trim();
+                    if !name.is_empty() {
+                        columns.push(name.to_owned());
+                    }
+                }
+            }
+            "--factors" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--factors requires an integer".to_owned())?;
+                factors = raw
+                    .parse::<usize>()
+                    .map_err(|_| format!("invalid --factors: {raw}"))?;
+            }
+            "--rotation" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--rotation requires none or varimax".to_owned())?;
+                rotation = fp_core::factor::Rotation::parse(raw)
+                    .ok_or_else(|| format!("invalid --rotation: {raw}"))?;
+            }
+            "--svg" => {
+                svg = Some(PathBuf::from(
+                    it.next()
+                        .ok_or_else(|| "--svg requires a path".to_owned())?,
+                ));
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    if columns.len() < 2 {
+        return Err("missing --columns <a,b,...> (at least two)".to_owned());
+    }
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let out =
+        fp_core::factor::analyze(&df, &columns, factors, rotation).map_err(|e| e.to_string())?;
+    print_analysis(&out);
+    if let (Some(path), Some(plot)) = (svg, out.plot) {
+        std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("graph written: {}", path.display());
+    }
     Ok(())
 }
 

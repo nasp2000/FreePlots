@@ -192,6 +192,9 @@ impl FreePlotsApp {
         self.arima_dialog(&ctx);
         self.arima_help_window(&ctx);
         self.pca_dialog(&ctx);
+        self.hclust_dialog(&ctx);
+        self.discriminant_dialog(&ctx);
+        self.factor_dialog(&ctx);
         self.kmeans_dialog(&ctx);
         self.t2_dialog(&ctx);
         self.mv_help_window(&ctx);

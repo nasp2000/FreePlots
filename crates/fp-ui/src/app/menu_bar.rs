@@ -875,6 +875,27 @@ impl FreePlotsApp {
                         self.open_pca_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Factor Analysis…"), None, self.data.is_some())
+                        .on_hover_text("Loadings, communalities and varimax rotation")
+                        .clicked()
+                    {
+                        self.open_factor_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Hierarchical Clustering…"), None, self.data.is_some())
+                        .on_hover_text("Dendrogram with single, complete, average or Ward linkage")
+                        .clicked()
+                    {
+                        self.open_hclust_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Discriminant Analysis…"), None, self.data.is_some())
+                        .on_hover_text("Group means, Mahalanobis distances and the confusion matrix")
+                        .clicked()
+                    {
+                        self.open_discriminant_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Taguchi Design…"), None, true)
                         .on_hover_text("L8, L9, L12 or L16 orthogonal array")
                         .clicked()

@@ -129,7 +129,7 @@ pub(crate) fn jacobi(matrix: &[Vec<f64>]) -> Option<(Vec<f64>, Vec<Vec<f64>>)> {
 }
 
 /// Correlation (or covariance) matrix of the columns of a matrix of rows.
-fn association_matrix(data: &[Vec<f64>], standardise: bool) -> Vec<Vec<f64>> {
+pub(crate) fn association_matrix(data: &[Vec<f64>], standardise: bool) -> Vec<Vec<f64>> {
     let p = data[0].len();
     let n = data.len();
     let means: Vec<f64> = (0..p)

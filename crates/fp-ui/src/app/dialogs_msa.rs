@@ -1642,6 +1642,268 @@ impl FreePlotsApp {
             self.run_pca_dialog();
         }
     }
+    pub fn open_hclust_dialog(&mut self) {
+        self.hclust_columns = self.selected.clone().unwrap_or_default();
+        self.show_hclust_dialog = true;
+    }
+    pub fn run_hclust_dialog(&mut self) {
+        let columns: Vec<String> = self
+            .hclust_columns
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if columns.len() < 2 {
+            self.set_error("List at least two columns, separated by commas");
+            return;
+        }
+        let outcome = match self.data.as_ref() {
+            Some(df) => fp_core::hclust::analyze(
+                df,
+                &columns,
+                self.hclust_linkage,
+                self.hclust_standardise,
+                self.hclust_clusters,
+            ),
+            None => {
+                self.set_error("No worksheet open: use File → Open CSV…");
+                return;
+            }
+        };
+        match outcome {
+            Ok(out) => {
+                for result in &out.results {
+                    self.append_result(result);
+                }
+                self.adopt_plot(out.plot);
+                self.status = "Hierarchical clustering".to_owned();
+                self.error = None;
+                self.show_hclust_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+    pub(super) fn hclust_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_hclust_dialog {
+            return;
+        }
+        let mut open = self.show_hclust_dialog;
+        let mut run = false;
+        dialog_window(self.catalog().label("Hierarchical Clustering"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Columns:");
+                    ui.text_edit_singleline(&mut self.hclust_columns)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Linkage:");
+                    ui.selectable_value(
+                        &mut self.hclust_linkage,
+                        fp_core::hclust::Linkage::Single,
+                        "Single",
+                    );
+                    ui.selectable_value(
+                        &mut self.hclust_linkage,
+                        fp_core::hclust::Linkage::Complete,
+                        "Complete",
+                    );
+                    ui.selectable_value(
+                        &mut self.hclust_linkage,
+                        fp_core::hclust::Linkage::Average,
+                        "Average",
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                    ui.selectable_value(
+                        &mut self.hclust_linkage,
+                        fp_core::hclust::Linkage::Ward,
+                        "Ward",
+                    );
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Clusters:");
+                    ui.add(egui::DragValue::new(&mut self.hclust_clusters).range(2..=100))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    ui.checkbox(&mut self.hclust_standardise, "Standardise the variables");
+                });
+                ui.small("Comma-separated numeric columns; rows must be complete.");
+                ui.separator();
+                if ui.help_button(self.catalog().label("Run")).clicked() {
+                    run = true;
+                }
+            });
+        self.show_hclust_dialog = open && !run;
+        if run {
+            self.run_hclust_dialog();
+        }
+    }
+
+    pub fn open_discriminant_dialog(&mut self) {
+        self.discriminant_predictors = self.selected.clone().unwrap_or_default();
+        self.discriminant_group.clear();
+        self.show_discriminant_dialog = true;
+    }
+    pub fn run_discriminant_dialog(&mut self) {
+        let predictors: Vec<String> = self
+            .discriminant_predictors
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if predictors.is_empty() || self.discriminant_group.trim().is_empty() {
+            self.set_error("List the predictors and the group column");
+            return;
+        }
+        let group = self.discriminant_group.trim().to_owned();
+        let outcome = match self.data.as_ref() {
+            Some(df) => fp_core::discriminant::analyze(df, &predictors, &group),
+            None => {
+                self.set_error("No worksheet open: use File → Open CSV…");
+                return;
+            }
+        };
+        match outcome {
+            Ok(out) => {
+                for result in &out.results {
+                    self.append_result(result);
+                }
+                self.adopt_plot(out.plot);
+                self.status = "Discriminant analysis".to_owned();
+                self.error = None;
+                self.show_discriminant_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+    pub(super) fn discriminant_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_discriminant_dialog {
+            return;
+        }
+        let mut open = self.show_discriminant_dialog;
+        let mut run = false;
+        dialog_window(self.catalog().label("Discriminant Analysis"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Predictors:");
+                    ui.text_edit_singleline(&mut self.discriminant_predictors)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Group:");
+                    ui.text_edit_singleline(&mut self.discriminant_group)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.small(
+                    "Predictors are comma-separated numeric columns; the group column may be \
+                     text or numeric.",
+                );
+                ui.separator();
+                if ui.help_button(self.catalog().label("Run")).clicked() {
+                    run = true;
+                }
+            });
+        self.show_discriminant_dialog = open && !run;
+        if run {
+            self.run_discriminant_dialog();
+        }
+    }
+
+    pub fn open_factor_dialog(&mut self) {
+        self.factor_columns = self.selected.clone().unwrap_or_default();
+        self.show_factor_dialog = true;
+    }
+    pub fn run_factor_dialog(&mut self) {
+        let columns: Vec<String> = self
+            .factor_columns
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if columns.len() < 2 {
+            self.set_error("List at least two columns, separated by commas");
+            return;
+        }
+        let outcome = match self.data.as_ref() {
+            Some(df) => {
+                fp_core::factor::analyze(df, &columns, self.factor_count, self.factor_rotation)
+            }
+            None => {
+                self.set_error("No worksheet open: use File → Open CSV…");
+                return;
+            }
+        };
+        match outcome {
+            Ok(out) => {
+                for result in &out.results {
+                    self.append_result(result);
+                }
+                self.adopt_plot(out.plot);
+                self.status = "Factor analysis".to_owned();
+                self.error = None;
+                self.show_factor_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+    pub(super) fn factor_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_factor_dialog {
+            return;
+        }
+        let mut open = self.show_factor_dialog;
+        let mut run = false;
+        dialog_window(self.catalog().label("Factor Analysis"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(440.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Columns:");
+                    ui.text_edit_singleline(&mut self.factor_columns)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Factors:");
+                    ui.add(egui::DragValue::new(&mut self.factor_count).range(1..=20))
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    ui.selectable_value(
+                        &mut self.factor_rotation,
+                        fp_core::factor::Rotation::None,
+                        "None",
+                    );
+                    ui.selectable_value(
+                        &mut self.factor_rotation,
+                        fp_core::factor::Rotation::Varimax,
+                        "Varimax",
+                    );
+                });
+                ui.small("Comma-separated numeric columns; rows must be complete.");
+                ui.separator();
+                if ui.help_button(self.catalog().label("Run")).clicked() {
+                    run = true;
+                }
+            });
+        self.show_factor_dialog = open && !run;
+        if run {
+            self.run_factor_dialog();
+        }
+    }
+
     pub fn open_matrix_dialog(&mut self) {
         let numeric: Vec<String> = self
             .data

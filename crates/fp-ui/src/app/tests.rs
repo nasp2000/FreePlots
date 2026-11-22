@@ -2613,6 +2613,96 @@ fn box_behnken_dialog_writes_the_design() {
 }
 
 #[test]
+fn the_hierarchical_clustering_dialog_reaches_the_session() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("x", vec![1.0, 2.0, 3.0, 8.0, 9.0, 10.0]),
+        Column::new_f64("y", vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0]),
+    ])
+    .expect("frame");
+    app.set_data(df, "clusters.csv".to_owned());
+    app.open_hclust_dialog();
+    app.hclust_columns = "x,y".to_owned();
+    app.hclust_linkage = fp_core::hclust::Linkage::Ward;
+    app.hclust_clusters = 2;
+    app.hclust_standardise = false;
+    app.run_hclust_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Hierarchical Clustering"), "{text}");
+    assert!(text.contains("Ward"), "{text}");
+    assert!(text.contains("Merge"), "{text}");
+    assert!(app.plot().is_some());
+    assert!(app.error.is_none(), "{:?}", app.error);
+
+    // One column is not enough.
+    app.open_hclust_dialog();
+    app.hclust_columns = "x".to_owned();
+    app.run_hclust_dialog();
+    assert_eq!(app.status, "List at least two columns, separated by commas");
+}
+
+#[test]
+fn the_discriminant_dialog_reaches_the_session() {
+    let mut app = FreePlotsApp::new();
+    let mut x = vec![0.0, 1.0, 1.0, 2.0];
+    let mut y = vec![1.0, 0.0, 2.0, 1.0];
+    let mut groups = vec!["A".to_owned(); 4];
+    x.extend([4.0, 5.0, 5.0, 6.0]);
+    y.extend([1.0, 0.0, 2.0, 1.0]);
+    groups.extend(["B".to_owned(); 4]);
+    let df = DataFrame::new(vec![
+        Column::new_f64("x", x),
+        Column::new_f64("y", y),
+        Column::new_text("g", groups),
+    ])
+    .expect("frame");
+    app.set_data(df, "groups.csv".to_owned());
+    app.open_discriminant_dialog();
+    app.discriminant_predictors = "x,y".to_owned();
+    app.discriminant_group = "g".to_owned();
+    app.run_discriminant_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Discriminant Analysis"), "{text}");
+    assert!(text.contains("Accuracy"), "{text}");
+    assert!(text.contains("Midpoint"), "{text}");
+    assert!(app.plot().is_some());
+    assert!(app.error.is_none(), "{:?}", app.error);
+
+    // The group column is required.
+    app.open_discriminant_dialog();
+    app.discriminant_predictors = "x".to_owned();
+    app.discriminant_group.clear();
+    app.run_discriminant_dialog();
+    assert_eq!(app.status, "List the predictors and the group column");
+}
+
+#[test]
+fn the_factor_analysis_dialog_reaches_the_session() {
+    let mut app = FreePlotsApp::new();
+    let a: Vec<f64> = (0..20).map(|index| ((index * index) % 17) as f64).collect();
+    let b: Vec<f64> = (0..20).map(|index| ((index * 7) % 13) as f64).collect();
+    let c: Vec<f64> = (0..20).map(|index| ((index * 5) % 11) as f64).collect();
+    let df = DataFrame::new(vec![
+        Column::new_f64("a", a),
+        Column::new_f64("b", b),
+        Column::new_f64("c", c),
+    ])
+    .expect("frame");
+    app.set_data(df, "factors.csv".to_owned());
+    app.open_factor_dialog();
+    app.factor_columns = "a,b,c".to_owned();
+    app.factor_count = 2;
+    app.factor_rotation = fp_core::factor::Rotation::Varimax;
+    app.run_factor_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Factor Analysis"), "{text}");
+    assert!(text.contains("varimax"), "{text}");
+    assert!(text.contains("Communality"), "{text}");
+    assert!(app.plot().is_some());
+    assert!(app.error.is_none(), "{:?}", app.error);
+}
+
+#[test]
 fn tolerance_dialog_reaches_the_session() {
     let mut app = FreePlotsApp::new();
     let values: Vec<f64> = (1..=30).map(|i| 10.0 + (i % 7) as f64 * 0.3).collect();
@@ -8925,6 +9015,11 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     app.johnson_choice = fp_core::johnson::JohnsonChoice::Sb;
     app.johnson_lsl = "-2".to_owned();
     app.johnson_usl = "4".to_owned();
+    app.hclust_linkage = fp_core::hclust::Linkage::Ward;
+    app.hclust_clusters = 3;
+    app.hclust_standardise = false;
+    app.factor_count = 2;
+    app.factor_rotation = fp_core::factor::Rotation::None;
     app.persist_preferences();
     let mut restored = FreePlotsApp::new();
     restored.set_preferences_path(path.clone());
@@ -8956,6 +9051,11 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     assert_eq!(restored.johnson_choice, fp_core::johnson::JohnsonChoice::Sb);
     assert_eq!(restored.johnson_lsl, "-2");
     assert_eq!(restored.johnson_usl, "4");
+    assert_eq!(restored.hclust_linkage, fp_core::hclust::Linkage::Ward);
+    assert_eq!(restored.hclust_clusters, 3);
+    assert!(!restored.hclust_standardise);
+    assert_eq!(restored.factor_count, 2);
+    assert_eq!(restored.factor_rotation, fp_core::factor::Rotation::None);
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -9156,6 +9256,10 @@ fn out_of_range_preferences_keep_safe_defaults() {
         attrcap_confidence: Some(10.0),
         attrcap_opportunities: Some(0),
         johnson_family: Some("nope".to_owned()),
+        hclust_linkage: Some("nope".to_owned()),
+        hclust_clusters: Some(1),
+        factor_count: Some(0),
+        factor_rotation: Some("nope".to_owned()),
         attribute_kind: Some("nope".to_owned()),
         t_alternative: Some("nope".to_owned()),
         power_groups: Some(1),
@@ -9190,6 +9294,10 @@ fn out_of_range_preferences_keep_safe_defaults() {
     assert!((app.attrcap_confidence - 95.0).abs() < 1e-9);
     assert_eq!(app.attrcap_opportunities, 1);
     assert_eq!(app.johnson_choice, fp_core::johnson::JohnsonChoice::Best);
+    assert_eq!(app.hclust_linkage, fp_core::hclust::Linkage::Average);
+    assert_eq!(app.hclust_clusters, 2);
+    assert_eq!(app.factor_count, 2);
+    assert_eq!(app.factor_rotation, fp_core::factor::Rotation::Varimax);
     assert_eq!(app.attr_kind, AttributeChartKind::P);
     assert_eq!(app.t_alternative, Alternative::TwoSided);
     assert_eq!(app.power_groups, 2);

@@ -590,6 +590,16 @@ pub struct Preferences {
     #[serde(default)]
     pub johnson_usl: Option<f64>,
     #[serde(default)]
+    pub hclust_linkage: Option<String>,
+    #[serde(default)]
+    pub hclust_clusters: Option<usize>,
+    #[serde(default)]
+    pub hclust_standardise: Option<bool>,
+    #[serde(default)]
+    pub factor_count: Option<usize>,
+    #[serde(default)]
+    pub factor_rotation: Option<String>,
+    #[serde(default)]
     pub diagnostic_alpha: Option<f64>,
     /// Stepwise method and stopping criterion.
     #[serde(default)]
@@ -721,6 +731,11 @@ impl Default for Preferences {
             johnson_family: None,
             johnson_lsl: None,
             johnson_usl: None,
+            hclust_linkage: None,
+            hclust_clusters: None,
+            hclust_standardise: None,
+            factor_count: None,
+            factor_rotation: None,
             diagnostic_alpha: None,
             step_method: None,
             step_criterion: None,
@@ -1305,6 +1320,18 @@ pub struct FreePlotsApp {
     t2_confidence: f64,
     t2_lambda: f64,
     show_pca_dialog: bool,
+    show_hclust_dialog: bool,
+    hclust_columns: String,
+    hclust_linkage: fp_core::hclust::Linkage,
+    hclust_clusters: usize,
+    hclust_standardise: bool,
+    show_discriminant_dialog: bool,
+    discriminant_predictors: String,
+    discriminant_group: String,
+    show_factor_dialog: bool,
+    factor_columns: String,
+    factor_count: usize,
+    factor_rotation: fp_core::factor::Rotation,
     pca_columns: String,
     pca_keep: usize,
     show_timeseries_dialog: bool,
@@ -3813,6 +3840,11 @@ impl FreePlotsApp {
             johnson_family: Some(self.johnson_choice.as_str().to_owned()),
             johnson_lsl: self.johnson_lsl.trim().parse::<f64>().ok(),
             johnson_usl: self.johnson_usl.trim().parse::<f64>().ok(),
+            hclust_linkage: Some(self.hclust_linkage.as_str().to_owned()),
+            hclust_clusters: Some(self.hclust_clusters),
+            hclust_standardise: Some(self.hclust_standardise),
+            factor_count: Some(self.factor_count),
+            factor_rotation: Some(self.factor_rotation.as_str().to_owned()),
             diagnostic_alpha: Some(self.diagnostic_alpha),
             step_method: Some(
                 match self.step_method {
@@ -4173,6 +4205,29 @@ impl FreePlotsApp {
             {
                 *slot = format!("{value}");
             }
+        }
+        if let Some(code) = &preferences.hclust_linkage
+            && let Some(linkage) = fp_core::hclust::Linkage::parse(code)
+        {
+            self.hclust_linkage = linkage;
+        }
+        if let Some(value) = preferences.hclust_clusters
+            && (2..=500).contains(&value)
+        {
+            self.hclust_clusters = value;
+        }
+        if let Some(value) = preferences.hclust_standardise {
+            self.hclust_standardise = value;
+        }
+        if let Some(value) = preferences.factor_count
+            && (1..=20).contains(&value)
+        {
+            self.factor_count = value;
+        }
+        if let Some(code) = &preferences.factor_rotation
+            && let Some(rotation) = fp_core::factor::Rotation::parse(code)
+        {
+            self.factor_rotation = rotation;
         }
         if let Some(value) = preferences.kmeans_clusters
             && (2..=20).contains(&value)
@@ -6289,6 +6344,7 @@ fn label_help(text: &str) -> Option<String> {
         "Max steps" => "Maximum number of selection steps",
         "Score components" => "Number of components written as score columns",
         "Clusters" => "Number of clusters",
+        "Linkage" => "Rule that joins two clusters",
         "Bootstrap reps" => "Bootstrap replications (0 = automatic)",
         "Keys" => "Comma-separated sort keys; append :desc for descending",
         "Value" => "Value used by the condition",

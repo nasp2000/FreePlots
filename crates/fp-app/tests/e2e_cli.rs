@@ -2714,6 +2714,102 @@ fn the_attribute_capability_and_johnson_commands_report_their_indices() {
     fs::remove_dir_all(&dir).ok();
 }
 
+// The clustering, discriminant and factor commands print their tables.
+#[test]
+fn the_multivariate_commands_report_their_tables() {
+    let dir = temp_dir("multivariate-l4");
+
+    let clusters = dir.join("clusters.csv");
+    fs::write(&clusters, "x,y\n1,0\n2,0\n3,0\n8,1\n9,1\n10,1\n").expect("write csv");
+    let path = clusters.to_str().expect("path").to_owned();
+    let out = Command::new(bin())
+        .args([
+            "hclust",
+            &path,
+            "--columns",
+            "x,y",
+            "--linkage",
+            "single",
+            "--clusters",
+            "2",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Hierarchical Clustering"), "{session}");
+    assert!(session.contains("single linkage"), "{session}");
+    assert!(
+        session.contains("Dendrogram") || session.contains("Merge"),
+        "{session}"
+    );
+
+    let groups = dir.join("groups.csv");
+    let mut text = String::from("x,y,g\n");
+    for (x, y) in [(0.0, 1.0), (1.0, 0.0), (1.0, 2.0), (2.0, 1.0)] {
+        text.push_str(&format!("{x},{y},A\n"));
+    }
+    for (x, y) in [(4.0, 1.0), (5.0, 0.0), (5.0, 2.0), (6.0, 1.0)] {
+        text.push_str(&format!("{x},{y},B\n"));
+    }
+    fs::write(&groups, text).expect("write csv");
+    let path = groups.to_str().expect("path").to_owned();
+    let out = Command::new(bin())
+        .args(["discriminant", &path, "--predictors", "x,y", "--group", "g"])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Discriminant Analysis"), "{session}");
+    assert!(session.contains("Mahalanobis"), "{session}");
+    assert!(session.contains("Accuracy"), "{session}");
+    assert!(session.contains("Coefficient"), "{session}");
+
+    let factor = dir.join("factor.csv");
+    let mut text = String::from("a,b,c\n");
+    for index in 0..20 {
+        text.push_str(&format!(
+            "{},{},{}\n",
+            (index * index) % 17,
+            (index * 7) % 13,
+            (index * 5) % 11
+        ));
+    }
+    fs::write(&factor, text).expect("write csv");
+    let path = factor.to_str().expect("path").to_owned();
+    let out = Command::new(bin())
+        .args([
+            "factor",
+            &path,
+            "--columns",
+            "a,b,c",
+            "--factors",
+            "2",
+            "--rotation",
+            "varimax",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Factor Analysis"), "{session}");
+    assert!(session.contains("varimax"), "{session}");
+    assert!(session.contains("Communality"), "{session}");
+    fs::remove_dir_all(&dir).ok();
+}
+
 // An option that is present without its value used to be treated as absent
 // when it was the last argument, so the command silently ran with its default
 // instead of telling the caller that the value was missing.

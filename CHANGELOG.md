@@ -8,6 +8,15 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Added
 
+- *Hierarchical Clustering…* groups the rows with single, complete, average or
+  Ward linkage, cuts the tree into the requested number of clusters and draws
+  the dendrogram; the `hclust` command exposes the same options.
+- *Discriminant Analysis…* reports the group means, the pooled within-group
+  covariance, the Mahalanobis distances, Fisher's coefficients and the
+  confusion matrix; the `discriminant` command exposes it.
+- *Factor Analysis…* extracts the factors from the correlation matrix, reports
+  loadings, communalities, uniqueness and variance, offers the varimax
+  rotation and draws the loading plot; the `factor` command exposes it.
 - *Attribute Capability…* reports DPMO and yield alongside PPM, DPU and process
   Z, takes the opportunities per unit (one by default) and is reachable from
   the `attrcap` command. Process Z follows the per-opportunity rate.
