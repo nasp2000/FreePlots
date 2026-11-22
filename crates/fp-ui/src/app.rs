@@ -4600,6 +4600,9 @@ impl FreePlotsApp {
         self.show_optimal_help = false;
         self.show_mixture_help = false;
         self.show_pca_dialog = false;
+        self.show_hclust_dialog = false;
+        self.show_discriminant_dialog = false;
+        self.show_factor_dialog = false;
         self.show_plot = false;
         self.show_poisson_dialog = false;
         self.show_power_dialog = false;
