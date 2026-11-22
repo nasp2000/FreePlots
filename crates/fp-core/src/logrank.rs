@@ -74,6 +74,7 @@ pub struct LogRank {
 }
 
 /// Gauss–Jordan inverse with partial pivoting.
+#[allow(clippy::needless_range_loop)]
 fn invert(matrix: &[Vec<f64>]) -> Option<Vec<Vec<f64>>> {
     let size = matrix.len();
     let mut a = matrix.to_vec();

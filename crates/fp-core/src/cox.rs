@@ -163,7 +163,8 @@ fn terms(observations: &[Observation], beta: &[f64]) -> (f64, Vec<f64>, Vec<Vec<
                 let numerator = risk_sum[left] - share * dead_sum[left];
                 gradient[left] -= numerator / denominator;
                 for right in 0..p {
-                    information[left][right] -=
+                    // Minus the second derivative: the observed information.
+                    information[left][right] +=
                         (risk_cross[left][right] - share * dead_cross[left][right]) / denominator
                             - numerator * (risk_sum[right] - share * dead_sum[right])
                                 / (denominator * denominator);
@@ -208,13 +209,14 @@ fn solve(matrix: &[Vec<f64>], rhs: &[f64]) -> Option<Vec<f64>> {
         for value in augmented[column].iter_mut() {
             *value /= scale;
         }
+        let pivot_row = augmented[column].clone();
         for row in 0..size {
             if row == column {
                 continue;
             }
             let factor = augmented[row][column];
-            for index in 0..=size {
-                augmented[row][index] -= factor * augmented[column][index];
+            for (value, base) in augmented[row].iter_mut().zip(&pivot_row) {
+                *value -= factor * base;
             }
         }
     }
@@ -361,8 +363,9 @@ pub fn fit(
     for step in 0..60 {
         iterations = step + 1;
         let (_, gradient, information) = terms(&observations, &beta);
-        let rhs: Vec<f64> = gradient.iter().map(|value| -value).collect();
-        let direction = solve(&information, &rhs).ok_or_else(|| Error::NotConverged {
+        // The observed information is minus the Hessian, so the Newton step
+        // solves I·δ = g.
+        let direction = solve(&information, &gradient).ok_or_else(|| Error::NotConverged {
             detail: "the Cox information matrix is singular".to_owned(),
         })?;
         let mut scale = 1.0f64;
