@@ -166,7 +166,7 @@ fn read_chain(bytes: &[u8], header: &Header, fat: &[u32], start: u32) -> Result<
 fn directory(bytes: &[u8], header: &Header, fat: &[u32]) -> Result<Vec<Entry>> {
     let data = read_chain(bytes, header, fat, header.directory_start)?;
     let mut entries = Vec::new();
-    for chunk in data.chunks_exact(128) {
+    for chunk in data.as_chunks::<128>().0 {
         let kind = chunk[66];
         if kind != 1 && kind != 2 && kind != 5 {
             continue;
@@ -174,8 +174,10 @@ fn directory(bytes: &[u8], header: &Header, fat: &[u32]) -> Result<Vec<Entry>> {
         let name_length = u16_at(chunk, 64).unwrap_or(0) as usize;
         let name_bytes = &chunk[..name_length.saturating_sub(2).min(64)];
         let name = name_bytes
-            .chunks_exact(2)
-            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|pair| u16::from_le_bytes(*pair))
             .take_while(|code| *code != 0)
             .map(|code| char::from_u32(u32::from(code)).unwrap_or('\u{FFFD}'))
             .collect::<String>();

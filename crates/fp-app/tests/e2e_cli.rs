@@ -2979,7 +2979,7 @@ fn the_script_command_runs_a_batch_of_commands() {
             "# a comment\n\
              set file {}\n\
              set column weight\n\
-             echo running ${column}\n\
+             echo running ${{column}}\n\
              describe ${{file}} --column ${{column}}\n\
              ttest1 ${{file}} --column ${{column}} --mean 9.5\n",
             csv.display()
