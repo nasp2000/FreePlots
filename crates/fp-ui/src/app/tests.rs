@@ -2703,6 +2703,83 @@ fn the_factor_analysis_dialog_reaches_the_session() {
 }
 
 #[test]
+fn the_logrank_dialog_reaches_the_session() {
+    let mut app = FreePlotsApp::new();
+    let mut time = Vec::new();
+    let mut event = Vec::new();
+    let mut group = Vec::new();
+    for value in [1.0, 2.0, 3.0, 4.0, 5.0] {
+        time.push(value);
+        event.push(1.0);
+        group.push("A".to_owned());
+    }
+    for value in [2.0, 4.0, 6.0, 8.0, 10.0] {
+        time.push(value);
+        event.push(1.0);
+        group.push("B".to_owned());
+    }
+    let df = DataFrame::new(vec![
+        Column::new_f64("time", time),
+        Column::new_f64("event", event),
+        Column::new_text("group", group),
+    ])
+    .expect("frame");
+    app.set_data(df, "survival.csv".to_owned());
+    app.open_logrank_dialog();
+    app.logrank_time = "time".to_owned();
+    app.logrank_group = "group".to_owned();
+    app.logrank_censor = "event".to_owned();
+    app.logrank_censor_value = "0".to_owned();
+    app.run_logrank_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Log-Rank Test"), "{text}");
+    assert!(text.contains("Chi-square"), "{text}");
+    assert!(app.plot().is_some());
+    assert!(app.error.is_none(), "{:?}", app.error);
+
+    // The group is required.
+    app.open_logrank_dialog();
+    app.logrank_time = "time".to_owned();
+    app.logrank_group.clear();
+    app.run_logrank_dialog();
+    assert_eq!(app.status, "Select the time and the group columns");
+}
+
+#[test]
+fn the_cox_dialog_reaches_the_session() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("time", vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        Column::new_f64("event", vec![1.0; 6]),
+        Column::new_f64("x", vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0]),
+    ])
+    .expect("frame");
+    app.set_data(df, "cox.csv".to_owned());
+    app.open_cox_dialog();
+    app.cox_time = "time".to_owned();
+    app.cox_covariates = "x".to_owned();
+    app.cox_censor = "event".to_owned();
+    app.cox_censor_value = "0".to_owned();
+    app.cox_confidence = 95.0;
+    app.run_cox_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Cox Regression"), "{text}");
+    assert!(text.contains("Hazard ratio"), "{text}");
+    assert!(text.contains("0.531500"), "{text}");
+    assert!(app.error.is_none(), "{:?}", app.error);
+
+    // A covariate is required.
+    app.open_cox_dialog();
+    app.cox_time = "time".to_owned();
+    app.cox_covariates.clear();
+    app.run_cox_dialog();
+    assert_eq!(
+        app.status,
+        "List at least one covariate, separated by commas"
+    );
+}
+
+#[test]
 fn tolerance_dialog_reaches_the_session() {
     let mut app = FreePlotsApp::new();
     let values: Vec<f64> = (1..=30).map(|i| 10.0 + (i % 7) as f64 * 0.3).collect();
@@ -9020,6 +9097,8 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     app.hclust_standardise = false;
     app.factor_count = 2;
     app.factor_rotation = fp_core::factor::Rotation::None;
+    app.logrank_censor_value = "1".to_owned();
+    app.cox_confidence = 90.0;
     app.persist_preferences();
     let mut restored = FreePlotsApp::new();
     restored.set_preferences_path(path.clone());
@@ -9056,6 +9135,8 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     assert!(!restored.hclust_standardise);
     assert_eq!(restored.factor_count, 2);
     assert_eq!(restored.factor_rotation, fp_core::factor::Rotation::None);
+    assert_eq!(restored.logrank_censor_value, "1");
+    assert!((restored.cox_confidence - 90.0).abs() < 1e-9);
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -9260,6 +9341,7 @@ fn out_of_range_preferences_keep_safe_defaults() {
         hclust_clusters: Some(1),
         factor_count: Some(0),
         factor_rotation: Some("nope".to_owned()),
+        cox_confidence: Some(10.0),
         attribute_kind: Some("nope".to_owned()),
         t_alternative: Some("nope".to_owned()),
         power_groups: Some(1),
@@ -9298,6 +9380,7 @@ fn out_of_range_preferences_keep_safe_defaults() {
     assert_eq!(app.hclust_clusters, 2);
     assert_eq!(app.factor_count, 2);
     assert_eq!(app.factor_rotation, fp_core::factor::Rotation::Varimax);
+    assert!((app.cox_confidence - 95.0).abs() < 1e-9);
     assert_eq!(app.attr_kind, AttributeChartKind::P);
     assert_eq!(app.t_alternative, Alternative::TwoSided);
     assert_eq!(app.power_groups, 2);

@@ -1378,6 +1378,20 @@ impl FreePlotsApp {
                         self.open_survival_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Log-Rank Test…"), None, self.data.is_some())
+                        .on_hover_text("Chi-square comparison of two or more survival curves")
+                        .clicked()
+                    {
+                        self.open_logrank_dialog();
+                        ui.close();
+                    }
+                    if menu_text_item(ui, self.catalog().label("Cox Regression…"), None, self.data.is_some())
+                        .on_hover_text("Proportional hazards, hazard ratios and their intervals")
+                        .clicked()
+                    {
+                        self.open_cox_dialog();
+                        ui.close();
+                    }
                 });
                 help_menu_button(ui, self.catalog().label("Control Charts"), |ui| {
                     let ready = self.selection_is_numeric();

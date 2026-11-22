@@ -8,6 +8,11 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Added
 
+- *Log-Rank Test…* compares two or more right-censored survival curves with
+  the Mantel–Cox statistic and draws their Kaplan–Meier curves; *Cox
+  Regression…* fits proportional hazards with Efron ties and reports the
+  hazard ratios with their confidence intervals and the likelihood-ratio
+  test. The `logrank` and `cox` commands expose both.
 - *Hierarchical Clustering…* groups the rows with single, complete, average or
   Ward linkage, cuts the tree into the requested number of clusters and draws
   the dendrogram; the `hclust` command exposes the same options.

@@ -110,6 +110,8 @@ Usage:
   FreePlots weibullrel <file.csv> --time <name> [--censor <name>] [--censor-value <x>] [--svg <file>]
   FreePlots exporeliability <file.csv> --time <name> [--censor <name>] [--censor-value <x>] [--svg <file>]
   FreePlots lognormalrel <file.csv> --time <name> [--censor <name>] [--censor-value <x>] [--svg <file>]
+  FreePlots logrank <file.csv> --time <name> --group <name> [--censor <name>] [--censor-value <x>] [--svg <file>]
+  FreePlots cox <file.csv> --time <name> --covariates <a,b> [--censor <name>] [--censor-value <x>] [--confidence <pct>]
   FreePlots linearity <file.csv> --measurement <name> --reference <column>
   FreePlots agreement <file.csv> --part <name> --appraiser <name> --rating <name>
   FreePlots gagerr <file.csv> --measurement <name> --part <name> --operator <name>
@@ -327,6 +329,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
             exporeliability(&args[1..])
         }
         Some("lognormalrel" | "lognormal-reliability") => lognormalrel(&args[1..]),
+        Some("logrank" | "log-rank") => logrank(&args[1..]),
+        Some("cox" | "cox-regression") => cox(&args[1..]),
         Some("gagerr" | "gage-rr" | "gage") => gagerr(&args[1..]),
         Some("gagetype1" | "gage-type1") => gagetype1(&args[1..]),
         Some("linearity" | "gage-linearity") => gage_linearity(&args[1..]),
@@ -6660,6 +6664,157 @@ fn factor(args: &[String]) -> Result<(), String> {
         std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
         eprintln!("graph written: {}", path.display());
     }
+    Ok(())
+}
+
+fn logrank(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut time: Option<String> = None;
+    let mut group: Option<String> = None;
+    let mut censor: Option<String> = None;
+    let mut censor_value = 0.0;
+    let mut svg: Option<PathBuf> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--time" | "--column" => {
+                time = Some(
+                    it.next()
+                        .ok_or_else(|| format!("{arg} requires a column name"))?
+                        .clone(),
+                );
+            }
+            "--group" | "--factor" => {
+                group = Some(
+                    it.next()
+                        .ok_or_else(|| format!("{arg} requires a column name"))?
+                        .clone(),
+                );
+            }
+            "--censor" | "--status" => {
+                censor = Some(
+                    it.next()
+                        .ok_or_else(|| format!("{arg} requires a column name"))?
+                        .clone(),
+                );
+            }
+            "--censor-value" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--censor-value requires a number".to_owned())?;
+                censor_value = raw
+                    .parse::<f64>()
+                    .map_err(|_| format!("invalid --censor-value: {raw}"))?;
+            }
+            "--svg" => {
+                svg = Some(PathBuf::from(
+                    it.next()
+                        .ok_or_else(|| "--svg requires a path".to_owned())?,
+                ));
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    let time = time.ok_or_else(|| "missing --time <column>".to_owned())?;
+    let group = group.ok_or_else(|| "missing --group <column>".to_owned())?;
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let out = fp_core::logrank::analyze(&df, &time, censor.as_deref(), censor_value, &group)
+        .map_err(|e| e.to_string())?;
+    print_analysis(&out);
+    if let (Some(path), Some(plot)) = (svg, out.plot) {
+        std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("graph written: {}", path.display());
+    }
+    Ok(())
+}
+
+fn cox(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut time: Option<String> = None;
+    let mut covariates: Vec<String> = Vec::new();
+    let mut censor: Option<String> = None;
+    let mut censor_value = 0.0;
+    let mut confidence = 95.0;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--time" | "--column" => {
+                time = Some(
+                    it.next()
+                        .ok_or_else(|| format!("{arg} requires a column name"))?
+                        .clone(),
+                );
+            }
+            "--covariates" | "--predictors" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| format!("{arg} requires a comma-separated list"))?;
+                for name in raw.split(',') {
+                    let name = name.trim();
+                    if !name.is_empty() {
+                        covariates.push(name.to_owned());
+                    }
+                }
+            }
+            "--censor" | "--status" => {
+                censor = Some(
+                    it.next()
+                        .ok_or_else(|| format!("{arg} requires a column name"))?
+                        .clone(),
+                );
+            }
+            "--censor-value" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--censor-value requires a number".to_owned())?;
+                censor_value = raw
+                    .parse::<f64>()
+                    .map_err(|_| format!("invalid --censor-value: {raw}"))?;
+            }
+            "--confidence" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--confidence requires a percentage".to_owned())?;
+                confidence = raw
+                    .parse::<f64>()
+                    .map_err(|_| format!("invalid --confidence: {raw}"))?;
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    let time = time.ok_or_else(|| "missing --time <column>".to_owned())?;
+    if covariates.is_empty() {
+        return Err("missing --covariates <a,b,...>".to_owned());
+    }
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let out = fp_core::cox::analyze(
+        &df,
+        &time,
+        censor.as_deref(),
+        censor_value,
+        &covariates,
+        confidence / 100.0,
+    )
+    .map_err(|e| e.to_string())?;
+    print_analysis(&out);
     Ok(())
 }
 

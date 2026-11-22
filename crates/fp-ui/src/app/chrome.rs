@@ -228,6 +228,8 @@ impl FreePlotsApp {
         self.tree_dialog(&ctx);
         self.tree_help_window(&ctx);
         self.survival_dialog(&ctx);
+        self.logrank_dialog(&ctx);
+        self.cox_dialog(&ctx);
         self.survival_help_window(&ctx);
         self.nonlinear_dialog(&ctx);
         self.nonlinear_help_window(&ctx);

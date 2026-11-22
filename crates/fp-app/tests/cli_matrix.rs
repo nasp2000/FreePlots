@@ -113,6 +113,8 @@ const MATRIX: &[Case] = &[
     case("linearity", &["{in}linearity.csv", "--measurement", "measurement", "--reference", "reference"]),
     case("logistic", &["{in}logistic.csv", "--response", "y", "--predictors", "x1,x2"]),
     case("lognormalrel", &["{in}survival.csv", "--time", "time", "--censor", "censor", "--censor-value", "0"]),
+    case("logrank", &["{in}survival_groups.csv", "--time", "time", "--group", "group", "--censor", "censor", "--censor-value", "0"]),
+    case("cox", &["{in}survival_groups.csv", "--time", "time", "--covariates", "x1,x2", "--censor", "censor", "--censor-value", "0"]),
     case("matrixplot", &["{in}matrix.csv", "--columns", "a,b,c"]),
     case("mood", &["{in}ranks.csv", "--response", "y", "--factor", "g"]),
     case("movingaverage", &["{in}normal.csv", "--column", "data", "--window", "3"]),

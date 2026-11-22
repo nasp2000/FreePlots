@@ -600,6 +600,10 @@ pub struct Preferences {
     #[serde(default)]
     pub factor_rotation: Option<String>,
     #[serde(default)]
+    pub logrank_censor_value: Option<f64>,
+    #[serde(default)]
+    pub cox_confidence: Option<f64>,
+    #[serde(default)]
     pub diagnostic_alpha: Option<f64>,
     /// Stepwise method and stopping criterion.
     #[serde(default)]
@@ -736,6 +740,8 @@ impl Default for Preferences {
             hclust_standardise: None,
             factor_count: None,
             factor_rotation: None,
+            logrank_censor_value: None,
+            cox_confidence: None,
             diagnostic_alpha: None,
             step_method: None,
             step_criterion: None,
@@ -1392,6 +1398,17 @@ pub struct FreePlotsApp {
     tree_folds: usize,
     /// Survival analysis dialog, help and inputs.
     show_survival_dialog: bool,
+    show_logrank_dialog: bool,
+    logrank_time: String,
+    logrank_group: String,
+    logrank_censor: String,
+    logrank_censor_value: String,
+    show_cox_dialog: bool,
+    cox_time: String,
+    cox_covariates: String,
+    cox_censor: String,
+    cox_censor_value: String,
+    cox_confidence: f64,
     show_survival_help: bool,
     survival_time: String,
     survival_censor: Option<String>,
@@ -3845,6 +3862,8 @@ impl FreePlotsApp {
             hclust_standardise: Some(self.hclust_standardise),
             factor_count: Some(self.factor_count),
             factor_rotation: Some(self.factor_rotation.as_str().to_owned()),
+            logrank_censor_value: self.logrank_censor_value.trim().parse::<f64>().ok(),
+            cox_confidence: Some(self.cox_confidence),
             diagnostic_alpha: Some(self.diagnostic_alpha),
             step_method: Some(
                 match self.step_method {
@@ -4229,6 +4248,17 @@ impl FreePlotsApp {
         {
             self.factor_rotation = rotation;
         }
+        if let Some(value) = preferences.logrank_censor_value
+            && value.is_finite()
+        {
+            self.logrank_censor_value = format!("{value}");
+        }
+        if let Some(value) = preferences.cox_confidence
+            && value.is_finite()
+            && (50.0..=99.9).contains(&value)
+        {
+            self.cox_confidence = value;
+        }
         if let Some(value) = preferences.kmeans_clusters
             && (2..=20).contains(&value)
         {
@@ -4603,6 +4633,8 @@ impl FreePlotsApp {
         self.show_hclust_dialog = false;
         self.show_discriminant_dialog = false;
         self.show_factor_dialog = false;
+        self.show_logrank_dialog = false;
+        self.show_cox_dialog = false;
         self.show_plot = false;
         self.show_poisson_dialog = false;
         self.show_power_dialog = false;
@@ -6348,6 +6380,10 @@ fn label_help(text: &str) -> Option<String> {
         "Score components" => "Number of components written as score columns",
         "Clusters" => "Number of clusters",
         "Linkage" => "Rule that joins two clusters",
+        "Covariates" => "Comma-separated numeric covariates of the model",
+        "Censor column (optional)" => "Column whose flag marks a censored observation",
+        "Censoring value" => "Flag value that marks a censored observation",
+        "Time column" => "Survival time of each observation",
         "Bootstrap reps" => "Bootstrap replications (0 = automatic)",
         "Keys" => "Comma-separated sort keys; append :desc for descending",
         "Value" => "Value used by the condition",

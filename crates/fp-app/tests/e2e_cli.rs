@@ -2810,6 +2810,87 @@ fn the_multivariate_commands_report_their_tables() {
     fs::remove_dir_all(&dir).ok();
 }
 
+// The log-rank test and the Cox regression print their reference statistics.
+#[test]
+fn the_survival_commands_report_their_statistics() {
+    let dir = temp_dir("survival-l5");
+    let logrank = dir.join("logrank.csv");
+    let mut text = String::from("time,event,group\n");
+    for time in [1.0, 2.0, 3.0, 4.0, 5.0] {
+        text.push_str(&format!("{time},1,A\n"));
+    }
+    for time in [2.0, 4.0, 6.0, 8.0, 10.0] {
+        text.push_str(&format!("{time},1,B\n"));
+    }
+    fs::write(&logrank, text).expect("write csv");
+    let path = logrank.to_str().expect("path").to_owned();
+    let out = Command::new(bin())
+        .args([
+            "logrank",
+            &path,
+            "--time",
+            "time",
+            "--group",
+            "group",
+            "--censor",
+            "event",
+            "--censor-value",
+            "0",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Log-Rank Test"), "{session}");
+    assert!(session.contains("3.492516"), "{session}");
+    assert!(session.contains("Chi-square"), "{session}");
+
+    let cox = dir.join("cox.csv");
+    let mut text = String::from("time,event,x\n");
+    for (time, x) in [
+        (1.0, 0.0),
+        (2.0, 1.0),
+        (3.0, 0.0),
+        (4.0, 1.0),
+        (5.0, 0.0),
+        (6.0, 1.0),
+    ] {
+        text.push_str(&format!("{time},1,{x}\n"));
+    }
+    fs::write(&cox, text).expect("write csv");
+    let path = cox.to_str().expect("path").to_owned();
+    let out = Command::new(bin())
+        .args([
+            "cox",
+            &path,
+            "--time",
+            "time",
+            "--covariates",
+            "x",
+            "--censor",
+            "event",
+            "--censor-value",
+            "0",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Cox Regression"), "{session}");
+    assert!(session.contains("Hazard ratio"), "{session}");
+    assert!(session.contains("0.531500"), "{session}");
+    assert!(session.contains("0.482157"), "{session}");
+    fs::remove_dir_all(&dir).ok();
+}
+
 // An option that is present without its value used to be treated as absent
 // when it was the last argument, so the command silently ran with its default
 // instead of telling the caller that the value was missing.

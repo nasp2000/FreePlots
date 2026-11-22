@@ -177,6 +177,263 @@ impl FreePlotsApp {
         self.show_survival_dialog = true;
     }
 
+    /// Opens the log-rank test with the selected numeric column as the time.
+    pub fn open_logrank_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.is_empty() {
+            self.set_error("The log-rank test needs a numeric time column");
+            return;
+        }
+        self.logrank_time = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.logrank_group.clear();
+        self.logrank_censor.clear();
+        if self.logrank_censor_value.trim().is_empty() {
+            self.logrank_censor_value = "0".to_owned();
+        }
+        self.show_logrank_dialog = true;
+    }
+    /// Runs the log-rank test of the dialog.
+    pub fn run_logrank_dialog(&mut self) {
+        if self.logrank_time.is_empty() || self.logrank_group.trim().is_empty() {
+            self.set_error("Select the time and the group columns");
+            return;
+        }
+        let Ok(censor_value) = self.logrank_censor_value.trim().parse::<f64>() else {
+            self.set_error("The censoring value must be a number");
+            return;
+        };
+        let group = self.logrank_group.trim().to_owned();
+        let censor = match self.logrank_censor.trim() {
+            "" => None,
+            name => Some(name.to_owned()),
+        };
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::logrank::analyze(
+            &df,
+            &self.logrank_time,
+            censor.as_deref(),
+            censor_value,
+            &group,
+        ) {
+            Ok(output) => {
+                let label = format!("Log-rank test: {} by {}", self.logrank_time, group);
+                self.apply_output(output, label);
+                self.show_logrank_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+    /// Log-rank test dialog.
+    pub(super) fn logrank_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_logrank_dialog {
+            return;
+        }
+        let mut open = self.show_logrank_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Log-Rank Test"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(430.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Time column:");
+                    ui.text_edit_singleline(&mut self.logrank_time)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Group:");
+                    ui.text_edit_singleline(&mut self.logrank_group)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Censor column (optional):");
+                    ui.text_edit_singleline(&mut self.logrank_censor)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    let value = ui.help_label("Censoring value:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.logrank_censor_value)
+                            .desired_width(60.0),
+                    )
+                    .labelled_by(value.id)
+                    .hover_from(&value);
+                });
+                ui.small("Blank censor column = every observation is an event.");
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_logrank_dialog = open && !run && !cancel;
+        if run {
+            self.run_logrank_dialog();
+        }
+    }
+
+    /// Opens the Cox regression with the selected numeric column as the time.
+    pub fn open_cox_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.is_empty() {
+            self.set_error("The Cox regression needs a numeric time column");
+            return;
+        }
+        self.cox_time = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.cox_covariates.clear();
+        self.cox_censor.clear();
+        if self.cox_censor_value.trim().is_empty() {
+            self.cox_censor_value = "0".to_owned();
+        }
+        self.show_cox_dialog = true;
+    }
+    /// Runs the Cox regression of the dialog.
+    pub fn run_cox_dialog(&mut self) {
+        if self.cox_time.is_empty() {
+            self.set_error("Select the time column");
+            return;
+        }
+        let covariates: Vec<String> = self
+            .cox_covariates
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if covariates.is_empty() {
+            self.set_error("List at least one covariate, separated by commas");
+            return;
+        }
+        let Ok(censor_value) = self.cox_censor_value.trim().parse::<f64>() else {
+            self.set_error("The censoring value must be a number");
+            return;
+        };
+        let censor = match self.cox_censor.trim() {
+            "" => None,
+            name => Some(name.to_owned()),
+        };
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::cox::analyze(
+            &df,
+            &self.cox_time,
+            censor.as_deref(),
+            censor_value,
+            &covariates,
+            self.cox_confidence / 100.0,
+        ) {
+            Ok(output) => {
+                let label = format!("Cox regression: {}", self.cox_time);
+                self.apply_output(output, label);
+                self.show_cox_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+    /// Cox regression dialog.
+    pub(super) fn cox_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_cox_dialog {
+            return;
+        }
+        let mut open = self.show_cox_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Cox Regression"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(440.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Time column:");
+                    ui.text_edit_singleline(&mut self.cox_time)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Covariates:");
+                    ui.text_edit_singleline(&mut self.cox_covariates)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Censor column (optional):");
+                    ui.text_edit_singleline(&mut self.cox_censor)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                    let value = ui.help_label("Censoring value:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.cox_censor_value).desired_width(60.0),
+                    )
+                    .labelled_by(value.id)
+                    .hover_from(&value);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Confidence:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.cox_confidence)
+                            .range(50.0..=99.9)
+                            .speed(0.5)
+                            .suffix(" %"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.small(
+                    "Covariates are comma-separated numeric columns; blank censoring = all events.",
+                );
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_cox_dialog = open && !run && !cancel;
+        if run {
+            self.run_cox_dialog();
+        }
+    }
+
     /// Runs the survival analysis of the dialog.
     pub fn run_survival_dialog(&mut self) {
         if self.survival_time.is_empty() {
