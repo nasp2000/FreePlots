@@ -2891,6 +2891,80 @@ fn the_survival_commands_report_their_statistics() {
     fs::remove_dir_all(&dir).ok();
 }
 
+// The mixture command fits the Scheffé coefficients of the simplex data.
+#[test]
+fn the_mixture_command_reports_the_scheffe_coefficients() {
+    let dir = temp_dir("mixture-l6");
+    let csv = dir.join("mixture.csv");
+    let mut text = String::from("x1,x2,x3,y\n");
+    let points = [
+        (0.0, 0.0, 1.0, 40.7),
+        (0.0, 1.0 / 3.0, 2.0 / 3.0, 37.944_444),
+        (0.0, 2.0 / 3.0, 1.0 / 3.0, 35.411_111),
+        (0.0, 1.0, 0.0, 30.0),
+        (1.0 / 3.0, 0.0, 2.0 / 3.0, 31.322_222),
+        (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 34.066_667),
+        (1.0 / 3.0, 2.0 / 3.0, 0.0, 29.088_889),
+        (2.0 / 3.0, 0.0, 1.0 / 3.0, 25.255_556),
+        (2.0 / 3.0, 1.0 / 3.0, 0.0, 26.155_556),
+        (1.0, 0.0, 0.0, 19.8),
+        (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 33.766_667),
+        (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 33.266_667),
+        (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 34.166_667),
+    ];
+    for (x1, x2, x3, y) in points {
+        text.push_str(&format!("{x1},{x2},{x3},{y}\n"));
+    }
+    fs::write(&csv, text).expect("write csv");
+    let path = csv.to_str().expect("path").to_owned();
+    let out = Command::new(bin())
+        .args([
+            "mixture",
+            &path,
+            "--response",
+            "y",
+            "--components",
+            "x1,x2,x3",
+            "--model",
+            "quadratic",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Mixture Analysis"), "{session}");
+    assert!(session.contains("Scheffé"), "{session}");
+    assert!(session.contains("19.382166"), "{session}");
+    assert!(session.contains("18.525632"), "{session}");
+
+    let out = Command::new(bin())
+        .args([
+            "mixture",
+            &path,
+            "--response",
+            "y",
+            "--components",
+            "x1,x2,x3",
+            "--model",
+            "cubic",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("special cubic"), "{session}");
+    assert!(session.contains("70.350008"), "{session}");
+    fs::remove_dir_all(&dir).ok();
+}
+
 // An option that is present without its value used to be treated as absent
 // when it was the last argument, so the command silently ran with its default
 // instead of telling the caller that the value was missing.

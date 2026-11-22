@@ -604,6 +604,8 @@ pub struct Preferences {
     #[serde(default)]
     pub cox_confidence: Option<f64>,
     #[serde(default)]
+    pub mixture_model: Option<String>,
+    #[serde(default)]
     pub diagnostic_alpha: Option<f64>,
     /// Stepwise method and stopping criterion.
     #[serde(default)]
@@ -742,6 +744,7 @@ impl Default for Preferences {
             factor_rotation: None,
             logrank_censor_value: None,
             cox_confidence: None,
+            mixture_model: None,
             diagnostic_alpha: None,
             step_method: None,
             step_criterion: None,
@@ -1740,6 +1743,10 @@ pub struct FreePlotsApp {
     design_seed: u64,
     /// Mixture design dialog and help.
     show_mixture_dialog: bool,
+    show_mixture_analysis_dialog: bool,
+    mixture_response: String,
+    mixture_components: String,
+    mixture_model: fp_core::mixture::MixtureModel,
     /// Optimal design dialog and help.
     show_optimal_dialog: bool,
     show_optimal_help: bool,
@@ -3864,6 +3871,7 @@ impl FreePlotsApp {
             factor_rotation: Some(self.factor_rotation.as_str().to_owned()),
             logrank_censor_value: self.logrank_censor_value.trim().parse::<f64>().ok(),
             cox_confidence: Some(self.cox_confidence),
+            mixture_model: Some(self.mixture_model.as_str().to_owned()),
             diagnostic_alpha: Some(self.diagnostic_alpha),
             step_method: Some(
                 match self.step_method {
@@ -4259,6 +4267,11 @@ impl FreePlotsApp {
         {
             self.cox_confidence = value;
         }
+        if let Some(code) = &preferences.mixture_model
+            && let Some(model) = fp_core::mixture::MixtureModel::parse(code)
+        {
+            self.mixture_model = model;
+        }
         if let Some(value) = preferences.kmeans_clusters
             && (2..=20).contains(&value)
         {
@@ -4622,6 +4635,7 @@ impl FreePlotsApp {
         self.show_partial_dialog = false;
         self.show_pb_dialog = false;
         self.show_mixture_dialog = false;
+        self.show_mixture_analysis_dialog = false;
         self.show_general_factorial_dialog = false;
         self.show_general_factorial_help = false;
         self.show_factorial_analysis_dialog = false;

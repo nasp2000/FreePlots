@@ -132,6 +132,7 @@ Usage:
   FreePlots unstack <in.csv> <out.csv> --value <name> --group <name>
   FreePlots subset <in.csv> <out.csv> --column <name> --op <op> --value <text>
   FreePlots bbdesign <output.csv> --factors <A,B,C> [--center-points <n>] [--randomize] [--seed <n>]
+  FreePlots mixture <file.csv> --response <name> --components <a,b,c> [--model <linear|quadratic|cubic>] [--svg <file>]
   FreePlots pbdesign <output.csv> --runs <n> [--randomize] [--seed <n>]
   FreePlots doctor
   FreePlots --version
@@ -347,6 +348,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
         Some("histogram" | "hist") => histogram(&args[1..]),
         Some("ccd" | "central-composite") => ccd(&args[1..]),
         Some("bbdesign" | "box-behnken") => box_behnken(&args[1..]),
+        Some("mixture" | "mixture-model") => mixture(&args[1..]),
         Some("pbdesign" | "plackett-burman") => plackett_burman(&args[1..]),
         Some("sort") => sort_rows(&args[1..]),
         Some("transpose" | "t") => transpose(&args[1..]),
@@ -6815,6 +6817,73 @@ fn cox(args: &[String]) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     print_analysis(&out);
+    Ok(())
+}
+
+fn mixture(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut response: Option<String> = None;
+    let mut components: Vec<String> = Vec::new();
+    let mut model = fp_core::mixture::MixtureModel::Quadratic;
+    let mut svg: Option<PathBuf> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--response" | "--column" => {
+                response = Some(
+                    it.next()
+                        .ok_or_else(|| format!("{arg} requires a column name"))?
+                        .clone(),
+                );
+            }
+            "--components" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--components requires a comma-separated list".to_owned())?;
+                for name in raw.split(',') {
+                    let name = name.trim();
+                    if !name.is_empty() {
+                        components.push(name.to_owned());
+                    }
+                }
+            }
+            "--model" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--model requires linear, quadratic or cubic".to_owned())?;
+                model = fp_core::mixture::MixtureModel::parse(raw)
+                    .ok_or_else(|| format!("invalid --model: {raw}"))?;
+            }
+            "--svg" => {
+                svg = Some(PathBuf::from(
+                    it.next()
+                        .ok_or_else(|| "--svg requires a path".to_owned())?,
+                ));
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    let response = response.ok_or_else(|| "missing --response <column>".to_owned())?;
+    if components.len() < 2 {
+        return Err("missing --components <a,b,...> (at least two)".to_owned());
+    }
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let out =
+        fp_core::mixture::analyze(&df, &response, &components, model).map_err(|e| e.to_string())?;
+    print_analysis(&out);
+    if let (Some(path), Some(plot)) = (svg, out.plot) {
+        std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("graph written: {}", path.display());
+    }
     Ok(())
 }
 

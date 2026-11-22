@@ -59,6 +59,7 @@ const DIALOG_MENUS: &[&[&str]] = &[
     &["Stat", "Basic Statistics", "1 Variance…"],
     &["Stat", "Basic Statistics", "2 Variances…"],
     &["Stat", "Multivariate", "Principal Components…"],
+    &["Stat", "DOE", "Mixture Analysis…"],
     &["Stat", "Reliability", "Log-Rank Test…"],
     &["Stat", "Reliability", "Cox Regression…"],
     &["Stat", "Multivariate", "Factor Analysis…"],

@@ -1293,6 +1293,13 @@ impl FreePlotsApp {
                         self.open_mixture_dialog();
                         ui.close();
                     }
+                    if menu_text_item(ui, self.catalog().label("Mixture Analysis…"), None, self.data.is_some())
+                        .on_hover_text("Scheffé linear, quadratic or special cubic model with ternary contours")
+                        .clicked()
+                    {
+                        self.open_mixture_analysis_dialog();
+                        ui.close();
+                    }
                     if menu_text_item(ui, self.catalog().label("Optimal Design…"), None, true)
                         .on_hover_text("D-optimal or maximin design, augment and evaluation")
                         .clicked()

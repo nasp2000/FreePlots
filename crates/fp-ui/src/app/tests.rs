@@ -2780,6 +2780,59 @@ fn the_cox_dialog_reaches_the_session() {
 }
 
 #[test]
+fn the_mixture_analysis_dialog_reaches_the_session() {
+    let mut app = FreePlotsApp::new();
+    let points: [[f64; 3]; 13] = [
+        [0.0, 0.0, 1.0],
+        [0.0, 1.0 / 3.0, 2.0 / 3.0],
+        [0.0, 2.0 / 3.0, 1.0 / 3.0],
+        [0.0, 1.0, 0.0],
+        [1.0 / 3.0, 0.0, 2.0 / 3.0],
+        [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0],
+        [1.0 / 3.0, 2.0 / 3.0, 0.0],
+        [2.0 / 3.0, 0.0, 1.0 / 3.0],
+        [2.0 / 3.0, 1.0 / 3.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0],
+        [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0],
+        [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0],
+    ];
+    let response = [
+        40.7, 37.944_444, 35.411_111, 30.0, 31.322_222, 34.066_667, 29.088_889, 25.255_556,
+        26.155_556, 19.8, 33.766_667, 33.266_667, 34.166_667,
+    ];
+    let df = DataFrame::new(vec![
+        Column::new_f64("x1", points.iter().map(|p| p[0]).collect()),
+        Column::new_f64("x2", points.iter().map(|p| p[1]).collect()),
+        Column::new_f64("x3", points.iter().map(|p| p[2]).collect()),
+        Column::new_f64("y", response.to_vec()),
+    ])
+    .expect("frame");
+    app.set_data(df, "mixture.csv".to_owned());
+    app.open_mixture_analysis_dialog();
+    app.mixture_response = "y".to_owned();
+    app.mixture_components = "x1,x2,x3".to_owned();
+    app.mixture_model = fp_core::mixture::MixtureModel::Quadratic;
+    app.run_mixture_analysis_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Mixture Analysis"), "{text}");
+    assert!(text.contains("Scheffé"), "{text}");
+    assert!(text.contains("19.382166"), "{text}");
+    assert!(app.plot().is_some());
+    assert!(app.error.is_none(), "{:?}", app.error);
+
+    // One component is not enough.
+    app.open_mixture_analysis_dialog();
+    app.mixture_response = "y".to_owned();
+    app.mixture_components = "x1".to_owned();
+    app.run_mixture_analysis_dialog();
+    assert_eq!(
+        app.status,
+        "List at least two components, separated by commas"
+    );
+}
+
+#[test]
 fn tolerance_dialog_reaches_the_session() {
     let mut app = FreePlotsApp::new();
     let values: Vec<f64> = (1..=30).map(|i| 10.0 + (i % 7) as f64 * 0.3).collect();
@@ -9099,6 +9152,7 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     app.factor_rotation = fp_core::factor::Rotation::None;
     app.logrank_censor_value = "1".to_owned();
     app.cox_confidence = 90.0;
+    app.mixture_model = fp_core::mixture::MixtureModel::SpecialCubic;
     app.persist_preferences();
     let mut restored = FreePlotsApp::new();
     restored.set_preferences_path(path.clone());
@@ -9137,6 +9191,10 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     assert_eq!(restored.factor_rotation, fp_core::factor::Rotation::None);
     assert_eq!(restored.logrank_censor_value, "1");
     assert!((restored.cox_confidence - 90.0).abs() < 1e-9);
+    assert_eq!(
+        restored.mixture_model,
+        fp_core::mixture::MixtureModel::SpecialCubic
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -9342,6 +9400,7 @@ fn out_of_range_preferences_keep_safe_defaults() {
         factor_count: Some(0),
         factor_rotation: Some("nope".to_owned()),
         cox_confidence: Some(10.0),
+        mixture_model: Some("nope".to_owned()),
         attribute_kind: Some("nope".to_owned()),
         t_alternative: Some("nope".to_owned()),
         power_groups: Some(1),
@@ -9381,6 +9440,7 @@ fn out_of_range_preferences_keep_safe_defaults() {
     assert_eq!(app.factor_count, 2);
     assert_eq!(app.factor_rotation, fp_core::factor::Rotation::Varimax);
     assert!((app.cox_confidence - 95.0).abs() < 1e-9);
+    assert_eq!(app.mixture_model, fp_core::mixture::MixtureModel::Quadratic);
     assert_eq!(app.attr_kind, AttributeChartKind::P);
     assert_eq!(app.t_alternative, Alternative::TwoSided);
     assert_eq!(app.power_groups, 2);

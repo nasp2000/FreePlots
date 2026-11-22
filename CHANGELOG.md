@@ -8,6 +8,11 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Added
 
+- *Mixture Analysis…* fits the Scheffé canonical linear, quadratic or special
+  cubic models to runs whose components sum to one: the coefficients with
+  their standard errors and tests, R², adjusted R² and RMSE, and the fitted
+  iso-response contours on the ternary simplex. The `mixture` command exposes
+  the same fit.
 - *Log-Rank Test…* compares two or more right-censored survival curves with
   the Mantel–Cox statistic and draws their Kaplan–Meier curves; *Cox
   Regression…* fits proportional hazards with Efron ties and reports the

@@ -693,6 +693,134 @@ impl FreePlotsApp {
         }
     }
 
+    /// Opens the Scheffé mixture analysis.
+    pub fn open_mixture_analysis_dialog(&mut self) {
+        let Some(df) = self.data.as_ref() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        let numeric: Vec<String> = df
+            .columns()
+            .iter()
+            .filter(|column| matches!(column.dtype(), DType::Float | DType::Integer))
+            .map(|column| column.name().to_owned())
+            .collect();
+        if numeric.len() < 3 {
+            self.set_error("The mixture analysis needs a response and at least two components");
+            return;
+        }
+        self.mixture_response = self
+            .selected
+            .clone()
+            .filter(|name| numeric.contains(name))
+            .unwrap_or_else(|| numeric[0].clone());
+        self.mixture_components.clear();
+        self.show_mixture_analysis_dialog = true;
+    }
+    /// Runs the mixture analysis of the dialog.
+    pub fn run_mixture_analysis_dialog(&mut self) {
+        if self.mixture_response.is_empty() {
+            self.set_error("Select the response column");
+            return;
+        }
+        let components: Vec<String> = self
+            .mixture_components
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if components.len() < 2 {
+            self.set_error("List at least two components, separated by commas");
+            return;
+        }
+        let Some(df) = self.data.clone() else {
+            self.set_error("No worksheet open: use File → Open CSV…");
+            return;
+        };
+        match fp_core::mixture::analyze(
+            &df,
+            &self.mixture_response,
+            &components,
+            self.mixture_model,
+        ) {
+            Ok(output) => {
+                let label = format!("Mixture analysis: {}", self.mixture_response);
+                self.apply_output(output, label);
+                self.show_mixture_analysis_dialog = false;
+            }
+            Err(error) => self.set_error(error.to_string()),
+        }
+    }
+    /// Scheffé mixture analysis dialog.
+    pub(super) fn mixture_analysis_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_mixture_analysis_dialog {
+            return;
+        }
+        let mut open = self.show_mixture_analysis_dialog;
+        let mut run = false;
+        let mut cancel = false;
+        dialog_window(self.catalog().label("Mixture Analysis"))
+            .open(&mut open)
+            .resizable(false)
+            .default_width(440.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Response:");
+                    ui.text_edit_singleline(&mut self.mixture_response)
+                        .labelled_by(label.id)
+                        .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Components:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.mixture_components)
+                            .desired_width(220.0)
+                            .hint_text("A,B,C"),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Model:");
+                    ui.selectable_value(
+                        &mut self.mixture_model,
+                        fp_core::mixture::MixtureModel::Linear,
+                        "Linear",
+                    );
+                    ui.selectable_value(
+                        &mut self.mixture_model,
+                        fp_core::mixture::MixtureModel::Quadratic,
+                        "Quadratic",
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                    ui.selectable_value(
+                        &mut self.mixture_model,
+                        fp_core::mixture::MixtureModel::SpecialCubic,
+                        "Special cubic",
+                    );
+                });
+                ui.small(
+                    "Components are comma-separated and must sum to one in every run; the \
+                     Scheffé model has no intercept.",
+                );
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.help_button(self.catalog().label("Run")).clicked() {
+                        run = true;
+                    }
+                    if ui.help_button(self.catalog().label("Cancel")).clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+        self.show_mixture_analysis_dialog = open && !run && !cancel;
+        if run {
+            self.run_mixture_analysis_dialog();
+        }
+    }
+
     /// Help page of the mixture designs.
     pub(super) fn mixture_help_window(&mut self, ctx: &egui::Context) {
         if !self.show_mixture_help {

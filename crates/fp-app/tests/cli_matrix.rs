@@ -108,6 +108,7 @@ const MATRIX: &[Case] = &[
     case("discriminant", &["{in}groups.csv", "--predictors", "y", "--group", "g"]),
     case("factor", &["{in}matrix.csv", "--columns", "a,b,c", "--factors", "2", "--rotation", "varimax"]),
     case("kmeans", &["{in}kmeans.csv", "--columns", "a,b", "--clusters", "3", "--seed", "2026"]),
+    case("mixture", &["{in}mixture.csv", "--response", "y", "--components", "x1,x2,x3", "--model", "quadratic"]),
     case("kruskal", &["{in}ranks.csv", "--response", "y", "--factor", "g"]),
     case("levene", &["{in}variance.csv", "--response", "y", "--factor", "g", "--center", "median"]),
     case("linearity", &["{in}linearity.csv", "--measurement", "measurement", "--reference", "reference"]),

@@ -903,6 +903,8 @@ impl UiCatalog {
             "Partial Correlation" => "Correlação parcial",
             "Box-Cox Transformation" => "Transformação Box-Cox",
             "Tolerance Interval" => "Intervalo de tolerância",
+            "Mixture Analysis" => "Análise de misturas",
+            "Mixture Analysis…" => "Análise de misturas…",
             "Log-Rank Test" => "Teste log-rank",
             "Log-Rank Test…" => "Teste log-rank…",
             "Cox Regression" => "Regressão de Cox",
