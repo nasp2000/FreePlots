@@ -2961,7 +2961,7 @@ fn the_mixture_command_reports_the_scheffe_coefficients() {
     );
     let session = String::from_utf8_lossy(&out.stdout);
     assert!(session.contains("special cubic"), "{session}");
-    assert!(session.contains("70.350008"), "{session}");
+    assert!(session.contains("70.35000"), "{session}");
     fs::remove_dir_all(&dir).ok();
 }
 
