@@ -39,6 +39,8 @@ Usage:
   FreePlots capability <file.csv> [--column <name>] --lsl <x> --usl <x> [--target <x>] [--distribution <normal|lognormal|loglogistic|weibull|exponential|logistic|gamma|extremevalue|weibull3>] [--subgroup <n>] [--subgroup-column <name>] [--confidence <pct>] [--bootstrap <n>] [--box-cox]
   FreePlots controlchart <file.csv> --column <name> --chart <imr|xbar-r|xbar-s|ewma|cusum> [--subgroup <n>] [--subgroup-column <name>] [--phase <name>] [--tests <1:8|1,3,5>] [--sensitivity <test=K,...>] [--cusum-k <k>] [--cusum-h <h>] [--ewma-lambda <λ>] [--ewma-l <L>] [--svg <file>]
   FreePlots attrchart <file.csv> --column <defects> --chart <p|np|c|u> [--sizes <name>] [--size <n>] [--svg <file>]
+  FreePlots attrcap <file.csv> --column <defects> [--sizes <name>] [--size <n>] [--kind <binomial|poisson>] [--opportunities <n>] [--confidence <pct>] [--svg <file>]
+  FreePlots johnson <file.csv> --column <name> [--family <best|su|sb|sl>] [--lsl <x>] [--usl <x>]
   FreePlots runchart <file.csv> [--column <name>] [--svg <file>]
   FreePlots movingaverage <file.csv> --column <name> [--window <n>] [--svg <file>]
   FreePlots decompose <file.csv> --column <name> [--period <n>] [--model <additive|multiplicative>] [--svg <file>]
@@ -251,6 +253,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
         Some("capability") => capability(&args[1..]),
         Some("controlchart" | "control-chart" | "spc") => controlchart(&args[1..]),
         Some("attrchart" | "attribute-chart") => attrchart(&args[1..]),
+        Some("attrcap" | "attribute-capability") => attribute_capability(&args[1..]),
+        Some("johnson") => johnson(&args[1..]),
         Some("runchart" | "run-chart") => runchart(&args[1..]),
         Some("movingaverage" | "ma") => moving_average(&args[1..]),
         Some("decompose" | "decomposition") => decompose(&args[1..]),
@@ -6275,6 +6279,186 @@ fn attrchart(args: &[String]) -> Result<(), String> {
         std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
         eprintln!("graph written: {}", path.display());
     }
+    Ok(())
+}
+
+fn attribute_capability(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut column: Option<String> = None;
+    let mut kind = fp_core::attrcap::AttributeCapabilityKind::Binomial;
+    let mut sizes: Option<String> = None;
+    let mut size: Option<usize> = None;
+    let mut opportunities = 1usize;
+    let mut confidence = 95.0;
+    let mut svg: Option<PathBuf> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--column" => {
+                column = Some(
+                    it.next()
+                        .ok_or_else(|| "--column requires a name".to_owned())?
+                        .clone(),
+                );
+            }
+            "--sizes" => {
+                sizes = Some(
+                    it.next()
+                        .ok_or_else(|| "--sizes requires a column name".to_owned())?
+                        .clone(),
+                );
+            }
+            "--size" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--size requires a positive integer".to_owned())?;
+                size = Some(
+                    raw.parse::<usize>()
+                        .map_err(|_| format!("invalid --size: {raw}"))?,
+                );
+            }
+            "--kind" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--kind requires binomial or poisson".to_owned())?;
+                kind = match raw.as_str() {
+                    "binomial" | "defective" | "defectives" => {
+                        fp_core::attrcap::AttributeCapabilityKind::Binomial
+                    }
+                    "poisson" | "defect" | "defects" => {
+                        fp_core::attrcap::AttributeCapabilityKind::Poisson
+                    }
+                    other => return Err(format!("invalid --kind: {other}")),
+                };
+            }
+            "--opportunities" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--opportunities requires a positive integer".to_owned())?;
+                opportunities = raw
+                    .parse::<usize>()
+                    .map_err(|_| format!("invalid --opportunities: {raw}"))?;
+            }
+            "--confidence" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--confidence requires a percentage".to_owned())?;
+                confidence = raw
+                    .parse::<f64>()
+                    .map_err(|_| format!("invalid --confidence: {raw}"))?;
+            }
+            "--svg" => {
+                svg = Some(PathBuf::from(
+                    it.next()
+                        .ok_or_else(|| "--svg requires a path".to_owned())?,
+                ));
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    if sizes.is_none() && size.is_none() {
+        return Err("attribute capability requires --sizes <column> or --size <n>".to_owned());
+    }
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let column = match column {
+        Some(name) => name,
+        None => fp_core::workflow::first_numeric_column(&df)
+            .ok_or_else(|| "no numeric column: specify one with --column".to_owned())?
+            .to_owned(),
+    };
+    let chart = match kind {
+        fp_core::attrcap::AttributeCapabilityKind::Binomial => AttributeChartKind::P,
+        fp_core::attrcap::AttributeCapabilityKind::Poisson => AttributeChartKind::U,
+    };
+    let spec = AnalysisSpec::attribute_chart(chart, column)
+        .with_attribute_size(sizes, size)
+        .with_attribute_capability(true, confidence / 100.0)
+        .with_attribute_opportunities(opportunities);
+    let out = run_local(&df, &spec).map_err(|e| e.to_string())?;
+    print_analysis(&out);
+    if let (Some(path), Some(plot)) = (svg, out.plot) {
+        std::fs::write(&path, render_svg(&plot)).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("graph written: {}", path.display());
+    }
+    Ok(())
+}
+
+fn johnson(args: &[String]) -> Result<(), String> {
+    let mut csv: Option<PathBuf> = None;
+    let mut column: Option<String> = None;
+    let mut choice = fp_core::johnson::JohnsonChoice::Best;
+    let mut lsl: Option<f64> = None;
+    let mut usl: Option<f64> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--column" => {
+                column = Some(
+                    it.next()
+                        .ok_or_else(|| "--column requires a name".to_owned())?
+                        .clone(),
+                );
+            }
+            "--family" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--family requires best, su, sb or sl".to_owned())?;
+                choice = fp_core::johnson::JohnsonChoice::parse(raw)
+                    .ok_or_else(|| format!("invalid --family: {raw}"))?;
+            }
+            "--lsl" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--lsl requires a value".to_owned())?;
+                lsl = Some(
+                    raw.parse::<f64>()
+                        .map_err(|_| format!("invalid --lsl: {raw}"))?,
+                );
+            }
+            "--usl" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--usl requires a value".to_owned())?;
+                usl = Some(
+                    raw.parse::<f64>()
+                        .map_err(|_| format!("invalid --usl: {raw}"))?,
+                );
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown option: {flag}"));
+            }
+            path => {
+                if csv.is_some() {
+                    return Err("only one CSV file is accepted".to_owned());
+                }
+                csv = Some(PathBuf::from(path));
+            }
+        }
+    }
+    let csv = csv.ok_or_else(|| "missing CSV file".to_owned())?;
+    let (df, _encoding) = io::read_csv_file(&csv).map_err(|e| e.to_string())?;
+    let column = match column {
+        Some(name) => name,
+        None => fp_core::workflow::first_numeric_column(&df)
+            .ok_or_else(|| "no numeric column: specify one with --column".to_owned())?
+            .to_owned(),
+    };
+    let mut result =
+        fp_core::johnson::analyze(&df, &column, choice, lsl, usl).map_err(|e| e.to_string())?;
+    result.set_lang(language());
+    print_analysis(&fp_core::workflow::AnalysisOutput {
+        results: vec![result],
+        plot: None,
+    });
     Ok(())
 }
 

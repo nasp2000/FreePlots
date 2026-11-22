@@ -486,6 +486,29 @@ impl JohnsonChoice {
         }
     }
 
+    /// Short code used by the command line and the preferences.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Best => "best",
+            Self::Su => "su",
+            Self::Sb => "sb",
+            Self::Sl => "sl",
+        }
+    }
+
+    /// Parses the short codes of [`Self::as_str`].
+    #[must_use]
+    pub fn parse(code: &str) -> Option<Self> {
+        match code {
+            "best" | "auto" | "aic" => Some(Self::Best),
+            "su" => Some(Self::Su),
+            "sb" => Some(Self::Sb),
+            "sl" => Some(Self::Sl),
+            _ => None,
+        }
+    }
+
     /// Family to fit, or `None` to compare all three by AIC.
     #[must_use]
     pub fn family(self) -> Option<JohnsonFamily> {
@@ -496,6 +519,287 @@ impl JohnsonChoice {
             Self::Sl => Some(JohnsonFamily::Sl),
         }
     }
+}
+
+/// Capability indices of the transformed scores against the transformed
+/// specification limits.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TransformedCapability {
+    /// Lower specification limit on the transformed scale, when given.
+    pub lower: Option<f64>,
+    /// Upper specification limit on the transformed scale, when given.
+    pub upper: Option<f64>,
+    /// Mean of the transformed scores.
+    pub mean: f64,
+    /// Standard deviation of the transformed scores.
+    pub sd: f64,
+    /// Process performance index over both limits, when both are given.
+    pub pp: Option<f64>,
+    /// Process performance index of the nearer limit.
+    pub ppk: Option<f64>,
+}
+
+/// Moves a specification limit to the transformed scale.
+fn transform_limit(fitted: &Johnson, value: f64) -> Result<f64> {
+    fitted.score(value).ok_or_else(|| {
+        Error::Unsupported(format!(
+            "the specification limit {value} lies outside the range of the {} transformation",
+            fitted.name()
+        ))
+    })
+}
+
+/// The fitted transformation and the values its report needs.
+struct Fitted {
+    distribution: Johnson,
+    /// Scores of every row, with `NaN` where the transformation has no value.
+    column: Vec<f64>,
+    after: Sample,
+    n: usize,
+    excluded: usize,
+    a2_before: f64,
+    p_before: f64,
+    a2_after: f64,
+    p_after: f64,
+}
+
+/// Fits the chosen family and transforms every row.
+fn fit_transformed(df: &DataFrame, column: &str, choice: JohnsonChoice) -> Result<Fitted> {
+    let source = df.column(column)?;
+    let sample = source.sample(MissingPolicy::Drop)?;
+    let distribution = match choice.family() {
+        Some(family) => Johnson::fit(&sample, family)?,
+        None => Johnson::fit_best(&sample)?,
+    };
+    let normal_before = crate::dists::Normal::fit_moments(&sample)?;
+    let a2_before = crate::gof::anderson_darling(&normal_before, &sample)?;
+    let p_before = crate::gof::ad_p_value(sample.n(), a2_before)?;
+
+    let mut column_values = Vec::with_capacity(df.n_rows());
+    let mut transformed = Vec::with_capacity(sample.n());
+    for row in 0..df.n_rows() {
+        match source
+            .value(row)
+            .and_then(|value| distribution.score(value))
+        {
+            Some(score) => {
+                column_values.push(score);
+                transformed.push(score);
+            }
+            None => column_values.push(f64::NAN),
+        }
+    }
+    let after = Sample::new(transformed, MissingPolicy::Drop)?;
+    let normal_after = crate::dists::Normal::fit_moments(&after)?;
+    let a2_after = crate::gof::anderson_darling(&normal_after, &after)?;
+    let p_after = crate::gof::ad_p_value(after.n(), a2_after)?;
+    Ok(Fitted {
+        distribution,
+        column: column_values,
+        after,
+        n: sample.n(),
+        excluded: sample.excluded(),
+        a2_before,
+        p_before,
+        a2_after,
+        p_after,
+    })
+}
+
+/// Pp and Ppk from the mean, the standard deviation and the limits.
+fn capability_indices(
+    mean: f64,
+    sd: f64,
+    lower: Option<f64>,
+    upper: Option<f64>,
+) -> (Option<f64>, Option<f64>) {
+    if !sd.is_finite() || sd <= 0.0 {
+        return (None, None);
+    }
+    let pp = match (lower, upper) {
+        (Some(low), Some(high)) => Some((high - low) / (6.0 * sd)),
+        _ => None,
+    };
+    let mut ppk: Option<f64> = None;
+    for distance in [
+        lower.map(|low| (mean - low) / (3.0 * sd)),
+        upper.map(|high| (high - mean) / (3.0 * sd)),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        ppk = Some(ppk.map_or(distance, |best| best.min(distance)));
+    }
+    (pp, ppk)
+}
+
+/// Capability of the transformed scores against specification limits.
+///
+/// The limits move to the transformed scale with the fitted transformation, so
+/// the indices are the usual normal ones: `Pp = (USL′ − LSL′)/(6s)` and
+/// `Ppk = min((USL′ − mean)/(3s), (mean − LSL′)/(3s))`, with `USL′` and `LSL′`
+/// the transformed limits.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidParameter`] when the two limits are inverted and
+/// [`Error::Unsupported`] when a limit lies outside the range of the fitted
+/// transformation.
+pub fn transformed_capability(
+    fitted: &Johnson,
+    after: &Sample,
+    lsl: Option<f64>,
+    usl: Option<f64>,
+) -> Result<TransformedCapability> {
+    if let (Some(low), Some(high)) = (lsl, usl)
+        && low >= high
+    {
+        return Err(Error::InvalidParameter {
+            name: "specification limits",
+            value: low,
+        });
+    }
+    let lower = lsl
+        .map(|value| transform_limit(fitted, value))
+        .transpose()?;
+    let upper = usl
+        .map(|value| transform_limit(fitted, value))
+        .transpose()?;
+    let mean = after.mean()?;
+    let sd = after.sd()?;
+    let (pp, ppk) = capability_indices(mean, sd, lower, upper);
+    Ok(TransformedCapability {
+        lower,
+        upper,
+        mean,
+        sd,
+        pp,
+        ppk,
+    })
+}
+
+/// Builds the report of a fit, with the capability when the limits are given.
+fn report(
+    column: &str,
+    output: Option<&str>,
+    fitted: &Fitted,
+    capability: Option<TransformedCapability>,
+) -> AnalysisResult {
+    let distribution = &fitted.distribution;
+    let method = match output {
+        Some(name) => format!(
+            "Maximum-likelihood {}; transformed column {name}",
+            distribution.name()
+        ),
+        None => format!("Maximum-likelihood {}", distribution.name()),
+    };
+    let mut result =
+        AnalysisResult::new(format!("Johnson Transformation — column {column}"), method);
+    result.n = fitted.n;
+    result.excluded = fitted.excluded;
+    result.statistics = vec![
+        ("Gamma", distribution.gamma()),
+        ("Eta", distribution.eta()),
+        ("Epsilon", distribution.epsilon()),
+        ("Lambda", distribution.lambda()),
+        ("A2 before", fitted.a2_before),
+        ("p-value before", fitted.p_before),
+        ("A2 after", fitted.a2_after),
+        ("p-value after", fitted.p_after),
+    ];
+    if let Some(capability) = capability {
+        if let Some(low) = capability.lower {
+            result.statistics.push(("Lower limit (transformed)", low));
+        }
+        if let Some(high) = capability.upper {
+            result.statistics.push(("Upper limit (transformed)", high));
+        }
+        if let Some(pp) = capability.pp {
+            result.statistics.push(("Pp (transformed)", pp));
+        }
+        if let Some(ppk) = capability.ppk {
+            result.statistics.push(("Ppk (transformed)", ppk));
+        }
+    } else if fitted.after.sd().is_ok_and(|sd| sd <= 0.0) {
+        result.warnings.push(
+            "the transformed scores are constant, so the capability indices are not defined"
+                .to_owned(),
+        );
+    }
+    result.notes = vec![
+        (
+            "Transformation".to_owned(),
+            match distribution.family() {
+                JohnsonFamily::Su => "z = γ + η·asinh((x − ε)/λ)".to_owned(),
+                JohnsonFamily::Sb => "z = γ + η·ln((x − ε)/(ε + λ − x))".to_owned(),
+                JohnsonFamily::Sl => "z = γ + η·ln(x − ε)".to_owned(),
+            },
+        ),
+        (
+            "Output".to_owned(),
+            match output {
+                Some(name) => format!(
+                    "column {name} holds the standard-normal scores z; rows with a missing \
+                     value stay missing"
+                ),
+                None => "the report only describes the fit; no column is written".to_owned(),
+            },
+        ),
+        (
+            "Fit".to_owned(),
+            "maximum likelihood; the automatic choice compares SU, SB and SL by AIC".to_owned(),
+        ),
+        (
+            "Normality".to_owned(),
+            "Anderson–Darling test before and after the transformation".to_owned(),
+        ),
+    ];
+    if capability.is_some() {
+        result.notes.push((
+            "Capability".to_owned(),
+            "Pp and Ppk use the specification limits moved to the transformed scale, so they \
+             compare the normal scores with z(LSL) and z(USL)"
+                .to_owned(),
+        ));
+    }
+    result
+        .warnings
+        .extend(standard_warnings(result.n, result.excluded, 0));
+    result.warnings.push(
+        "the Johnson fit conventions are published choices; they have not been verified against \
+         documented output"
+            .to_owned(),
+    );
+    Ok(result)
+}
+
+/// Fits a Johnson distribution, reports the fit and optionally its capability.
+///
+/// Nothing is written to the worksheet; the command line uses this form.
+///
+/// # Errors
+///
+/// The fitting errors of [`Johnson::fit`] / [`Johnson::fit_best`] and the
+/// validation of [`transformed_capability`].
+pub fn analyze(
+    df: &DataFrame,
+    column: &str,
+    choice: JohnsonChoice,
+    lsl: Option<f64>,
+    usl: Option<f64>,
+) -> Result<AnalysisResult> {
+    let fitted = fit_transformed(df, column, choice)?;
+    let capability = if lsl.is_some() || usl.is_some() {
+        Some(transformed_capability(
+            &fitted.distribution,
+            &fitted.after,
+            lsl,
+            usl,
+        )?)
+    } else {
+        None
+    };
+    Ok(report(column, None, &fitted, capability))
 }
 
 /// Fits a Johnson distribution and writes the transformed column.
@@ -515,6 +819,26 @@ pub fn add_transformation(
     choice: JohnsonChoice,
     output: &str,
 ) -> Result<AnalysisResult> {
+    add_transformation_with_spec(df, column, choice, output, None, None)
+}
+
+/// Fits, writes the transformed column and reports with optional limits.
+///
+/// The capability indices of [`transformed_capability`] are added to the report
+/// when a limit is given; the column itself is written in every case.
+///
+/// # Errors
+///
+/// The same validation as [`add_transformation`] plus the limit checks of
+/// [`transformed_capability`].
+pub fn add_transformation_with_spec(
+    df: &mut DataFrame,
+    column: &str,
+    choice: JohnsonChoice,
+    output: &str,
+    lsl: Option<f64>,
+    usl: Option<f64>,
+) -> Result<AnalysisResult> {
     let name = output.trim();
     if name.is_empty() {
         return Err(Error::Unsupported(
@@ -526,86 +850,20 @@ pub fn add_transformation(
             "the worksheet already has a column named {name}"
         )));
     }
-    let source = df.column(column)?;
-    let sample = source.sample(MissingPolicy::Drop)?;
-    let fitted = match choice.family() {
-        Some(family) => Johnson::fit(&sample, family)?,
-        None => Johnson::fit_best(&sample)?,
+    let fitted = fit_transformed(df, column, choice)?;
+    let capability = if lsl.is_some() || usl.is_some() {
+        Some(transformed_capability(
+            &fitted.distribution,
+            &fitted.after,
+            lsl,
+            usl,
+        )?)
+    } else {
+        None
     };
-    let normal_before = crate::dists::Normal::fit_moments(&sample)?;
-    let a2_before = crate::gof::anderson_darling(&normal_before, &sample)?;
-    let p_before = crate::gof::ad_p_value(sample.n(), a2_before)?;
-
-    let mut transformed_column = Vec::with_capacity(df.n_rows());
-    let mut transformed = Vec::with_capacity(sample.n());
-    for row in 0..df.n_rows() {
-        match source.value(row).and_then(|value| fitted.score(value)) {
-            Some(score) => {
-                transformed_column.push(score);
-                transformed.push(score);
-            }
-            None => transformed_column.push(f64::NAN),
-        }
-    }
-    let after = Sample::new(transformed, MissingPolicy::Drop)?;
-    let normal_after = crate::dists::Normal::fit_moments(&after)?;
-    let a2_after = crate::gof::anderson_darling(&normal_after, &after)?;
-    let p_after = crate::gof::ad_p_value(after.n(), a2_after)?;
-
     let index = df.n_columns();
-    df.insert_column(index, Column::new_f64(name, transformed_column))?;
-
-    let mut result = AnalysisResult::new(
-        format!("Johnson Transformation — column {column}"),
-        format!(
-            "Maximum-likelihood {}; transformed column {name}",
-            fitted.name()
-        ),
-    );
-    result.n = sample.n();
-    result.excluded = sample.excluded();
-    result.statistics = vec![
-        ("Gamma", fitted.gamma()),
-        ("Eta", fitted.eta()),
-        ("Epsilon", fitted.epsilon()),
-        ("Lambda", fitted.lambda()),
-        ("A2 before", a2_before),
-        ("p-value before", p_before),
-        ("A2 after", a2_after),
-        ("p-value after", p_after),
-    ];
-    result.notes = vec![
-        (
-            "Transformation".to_owned(),
-            match fitted.family() {
-                JohnsonFamily::Su => "z = γ + η·asinh((x − ε)/λ)".to_owned(),
-                JohnsonFamily::Sb => "z = γ + η·ln((x − ε)/(ε + λ − x))".to_owned(),
-                JohnsonFamily::Sl => "z = γ + η·ln(x − ε)".to_owned(),
-            },
-        ),
-        (
-            "Output".to_owned(),
-            format!(
-                "column {name} holds the standard-normal scores z; rows with a missing value \
-                 stay missing"
-            ),
-        ),
-        (
-            "Fit".to_owned(),
-            "maximum likelihood; the automatic choice compares SU, SB and SL by AIC".to_owned(),
-        ),
-        (
-            "Normality".to_owned(),
-            "Anderson–Darling test before and after the transformation".to_owned(),
-        ),
-    ];
-    result.warnings = standard_warnings(result.n, result.excluded, 0);
-    result.warnings.push(
-        "the Johnson fit conventions are published choices; they have not been verified against \
-         documented output"
-            .to_owned(),
-    );
-    Ok(result)
+    df.insert_column(index, Column::new_f64(name, fitted.column.clone()))?;
+    Ok(report(column, Some(name), &fitted, capability))
 }
 
 #[cfg(test)]
@@ -780,5 +1038,123 @@ mod tests {
         let error =
             add_transformation(&mut short, "x", JohnsonChoice::Best, "x_j").expect_err("too short");
         assert!(error.to_string().contains("minimum=5"), "{error}");
+    }
+    #[test]
+    fn the_capability_indices_follow_the_independent_formula() {
+        // Pp = (USL - LSL)/(6s) and Ppk = min((USL - mean)/(3s),
+        // (mean - LSL)/(3s)).
+        let (pp, ppk) = capability_indices(1.0, 1.0, Some(-3.0), Some(3.0));
+        assert!((pp.expect("Pp") - 1.0).abs() < 1e-12);
+        assert!((ppk.expect("Ppk") - 2.0 / 3.0).abs() < 1e-12);
+        // One limit gives Ppk only.
+        let (pp, ppk) = capability_indices(0.0, 2.0, None, Some(6.0));
+        assert!(pp.is_none());
+        assert!((ppk.expect("Ppk") - 1.0).abs() < 1e-12);
+        assert_eq!(
+            capability_indices(0.0, 0.0, Some(-1.0), Some(1.0)),
+            (None, None)
+        );
+        assert_eq!(capability_indices(0.0, 1.0, None, None), (None, None));
+    }
+
+    #[test]
+    fn the_transformation_capability_matches_the_stored_scores() {
+        let values: Vec<f64> = (0..100)
+            .map(|index| 1.0 + (0.05 * f64::from(index)).exp())
+            .collect();
+        let mut df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
+        let result = add_transformation_with_spec(
+            &mut df,
+            "x",
+            JohnsonChoice::Sl,
+            "x_j",
+            Some(2.0),
+            Some(100.0),
+        )
+        .expect("transformation");
+        let value = |name: &str| {
+            result
+                .statistics
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| *value)
+                .unwrap_or_else(|| panic!("{name} missing"))
+        };
+        let (gamma, eta, epsilon) = (value("Gamma"), value("Eta"), value("Epsilon"));
+        // Move the limits with the reported transformation.
+        let z_lsl = gamma + eta * (2.0 - epsilon).ln();
+        let z_usl = gamma + eta * (100.0 - epsilon).ln();
+        assert!((value("Lower limit (transformed)") - z_lsl).abs() < 1e-12);
+        assert!((value("Upper limit (transformed)") - z_usl).abs() < 1e-12);
+        // The indices use the written scores.
+        let column = df.column("x_j").expect("column");
+        let scores: Vec<f64> = (0..df.n_rows())
+            .filter_map(|row| column.value(row))
+            .collect();
+        let mean = scores.iter().sum::<f64>() / scores.len() as f64;
+        let sd = (scores
+            .iter()
+            .map(|score| (score - mean).powi(2))
+            .sum::<f64>()
+            / (scores.len() - 1) as f64)
+            .sqrt();
+        let pp = (z_usl - z_lsl) / (6.0 * sd);
+        let ppk = ((z_usl - mean) / (3.0 * sd)).min((mean - z_lsl) / (3.0 * sd));
+        assert!((value("Pp (transformed)") - pp).abs() < 1e-9, "Pp");
+        assert!((value("Ppk (transformed)") - ppk).abs() < 1e-9, "Ppk");
+        let text = result.to_session_text();
+        assert!(text.contains("Pp (transformed)"), "{text}");
+        assert!(text.contains("Capability"), "{text}");
+
+        // The report-only form gives the same indices and writes no column.
+        let report =
+            analyze(&df, "x", JohnsonChoice::Sl, Some(2.0), Some(100.0)).expect("analysis");
+        assert_eq!(df.n_columns(), 2);
+        let pp_only = report
+            .statistics
+            .iter()
+            .find(|(key, _)| *key == "Pp (transformed)")
+            .map(|(_, value)| *value)
+            .expect("Pp");
+        assert!((pp_only - pp).abs() < 1e-9);
+    }
+
+    #[test]
+    fn invalid_johnson_limits_are_rejected() {
+        let values: Vec<f64> = (0..100)
+            .map(|index| 1.0 + (0.05 * f64::from(index)).exp())
+            .collect();
+        let mut df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
+        let error = add_transformation_with_spec(
+            &mut df,
+            "x",
+            JohnsonChoice::Sl,
+            "x_j",
+            Some(100.0),
+            Some(2.0),
+        )
+        .expect_err("inverted limits");
+        assert!(matches!(error, Error::InvalidParameter { .. }), "{error}");
+        // SL is defined above epsilon: a limit at zero cannot be transformed.
+        let error =
+            add_transformation_with_spec(&mut df, "x", JohnsonChoice::Sl, "x_j", Some(0.0), None)
+                .expect_err("outside the range");
+        assert!(error.to_string().contains("outside the range"), "{error}");
+        // Neither error wrote the column.
+        assert_eq!(df.n_columns(), 1);
+        // One limit gives Ppk without Pp.
+        let report = analyze(&df, "x", JohnsonChoice::Sl, None, Some(100.0)).expect("analysis");
+        assert!(
+            report
+                .statistics
+                .iter()
+                .any(|(key, _)| *key == "Ppk (transformed)")
+        );
+        assert!(
+            !report
+                .statistics
+                .iter()
+                .any(|(key, _)| *key == "Pp (transformed)")
+        );
     }
 }

@@ -194,15 +194,38 @@ impl FreePlotsApp {
             self.set_error("Name the transformed column");
             return;
         }
+        let limit = |text: &str, name: &str| match text.trim() {
+            "" => Ok(None),
+            raw => raw
+                .parse::<f64>()
+                .map(Some)
+                .map_err(|_| format!("{name} must be a number")),
+        };
+        let lsl = match limit(&self.johnson_lsl, "LSL") {
+            Ok(value) => value,
+            Err(error) => {
+                self.set_error(error);
+                return;
+            }
+        };
+        let usl = match limit(&self.johnson_usl, "USL") {
+            Ok(value) => value,
+            Err(error) => {
+                self.set_error(error);
+                return;
+            }
+        };
         let Some(mut df) = self.data.clone() else {
             self.set_error("No worksheet open: use File → Open CSV…");
             return;
         };
-        match fp_core::johnson::add_transformation(
+        match fp_core::johnson::add_transformation_with_spec(
             &mut df,
             &self.johnson_column,
             self.johnson_choice,
             &self.johnson_name,
+            lsl,
+            usl,
         ) {
             Ok(result) => {
                 let name = self.johnson_name.trim().to_owned();
@@ -288,6 +311,25 @@ impl FreePlotsApp {
                     ui.add(egui::TextEdit::singleline(&mut self.johnson_name).desired_width(160.0))
                         .labelled_by(label.id)
                         .hover_from(&label);
+                });
+                ui.horizontal(|ui| {
+                    let lsl = ui.help_label("LSL:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.johnson_lsl)
+                            .desired_width(70.0)
+                            .hint_text("none"),
+                    )
+                    .labelled_by(lsl.id)
+                    .hover_from(&lsl);
+                    let usl = ui.help_label("USL:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.johnson_usl)
+                            .desired_width(70.0)
+                            .hint_text("none"),
+                    )
+                    .labelled_by(usl.id)
+                    .hover_from(&usl);
+                    ui.small("Pp and Ppk on the transformed scale");
                 });
                 ui.small(
                     "Fits Johnson SU, SB or SL and writes the standard-normal scores as a new \

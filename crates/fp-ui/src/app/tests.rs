@@ -4728,6 +4728,72 @@ fn the_attribute_capability_help_explains_the_ppm() {
 }
 
 #[test]
+fn the_attribute_capability_dialog_reports_dpmo_and_yield() {
+    let mut app = FreePlotsApp::new();
+    let df = DataFrame::new(vec![
+        Column::new_f64("def", vec![2.0, 3.0, 1.0, 4.0, 0.0]),
+        Column::new_f64("n", vec![100.0; 5]),
+    ])
+    .expect("frame");
+    app.set_data(df, "attr.csv".to_owned());
+    app.open_attrcap_dialog();
+    app.attrcap_defects = "def".to_owned();
+    app.attrcap_sizes = Some("n".to_owned());
+    app.attrcap_opportunities = 4;
+    app.run_attrcap_dialog();
+    let text = app.session_text();
+    assert!(text.contains("DPMO"), "{text}");
+    assert!(text.contains("Yield"), "{text}");
+    assert!(text.contains("5000.000000"), "{text}");
+    assert!(text.contains("2.575829"), "{text}");
+    assert!(text.contains("Opportunities per unit"), "{text}");
+
+    // Zero opportunities are refused instead of dividing by zero.
+    app.open_attrcap_dialog();
+    app.attrcap_defects = "def".to_owned();
+    app.attrcap_sizes = Some("n".to_owned());
+    app.attrcap_opportunities = 0;
+    app.run_attrcap_dialog();
+    assert!(app.error.is_some(), "{:?}", app.error);
+}
+
+#[test]
+fn the_johnson_dialog_reports_the_transformed_capability() {
+    let mut app = FreePlotsApp::new();
+    let values: Vec<f64> = (0..100)
+        .map(|index| 1.0 + (0.05 * f64::from(index)).exp())
+        .collect();
+    let df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
+    app.set_data(df, "values.csv".to_owned());
+    app.open_johnson_dialog();
+    app.johnson_column = "x".to_owned();
+    app.johnson_choice = fp_core::johnson::JohnsonChoice::Sl;
+    app.johnson_name = "x_j".to_owned();
+    app.johnson_lsl = "2".to_owned();
+    app.johnson_usl = "100".to_owned();
+    app.run_johnson_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Pp (transformed)"), "{text}");
+    assert!(text.contains("Ppk (transformed)"), "{text}");
+    assert!(app.data().expect("sheet").column("x_j").is_ok());
+    assert!(app.error.is_none(), "{:?}", app.error);
+
+    // A limit that is not a number is refused before the fit.
+    app.open_johnson_dialog();
+    app.johnson_column = "x".to_owned();
+    app.johnson_name = "x_j2".to_owned();
+    app.johnson_lsl = "abc".to_owned();
+    app.run_johnson_dialog();
+    assert!(
+        app.error
+            .as_deref()
+            .is_some_and(|error| error.contains("LSL")),
+        "{:?}",
+        app.error
+    );
+}
+
+#[test]
 fn the_sixpack_help_explains_the_six_panels() {
     use egui_kittest::{Harness, kittest::Queryable};
 
@@ -8854,6 +8920,11 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     app.sampling_curve_aql = 1.5;
     app.sampling_curve_ltpd = 6.0;
     app.tolerance_side = fp_core::tolerance::Side::Lower;
+    app.attrcap_confidence = 97.5;
+    app.attrcap_opportunities = 3;
+    app.johnson_choice = fp_core::johnson::JohnsonChoice::Sb;
+    app.johnson_lsl = "-2".to_owned();
+    app.johnson_usl = "4".to_owned();
     app.persist_preferences();
     let mut restored = FreePlotsApp::new();
     restored.set_preferences_path(path.clone());
@@ -8880,6 +8951,11 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     assert!((restored.sampling_curve_aql - 1.5).abs() < 1e-9);
     assert!((restored.sampling_curve_ltpd - 6.0).abs() < 1e-9);
     assert_eq!(restored.tolerance_side, fp_core::tolerance::Side::Lower);
+    assert!((restored.attrcap_confidence - 97.5).abs() < 1e-9);
+    assert_eq!(restored.attrcap_opportunities, 3);
+    assert_eq!(restored.johnson_choice, fp_core::johnson::JohnsonChoice::Sb);
+    assert_eq!(restored.johnson_lsl, "-2");
+    assert_eq!(restored.johnson_usl, "4");
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -9077,6 +9153,9 @@ fn out_of_range_preferences_keep_safe_defaults() {
         step_alpha_enter: Some(5.0),
         tolerance_proportion: Some(10.0),
         tolerance_side: Some("sideways".to_owned()),
+        attrcap_confidence: Some(10.0),
+        attrcap_opportunities: Some(0),
+        johnson_family: Some("nope".to_owned()),
         attribute_kind: Some("nope".to_owned()),
         t_alternative: Some("nope".to_owned()),
         power_groups: Some(1),
@@ -9108,6 +9187,9 @@ fn out_of_range_preferences_keep_safe_defaults() {
     assert!((app.step_alpha_enter - 0.15).abs() < 1e-9);
     assert!((app.tolerance_proportion - 95.0).abs() < 1e-9);
     assert_eq!(app.tolerance_side, fp_core::tolerance::Side::TwoSided);
+    assert!((app.attrcap_confidence - 95.0).abs() < 1e-9);
+    assert_eq!(app.attrcap_opportunities, 1);
+    assert_eq!(app.johnson_choice, fp_core::johnson::JohnsonChoice::Best);
     assert_eq!(app.attr_kind, AttributeChartKind::P);
     assert_eq!(app.t_alternative, Alternative::TwoSided);
     assert_eq!(app.power_groups, 2);

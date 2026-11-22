@@ -483,11 +483,13 @@ pub enum AnalysisSpec {
         sizes: Option<String>,
         /// Optional constant subgroup size.
         size: Option<usize>,
-        /// Report the attribute capability (PPM and process Z) instead of the
-        /// chart statistics.
+        /// Report the attribute capability (PPM, DPMO, yield and process Z)
+        /// instead of the chart statistics.
         capability: bool,
         /// Two-sided confidence level of the capability interval.
         confidence: f64,
+        /// Opportunities per unit used by DPMO.
+        opportunities: usize,
     },
     /// One-sample Student t test.
     OneSampleT {
@@ -1564,6 +1566,7 @@ impl AnalysisSpec {
             size: None,
             capability: false,
             confidence: 0.95,
+            opportunities: 1,
         }
     }
 
@@ -1594,6 +1597,19 @@ impl AnalysisSpec {
         {
             *capability_slot = capability;
             *confidence_slot = confidence;
+        }
+        self
+    }
+
+    /// Opportunities per unit used by the DPMO of the capability report.
+    #[must_use]
+    pub fn with_attribute_opportunities(mut self, opportunities: usize) -> Self {
+        if let Self::AttributeChart {
+            opportunities: slot,
+            ..
+        } = &mut self
+        {
+            *slot = opportunities;
         }
         self
     }
@@ -3569,9 +3585,12 @@ impl AnalysisSpec {
                 };
                 if *capability {
                     format!(
-                        "Attribute Capability — {}, {:.1}% interval; {scope}",
+                        "Attribute Capability — {}, {:.1}% interval, {} opportunit{} per unit; \
+                         {scope}",
                         crate::attrcap::AttributeCapabilityKind::from_chart(*kind).name(),
-                        confidence * 100.0
+                        confidence * 100.0,
+                        opportunities,
+                        if *opportunities == 1 { "y" } else { "ies" }
                     )
                 } else {
                     format!("{} Chart — {}; {scope}", kind.name(), kind.description())
@@ -7873,6 +7892,7 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
             size,
             capability,
             confidence,
+            opportunities,
         } => {
             let mut out = if *capability {
                 crate::attrcap::analyze(
@@ -7882,6 +7902,7 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
                     sizes.as_deref(),
                     *size,
                     *confidence,
+                    *opportunities,
                 )?
             } else {
                 crate::attribute::analyze(df, *kind, defects, sizes.as_deref(), *size)?

@@ -1468,13 +1468,25 @@ impl FreePlotsApp {
                     .labelled_by(confidence.id)
                     .hover_from(&confidence);
                 });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label("Opportunities per unit:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.attrcap_opportunities)
+                            .range(1..=1000)
+                            .speed(0.2),
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                    ui.small("DPMO = PPM when each unit has one opportunity");
+                });
                 ui.small(match self.attrcap_kind {
                     fp_core::attrcap::AttributeCapabilityKind::Binomial => {
                         "Binomial: defectives per subgroup and the inspected units; reports PPM \
-                         defective."
+                         defective, DPMO, yield and process Z."
                     }
                     fp_core::attrcap::AttributeCapabilityKind::Poisson => {
-                        "Poisson: defects per subgroup and the units; reports PPM defects and DPU."
+                        "Poisson: defects per subgroup and the units; reports DPU, PPM defects, \
+                         DPMO, yield and process Z."
                     }
                 });
                 ui.small("The exact interval and process Z are reported with the PPM.");

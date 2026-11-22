@@ -580,6 +580,16 @@ pub struct Preferences {
     #[serde(default)]
     pub tolerance_side: Option<String>,
     #[serde(default)]
+    pub attrcap_confidence: Option<f64>,
+    #[serde(default)]
+    pub attrcap_opportunities: Option<usize>,
+    #[serde(default)]
+    pub johnson_family: Option<String>,
+    #[serde(default)]
+    pub johnson_lsl: Option<f64>,
+    #[serde(default)]
+    pub johnson_usl: Option<f64>,
+    #[serde(default)]
     pub diagnostic_alpha: Option<f64>,
     /// Stepwise method and stopping criterion.
     #[serde(default)]
@@ -706,6 +716,11 @@ impl Default for Preferences {
             tolerance_proportion: None,
             tolerance_free: None,
             tolerance_side: None,
+            attrcap_confidence: None,
+            attrcap_opportunities: None,
+            johnson_family: None,
+            johnson_lsl: None,
+            johnson_usl: None,
             diagnostic_alpha: None,
             step_method: None,
             step_criterion: None,
@@ -1168,6 +1183,7 @@ pub struct FreePlotsApp {
     attrcap_sizes: Option<String>,
     attrcap_size: String,
     attrcap_confidence: f64,
+    attrcap_opportunities: usize,
     show_t_dialog: bool,
     show_equivalence_dialog: bool,
     rank_median: String,
@@ -1206,6 +1222,8 @@ pub struct FreePlotsApp {
     johnson_column: String,
     johnson_choice: fp_core::johnson::JohnsonChoice,
     johnson_name: String,
+    johnson_lsl: String,
+    johnson_usl: String,
     /// Individual distribution identification dialog and help.
     show_id_dialog: bool,
     show_id_help: bool,
@@ -3210,7 +3228,8 @@ impl FreePlotsApp {
         };
         let spec = AnalysisSpec::attribute_chart(chart_kind, self.attrcap_defects.clone())
             .with_attribute_size(self.attrcap_sizes.clone(), constant)
-            .with_attribute_capability(true, self.attrcap_confidence / 100.0);
+            .with_attribute_capability(true, self.attrcap_confidence / 100.0)
+            .with_attribute_opportunities(self.attrcap_opportunities);
         let label = format!("Attribute capability: {}", self.attrcap_defects);
         self.execute_spec(spec, label);
         self.show_attrcap_dialog = false;
@@ -3789,6 +3808,11 @@ impl FreePlotsApp {
             tolerance_proportion: Some(self.tolerance_proportion),
             tolerance_free: Some(self.tolerance_free),
             tolerance_side: Some(self.tolerance_side.as_str().to_owned()),
+            attrcap_confidence: Some(self.attrcap_confidence),
+            attrcap_opportunities: Some(self.attrcap_opportunities),
+            johnson_family: Some(self.johnson_choice.as_str().to_owned()),
+            johnson_lsl: self.johnson_lsl.trim().parse::<f64>().ok(),
+            johnson_usl: self.johnson_usl.trim().parse::<f64>().ok(),
             diagnostic_alpha: Some(self.diagnostic_alpha),
             step_method: Some(
                 match self.step_method {
@@ -4123,6 +4147,32 @@ impl FreePlotsApp {
             && let Some(side) = fp_core::tolerance::Side::parse(code)
         {
             self.tolerance_side = side;
+        }
+        if let Some(value) = preferences.attrcap_confidence
+            && value.is_finite()
+            && (50.0..=99.9).contains(&value)
+        {
+            self.attrcap_confidence = value;
+        }
+        if let Some(value) = preferences.attrcap_opportunities
+            && (1..=1000).contains(&value)
+        {
+            self.attrcap_opportunities = value;
+        }
+        if let Some(code) = &preferences.johnson_family
+            && let Some(choice) = fp_core::johnson::JohnsonChoice::parse(code)
+        {
+            self.johnson_choice = choice;
+        }
+        for (slot, value) in [
+            (&mut self.johnson_lsl, preferences.johnson_lsl),
+            (&mut self.johnson_usl, preferences.johnson_usl),
+        ] {
+            if let Some(value) = value
+                && value.is_finite()
+            {
+                *slot = format!("{value}");
+            }
         }
         if let Some(value) = preferences.kmeans_clusters
             && (2..=20).contains(&value)
@@ -6207,6 +6257,9 @@ fn label_help(text: &str) -> Option<String> {
         }
         "Lot size" => "Lot size (0 = large lot)",
         "Side" => "Which limits the tolerance interval keeps",
+        "Opportunities per unit" => {
+            "Number of opportunities for a defect inside one unit; DPMO divides by it"
+        }
         "AQL %" => "Acceptable quality level in percent",
         "LTPD %" => "Lot tolerance percent defective",
         "Producer risk %" => "Producer risk in percent",

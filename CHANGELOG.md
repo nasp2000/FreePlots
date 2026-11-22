@@ -8,6 +8,13 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Added
 
+- *Attribute Capability…* reports DPMO and yield alongside PPM, DPU and process
+  Z, takes the opportunities per unit (one by default) and is reachable from
+  the `attrcap` command. Process Z follows the per-opportunity rate.
+- *Johnson Transformation…* takes optional specification limits and adds Pp
+  and Ppk computed on the transformed scores against the transformed limits;
+  the family, the limits and the choice are remembered, and the `johnson`
+  command prints the fit and its capability.
 - *Tolerance Interval…* keeps both limits or only one: the two-sided normal
   factor uses Howe's approximation and the one-sided factor is the exact
   non-central-t solution, while the distribution-free method takes the

@@ -2596,6 +2596,124 @@ fn the_tolerance_interval_command_keeps_the_chosen_side() {
     fs::remove_dir_all(&dir).ok();
 }
 
+// The attribute capability reports DPMO and yield, and the opportunities per
+// unit divide the rate; the Johnson command reports Pp and Ppk on the
+// transformed scale.
+#[test]
+fn the_attribute_capability_and_johnson_commands_report_their_indices() {
+    let dir = temp_dir("capability-attributes");
+    let attr = dir.join("attr.csv");
+    fs::write(&attr, "def,n\n2,100\n3,100\n1,100\n4,100\n0,100\n").expect("write csv");
+    let attr_path = attr.to_str().expect("path").to_owned();
+    let out = Command::new(bin())
+        .args(["attrcap", &attr_path, "--column", "def", "--sizes", "n"])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("DPMO"), "{session}");
+    assert!(session.contains("Yield"), "{session}");
+    assert!(session.contains("20000.000000"), "{session}");
+    assert!(session.contains("0.980000"), "{session}");
+    assert!(session.contains("2.053749"), "{session}");
+
+    // Four opportunities per unit give DPMO = 5 000 and the deviate of 0.995.
+    let out = Command::new(bin())
+        .args([
+            "attrcap",
+            &attr_path,
+            "--column",
+            "def",
+            "--sizes",
+            "n",
+            "--opportunities",
+            "4",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("5000.000000"), "{session}");
+    assert!(session.contains("2.575829"), "{session}");
+
+    // The Poisson form reports DPU and the Poisson yield.
+    let out = Command::new(bin())
+        .args([
+            "attrcap", &attr_path, "--column", "def", "--size", "10", "--kind", "poisson",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Mean DPU"), "{session}");
+    assert!(session.contains("0.818731"), "{session}");
+
+    let johnson = dir.join("johnson.csv");
+    let mut text = String::from("x\n");
+    for index in 0..100 {
+        text.push_str(&format!("{}\n", 1.0 + (0.05 * f64::from(index)).exp()));
+    }
+    fs::write(&johnson, text).expect("write csv");
+    let johnson_path = johnson.to_str().expect("path").to_owned();
+    let out = Command::new(bin())
+        .args([
+            "johnson",
+            &johnson_path,
+            "--column",
+            "x",
+            "--family",
+            "sl",
+            "--lsl",
+            "2",
+            "--usl",
+            "100",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Johnson SL"), "{session}");
+    assert!(session.contains("Pp (transformed)"), "{session}");
+    assert!(session.contains("Ppk (transformed)"), "{session}");
+    assert!(session.contains("Lower limit (transformed)"), "{session}");
+
+    let out = Command::new(bin())
+        .args([
+            "johnson",
+            &johnson_path,
+            "--column",
+            "x",
+            "--family",
+            "sl",
+            "--lsl",
+            "100",
+            "--usl",
+            "2",
+        ])
+        .output()
+        .expect("run binary");
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("invalid parameter"), "{stderr}");
+    fs::remove_dir_all(&dir).ok();
+}
+
 // An option that is present without its value used to be treated as absent
 // when it was the last argument, so the command silently ran with its default
 // instead of telling the caller that the value was missing.
