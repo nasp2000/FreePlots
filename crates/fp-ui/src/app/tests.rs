@@ -8802,7 +8802,8 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     app.sampling_beta = 10.0;
     app.sampling_double = true;
     app.sampling_first_sample = 60;
-    app.sampling_first_accept = 2;
+    // A zero first acceptance number is a valid plan and must survive.
+    app.sampling_first_accept = 0;
     app.sampling_first_reject = 5;
     app.sampling_second_sample = 40;
     app.sampling_second_accept = 5;
@@ -8827,7 +8828,7 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     assert!((restored.sampling_beta - 10.0).abs() < 1e-9);
     assert!(restored.sampling_double);
     assert_eq!(restored.sampling_first_sample, 60);
-    assert_eq!(restored.sampling_first_accept, 2);
+    assert_eq!(restored.sampling_first_accept, 0);
     assert_eq!(restored.sampling_first_reject, 5);
     assert_eq!(restored.sampling_second_sample, 40);
     assert_eq!(restored.sampling_second_accept, 5);
@@ -9023,6 +9024,8 @@ fn out_of_range_preferences_keep_safe_defaults() {
         timeseries_kind: Some("nope".to_owned()),
         sampling_sample: Some(0),
         sampling_first_sample: Some(0),
+        sampling_first_accept: Some(5001),
+        sampling_first_reject: Some(0),
         sampling_second_sample: Some(0),
         sampling_curve_aql: Some(-1.0),
         step_alpha_enter: Some(5.0),
@@ -9051,6 +9054,8 @@ fn out_of_range_preferences_keep_safe_defaults() {
     assert_eq!(app.timeseries_kind, TimeSeriesKind::MovingAverage);
     assert_eq!(app.sampling_sample, 20);
     assert_eq!(app.sampling_first_sample, 50);
+    assert_eq!(app.sampling_first_accept, 1);
+    assert_eq!(app.sampling_first_reject, 4);
     assert_eq!(app.sampling_second_sample, 50);
     assert!((app.sampling_curve_aql - 1.0).abs() < 1e-9);
     assert!((app.step_alpha_enter - 0.15).abs() < 1e-9);

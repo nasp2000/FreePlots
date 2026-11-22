@@ -406,9 +406,9 @@ pub fn oc_curve(
 
 /// Builds the OC curve of a double-sampling plan.
 pub fn double_oc_curve(lot_size: Option<usize>, plan: DoublePlan, steps: usize) -> Result<OcCurve> {
-    let (first_sample, second_sample) = plan.sample_range();
+    let (first_sample, last_sample) = plan.sample_range();
     if let Some(lot) = lot_size
-        && (lot == 0 || second_sample > lot)
+        && (lot == 0 || last_sample > lot)
     {
         return Err(Error::Unsupported(
             "both samples together must not exceed the lot size".to_owned(),
@@ -425,7 +425,8 @@ pub fn double_oc_curve(lot_size: Option<usize>, plan: DoublePlan, steps: usize) 
     let asn: Vec<f64> = proportions
         .iter()
         .map(|p| {
-            first_sample as f64 + second_sample as f64 * second_sample_share(lot_size, &plan, *p)
+            first_sample as f64
+                + plan.second_sample as f64 * second_sample_share(lot_size, &plan, *p)
         })
         .collect();
     Ok(finish_curve(

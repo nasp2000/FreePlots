@@ -3937,20 +3937,8 @@ impl FreePlotsApp {
                 preferences.sampling_first_sample,
             ),
             (
-                &mut self.sampling_first_accept,
-                preferences.sampling_first_accept,
-            ),
-            (
-                &mut self.sampling_first_reject,
-                preferences.sampling_first_reject,
-            ),
-            (
                 &mut self.sampling_second_sample,
                 preferences.sampling_second_sample,
-            ),
-            (
-                &mut self.sampling_second_accept,
-                preferences.sampling_second_accept,
             ),
         ] {
             if let Some(value) = value
@@ -3958,6 +3946,27 @@ impl FreePlotsApp {
             {
                 *slot = value;
             }
+        }
+        for (slot, value) in [
+            (
+                &mut self.sampling_first_accept,
+                preferences.sampling_first_accept,
+            ),
+            (
+                &mut self.sampling_second_accept,
+                preferences.sampling_second_accept,
+            ),
+        ] {
+            if let Some(value) = value
+                && value <= 5000
+            {
+                *slot = value;
+            }
+        }
+        if let Some(value) = preferences.sampling_first_reject
+            && (1..=5000).contains(&value)
+        {
+            self.sampling_first_reject = value;
         }
         if let Some(code) = &preferences.step_method
             && let Some(method) = fp_core::stepwise::StepMethod::parse(code)
