@@ -444,6 +444,25 @@ pub fn analyze(df: &DataFrame, predictors: &[String], group: &str) -> Result<Ana
             })
             .collect(),
     });
+    let mut distance_headers = vec!["Distance".to_owned()];
+    distance_headers.extend(model.groups.iter().map(|group| group.label.clone()));
+    result.extra.push(Item::Table {
+        headers: distance_headers,
+        rows: model
+            .groups
+            .iter()
+            .enumerate()
+            .map(|(group, row)| {
+                let mut values = vec![row.label.clone()];
+                values.extend(
+                    model.distances[group]
+                        .iter()
+                        .map(|value| format!("{value:.6}")),
+                );
+                values
+            })
+            .collect(),
+    });
     if let Some(coefficients) = &model.coefficients {
         result.extra.push(Item::Table {
             headers: vec![

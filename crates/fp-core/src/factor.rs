@@ -103,7 +103,7 @@ fn varimax(loadings: &mut [Vec<f64>], rows: usize, factors: usize) -> bool {
         return false;
     }
     let mut norms = vec![0.0f64; rows];
-    for (row, values) in loadings.iter().enumerate() {
+    for (row, values) in loadings.iter_mut().enumerate() {
         norms[row] = values.iter().map(|value| value * value).sum::<f64>().sqrt();
         if norms[row] > 0.0 {
             for value in values.iter_mut() {
@@ -153,7 +153,7 @@ fn varimax(loadings: &mut [Vec<f64>], rows: usize, factors: usize) -> bool {
             break;
         }
     }
-    for (row, values) in loadings.iter().enumerate() {
+    for (row, values) in loadings.iter_mut().enumerate() {
         if norms[row] > 0.0 {
             for value in values.iter_mut() {
                 *value *= norms[row];
