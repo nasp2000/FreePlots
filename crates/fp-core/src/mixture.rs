@@ -311,7 +311,9 @@ pub fn fit(
             }
         }
         let total: f64 = values.iter().sum();
-        if (total - 1.0).abs() > 1e-6 {
+        // Worksheets store rounded components (0.333333 for a third), so the
+        // sum is accepted within a tolerance far below any real deviation.
+        if (total - 1.0).abs() > 1e-5 {
             return Err(Error::Cell {
                 column: "mixture".to_owned(),
                 row: row + 1,
@@ -703,8 +705,8 @@ pub fn analyze(
         ),
         (
             "Constraint".to_owned(),
-            "the components of every run must lie in [0, 1] and sum to one; the canonical \
-             form needs no intercept"
+            "the components of every run must lie in [0, 1] and sum to one (within 1e-5 for \
+             rounded worksheets); the canonical form needs no intercept"
                 .to_owned(),
         ),
         (
