@@ -210,12 +210,15 @@ fn solve(matrix: &[Vec<f64>], rhs: &[f64]) -> Option<Vec<f64>> {
             *value /= scale;
         }
         let pivot_row = augmented[column].clone();
-        for row in 0..size {
+        for (row, values) in augmented.iter_mut().enumerate() {
             if row == column {
                 continue;
             }
-            let factor = augmented[row][column];
-            for (value, base) in augmented[row].iter_mut().zip(&pivot_row) {
+            let factor = values[column];
+            if factor == 0.0 {
+                continue;
+            }
+            for (value, base) in values.iter_mut().zip(&pivot_row) {
                 *value -= factor * base;
             }
         }
@@ -363,6 +366,12 @@ pub fn fit(
     for step in 0..60 {
         iterations = step + 1;
         let (_, gradient, information) = terms(&observations, &beta);
+        let largest_gradient = gradient
+            .iter()
+            .fold(0.0f64, |largest, value| largest.max(value.abs()));
+        if largest_gradient < 1e-10 {
+            break;
+        }
         // The observed information is minus the Hessian, so the Newton step
         // solves I·δ = g.
         let direction = solve(&information, &gradient).ok_or_else(|| Error::NotConverged {
@@ -377,7 +386,7 @@ pub fn fit(
                 .map(|(value, step)| value + scale * step)
                 .collect();
             let (candidate_likelihood, _, _) = terms(&observations, &candidate);
-            if candidate_likelihood > log_likelihood {
+            if candidate_likelihood >= log_likelihood {
                 beta = candidate;
                 log_likelihood = candidate_likelihood;
                 advanced = true;
@@ -391,7 +400,7 @@ pub fn fit(
         let largest: f64 = direction
             .iter()
             .fold(0.0f64, |largest, value| largest.max(value.abs()));
-        if largest * scale < 1e-9 {
+        if largest * scale < 1e-12 {
             break;
         }
     }
