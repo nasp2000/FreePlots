@@ -35,8 +35,15 @@ def run(*args: object, timeout: int = 300) -> str:
     executable's stderr, where every rejection is explained.
     """
     command = [binary(), *(str(value) for value in args)]
+    # The Session is UTF-8 on every platform; the Windows console default
+    # would otherwise decode it with the locale code page and fail.
     result = subprocess.run(
-        command, capture_output=True, text=True, timeout=timeout, check=False
+        command,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+        check=False,
     )
     if result.returncode != 0:
         raise RuntimeError(

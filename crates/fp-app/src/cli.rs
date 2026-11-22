@@ -6910,15 +6910,9 @@ fn split_tokens(line: &str) -> Result<Vec<String>, String> {
     let mut tokens = Vec::new();
     let mut current = String::new();
     let mut quoted = false;
-    let mut chars = line.chars();
-    while let Some(character) = chars.next() {
+    for character in line.chars() {
         match character {
             '"' => quoted = !quoted,
-            '\\' => {
-                if let Some(next) = chars.next() {
-                    current.push(next);
-                }
-            }
             value if value.is_whitespace() && !quoted => {
                 if !current.is_empty() {
                     tokens.push(std::mem::take(&mut current));
