@@ -2649,7 +2649,7 @@ fn the_discriminant_dialog_reaches_the_session() {
     let mut groups = vec!["A".to_owned(); 4];
     x.extend([4.0, 5.0, 5.0, 6.0]);
     y.extend([1.0, 0.0, 2.0, 1.0]);
-    groups.extend(["B".to_owned(); 4]);
+    groups.extend(vec!["B".to_owned(); 4]);
     let df = DataFrame::new(vec![
         Column::new_f64("x", x),
         Column::new_f64("y", y),
