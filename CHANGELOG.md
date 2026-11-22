@@ -6,6 +6,15 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- *Acceptance Sampling…* evaluates single and double plans: the OC curve with
+  the binomial or hypergeometric probability, the AQL and LTPD points with the
+  producer and consumer risks, the average sample number, the average outgoing
+  quality and the average total inspection. The `occurve` command gained
+  `--aql`, `--ltpd` and the `--double` plan options; the dialog, the reports
+  and the command are in both interface languages.
+
 ## [0.1.4] - 2026-11-21
 
 ### Fixed

@@ -71,7 +71,9 @@ Usage:
   FreePlots pareto <file.csv> --column <name> [--svg <file>]
   FreePlots taguchidesign <output.csv> --runs <n> [--factors <n>] [--randomize] [--seed <n>]   (n = 8, 9, 12, 16, 18, 27)
   FreePlots taguchi <file.csv> --response <name> --factors <A,B> [--quality <smaller|larger|nominal>]
-  FreePlots occurve --sample <n> --accept <c> [--lot <N>] [--svg <file>]
+  FreePlots occurve --sample <n> --accept <c> [--lot <N>] [--aql <pct>] [--ltpd <pct>] [--svg <file>]
+  FreePlots occurve --double [--first-sample <n1>] [--first-accept <c1>] [--first-reject <r1>]
+                   [--second-sample <n2>] [--second-accept <c2>] [--lot <N>] [--aql <pct>] [--ltpd <pct>] [--svg <file>]
   FreePlots sampleplan --aql <pct> --ltpd <pct> [--alpha <pct>] [--beta <pct>] [--svg <file>]
   FreePlots t2chart <file.csv> --columns <a,b> [--subgroup <n>] [--confidence <pct>] [--svg <file>]
   FreePlots pca <file.csv> --columns <a,b,c,...> [--keep <n>] [--svg <file>]
@@ -4389,6 +4391,17 @@ fn integer_option(args: &[String], name: &str, default: usize) -> Result<usize, 
     }
 }
 
+/// Reads an optional number with no default.
+fn optional_number(args: &[String], name: &str) -> Result<Option<f64>, String> {
+    match optional_string(args, name)? {
+        Some(raw) => raw
+            .parse::<f64>()
+            .map(Some)
+            .map_err(|_| format!("invalid {name}: {raw}")),
+        None => Ok(None),
+    }
+}
+
 fn svg_option(args: &[String]) -> Result<Option<PathBuf>, String> {
     match args.iter().position(|value| value == "--svg") {
         Some(index) => match args.get(index + 1) {
@@ -5824,16 +5837,30 @@ fn taguchi(args: &[String]) -> Result<(), String> {
 fn acceptance_curve(args: &[String]) -> Result<(), String> {
     let sample = integer_option(args, "--sample", 20)?;
     let acceptance = integer_option(args, "--accept", 1)?;
-    let lot = match args.iter().position(|value| value == "--lot") {
-        Some(index) => Some(
-            args.get(index + 1)
-                .ok_or_else(|| "--lot requires a value".to_owned())?
-                .parse::<usize>()
-                .map_err(|_| "invalid --lot".to_owned())?,
+    let lot = match optional_string(args, "--lot")? {
+        Some(raw) => Some(
+            raw.parse::<usize>()
+                .map_err(|_| format!("invalid --lot: {raw}"))?,
         ),
         None => None,
     };
-    let mut out = fp_core::sampling::analyze(lot, sample, acceptance).map_err(|e| e.to_string())?;
+    let aql = optional_number(args, "--aql")?.map(|value| value / 100.0);
+    let ltpd = optional_number(args, "--ltpd")?.map(|value| value / 100.0);
+    let double = args.iter().any(|value| value == "--double");
+    let outcome = if double {
+        let plan = fp_core::sampling::DoublePlan::new(
+            integer_option(args, "--first-sample", 50)?,
+            integer_option(args, "--first-accept", 1)?,
+            integer_option(args, "--first-reject", 4)?,
+            integer_option(args, "--second-sample", 50)?,
+            integer_option(args, "--second-accept", 4)?,
+        )
+        .map_err(|error| error.to_string())?;
+        fp_core::sampling::analyze_double(lot, plan, aql, ltpd)
+    } else {
+        fp_core::sampling::analyze_single_with_risks(lot, sample, acceptance, aql, ltpd)
+    };
+    let mut out = outcome.map_err(|error| error.to_string())?;
     let lang = language();
     for result in &mut out.results {
         result.set_lang(lang);

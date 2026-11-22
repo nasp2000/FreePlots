@@ -454,6 +454,22 @@ pub struct Preferences {
     pub sampling_alpha: Option<f64>,
     #[serde(default)]
     pub sampling_beta: Option<f64>,
+    #[serde(default)]
+    pub sampling_double: Option<bool>,
+    #[serde(default)]
+    pub sampling_first_sample: Option<usize>,
+    #[serde(default)]
+    pub sampling_first_accept: Option<usize>,
+    #[serde(default)]
+    pub sampling_first_reject: Option<usize>,
+    #[serde(default)]
+    pub sampling_second_sample: Option<usize>,
+    #[serde(default)]
+    pub sampling_second_accept: Option<usize>,
+    #[serde(default)]
+    pub sampling_curve_aql: Option<f64>,
+    #[serde(default)]
+    pub sampling_curve_ltpd: Option<f64>,
     /// DOE design options (factorial, Box–Behnken, Plackett–Burman, Taguchi).
     #[serde(default)]
     pub doe_factors: Option<String>,
@@ -630,6 +646,14 @@ impl Default for Preferences {
             sampling_ltpd: None,
             sampling_alpha: None,
             sampling_beta: None,
+            sampling_double: None,
+            sampling_first_sample: None,
+            sampling_first_accept: None,
+            sampling_first_reject: None,
+            sampling_second_sample: None,
+            sampling_second_accept: None,
+            sampling_curve_aql: None,
+            sampling_curve_ltpd: None,
             doe_factors: None,
             doe_runs: None,
             doe_replicates: None,
@@ -1232,6 +1256,14 @@ pub struct FreePlotsApp {
     sampling_ltpd: f64,
     sampling_alpha: f64,
     sampling_beta: f64,
+    sampling_double: bool,
+    sampling_first_sample: usize,
+    sampling_first_accept: usize,
+    sampling_first_reject: usize,
+    sampling_second_sample: usize,
+    sampling_second_accept: usize,
+    sampling_curve_aql: f64,
+    sampling_curve_ltpd: f64,
     /// Variables acceptance sampling dialog and help.
     show_varsampling_dialog: bool,
     show_varsampling_help: bool,
@@ -3677,6 +3709,14 @@ impl FreePlotsApp {
             sampling_ltpd: Some(self.sampling_ltpd),
             sampling_alpha: Some(self.sampling_alpha),
             sampling_beta: Some(self.sampling_beta),
+            sampling_double: Some(self.sampling_double),
+            sampling_first_sample: Some(self.sampling_first_sample),
+            sampling_first_accept: Some(self.sampling_first_accept),
+            sampling_first_reject: Some(self.sampling_first_reject),
+            sampling_second_sample: Some(self.sampling_second_sample),
+            sampling_second_accept: Some(self.sampling_second_accept),
+            sampling_curve_aql: Some(self.sampling_curve_aql),
+            sampling_curve_ltpd: Some(self.sampling_curve_ltpd),
             doe_factors: Some(self.design_factors.clone()),
             doe_runs: Some(self.design_runs),
             doe_replicates: Some(self.design_replicates),
@@ -3871,6 +3911,50 @@ impl FreePlotsApp {
         ] {
             if let Some(value) = value
                 && value.is_finite()
+            {
+                *slot = value;
+            }
+        }
+        for (slot, value) in [
+            (&mut self.sampling_curve_aql, preferences.sampling_curve_aql),
+            (
+                &mut self.sampling_curve_ltpd,
+                preferences.sampling_curve_ltpd,
+            ),
+        ] {
+            if let Some(value) = value
+                && (0.0..=50.0).contains(&value)
+            {
+                *slot = value;
+            }
+        }
+        if let Some(value) = preferences.sampling_double {
+            self.sampling_double = value;
+        }
+        for (slot, value) in [
+            (
+                &mut self.sampling_first_sample,
+                preferences.sampling_first_sample,
+            ),
+            (
+                &mut self.sampling_first_accept,
+                preferences.sampling_first_accept,
+            ),
+            (
+                &mut self.sampling_first_reject,
+                preferences.sampling_first_reject,
+            ),
+            (
+                &mut self.sampling_second_sample,
+                preferences.sampling_second_sample,
+            ),
+            (
+                &mut self.sampling_second_accept,
+                preferences.sampling_second_accept,
+            ),
+        ] {
+            if let Some(value) = value
+                && (1..=5000).contains(&value)
             {
                 *slot = value;
             }
@@ -6090,6 +6174,17 @@ fn label_help(text: &str) -> Option<String> {
         "Censoring value" => "Value that marks a right-censored observation",
         "Sample size" => "Number of units sampled",
         "Acceptance" => "Acceptance number of the sampling plan",
+        "First sample" => "Items inspected in the first sample",
+        "First acceptance" => {
+            "Accept the lot when the first sample holds at most this many defectives"
+        }
+        "First rejection" => {
+            "Reject the lot when the first sample holds at least this many defectives"
+        }
+        "Second sample" => "Items inspected in the second sample",
+        "Second acceptance" => {
+            "Accept when both samples together hold at most this many defectives"
+        }
         "Lot size" => "Lot size (0 = large lot)",
         "AQL %" => "Acceptable quality level in percent",
         "LTPD %" => "Lot tolerance percent defective",

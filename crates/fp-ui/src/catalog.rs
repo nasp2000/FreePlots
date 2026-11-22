@@ -1024,6 +1024,27 @@ impl UiCatalog {
                  o vector de médias da carta EWMA."
             }
             "Acceptance Sampling" => "Amostragem de aceitação",
+            "Evaluate a plan" => "Avaliar um plano",
+            "Plan a scheme" => "Planear um esquema",
+            "Single" => "Simples",
+            "Double" => "Dupla",
+            "Sample size:" => "Tamanho da amostra:",
+            "Acceptance:" => "Aceitação:",
+            "First acceptance:" => "Aceitação da primeira amostra:",
+            "First rejection:" => "Rejeição da primeira amostra:",
+            "Second acceptance:" => "Aceitação da segunda amostra:",
+            "Lot size:" => "Tamanho do lote:",
+            "AQL %:" => "NQA %:",
+            "Producer risk %:" => "Risco do produtor %:",
+            "Consumer risk %:" => "Risco do consumidor %:",
+            "0 = large lot (binomial)" => "0 = lote grande (binomial)",
+            "0 = no risk report" => "0 = sem relatório de riscos",
+            "The smallest single-sampling scheme that meets both risks." => {
+                "O menor esquema de amostragem simples que cumpre os dois riscos."
+            }
+            "Accept at c₁, reject at r₁, and use the second sample in between." => {
+                "Aceitar em c₁, rejeitar em r₁ e usar a segunda amostra nos casos intermédios."
+            }
             "Pareto Chart" => "Gráfico de Pareto",
             "Interval Plot" => "Gráfico de intervalos",
             "Matrix Plot" => "Gráfico de matriz",
@@ -2327,6 +2348,7 @@ mod tests {
         "CART",
         "Factor:",
         "Linear",
+        "LTPD %:",
         "Gompertz",
         "MANOVA",
         "MANOVA…",

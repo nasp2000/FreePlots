@@ -113,7 +113,7 @@ const MATRIX: &[Case] = &[
     case("movingaverage", &["{in}normal.csv", "--column", "data", "--window", "3"]),
     case("mwu", &["{in}two.csv", "--columns", "a,b"]),
     case("normality", &["{in}normal.csv", "--column", "data", "--test", "ks"]),
-    case("occurve", &["--sample", "20", "--accept", "1", "--lot", "1000"]),
+    case("occurve", &["--double", "--first-sample", "50", "--first-accept", "1", "--first-reject", "4", "--second-sample", "50", "--second-accept", "4", "--lot", "1000", "--aql", "1", "--ltpd", "5"]),
     case("ordinal", &["{in}ordinal.csv", "--response", "y", "--predictors", "x1,x2"]),
     case("pareto", &["{in}contingency.csv", "--column", "row"]),
     case("partialcorr", &["{in}partial.csv", "--columns", "x,y,z"]),

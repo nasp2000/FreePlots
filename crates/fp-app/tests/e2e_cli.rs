@@ -2438,6 +2438,88 @@ fn a_renderer_variable_with_an_unknown_value_is_rejected() {
     );
 }
 
+// The acceptance-sampling command evaluates a single plan with its risks and a
+// double plan with the average sample number; both print reference values.
+#[test]
+fn acceptance_sampling_reports_risks_and_double_plans() {
+    let out = Command::new(bin())
+        .args([
+            "occurve", "--sample", "50", "--accept", "1", "--aql", "1", "--ltpd", "5",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Single sampling"), "{session}");
+    assert!(session.contains("0.910565"), "{session}");
+    assert!(session.contains("Producer risk"), "{session}");
+    assert!(session.contains("AOQ at AQL (%)"), "{session}");
+
+    let out = Command::new(bin())
+        .args([
+            "occurve",
+            "--double",
+            "--first-sample",
+            "50",
+            "--first-accept",
+            "1",
+            "--first-reject",
+            "4",
+            "--second-sample",
+            "50",
+            "--second-accept",
+            "4",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("Double sampling"), "{session}");
+    assert!(session.contains("0.951639"), "{session}");
+    assert!(session.contains("62.323526"), "{session}");
+
+    // With a finite lot the second sample is drawn without replacement.
+    let out = Command::new(bin())
+        .args([
+            "occurve",
+            "--double",
+            "--first-sample",
+            "50",
+            "--first-accept",
+            "1",
+            "--first-reject",
+            "4",
+            "--second-sample",
+            "50",
+            "--second-accept",
+            "4",
+            "--lot",
+            "500",
+            "--aql",
+            "1",
+            "--ltpd",
+            "5",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("0.968707"), "{session}");
+    assert!(session.contains("ATI at AQL"), "{session}");
+}
+
 // An option that is present without its value used to be treated as absent
 // when it was the last argument, so the command silently ran with its default
 // instead of telling the caller that the value was missing.

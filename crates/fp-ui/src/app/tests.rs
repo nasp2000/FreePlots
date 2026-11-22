@@ -1994,6 +1994,37 @@ fn sampling_dialog_reaches_the_session() {
 }
 
 #[test]
+fn the_double_sampling_dialog_reaches_the_session() {
+    let mut app = FreePlotsApp::new();
+    app.open_sampling_dialog();
+    app.sampling_plan_mode = false;
+    app.sampling_double = true;
+    app.sampling_first_sample = 50;
+    app.sampling_first_accept = 1;
+    app.sampling_first_reject = 4;
+    app.sampling_second_sample = 50;
+    app.sampling_second_accept = 4;
+    app.sampling_lot = 0;
+    app.sampling_curve_aql = 1.0;
+    app.sampling_curve_ltpd = 5.0;
+    app.run_sampling_dialog();
+    let text = app.session_text();
+    assert!(text.contains("Double"), "{text}");
+    assert!(text.contains("First sample"), "{text}");
+    assert!(text.contains("ASN at 2%"), "{text}");
+    assert!(text.contains("P(accept) at AQL"), "{text}");
+    assert!(text.contains("Producer risk"), "{text}");
+    assert!(app.plot().is_some());
+
+    // A plan whose first acceptance number is not below its rejection number
+    // is refused instead of producing a curve.
+    app.open_sampling_dialog();
+    app.sampling_first_accept = 4;
+    app.run_sampling_dialog();
+    assert!(app.error.is_some());
+}
+
+#[test]
 fn variables_sampling_dialog_builds_a_plan_and_decides() {
     let mut app = FreePlotsApp::new();
     app.open_varsampling_dialog();
@@ -8769,6 +8800,14 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     app.sampling_ltpd = 4.0;
     app.sampling_alpha = 5.0;
     app.sampling_beta = 10.0;
+    app.sampling_double = true;
+    app.sampling_first_sample = 60;
+    app.sampling_first_accept = 2;
+    app.sampling_first_reject = 5;
+    app.sampling_second_sample = 40;
+    app.sampling_second_accept = 5;
+    app.sampling_curve_aql = 1.5;
+    app.sampling_curve_ltpd = 6.0;
     app.persist_preferences();
     let mut restored = FreePlotsApp::new();
     restored.set_preferences_path(path.clone());
@@ -8786,6 +8825,14 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     assert!((restored.sampling_ltpd - 4.0).abs() < 1e-9);
     assert!((restored.sampling_alpha - 5.0).abs() < 1e-9);
     assert!((restored.sampling_beta - 10.0).abs() < 1e-9);
+    assert!(restored.sampling_double);
+    assert_eq!(restored.sampling_first_sample, 60);
+    assert_eq!(restored.sampling_first_accept, 2);
+    assert_eq!(restored.sampling_first_reject, 5);
+    assert_eq!(restored.sampling_second_sample, 40);
+    assert_eq!(restored.sampling_second_accept, 5);
+    assert!((restored.sampling_curve_aql - 1.5).abs() < 1e-9);
+    assert!((restored.sampling_curve_ltpd - 6.0).abs() < 1e-9);
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -8975,6 +9022,9 @@ fn out_of_range_preferences_keep_safe_defaults() {
         matrix_bins: Some(1000),
         timeseries_kind: Some("nope".to_owned()),
         sampling_sample: Some(0),
+        sampling_first_sample: Some(0),
+        sampling_second_sample: Some(0),
+        sampling_curve_aql: Some(-1.0),
         step_alpha_enter: Some(5.0),
         tolerance_proportion: Some(10.0),
         attribute_kind: Some("nope".to_owned()),
@@ -9000,6 +9050,9 @@ fn out_of_range_preferences_keep_safe_defaults() {
     assert_eq!(app.matrix_bins, 8);
     assert_eq!(app.timeseries_kind, TimeSeriesKind::MovingAverage);
     assert_eq!(app.sampling_sample, 20);
+    assert_eq!(app.sampling_first_sample, 50);
+    assert_eq!(app.sampling_second_sample, 50);
+    assert!((app.sampling_curve_aql - 1.0).abs() < 1e-9);
     assert!((app.step_alpha_enter - 0.15).abs() < 1e-9);
     assert!((app.tolerance_proportion - 95.0).abs() < 1e-9);
     assert_eq!(app.attr_kind, AttributeChartKind::P);

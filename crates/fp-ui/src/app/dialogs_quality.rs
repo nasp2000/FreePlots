@@ -1961,19 +1961,39 @@ impl FreePlotsApp {
         self.show_sampling_dialog = true;
     }
     pub fn run_sampling_dialog(&mut self) {
+        let lot = (self.sampling_lot > 0).then_some(self.sampling_lot);
+        let risks = (self.sampling_curve_aql > 0.0 && self.sampling_curve_ltpd > 0.0).then_some((
+            self.sampling_curve_aql / 100.0,
+            self.sampling_curve_ltpd / 100.0,
+        ));
+        let (aql, ltpd) = match risks {
+            Some((aql, ltpd)) => (Some(aql), Some(ltpd)),
+            None => (None, None),
+        };
         let outcome = if self.sampling_plan_mode {
             fp_core::sampling::analyze_plan(
                 (self.sampling_aql / 100.0).clamp(0.0001, 0.99),
                 (self.sampling_ltpd / 100.0).clamp(0.0002, 0.999),
                 (self.sampling_alpha / 100.0).clamp(0.001, 0.5),
                 (self.sampling_beta / 100.0).clamp(0.001, 0.5),
-                (self.sampling_lot > 0).then_some(self.sampling_lot),
+                lot,
             )
+        } else if self.sampling_double {
+            fp_core::sampling::DoublePlan::new(
+                self.sampling_first_sample,
+                self.sampling_first_accept,
+                self.sampling_first_reject,
+                self.sampling_second_sample,
+                self.sampling_second_accept,
+            )
+            .and_then(|plan| fp_core::sampling::analyze_double(lot, plan, aql, ltpd))
         } else {
-            fp_core::sampling::analyze(
-                (self.sampling_lot > 0).then_some(self.sampling_lot),
+            fp_core::sampling::analyze_single_with_risks(
+                lot,
                 self.sampling_sample,
                 self.sampling_accept,
+                aql,
+                ltpd,
             )
         };
         match outcome {
@@ -1993,20 +2013,44 @@ impl FreePlotsApp {
         if !self.show_sampling_dialog {
             return;
         }
+        let catalog = self.catalog();
+        let title = catalog.label("Acceptance Sampling");
+        let evaluate = catalog.label("Evaluate a plan");
+        let plan_a_scheme = catalog.label("Plan a scheme");
+        let single = catalog.label("Single");
+        let double = catalog.label("Double");
+        let aql_label = catalog.label("AQL %:");
+        let ltpd_label = catalog.label("LTPD %:");
+        let producer_label = catalog.label("Producer risk %:");
+        let consumer_label = catalog.label("Consumer risk %:");
+        let first_sample_label = catalog.label("First sample:");
+        let first_accept_label = catalog.label("First acceptance:");
+        let first_reject_label = catalog.label("First rejection:");
+        let second_sample_label = catalog.label("Second sample:");
+        let second_accept_label = catalog.label("Second acceptance:");
+        let sample_label = catalog.label("Sample size:");
+        let accept_label = catalog.label("Acceptance:");
+        let lot_label = catalog.label("Lot size:");
+        let large_lot = catalog.label("0 = large lot (binomial)");
+        let no_risks = catalog.label("0 = no risk report");
+        let plan_hint = catalog.label("The smallest single-sampling scheme that meets both risks.");
+        let double_hint =
+            catalog.label("Accept at c₁, reject at r₁, and use the second sample in between.");
+        let run_label = catalog.label("Run");
         let mut open = self.show_sampling_dialog;
         let mut run = false;
-        dialog_window(self.catalog().label("Acceptance Sampling"))
+        dialog_window(title)
             .open(&mut open)
             .resizable(false)
-            .default_width(460.0)
+            .default_width(520.0)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.sampling_plan_mode, false, "Evaluate a plan");
-                    ui.selectable_value(&mut self.sampling_plan_mode, true, "Plan a scheme");
+                    ui.selectable_value(&mut self.sampling_plan_mode, false, evaluate);
+                    ui.selectable_value(&mut self.sampling_plan_mode, true, plan_a_scheme);
                 });
                 if self.sampling_plan_mode {
                     ui.horizontal(|ui| {
-                        let aql = ui.help_label("AQL %:");
+                        let aql = ui.help_label(aql_label);
                         ui.add(
                             egui::DragValue::new(&mut self.sampling_aql)
                                 .range(0.01..=20.0)
@@ -2014,7 +2058,7 @@ impl FreePlotsApp {
                         )
                         .labelled_by(aql.id)
                         .hover_from(&aql);
-                        let ltpd = ui.help_label("LTPD %:");
+                        let ltpd = ui.help_label(ltpd_label);
                         ui.add(
                             egui::DragValue::new(&mut self.sampling_ltpd)
                                 .range(0.1..=50.0)
@@ -2024,37 +2068,103 @@ impl FreePlotsApp {
                         .hover_from(&ltpd);
                     });
                     ui.horizontal(|ui| {
-                        let producer = ui.help_label("Producer risk %:");
+                        let producer = ui.help_label(producer_label);
                         ui.add(egui::DragValue::new(&mut self.sampling_alpha).range(0.5..=50.0))
                             .labelled_by(producer.id)
                             .hover_from(&producer);
-                        let consumer = ui.help_label("Consumer risk %:");
+                        let consumer = ui.help_label(consumer_label);
                         ui.add(egui::DragValue::new(&mut self.sampling_beta).range(0.5..=50.0))
                             .labelled_by(consumer.id)
                             .hover_from(&consumer);
                     });
-                    ui.small("The smallest single-sampling scheme that meets both risks.");
+                    ui.small(plan_hint);
                 } else {
                     ui.horizontal(|ui| {
-                        let sample = ui.help_label("Sample size:");
-                        ui.add(egui::DragValue::new(&mut self.sampling_sample).range(1..=5000))
-                            .labelled_by(sample.id)
-                            .hover_from(&sample);
-                        let accept = ui.help_label("Acceptance:");
-                        ui.add(egui::DragValue::new(&mut self.sampling_accept).range(0..=500))
+                        ui.selectable_value(&mut self.sampling_double, false, single);
+                        ui.selectable_value(&mut self.sampling_double, true, double);
+                    });
+                    if self.sampling_double {
+                        ui.horizontal(|ui| {
+                            let first = ui.help_label(first_sample_label);
+                            ui.add(
+                                egui::DragValue::new(&mut self.sampling_first_sample)
+                                    .range(1..=5000),
+                            )
+                            .labelled_by(first.id)
+                            .hover_from(&first);
+                            let accept = ui.help_label(first_accept_label);
+                            ui.add(
+                                egui::DragValue::new(&mut self.sampling_first_accept)
+                                    .range(0..=500),
+                            )
                             .labelled_by(accept.id)
                             .hover_from(&accept);
-                    });
+                            let reject = ui.help_label(first_reject_label);
+                            ui.add(
+                                egui::DragValue::new(&mut self.sampling_first_reject)
+                                    .range(1..=500),
+                            )
+                            .labelled_by(reject.id)
+                            .hover_from(&reject);
+                        });
+                        ui.horizontal(|ui| {
+                            let second = ui.help_label(second_sample_label);
+                            ui.add(
+                                egui::DragValue::new(&mut self.sampling_second_sample)
+                                    .range(1..=5000),
+                            )
+                            .labelled_by(second.id)
+                            .hover_from(&second);
+                            let accept = ui.help_label(second_accept_label);
+                            ui.add(
+                                egui::DragValue::new(&mut self.sampling_second_accept)
+                                    .range(0..=1000),
+                            )
+                            .labelled_by(accept.id)
+                            .hover_from(&accept);
+                        });
+                        ui.small(double_hint);
+                    } else {
+                        ui.horizontal(|ui| {
+                            let sample = ui.help_label(sample_label);
+                            ui.add(egui::DragValue::new(&mut self.sampling_sample).range(1..=5000))
+                                .labelled_by(sample.id)
+                                .hover_from(&sample);
+                            let accept = ui.help_label(accept_label);
+                            ui.add(egui::DragValue::new(&mut self.sampling_accept).range(0..=500))
+                                .labelled_by(accept.id)
+                                .hover_from(&accept);
+                        });
+                    }
                     ui.horizontal(|ui| {
-                        let lot = ui.help_label("Lot size:");
+                        let lot = ui.help_label(lot_label);
                         ui.add(egui::DragValue::new(&mut self.sampling_lot).range(0..=10_000_000))
                             .labelled_by(lot.id)
                             .hover_from(&lot);
-                        ui.small("0 = large lot (binomial)");
+                        ui.small(large_lot);
+                    });
+                    ui.horizontal(|ui| {
+                        let aql = ui.help_label(aql_label);
+                        ui.add(
+                            egui::DragValue::new(&mut self.sampling_curve_aql)
+                                .range(0.0..=50.0)
+                                .speed(0.1),
+                        )
+                        .labelled_by(aql.id)
+                        .hover_from(&aql);
+                        let ltpd = ui.help_label(ltpd_label);
+                        ui.add(
+                            egui::DragValue::new(&mut self.sampling_curve_ltpd)
+                                .range(0.0..=50.0)
+                                .speed(0.1),
+                        )
+                        .labelled_by(ltpd.id)
+                        .hover_from(&ltpd);
+                        ui.small(no_risks);
                     });
                 }
                 ui.separator();
-                if ui.help_button(self.catalog().label("Run")).clicked() {
+                if ui.help_button(run_label).clicked() {
                     run = true;
                 }
             });
