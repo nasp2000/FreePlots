@@ -774,7 +774,7 @@ mod tests {
         vec!["x1".to_owned(), "x2".to_owned(), "x3".to_owned()]
     }
 
-    fn coefficient(model: &MixtureFit, term: &str) -> &MixtureCoefficient {
+    fn coefficient<'a>(model: &'a MixtureFit, term: &str) -> &'a MixtureCoefficient {
         model
             .coefficients
             .iter()
