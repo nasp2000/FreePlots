@@ -288,11 +288,8 @@ pub fn parse_container(bytes: &[u8]) -> Result<Project> {
 fn decode_text(bytes: &[u8]) -> Result<String> {
     if bytes.starts_with(&[0xFF, 0xFE]) {
         let mut text = String::with_capacity(bytes.len() / 2);
-        for pair in bytes[2..].chunks_exact(2) {
-            text.push(
-                char::from_u32(u32::from(u16::from_le_bytes([pair[0], pair[1]])))
-                    .unwrap_or('\u{FFFD}'),
-            );
+        for pair in bytes[2..].as_chunks::<2>().0 {
+            text.push(char::from_u32(u32::from(u16::from_le_bytes(*pair))).unwrap_or('\u{FFFD}'));
         }
         return Ok(text);
     }
