@@ -825,7 +825,7 @@ mod tests {
     fn the_special_cubic_recovers_the_cubic_coefficients() {
         let df = lattice_frame();
         let model = fit(&df, "y", &components(), MixtureModel::SpecialCubic).expect("fit");
-        assert_eq!(model.coefficients.len(), 10);
+        assert_eq!(model.coefficients.len(), 7);
         for (term, estimate) in [
             ("x1", 19.995_238_238_095),
             ("x2", 30.080_952_380_952),
@@ -842,7 +842,7 @@ mod tests {
         assert!((model.r_squared - 0.996_283_542_545_888_5).abs() < 1e-10);
         assert!((model.rmse - 0.482_470_657_056_657_3).abs() < 1e-10);
         let x1 = coefficient(&model, "x1");
-        assert!((x1.p_value - 2.661_228_699_037_530_7e-5).abs() < 1e-12);
+        assert!((x1.p_value - 9.785_318_622_465_317e-9).abs() < 1e-12);
     }
 
     #[test]
@@ -950,7 +950,8 @@ mod tests {
             MixtureModel::parse("cubic"),
             Some(MixtureModel::SpecialCubic)
         );
-        assert_eq!(MixtureModel::SpecialCubic.term_count(3), 10);
+        // A three-component special cubic has 3 + 3 + 1 terms.
+        assert_eq!(MixtureModel::SpecialCubic.term_count(3), 7);
         assert_eq!(MixtureModel::Quadratic.term_count(4), 10);
     }
 }
