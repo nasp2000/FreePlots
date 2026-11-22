@@ -6382,8 +6382,6 @@ fn label_help(text: &str) -> Option<String> {
         "Linkage" => "Rule that joins two clusters",
         "Covariates" => "Comma-separated numeric covariates of the model",
         "Censor column (optional)" => "Column whose flag marks a censored observation",
-        "Censoring value" => "Flag value that marks a censored observation",
-        "Time column" => "Survival time of each observation",
         "Bootstrap reps" => "Bootstrap replications (0 = automatic)",
         "Keys" => "Comma-separated sort keys; append :desc for descending",
         "Value" => "Value used by the condition",
