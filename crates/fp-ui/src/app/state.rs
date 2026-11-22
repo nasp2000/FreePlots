@@ -394,6 +394,7 @@ impl FreePlotsApp {
             tolerance_proportion: 95.0,
             tolerance_confidence: 95.0,
             tolerance_free: false,
+            tolerance_side: fp_core::tolerance::Side::TwoSided,
             partial_x: String::new(),
             partial_y: String::new(),
             partial_control: String::new(),

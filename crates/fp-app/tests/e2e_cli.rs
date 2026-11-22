@@ -2520,6 +2520,82 @@ fn acceptance_sampling_reports_risks_and_double_plans() {
     assert!(session.contains("ATI at AQL"), "{session}");
 }
 
+// The tolerance interval command keeps one side when asked, with the exact
+// one-sided factor or the order-statistic bound.
+#[test]
+fn the_tolerance_interval_command_keeps_the_chosen_side() {
+    let dir = temp_dir("tolerance-side");
+    let csv = dir.join("values.csv");
+    let mut text = String::from("x\n");
+    for index in 0..120 {
+        text.push_str(&format!("{}\n", 10.0 + index as f64 * 0.5));
+    }
+    fs::write(&csv, text).expect("write csv");
+    let path = csv.to_str().expect("path").to_owned();
+
+    let out = Command::new(bin())
+        .args(["tolerance", &path, "--column", "x", "--side", "lower"])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("lower one-sided"), "{session}");
+    assert!(session.contains("Lower limit"), "{session}");
+    assert!(!session.contains("Upper limit"), "{session}");
+
+    let out = Command::new(bin())
+        .args(["tolerance", &path, "--column", "x", "--side", "upper"])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(session.contains("upper one-sided"), "{session}");
+    assert!(session.contains("Upper limit"), "{session}");
+
+    // The distribution-free bound uses the same side.
+    let out = Command::new(bin())
+        .args([
+            "tolerance",
+            &path,
+            "--column",
+            "x",
+            "--method",
+            "free",
+            "--side",
+            "lower",
+        ])
+        .output()
+        .expect("run binary");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let session = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        session.contains("Distribution-Free Tolerance Interval"),
+        "{session}"
+    );
+    assert!(session.contains("lower one-sided"), "{session}");
+
+    let out = Command::new(bin())
+        .args(["tolerance", &path, "--column", "x", "--side", "sideways"])
+        .output()
+        .expect("run binary");
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("invalid --side: sideways"), "{stderr}");
+    fs::remove_dir_all(&dir).ok();
+}
+
 // An option that is present without its value used to be treated as absent
 // when it was the last argument, so the command silently ran with its default
 // instead of telling the caller that the value was missing.

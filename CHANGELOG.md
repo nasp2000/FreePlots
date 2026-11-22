@@ -8,6 +8,12 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ### Added
 
+- *Tolerance Interval…* keeps both limits or only one: the two-sided normal
+  factor uses Howe's approximation and the one-sided factor is the exact
+  non-central-t solution, while the distribution-free method takes the
+  narrowest order statistics that reach the confidence. The population
+  proportion and the confidence are adjustable, the dialog remembers the side,
+  and the `tolerance` command gained `--side <two|lower|upper>`.
 - *Acceptance Sampling…* evaluates single and double plans: the OC curve with
   the binomial or hypergeometric probability, the AQL and LTPD points with the
   producer and consumer risks, the average sample number, the average outgoing

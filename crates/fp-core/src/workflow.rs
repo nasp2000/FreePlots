@@ -632,6 +632,8 @@ pub enum AnalysisSpec {
         confidence: f64,
         /// Build the interval from order statistics instead of the normal law.
         free: bool,
+        /// Which limits the interval keeps.
+        side: crate::tolerance::Side,
     },
     /// Box–Cox transformation of a column.
     BoxCox {
@@ -1770,6 +1772,7 @@ impl AnalysisSpec {
             proportion: 0.95,
             confidence: 0.95,
             free: false,
+            side: crate::tolerance::Side::TwoSided,
         }
     }
 
@@ -1778,6 +1781,15 @@ impl AnalysisSpec {
     pub fn with_tolerance_free(mut self, free: bool) -> Self {
         if let Self::ToleranceInterval { free: slot, .. } = &mut self {
             *slot = free;
+        }
+        self
+    }
+
+    /// Keeps only one side of the tolerance interval.
+    #[must_use]
+    pub fn with_tolerance_side(mut self, side: crate::tolerance::Side) -> Self {
+        if let Self::ToleranceInterval { side: slot, .. } = &mut self {
+            *slot = side;
         }
         self
     }
@@ -3675,9 +3687,11 @@ impl AnalysisSpec {
                 proportion,
                 confidence,
                 free,
+                side,
             } => format!(
-                "Tolerance interval ({}) — {column}, {:.1}% / {:.1}%",
+                "Tolerance interval ({}, {}) — {column}, {:.1}% / {:.1}%",
                 if *free { "distribution-free" } else { "normal" },
+                side.name(),
                 proportion * 100.0,
                 confidence * 100.0
             ),
@@ -8101,11 +8115,18 @@ fn analyze_spec(df: &DataFrame, spec: &AnalysisSpec) -> Result<AnalysisOutput> {
             proportion,
             confidence,
             free,
+            side,
         } => {
             let mut result = if *free {
-                crate::tolerance::analyze_distribution_free(df, column, *proportion, *confidence)?
+                crate::tolerance::analyze_distribution_free_side(
+                    df,
+                    column,
+                    *proportion,
+                    *confidence,
+                    *side,
+                )?
             } else {
-                crate::tolerance::analyze(df, column, *proportion, *confidence)?
+                crate::tolerance::analyze_side(df, column, *proportion, *confidence, *side)?
             };
             result
                 .notes
@@ -11392,11 +11413,24 @@ mod tests {
         assert!(text.contains("90.0%"), "{text}");
         assert_eq!(
             spec.description(),
-            "Tolerance interval (normal) — x, 99.0% / 90.0%"
+            "Tolerance interval (normal, two-sided) — x, 99.0% / 90.0%"
         );
         // A wider content needs a wider interval.
         let loose = run_analysis(&df, &AnalysisSpec::tolerance_interval("x")).expect("default");
         assert!(out.results[0].statistics[3].1 < loose.results[0].statistics[3].1);
+        // A one-sided interval keeps only its limit and says so in the
+        // description.
+        let one = AnalysisSpec::tolerance_interval("x")
+            .with_tolerance_side(crate::tolerance::Side::Lower);
+        assert_eq!(
+            one.description(),
+            "Tolerance interval (normal, lower one-sided) — x, 95.0% / 95.0%"
+        );
+        let out = run_analysis(&df, &one).expect("one-sided");
+        let text = out.results[0].to_session_text();
+        assert!(text.contains("lower one-sided"), "{text}");
+        assert!(text.contains("Lower limit"), "{text}");
+        assert!(!text.contains("Upper limit"), "{text}");
     }
 
     #[test]
@@ -11406,7 +11440,7 @@ mod tests {
         let spec = AnalysisSpec::tolerance_interval("x").with_tolerance_free(true);
         assert_eq!(
             spec.description(),
-            "Tolerance interval (distribution-free) — x, 95.0% / 95.0%"
+            "Tolerance interval (distribution-free, two-sided) — x, 95.0% / 95.0%"
         );
         let out = run_analysis(&df, &spec).expect("analysis");
         let text = out.results[0].to_session_text();

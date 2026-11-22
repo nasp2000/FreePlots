@@ -261,6 +261,8 @@ impl Catalog {
             "Upper limit" => "Limite superior",
             "Tolerance factor" => "Factor de tolerância",
             "Tolerance factor k" => "Factor de tolerância k",
+            "Order r" => "Ordem r",
+            "Achieved confidence" => "Confiança alcançada",
             "Tukey HSD" => "Tukey HSD",
             "P (LSD)" => "p (LSD)",
             "P (Games-Howell)" => "p (Games-Howell)",

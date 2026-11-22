@@ -143,7 +143,7 @@ const MATRIX: &[Case] = &[
     case("t2chart", &["{in}t2.csv", "--columns", "a,b,c", "--subgroup", "4"]),
     case("taguchi", &["{in}taguchi.csv", "--response", "response", "--factors", "A,B,C"]),
     case("taguchidesign", &["{out}taguchi.csv", "--runs", "18", "--factors", "8"]),
-    case("tolerance", &["{in}tolerance.csv", "--column", "x", "--proportion", "95", "--confidence", "95"]),
+    case("tolerance", &["{in}tolerance.csv", "--column", "x", "--proportion", "95", "--confidence", "95", "--side", "lower"]),
     case("transpose", &["{in}manip.csv", "{out}transposed.csv"]),
     case("ttest1", &["{in}normal.csv", "--column", "data", "--mean", "20"]),
     case("ttest2", &["{in}two.csv", "--columns", "a,b"]),

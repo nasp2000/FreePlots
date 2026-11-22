@@ -578,6 +578,8 @@ pub struct Preferences {
     #[serde(default)]
     pub tolerance_free: Option<bool>,
     #[serde(default)]
+    pub tolerance_side: Option<String>,
+    #[serde(default)]
     pub diagnostic_alpha: Option<f64>,
     /// Stepwise method and stopping criterion.
     #[serde(default)]
@@ -703,6 +705,7 @@ impl Default for Preferences {
             t2_subgroup: None,
             tolerance_proportion: None,
             tolerance_free: None,
+            tolerance_side: None,
             diagnostic_alpha: None,
             step_method: None,
             step_criterion: None,
@@ -1465,6 +1468,7 @@ pub struct FreePlotsApp {
     tolerance_proportion: f64,
     tolerance_confidence: f64,
     tolerance_free: bool,
+    tolerance_side: fp_core::tolerance::Side,
     partial_x: String,
     partial_y: String,
     partial_control: String,
@@ -3221,7 +3225,8 @@ impl FreePlotsApp {
         let spec = AnalysisSpec::tolerance_interval(self.tolerance_column.clone())
             .with_tolerance_proportion((self.tolerance_proportion / 100.0).clamp(0.01, 0.999))
             .with_tolerance_confidence((self.tolerance_confidence / 100.0).clamp(0.01, 0.999))
-            .with_tolerance_free(self.tolerance_free);
+            .with_tolerance_free(self.tolerance_free)
+            .with_tolerance_side(self.tolerance_side);
         let label = format!("Tolerance Interval: {}", self.tolerance_column);
         self.execute_spec(spec, label);
         self.show_tolerance_dialog = false;
@@ -3783,6 +3788,7 @@ impl FreePlotsApp {
             t2_subgroup: Some(self.t2_subgroup),
             tolerance_proportion: Some(self.tolerance_proportion),
             tolerance_free: Some(self.tolerance_free),
+            tolerance_side: Some(self.tolerance_side.as_str().to_owned()),
             diagnostic_alpha: Some(self.diagnostic_alpha),
             step_method: Some(
                 match self.step_method {
@@ -4112,6 +4118,11 @@ impl FreePlotsApp {
             if let Some(value) = value {
                 *slot = value;
             }
+        }
+        if let Some(code) = &preferences.tolerance_side
+            && let Some(side) = fp_core::tolerance::Side::parse(code)
+        {
+            self.tolerance_side = side;
         }
         if let Some(value) = preferences.kmeans_clusters
             && (2..=20).contains(&value)
@@ -6195,6 +6206,7 @@ fn label_help(text: &str) -> Option<String> {
             "Accept when both samples together hold at most this many defectives"
         }
         "Lot size" => "Lot size (0 = large lot)",
+        "Side" => "Which limits the tolerance interval keeps",
         "AQL %" => "Acceptable quality level in percent",
         "LTPD %" => "Lot tolerance percent defective",
         "Producer risk %" => "Producer risk in percent",

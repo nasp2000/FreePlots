@@ -5357,6 +5357,50 @@ fn the_tolerance_dialog_offers_the_distribution_free_method() {
 }
 
 #[test]
+fn the_tolerance_dialog_keeps_only_the_chosen_side() {
+    let mut app = FreePlotsApp::new();
+    let values: Vec<f64> = (1..=30).map(|i| 10.0 + (i % 7) as f64 * 0.3).collect();
+    let df = DataFrame::new(vec![Column::new_f64("x", values)]).expect("frame");
+    app.set_data(df, "values.csv".to_owned());
+
+    app.open_tolerance_dialog();
+    app.tolerance_column = "x".to_owned();
+    app.tolerance_side = fp_core::tolerance::Side::Lower;
+    app.run_tolerance_dialog();
+    let text = app.session_text();
+    assert!(text.contains("lower one-sided"), "{text}");
+    assert!(text.contains("Lower limit"), "{text}");
+    assert!(!text.contains("Upper limit"), "{text}");
+
+    // The upper side prints only its own limit.
+    app.session.clear();
+    app.open_tolerance_dialog();
+    app.tolerance_column = "x".to_owned();
+    app.tolerance_side = fp_core::tolerance::Side::Upper;
+    app.run_tolerance_dialog();
+    let text = app.session_text();
+    assert!(text.contains("upper one-sided"), "{text}");
+    assert!(text.contains("Upper limit"), "{text}");
+
+    // The distribution-free bound needs its own sample-size check.
+    app.session.clear();
+    app.open_tolerance_dialog();
+    app.tolerance_column = "x".to_owned();
+    app.tolerance_free = true;
+    app.tolerance_side = fp_core::tolerance::Side::Lower;
+    app.tolerance_proportion = 99.9;
+    app.tolerance_confidence = 99.9;
+    app.run_tolerance_dialog();
+    assert!(
+        app.error
+            .as_deref()
+            .is_some_and(|error| error.contains("distribution-free")),
+        "{:?}",
+        app.error
+    );
+}
+
+#[test]
 fn a_workbook_with_several_sheets_asks_which_one() {
     let mut app = FreePlotsApp::new();
     // A single sheet is opened straight away.
@@ -8809,6 +8853,7 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     app.sampling_second_accept = 5;
     app.sampling_curve_aql = 1.5;
     app.sampling_curve_ltpd = 6.0;
+    app.tolerance_side = fp_core::tolerance::Side::Lower;
     app.persist_preferences();
     let mut restored = FreePlotsApp::new();
     restored.set_preferences_path(path.clone());
@@ -8834,6 +8879,7 @@ fn the_gage_reliability_and_sampling_choices_persist() {
     assert_eq!(restored.sampling_second_accept, 5);
     assert!((restored.sampling_curve_aql - 1.5).abs() < 1e-9);
     assert!((restored.sampling_curve_ltpd - 6.0).abs() < 1e-9);
+    assert_eq!(restored.tolerance_side, fp_core::tolerance::Side::Lower);
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -9030,6 +9076,7 @@ fn out_of_range_preferences_keep_safe_defaults() {
         sampling_curve_aql: Some(-1.0),
         step_alpha_enter: Some(5.0),
         tolerance_proportion: Some(10.0),
+        tolerance_side: Some("sideways".to_owned()),
         attribute_kind: Some("nope".to_owned()),
         t_alternative: Some("nope".to_owned()),
         power_groups: Some(1),
@@ -9060,6 +9107,7 @@ fn out_of_range_preferences_keep_safe_defaults() {
     assert!((app.sampling_curve_aql - 1.0).abs() < 1e-9);
     assert!((app.step_alpha_enter - 0.15).abs() < 1e-9);
     assert!((app.tolerance_proportion - 95.0).abs() < 1e-9);
+    assert_eq!(app.tolerance_side, fp_core::tolerance::Side::TwoSided);
     assert_eq!(app.attr_kind, AttributeChartKind::P);
     assert_eq!(app.t_alternative, Alternative::TwoSided);
     assert_eq!(app.power_groups, 2);

@@ -1884,6 +1884,11 @@ impl FreePlotsApp {
                     .collect()
             })
             .unwrap_or_default();
+        let catalog = self.catalog();
+        let side_label = catalog.label("Side:");
+        let two_sided = catalog.label("Two-sided");
+        let lower = catalog.label("Lower");
+        let upper = catalog.label("Upper");
         let mut open = self.show_tolerance_dialog;
         let mut run = false;
         dialog_window(self.catalog().label("Tolerance Interval"))
@@ -1939,9 +1944,30 @@ impl FreePlotsApp {
                     ui.selectable_value(&mut self.tolerance_free, false, "Normal");
                     ui.selectable_value(&mut self.tolerance_free, true, "Distribution-free");
                 });
+                ui.horizontal(|ui| {
+                    let label = ui.help_label(side_label);
+                    ui.selectable_value(
+                        &mut self.tolerance_side,
+                        fp_core::tolerance::Side::TwoSided,
+                        two_sided,
+                    );
+                    ui.selectable_value(
+                        &mut self.tolerance_side,
+                        fp_core::tolerance::Side::Lower,
+                        lower,
+                    );
+                    ui.selectable_value(
+                        &mut self.tolerance_side,
+                        fp_core::tolerance::Side::Upper,
+                        upper,
+                    )
+                    .labelled_by(label.id)
+                    .hover_from(&label);
+                });
                 ui.small(if self.tolerance_free {
                     "Order statistics: no assumption about the shape of the population, but \
-                         it needs a larger sample (93 observations for 95 %/95 %)."
+                         it needs a larger sample (93 observations for 95 %/95 %; 59 for a \
+                         one-sided bound)."
                 } else {
                     "The interval covers the chosen proportion of the population with the \
                          chosen confidence; the population must be normal."

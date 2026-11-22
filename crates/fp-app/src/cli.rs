@@ -85,7 +85,7 @@ Usage:
   FreePlots gchart <file.csv> --column <name> [--times <name>]
   FreePlots partialcorr <file.csv> --columns <x,y,z>
   FreePlots boxcox <file.csv> --column <name>
-  FreePlots tolerance <file.csv> --column <name> [--proportion <pct>] [--confidence <pct>] [--method <normal|free>]
+  FreePlots tolerance <file.csv> --column <name> [--proportion <pct>] [--confidence <pct>] [--method <normal|free>] [--side <two|lower|upper>]
   FreePlots levene <file.csv> --response <y> --factor <f> [--center <mean|median>]
   FreePlots bartlett <file.csv> --response <y> --factor <f>
   FreePlots gof <file.csv> --column <name> --expected <v1,v2,...> [--parameters <n>]
@@ -1963,6 +1963,7 @@ fn tolerance(args: &[String]) -> Result<(), String> {
     let mut proportion = 95.0;
     let mut confidence = 95.0;
     let mut free = false;
+    let mut side = fp_core::tolerance::Side::TwoSided;
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
@@ -1988,6 +1989,13 @@ fn tolerance(args: &[String]) -> Result<(), String> {
                 confidence = raw
                     .parse::<f64>()
                     .map_err(|_| format!("invalid --confidence: {raw}"))?;
+            }
+            "--side" => {
+                let raw = it
+                    .next()
+                    .ok_or_else(|| "--side requires two, lower or upper".to_owned())?;
+                side = fp_core::tolerance::Side::parse(raw)
+                    .ok_or_else(|| format!("invalid --side: {raw}"))?;
             }
             "--method" | "--distribution-free" => {
                 let raw = it.next().cloned().unwrap_or_else(|| "free".to_owned());
@@ -2019,7 +2027,8 @@ fn tolerance(args: &[String]) -> Result<(), String> {
     let spec = AnalysisSpec::tolerance_interval(column)
         .with_tolerance_proportion(proportion / 100.0)
         .with_tolerance_confidence(confidence / 100.0)
-        .with_tolerance_free(free);
+        .with_tolerance_free(free)
+        .with_tolerance_side(side);
     let out = run_local(&df, &spec).map_err(|e| e.to_string())?;
     print_analysis(&out);
     Ok(())
