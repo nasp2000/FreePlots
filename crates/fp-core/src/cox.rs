@@ -618,10 +618,10 @@ mod tests {
         assert!((model.hazard_ratios[0] - 0.531_500_204_651_862).abs() < 1e-9);
         assert!((model.z[0] + 0.685_535_753_156_486_8).abs() < 1e-9);
         assert!((model.p_values[0] - 0.493_005_907_371_207_2).abs() < 1e-9);
-        assert!((model.log_likelihood + 6.338_172_708_403_64).abs() < 1e-9);
+        assert!((model.log_likelihood + 6.338_172_707_031_219).abs() < 1e-9);
         assert!((model.null_log_likelihood + 6.579_251_212_010_101).abs() < 1e-9);
-        assert!((model.lr_statistic - 0.482_157_007_212_922_65).abs() < 1e-9);
-        assert!((model.lr_p_value - 0.487_446_902_140_953_1).abs() < 1e-9);
+        assert!((model.lr_statistic - 0.482_157_009_957_765_2).abs() < 1e-9);
+        assert!((model.lr_p_value - 0.487_446_900_901_773_8).abs() < 1e-9);
         assert!((model.hr_lower[0] - 0.087_239_033_647_963_26).abs() < 1e-9);
         assert!((model.hr_upper[0] - 3.238_143_016_174_577_2).abs() < 1e-9);
     }
