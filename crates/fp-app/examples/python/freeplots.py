@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Python bridge to the FreePlots command line.
 
 The module only uses the standard library. It runs the executable with the

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Example: a one-sample t test through the CLI, read back from Python.
 
 Usage: python3 example_descriptive.py <file.csv> [column]
