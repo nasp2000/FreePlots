@@ -342,12 +342,7 @@ pub fn minimum_sample_side(proportion: f64, confidence: f64, side: Side) -> Opti
     if !(0.0..1.0).contains(&proportion) || !(0.0..1.0).contains(&confidence) {
         return None;
     }
-    for n in 1..=1_000_000usize {
-        if 1.0 - proportion.powi(n as i32) >= confidence {
-            return Some(n);
-        }
-    }
-    None
+    (1..=1_000_000usize).find(|&n| 1.0 - proportion.powi(n as i32) >= confidence)
 }
 
 /// A **distribution-free** one-sided tolerance bound.

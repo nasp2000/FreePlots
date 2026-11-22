@@ -11447,7 +11447,7 @@ mod tests {
         assert!(text.contains("Distribution-Free"), "{text}");
         // The normal method is still the default.
         let normal = AnalysisSpec::tolerance_interval("x");
-        assert!(normal.description().contains("(normal)"));
+        assert!(normal.description().contains("(normal,"));
     }
 
     #[test]
