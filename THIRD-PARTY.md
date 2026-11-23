@@ -6,7 +6,7 @@ It lists every crate that can reach a shipped binary and separates the
 always-linked runtime, the optional desktop window, build-time helpers and
 development-only packages.
 
-- Lockfile: `Cargo.lock` SHA-256 `7abb97623e448a1065c6658fa277335ad16ad93d7f22da4cca4765e60e8b915e`
+- Lockfile: `Cargo.lock` SHA-256 `0f704877f0d12e02c3c8e87ae9baeb22238d4f71ee133ded8aff18f97c9308e1`
 - Build targets: `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`, `aarch64-pc-windows-msvc`
 - Policy: `deny.toml`; CI runs `cargo deny check licenses advisories` and
   regenerates this file with `python3 scripts/licence-inventory.py --check`.

@@ -6,6 +6,8 @@ All notable changes to FreePlots are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-23
+
 ### Added
 
 - `FreePlots script <file>` runs a batch of commands: one command per line,
