@@ -58,6 +58,18 @@ All notable changes to FreePlots are recorded here. The format follows
   `--aql`, `--ltpd` and the `--double` plan options; the dialog, the reports
   and the command are in both interface languages.
 
+### Fixed
+
+- The subgroup table of the attribute capability report lists the first ten
+  subgroups and states how many follow: the Session sticks to the bottom of the
+  text, so an unbounded table pushed the PPM, DPMO, yield and process Z out of
+  the window.
+- A variables acceptance sampling plan no longer prints "Observations (n) 0" or
+  a zero count of compared plans when no sample and no comparison were given.
+- The column list of the attribute capability dialog takes the width of its
+  field and reserves a scroll bar, so the whole control is the click target and
+  every column stays reachable on a wide worksheet.
+
 ## [0.1.4] - 2026-11-21
 
 ### Fixed

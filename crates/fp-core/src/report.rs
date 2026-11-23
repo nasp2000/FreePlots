@@ -69,6 +69,8 @@ pub struct AnalysisResult {
     pub method: String,
     /// Observations used.
     pub n: usize,
+    /// Whether the report describes a sample (false for a plan with no data).
+    pub show_observations: bool,
     /// Observations excluded.
     pub excluded: usize,
     /// Estimated parameters.
@@ -95,6 +97,7 @@ impl AnalysisResult {
             title: title.into(),
             method: method.into(),
             n: 0,
+            show_observations: true,
             excluded: 0,
             parameters: Vec::new(),
             statistics: Vec::new(),
@@ -109,6 +112,15 @@ impl AnalysisResult {
     /// Sets the report language.
     pub fn set_lang(&mut self, lang: crate::i18n::Lang) {
         self.lang = lang;
+    }
+
+    /// Hides the observation and exclusion rows.
+    ///
+    /// A plan (a sample-size decision with no data) has no observations, so
+    /// "Observations (n) 0" would suggest an empty sample instead of a plan.
+    pub fn without_observations(mut self) -> Self {
+        self.show_observations = false;
+        self
     }
 
     /// Text of the Session window, in English.
@@ -160,12 +172,14 @@ impl AnalysisResult {
             catalog.estimation_method(),
             self.method
         ));
-        out.push_str(&format!("{:<width$} {}\n", catalog.observations(), self.n));
-        out.push_str(&format!(
-            "{:<width$} {}\n",
-            catalog.excluded(),
-            self.excluded
-        ));
+        if self.show_observations {
+            out.push_str(&format!("{:<width$} {}\n", catalog.observations(), self.n));
+            out.push_str(&format!(
+                "{:<width$} {}\n",
+                catalog.excluded(),
+                self.excluded
+            ));
+        }
 
         if !self.parameters.is_empty() {
             out.push_str(&format!("\n{}\n", catalog.estimated_parameters()));

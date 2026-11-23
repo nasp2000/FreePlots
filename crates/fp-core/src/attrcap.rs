@@ -19,6 +19,12 @@ use crate::data::DataFrame;
 use crate::error::{Error, Result};
 use crate::plot::PlotNote;
 use crate::report::{AnalysisResult, Item};
+
+/// Rows the subgroup table lists before it summarises the rest.
+///
+/// The Session window sticks to the bottom of the text, so an unbounded table
+/// would push the statistics (PPM, DPMO, yield and process Z) off the screen.
+const SUBGROUP_TABLE_ROWS: usize = 10;
 use crate::special::{chi_square_quantile, normal_quantile};
 use crate::workflow::AnalysisOutput;
 
@@ -218,22 +224,34 @@ pub fn analyze(
         }
         AttributeCapabilityKind::Poisson => vec!["Subgroup", "Defects", "Units", "DPU"],
     };
+    let listed = data.counts.len().min(SUBGROUP_TABLE_ROWS);
+    let mut rows: Vec<Vec<String>> = data
+        .counts
+        .iter()
+        .zip(&data.sizes)
+        .take(listed)
+        .enumerate()
+        .map(|(index, (count, size))| {
+            vec![
+                (index + 1).to_string(),
+                format!("{count:.0}"),
+                format!("{size:.0}"),
+                format!("{:.6}", count / size),
+            ]
+        })
+        .collect();
+    if data.counts.len() > listed {
+        let rest = data.counts.len() - listed;
+        rows.push(vec![
+            format!("… {rest} more"),
+            String::new(),
+            String::new(),
+            String::new(),
+        ]);
+    }
     result.extra.push(Item::Table {
         headers: headers.into_iter().map(str::to_owned).collect(),
-        rows: data
-            .counts
-            .iter()
-            .zip(&data.sizes)
-            .enumerate()
-            .map(|(index, (count, size))| {
-                vec![
-                    (index + 1).to_string(),
-                    format!("{count:.0}"),
-                    format!("{size:.0}"),
-                    format!("{:.6}", count / size),
-                ]
-            })
-            .collect(),
+        rows,
     });
 
     let (estimate_name, unit) = match kind {
@@ -296,6 +314,16 @@ pub fn analyze(
             "rows with a missing count or size are excluded and counted".to_owned(),
         ),
     ];
+    if data.counts.len() > listed {
+        result.notes.push((
+            "Subgroup table".to_owned(),
+            format!(
+                "the table lists the first {listed} of {} subgroups; the summary above covers \
+                 every selected row and the worksheet holds the full list",
+                data.counts.len()
+            ),
+        ));
+    }
     if process_z.is_none() {
         result.warnings.push(match kind {
             AttributeCapabilityKind::Binomial => {
@@ -518,6 +546,7 @@ mod tests {
             Some("n"),
             None,
             0.95,
+            1,
         )
         .expect("capability");
         let text = out.results[0].to_session_text();

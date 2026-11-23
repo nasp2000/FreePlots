@@ -5,6 +5,13 @@
 
 use super::*;
 
+/// Width of the column combos: the whole field is the click target, not only
+/// the arrow.
+const COMBO_WIDTH: f32 = 200.0;
+
+/// Height of the scrollable column list inside a combo popup, in points.
+const COLUMN_LIST_HEIGHT: f32 = 260.0;
+
 impl FreePlotsApp {
     pub(super) fn capability_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_cap_dialog {
@@ -1386,6 +1393,10 @@ impl FreePlotsApp {
             .resizable(false)
             .default_width(420.0)
             .show(ctx, |ui| {
+                // The column list is long on a wide worksheet: a fixed popup
+                // height and a reserved scroll bar keep every column reachable.
+                ui.spacing_mut().combo_height = COLUMN_LIST_HEIGHT;
+                ui.spacing_mut().scroll.floating = false;
                 ui.horizontal(|ui| {
                     let label = ui.help_label("Distribution:");
                     egui::ComboBox::from_id_salt("attrcap_kind")
@@ -1411,6 +1422,7 @@ impl FreePlotsApp {
                         } else {
                             self.attrcap_defects.clone()
                         })
+                        .width(COMBO_WIDTH)
                         .show_ui(ui, |ui| {
                             for name in &columns {
                                 ui.selectable_value(
@@ -1432,6 +1444,7 @@ impl FreePlotsApp {
                                 .as_deref()
                                 .unwrap_or("None (use constant)"),
                         )
+                        .width(COMBO_WIDTH)
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
                                 &mut self.attrcap_sizes,

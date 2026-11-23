@@ -308,9 +308,16 @@ pub fn analyze(options: &VariablesOptions, sample: Option<&[f64]>) -> Result<Ana
             .to_owned(),
     );
     let plot = oc_plot(options, &plan);
-    result
-        .statistics
-        .push(("Compared plans", options.compare.len() as f64));
+    if !options.compare.is_empty() {
+        result
+            .statistics
+            .push(("Compared plans", options.compare.len() as f64));
+    }
+    if sample.is_none() {
+        // A plan is a decision, not a sample: no observation rows and no
+        // "0 compared" line when no comparison was asked for.
+        result = result.without_observations();
+    }
     Ok(AnalysisOutput {
         results: vec![result],
         plot: Some(plot),
